@@ -3,7 +3,13 @@ import { expect, test } from "bun:test";
 import { compileFigure } from "../../compiler/compile";
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import { attribute, descendants, parseXml } from "../xml";
-import { svgToEditablePptx } from "./editable";
+import {
+  endStub,
+  explodeDashes,
+  polylineSegments,
+  splitMaskedPath,
+  svgToEditablePptx,
+} from "./editable";
 import { readPptx } from "./testing";
 
 const compiled = compileFigure(`version: 1
@@ -157,4 +163,40 @@ test("unsupported arrowheads and glued self-loops fail with diagnostics", () => 
   expect(rejected.ok).toBe(false);
   expect(rejected.diagnostics[0]?.code).toBe("pptx/unsupported-geometry");
   expect(svgToEditablePptx(svg(200, 100, "M140 120L200 120"), loop).ok).toBe(true);
+});
+
+test("dashes keep the SVG's phase along a line, across an offset and a label gap", () => {
+  const line = [
+    { x: 0, y: 0 },
+    { x: 20, y: 0 },
+  ];
+  // 4 on / 2 off: dashes at 0-4, 6-10, 12-16, 18-20.
+  expect(explodeDashes(line, [4, 2], 0).map((d) => [d[0]?.x, d.at(-1)?.x])).toEqual([
+    [0, 4],
+    [6, 10],
+    [12, 16],
+    [18, 20],
+  ]);
+  // An offset of 3 starts 3 units into the pattern: 1 on, 2 off, then 4 on.
+  expect(explodeDashes(line, [4, 2], 3).map((d) => [d[0]?.x, d.at(-1)?.x])).toEqual([
+    [0, 1],
+    [3, 7],
+    [9, 13],
+    [15, 19],
+  ]);
+  // A label gap at x 7-11 cuts a dash in two without moving the others.
+  const pieces = explodeDashes(line, [4, 2], 0).flatMap((d) =>
+    splitMaskedPath(polylineSegments(d), [{ x: 7, y: -1, width: 4, height: 2 }]),
+  );
+  expect(pieces.map((p) => [p[0]?.to.x, p.at(-1)?.to.x])).toEqual([
+    [0, 4],
+    [6, 7],
+    [12, 16],
+    [18, 20],
+  ]);
+  expect(endStub(line, "end", 1)).toEqual([
+    { x: 19, y: 0 },
+    { x: 20, y: 0 },
+  ]);
+  expect(endStub(line, "start", 1).at(-1)).toEqual({ x: 1, y: 0 });
 });

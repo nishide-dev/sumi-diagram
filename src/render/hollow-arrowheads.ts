@@ -211,11 +211,18 @@ export function composeHollowArrowheads(svg: string, ir: FigureIR): Result<strin
 export const ROUTE_D = "data-sumi-route";
 /** D2's stroke of a line hidden between heads that meet. */
 export const ROUTE_STROKE = "data-sumi-route-stroke";
+/** The line `untrimmedRoutes()` replaced (the SVG's `d`, cut at the head), for editable PPTX's own heads. */
+export const CUT_D = "data-sumi-cut";
+/** Set on a line `untrimmedRoutes()` gave its stroke back: the SVG draws none of it. */
+export const CUT_HIDDEN = "data-sumi-hidden";
 
 /**
  * The SVG with D2's routes back on the lines `composeHollowArrowheads()`
  * cut or hid, for consumers that draw heads of their own at the route's
- * ends (editable PPTX): only those paths' `d` and `stroke` change.
+ * ends (editable PPTX): only those paths' `d` and `stroke` change. The
+ * SVG's own `d` stays in `data-sumi-cut` (and `data-sumi-hidden` marks a
+ * hidden line), since editable PPTX draws the hollow heads as shapes of
+ * their own and needs the line as the SVG draws it.
  */
 export function untrimmedRoutes(svg: string): string {
   if (!svg.includes(ROUTE_D) && !svg.includes(ROUTE_STROKE)) return svg;
@@ -228,6 +235,10 @@ export function untrimmedRoutes(svg: string): string {
       const value = new RegExp(`\\s${saved}="([^"]*)"`).exec(out)?.[1];
       if (value === undefined) continue;
       out = out.replace(new RegExp(`\\s${saved}="[^"]*"`), "");
+      out =
+        name === "d"
+          ? setRaw(out, CUT_D, /\sd="([^"]*)"/.exec(out)?.[1] ?? "")
+          : setRaw(out, CUT_HIDDEN, "true");
       out =
         value === "" && name === "stroke"
           ? out.replace(/\sstroke="[^"]*"/, "")
@@ -333,6 +344,8 @@ export interface HeadFrame {
   toMarker(p: Point): Point;
   /** `true` inside the head's outline (at its stroke's center), in marker coordinates. */
   inside(p: Point): boolean;
+  /** The head's outlines (closed; a circle is four cubics) in user space. */
+  outlines(): PathSegment[][];
 }
 
 /**
@@ -345,8 +358,11 @@ export function headFrame(
   end: "start" | "end",
   width: number,
 ): HeadFrame {
+  // `auto`, or the angle `composeHollowArrowheads()` fixes where the line turns differently.
   const orient = attribute(marker, "orient") ?? "0";
-  if (orient !== "auto") throw new Error(`Unsupported arrowhead marker orient "${orient}".`);
+  const angle = orient === "auto" ? undefined : Number(orient);
+  if (angle !== undefined && !Number.isFinite(angle))
+    throw new Error(`Unsupported arrowhead marker orient "${orient}".`);
   const refX = number(marker, "refX", 0);
   const refY = number(marker, "refY", 0);
   const markerWidth = number(marker, "markerWidth", 3);
@@ -365,6 +381,8 @@ export function headFrame(
     (attribute(marker, "markerUnits") ?? "strokeWidth") === "strokeWidth" ? width : 1;
   const scale = viewScale * unitScale;
   const shapes: ((p: Point) => boolean)[] = [];
+  /** Each shape's outline in marker coordinates. */
+  const outlines: ((toUser: (p: Point) => Point) => PathSegment[])[] = [];
   for (const shape of descendants(marker)) {
     if (shape === marker) continue;
     if (attribute(shape, "transform") !== undefined)
@@ -380,18 +398,40 @@ export function headFrame(
       for (let i = 0; i < values.length; i += 2)
         vertices.push({ x: values[i] as number, y: values[i + 1] as number });
       shapes.push((p) => insidePolygon(vertices, p));
+      outlines.push((toUser) => [
+        { command: "M", to: toUser(vertices[0] as Point) },
+        ...vertices.slice(1).map((v): PathSegment => ({ command: "L", to: toUser(v) })),
+        { command: "L", to: toUser(vertices[0] as Point) },
+      ]);
     } else if (shape.name === "circle") {
       const cx = number(shape, "cx", 0);
       const cy = number(shape, "cy", 0);
       const r = number(shape, "r");
       shapes.push((p) => Math.hypot(p.x - cx, p.y - cy) <= r);
+      outlines.push((toUser) => {
+        // Four cubics, 0.5523 of the radius for the control points.
+        const k = 0.5522847498 * r;
+        const at = (x: number, y: number) => toUser({ x: cx + x, y: cy + y });
+        return [
+          { command: "M", to: at(r, 0) },
+          { command: "C", c1: at(r, k), c2: at(k, r), to: at(0, r) },
+          { command: "C", c1: at(-k, r), c2: at(-r, k), to: at(-r, 0) },
+          { command: "C", c1: at(-r, -k), c2: at(-k, -r), to: at(0, -r) },
+          { command: "C", c1: at(k, -r), c2: at(r, -k), to: at(r, 0) },
+        ];
+      });
     } else {
       throw new Error(`Unsupported <${shape.name}> in a hollow arrowhead marker.`);
     }
   }
   const t = tangent(segments, end);
   // `orient="auto"`: the path's direction at that end (out of the path at its end).
-  const axis = end === "start" ? t : { x: -t.x, y: -t.y };
+  const axis =
+    angle !== undefined
+      ? { x: Math.cos((angle * Math.PI) / 180), y: Math.sin((angle * Math.PI) / 180) }
+      : end === "start"
+        ? t
+        : { x: -t.x, y: -t.y };
   const origin = ((end === "start" ? segments[0] : segments.at(-1)) as PathSegment).to;
   return {
     refX,
@@ -405,6 +445,18 @@ export function headFrame(
       };
     },
     inside: (p) => shapes.some((s) => s(p)),
+    outlines: () => {
+      // Marker coordinates → user space (the inverse of `toMarker`).
+      const toUser = (p: Point): Point => {
+        const a = (p.x - refX) * scale;
+        const b = (p.y - refY) * scale;
+        return {
+          x: origin.x + a * axis.x - b * axis.y,
+          y: origin.y + a * axis.y + b * axis.x,
+        };
+      };
+      return outlines.map((outline) => outline(toUser));
+    },
   };
 }
 

@@ -18,7 +18,7 @@ import { fontFileFor, measureLabel } from "../../lint/geometry/measure";
 import { FontParseError } from "../../lint/sfnt";
 import { readSvgMetadata } from "../finalize";
 import { BoundsBuilder, type PathSegment, type Point, parsePath, type Rect } from "../geometry";
-import { untrimmedRoutes } from "../hollow-arrowheads";
+import { CUT_D, CUT_HIDDEN, headFrame, untrimmedRoutes } from "../hollow-arrowheads";
 import {
   decodeElementClass,
   inspectSvg,
@@ -233,6 +233,105 @@ function geometry(
     ? `<a:cxnLst>${connectionPoints.map((p) => `<a:cxn ang="0"><a:pos x="${emu(p.x - box.x)}" y="${emu(p.y - box.y)}"/></a:cxn>`).join("")}</a:cxnLst>`
     : sites;
   return `<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/>${connections}<a:rect l="0" t="0" r="r" b="b"/><a:pathLst>${body}</a:pathLst></a:custGeom>`;
+}
+
+/** A route (one subpath of M / L / C) as a polyline: each cubic by 32 chords. */
+export function flattenPath(path: readonly PathSegment[]): Point[] {
+  const points: Point[] = [];
+  for (const seg of path) {
+    const from = points.at(-1);
+    if (seg.command !== "C" || !from) {
+      points.push(seg.to);
+      continue;
+    }
+    for (let k = 1; k <= 32; k++) {
+      const t = k / 32,
+        u = 1 - t;
+      points.push({
+        x:
+          u * u * u * from.x +
+          3 * u * u * t * seg.c1.x +
+          3 * u * t * t * seg.c2.x +
+          t * t * t * seg.to.x,
+        y:
+          u * u * u * from.y +
+          3 * u * u * t * seg.c1.y +
+          3 * u * t * t * seg.c2.y +
+          t * t * t * seg.to.y,
+      });
+    }
+  }
+  return points;
+}
+
+/**
+ * The dashes of a dash pattern (SVG's `stroke-dasharray` and `stroke-dashoffset`,
+ * in user units) along a polyline, each as its own polyline. PowerPoint's dash
+ * pattern always starts at a line's start, so a line that must keep the SVG's
+ * pattern (cut at a head, or split under a label) is drawn as its dashes.
+ */
+export function explodeDashes(
+  points: readonly Point[],
+  pattern: readonly number[],
+  offset: number,
+): Point[][] {
+  const period = pattern.reduce((a, b) => a + b, 0);
+  const first = points[0];
+  if (!first || !(period > 0)) return [];
+  let index = 0;
+  let position = ((offset % period) + period) % period;
+  while (position >= (pattern[index] as number)) {
+    position -= pattern[index] as number;
+    index = (index + 1) % pattern.length;
+  }
+  let remaining = (pattern[index] as number) - position;
+  let current: Point[] | undefined = index % 2 === 0 ? [first] : undefined;
+  const out: Point[][] = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1] as Point,
+      b = points[i] as Point;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    let travelled = 0;
+    while (length - travelled > remaining) {
+      travelled += remaining;
+      const t = travelled / length;
+      const p = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      if (current) {
+        current.push(p);
+        out.push(current);
+        current = undefined;
+      } else current = [p];
+      index = (index + 1) % pattern.length;
+      remaining = pattern[index] as number;
+    }
+    remaining -= length - travelled;
+    current?.push(b);
+  }
+  if (current && current.length > 1) out.push(current);
+  return out.filter((piece) => piece.length > 1);
+}
+
+/** A polyline as M / L segments. */
+export const polylineSegments = (points: readonly Point[]): PathSegment[] =>
+  points.map((to, i) => ({ command: i === 0 ? "M" : "L", to }));
+
+/** The last (or first) `length` units of a polyline, for a head on a dashed line. */
+export function endStub(points: readonly Point[], end: "start" | "end", length: number): Point[] {
+  const forward = end === "start" ? [...points] : [...points].reverse();
+  const stub: Point[] = [forward[0] as Point];
+  let walked = 0;
+  for (let i = 1; i < forward.length && walked < length; i++) {
+    const a = forward[i - 1] as Point,
+      b = forward[i] as Point;
+    const step = Math.hypot(b.x - a.x, b.y - a.y);
+    if (walked + step <= length) stub.push(b);
+    else {
+      const t = (length - walked) / step;
+      stub.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+    }
+    walked += step;
+  }
+  return end === "start" ? stub : stub.reverse();
 }
 
 /** Cut masked portions out of a path, preserving untouched cubic segments. */
@@ -658,10 +757,12 @@ export function svgToEditablePptx(
       style: { stroke: string; strokeWidth: { units: number }; opacity: number },
       ends = "",
       strokeStyle: "round" | "svg-default" = "round",
+      solid = false,
     ) => {
       const width = Number(property(el, "stroke-width") ?? style.strokeWidth.units);
       if (!Number.isFinite(width) || width < 0) throw new Error("Unsupported stroke width");
-      const dash = (property(el, "stroke-dasharray") ?? "")
+      // `solid`: the dashes are drawn one by one, so the line itself has none.
+      const dash = (solid ? "" : (property(el, "stroke-dasharray") ?? ""))
         .split(/[ ,]+/)
         .filter(Boolean)
         .map(Number);
@@ -1065,9 +1166,10 @@ export function svgToEditablePptx(
         .filter((e) => e.name === "marker")
         .map((e) => [attribute(e, "id"), e]),
     );
-    const ends = (edge: EdgeIR, path: XmlElement) => {
+    /** Heads drawn as shapes of their own (SVG's hollow ones) are not native line ends. */
+    const ends = (edge: EdgeIR, path: XmlElement, shapes: readonly ("start" | "end")[] = []) => {
       const emit = (at: "start" | "end", type: EdgeIR["sourceArrowhead"]) => {
-        if (!type || type === "none") return "";
+        if (!type || type === "none" || shapes.includes(at)) return "";
         // OOXML's `arrow` end is an open chevron: `open` (#386) maps to it exactly.
         const mapped = {
           triangle: "triangle",
@@ -1235,7 +1337,23 @@ export function svgToEditablePptx(
       const first = geo.path[0]?.to,
         last = geo.path.at(-1)?.to;
       if (!first || !last) throw new Error(`Empty edge ${key}`);
-      const arrows = ends(element, path);
+      // Hollow heads (#485) are shapes of their own, as in the SVG: the line stops at the
+      // head (the SVG's cut `d`) and the head's outline has no fill. PowerPoint's native
+      // heads are all filled.
+      const hollowEnds = (["start", "end"] as const).filter((at) => {
+        const type = at === "start" ? element.sourceArrowhead : element.targetArrowhead;
+        return (
+          !element.style.filled && (type === "triangle" || type === "diamond" || type === "circle")
+        );
+      });
+      const hiddenLine = hollowEnds.length > 0 && attribute(path, CUT_HIDDEN) === "true";
+      const cutD = hollowEnds.length > 0 ? attribute(path, CUT_D) : undefined;
+      const cutRoute = cutD === undefined ? undefined : parsePath(cutD);
+      if (cutRoute && !cutRoute.ok) throw new Error(`Unreadable cut route of edge ${key}`);
+      const route: PathSegment[] = hiddenLine ? [] : cutRoute?.ok ? cutRoute.segments : geo.path;
+      const arrows = ends(element, path, hollowEnds);
+      if (hiddenLine && arrows !== "")
+        throw new Error(`Edge ${key} hides its line between hollow heads but has a native head`);
       const maskId = /^url\(#(.+)\)$/.exec(attribute(path, "mask") ?? "")?.[1];
       const mask =
         maskId &&
@@ -1257,14 +1375,15 @@ export function svgToEditablePptx(
       // between sites: it stays a freeform shape in either mode.
       // D2 shares one label mask between edges: only a route that runs under
       // one of its rectangles has a gap to keep.
-      const crossesMask = masks.length > 0 && maskedLength(geo.path, masks) > 0.01;
+      const crossesMask = masks.length > 0 && maskedLength(route, masks) > 0.01;
       const splitTransparent = ir.meta.transparentBackground === true && crossesMask;
-      if (connectors === "glued" && element.route === "curve" && !splitTransparent) {
+      const ownHeads = hollowEnds.length > 0;
+      if (connectors === "glued" && element.route === "curve" && !splitTransparent && !ownHeads) {
         throw new Error(
           "Curved edges require freeform connectors; glued connectors cannot preserve cubic tangents. Use --pptx-connectors freeform.",
         );
       }
-      if (connectors === "glued" && element.routing !== "zoom" && !splitTransparent) {
+      if (connectors === "glued" && element.routing !== "zoom" && !splitTransparent && !ownHeads) {
         if (element.from === element.to)
           throw new Error("Glued self-loops are unsupported; use freeform connectors.");
         const src = objects.get(element.from),
@@ -1284,9 +1403,75 @@ export function svgToEditablePptx(
           `<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="${id}" name="${escapeXml(key)}"/><p:cNvCxnSpPr><a:stCxn id="${src.id}" idx="${a.index}"/><a:endCxn id="${dst.id}" idx="${b.index}"/></p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr><p:spPr>${xfrm(box, flip)}<a:prstGeom prst="straightConnector1"><a:avLst/></a:prstGeom>${line(path, element.style, arrows, edgeStroke)}</p:spPr></p:cxnSp>`,
         );
       } else {
-        const parts = masks.length ? splitMaskedPath(geo.path, masks) : [geo.path];
         const zoom = element.routing === "zoom";
         if (!zoom) firstRouted ??= output.length;
+        // A dash pattern starts at the line's start in PowerPoint, so a dashed line that was
+        // cut at a head or is split under a label is drawn dash by dash (#485), with the
+        // SVG's pattern and offset; the native heads sit on short solid stubs.
+        const dashes = (property(path, "stroke-dasharray") ?? "")
+          .split(/[ ,]+/)
+          .filter(Boolean)
+          .map(Number);
+        // The offset belongs to the SVG's cut line (see `withDashOffset`), not to D2's full route.
+        const dashOffset = cutRoute?.ok ? Number(property(path, "stroke-dashoffset") ?? 0) : 0;
+        const explode =
+          !zoom &&
+          route.length > 1 &&
+          dashes.length >= 2 &&
+          dashes.length % 2 === 0 &&
+          dashes.every((n) => Number.isFinite(n) && n > 0) &&
+          Number.isFinite(dashOffset) &&
+          (crossesMask || dashOffset !== 0);
+        const parts = explode
+          ? []
+          : route.length === 0
+            ? []
+            : masks.length
+              ? splitMaskedPath(route, masks)
+              : [route];
+        if (explode) {
+          const flat = flattenPath(route);
+          const pieces = explodeDashes(flat, dashes, dashOffset).flatMap((piece) =>
+            splitMaskedPath(polylineSegments(piece), masks),
+          );
+          const bounds = new BoundsBuilder();
+          for (const piece of pieces) bounds.addPath(piece);
+          const box = bounds.rect();
+          if (box)
+            output.push(
+              shape(
+                id,
+                key,
+                box,
+                geometry(
+                  pieces.map((segments) => ({ segments, filled: false })),
+                  box,
+                  emu,
+                ),
+                "<a:noFill/>",
+                line(path, element.style, "", edgeStroke, true),
+              ),
+            );
+          for (const at of ["start", "end"] as const) {
+            const native = arrows.match(
+              at === "start" ? /<a:headEnd[^>]*\/>/ : /<a:tailEnd[^>]*\/>/,
+            )?.[0];
+            if (!native) continue;
+            const stub = polylineSegments(endStub(flat, at, 1));
+            const stubBox = new BoundsBuilder().addPath(stub).rect();
+            if (!stubBox) throw new Error(`Unbounded edge ${key}`);
+            output.push(
+              shape(
+                next++,
+                key,
+                stubBox,
+                geometry([{ segments: stub, filled: false }], stubBox, emu),
+                "<a:noFill/>",
+                line(path, element.style, native, edgeStroke, true),
+              ),
+            );
+          }
+        }
         parts.forEach((part, index) => {
           const bounds = new BoundsBuilder().addPath(part).rect();
           if (!bounds) throw new Error(`Unbounded edge ${key}`);
@@ -1304,6 +1489,34 @@ export function svgToEditablePptx(
             ),
           );
         });
+        for (const at of hollowEnds) {
+          const marker = markers.get(
+            /^url\(#(.+)\)$/.exec(attribute(path, `marker-${at}`) ?? "")?.[1],
+          );
+          if (!marker) throw new Error(`Missing ${at} arrowhead marker of edge ${key}`);
+          const frame = headFrame(
+            marker,
+            cutRoute?.ok ? cutRoute.segments : geo.path,
+            at,
+            Number(property(path, "stroke-width") ?? 1),
+          );
+          const drawn = [...descendants(marker)].filter((e) => e !== marker);
+          drawn.forEach((el, k) => {
+            const outline = frame.outlines()[k];
+            const bounds = outline && new BoundsBuilder().addPath(outline).rect();
+            if (!outline || !bounds) throw new Error(`Unbounded arrowhead of edge ${key}`);
+            output.push(
+              shape(
+                next++,
+                key,
+                bounds,
+                geometry([{ segments: outline, filled: true }], bounds, emu),
+                "<a:noFill/>",
+                line(el, element.style, "", edgeStroke),
+              ),
+            );
+          });
+        }
       }
       const children = childElements(group);
       const texts = children.filter((e) => e.name === "text");

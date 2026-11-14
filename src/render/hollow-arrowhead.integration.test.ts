@@ -201,6 +201,48 @@ describe.skipIf(!available)("hollow arrowheads in editable PPTX", () => {
   });
 });
 
+describe.skipIf(!available)("hollow arrowheads as shapes in editable PPTX (#485)", () => {
+  const heads = ["triangle", "diamond", "circle"] as const;
+  const slide = async () => {
+    const rendered = await render("canvas", heads);
+    const d2 = expectD2Rendered(rendered);
+    const result = svgToEditablePptx(rendered.svg, d2.compiled.ir);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const xml = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+    return xml.match(/<p:sp>.*?<\/p:sp>/g) ?? [];
+  };
+
+  test("an unfilled head is an outline shape without fill; the line stops at it", async () => {
+    const shapes = await slide();
+    const of = (i: number) => shapes.filter((x) => x.includes(`name="e:#${i}"`));
+    for (const i of [0, 1, 2]) {
+      // The diamonds meet: no line between them, only the two heads.
+      const [line, ...tips] = i === 1 ? [undefined, ...of(i)] : of(i);
+      // No native (filled) head: the two ends are shapes.
+      expect(of(i).join("")).not.toMatch(/<a:(headEnd|tailEnd)/);
+      expect(tips).toHaveLength(2);
+      for (const tip of tips) {
+        expect(tip).toContain("<a:noFill/><a:ln");
+        expect(tip).not.toContain("<a:prstDash");
+      }
+      // The SVG's line is cut at the head: 147.5..165.5 for the first edge, not D2's 136..177.
+      if (i === 0) expect(line ?? "").toContain('<a:ext cx="114300"');
+    }
+    expect(of(0)[1]).toContain("<a:close/>");
+    expect(of(2)[1]).toContain("<a:cubicBezTo>");
+  });
+
+  test("a dashed line cut at a head keeps the pattern of the SVG", async () => {
+    const shapes = await slide();
+    const dashed = shapes.filter((x) => x.includes('name="e:#3"'));
+    // The line is its dashes (3 on, 3 off), solid, in the phase the SVG gives them.
+    const first = dashed[0] ?? "";
+    expect(first).not.toContain("<a:custDash>");
+    expect(first.match(/<a:path /g)?.length).toBeGreaterThan(5);
+    expect(first).toContain('<a:pt x="0" y="0"/></a:moveTo><a:lnTo><a:pt x="19050" y="0"/>');
+  });
+});
+
 describe("cutPath", () => {
   const segments = (d: string) => {
     const parsed = parsePath(d);
@@ -237,8 +279,8 @@ describe("untrimmedRoutes", () => {
       '<path d="M 0 5 L 4 5" stroke="none" data-sumi-route-stroke="#123"/>' +
       '<path d="M 0 9 L 4 9" stroke="#000"/></g>';
     expect(untrimmedRoutes(svg)).toBe(
-      '<g><path d="M 0 0 L 10 0" stroke="#000"/>' +
-        '<path d="M 0 5 L 4 5" stroke="#123"/>' +
+      '<g><path d="M 0 0 L 10 0" stroke="#000" data-sumi-cut="M 1 0 L 9 0"/>' +
+        '<path d="M 0 5 L 4 5" stroke="#123" data-sumi-hidden="true"/>' +
         '<path d="M 0 9 L 4 9" stroke="#000"/></g>',
     );
   });
