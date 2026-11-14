@@ -21,8 +21,6 @@
  * - set enclosures under every built-in theme (#407) → docs/gallery/sets/
  * - stroke options under every built-in theme (#427) → docs/gallery/strokes/
  * - one figure under every built-in palette (#417) → docs/gallery/palettes/
- * - legend entries with icon, glyph, edge and set samples under every theme (#409) →
- *   docs/gallery/legend-samples/
  * - every `skills/sumi/layouts/<name>/<name>.sumi.yaml` (#511) → the SVG next to it; each must
  *   render without errors or warnings (infos allowed)
  * - `examples/transformer` (structured layout) under every built-in theme →
@@ -57,7 +55,6 @@ import {
   filledToneSample,
   GALLERY_DIR,
   glyphSample,
-  legendSample,
   outlinedToneSample,
   paletteSample,
   type Rendering,
@@ -96,7 +93,6 @@ const glyphs = glyphSample();
 const sets = setsSample();
 const strokes = strokeSample();
 const palettes = paletteSample();
-const legends = legendSample();
 const outlinedTones = outlinedToneSample();
 const filledTones = filledToneSample();
 
@@ -160,9 +156,6 @@ for (const rendering of strokes.renderings) {
 }
 for (const rendering of palettes.renderings) {
   jobs.push({ file: palettes.fileName, source: rendering.source, rendering });
-}
-for (const rendering of legends.renderings) {
-  jobs.push({ file: legends.fileName, source: legends.source, rendering });
 }
 for (const rendering of outlinedTones.renderings) {
   jobs.push({ file: outlinedTones.fileName, source: outlinedTones.source, rendering });
@@ -239,7 +232,6 @@ const model: GalleryModel = {
   sets: { sample: sets, outcomes: take(sets.renderings.length) },
   strokes: { sample: strokes, outcomes: take(strokes.renderings.length) },
   palettes: { sample: palettes, outcomes: take(palettes.renderings.length) },
-  legends: { sample: legends, outcomes: take(legends.renderings.length) },
   outlinedTones: { sample: outlinedTones, outcomes: take(outlinedTones.renderings.length) },
   filledTones: { sample: filledTones, outcomes: take(filledTones.renderings.length) },
 };
@@ -264,7 +256,6 @@ const strict: [string, RenderOutcome][] = [
     `palettes (${palettes.renderings[i]?.palette})`,
     o,
   ]),
-  ...model.legends.outcomes.map((o): [string, RenderOutcome] => [`legend samples (${o.theme})`, o]),
   ...model.filledTones.outcomes.map((o): [string, RenderOutcome] => [
     `filled tones (${o.theme})`,
     o,

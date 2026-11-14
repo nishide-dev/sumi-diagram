@@ -72,7 +72,10 @@ import {
   type TextLayout,
   type TextMetrics,
 } from "../ir";
+import { sampleCubic } from "../route/cubic";
+import { curveLabel, loopLabelEdge, selfLoopAnchors, selfLoopPoints } from "../route/curve";
 import { arrowheadPaddingDeficits, type SidePadding } from "../route/padding";
+import { anchorPoint, isJunction } from "../route/ports";
 import { captionGap, fontSetMeasurer, measureText, type TextMeasurer } from "../text";
 import {
   type AlignLimits,
@@ -1100,7 +1103,50 @@ class StructuredLayout {
    */
   #decorations(node: NodeIR, body: Rect): Rect[] {
     const caption = this.#captionRect(node, body);
-    return [...decorationRects(node, body), ...(caption === undefined ? [] : [caption])];
+    return [
+      ...decorationRects(node, body),
+      ...(caption === undefined ? [] : [caption]),
+      ...this.#loopRects(node, body),
+    ];
+  }
+
+  /**
+   * The room a curved self-loop (#544, `route: curve` from a node to itself,
+   * #519) takes outside its node, with its label: the bounds of the loop as the
+   * router draws it from the body's side anchors, so a neighbour or a frame is
+   * placed clear of it like of a badge.
+   */
+  #loopRects(node: NodeIR, body: Rect): Rect[] {
+    if (isJunction(node)) return [];
+    const rects: Rect[] = [];
+    for (const edge of this.#ir.edges) {
+      if (edge.route !== "curve" || edge.from !== node.key || edge.to !== node.key) continue;
+      const anchors = selfLoopAnchors(edge);
+      if (typeof anchors === "string") continue; // the router reports it
+      const a = anchorPoint(body, anchors.from);
+      const b = anchorPoint(body, anchors.to);
+      if (a.x === b.x && a.y === b.y) continue;
+      const points = selfLoopPoints(edge, a, b, anchors.from.side);
+      const samples = sampleCubic(points);
+      let x0 = Number.POSITIVE_INFINITY;
+      let y0 = Number.POSITIVE_INFINITY;
+      let x1 = Number.NEGATIVE_INFINITY;
+      let y1 = Number.NEGATIVE_INFINITY;
+      const grow = (x: number, y: number, x2 = x, y2 = y) => {
+        x0 = Math.min(x0, x);
+        y0 = Math.min(y0, y);
+        x1 = Math.max(x1, x2);
+        y1 = Math.max(y1, y2);
+      };
+      for (const q of samples) grow(q.x, q.y);
+      const metrics = measureText(edge.label, edge.style, this.#measurer);
+      if (metrics !== undefined) {
+        const { box } = curveLabel(metrics, points, loopLabelEdge(edge, a, b, anchors.from.side));
+        grow(box.x, box.y, box.x + box.width, box.y + box.height);
+      }
+      rects.push({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 });
+    }
+    return rects;
   }
 
   /** The box of a node's caption below its frame (#491), `body` being the frame. */

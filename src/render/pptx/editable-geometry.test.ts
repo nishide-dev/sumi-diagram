@@ -3,7 +3,7 @@ import { expect, test } from "bun:test";
 import { compileFigure } from "../../compiler/compile";
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import { attribute, descendants, parseXml } from "../xml";
-import { svgToEditablePptx } from "./editable";
+import { alignDashPhase, dashOnPieces, splitMaskedPath, svgToEditablePptx } from "./editable";
 import { readPptx } from "./testing";
 
 const compiled = compileFigure(`version: 1
@@ -157,4 +157,106 @@ test("unsupported arrowheads and glued self-loops fail with diagnostics", () => 
   expect(rejected.ok).toBe(false);
   expect(rejected.diagnostics[0]?.code).toBe("pptx/unsupported-geometry");
   expect(svgToEditablePptx(svg(200, 100, "M140 120L200 120"), loop).ok).toBe(true);
+});
+
+test("parts after a label gap or a dash offset start at the SVG pattern's next period boundary", () => {
+  const route = [
+    { command: "M", to: { x: 0, y: 0 } },
+    { command: "L", to: { x: 20, y: 0 } },
+  ] as const;
+  const xs = (parts: { part: { to: { x: number } }[] | undefined }[]) =>
+    parts.map(({ part }) => part && [part[0]?.to.x, part.at(-1)?.to.x]);
+  // 4 on / 2 off, period 6. A mask wholly inside the dash at 6-10 (7 to 9) leaves two parts:
+  // the first runs to 7; the second starts at 9, 3 into the period, so at 12 (the dash at 9-10 goes).
+  const masked = splitMaskedPath([...route], [{ x: 7, y: -1, width: 2, height: 2 }]);
+  expect(xs(masked.map((part) => ({ part })))).toEqual([
+    [0, 7],
+    [9, 20],
+  ]);
+  expect(xs(alignDashPhase(route, masked, [4, 2], 0))).toEqual([
+    [0, 7],
+    [12, 20],
+  ]);
+  // An offset of 3 begins 3 into the period: the line starts at its next dash, at 3.
+  expect(xs(alignDashPhase(route, [[...route]], [4, 2], 3))).toEqual([[3, 20]]);
+  // A part already on a boundary stays; one shorter than the shift is dropped.
+  expect(xs(alignDashPhase(route, [[...route]], [4, 2], 6))).toEqual([[0, 20]]);
+  const short = [
+    { command: "M", to: { x: 8, y: 0 } },
+    { command: "L", to: { x: 9, y: 0 } },
+  ] as const;
+  expect(alignDashPhase(route, [[...short]], [4, 2], 0)[0]?.part).toBeUndefined();
+});
+
+test("a tail part too short to align draws only what the SVG pattern draws in it", () => {
+  const route = [
+    { command: "M", to: { x: 0, y: 0 } },
+    { command: "L", to: { x: 20, y: 0 } },
+  ] as const;
+  const xs = (pieces: { x: number }[][]) => pieces.map((p) => [p[0]?.x, p.at(-1)?.x]);
+  const line = (a: number, b: number) =>
+    [
+      { command: "M", to: { x: a, y: 0 } },
+      { command: "L", to: { x: b, y: 0 } },
+    ] as const;
+  const pieces = (a: number, b: number) => {
+    const [aligned] = alignDashPhase(route, [[...line(a, b)]], [4, 2], 0);
+    expect(aligned?.part).toBeUndefined();
+    return dashOnPieces(
+      [
+        { x: a, y: 0 },
+        { x: b, y: 0 },
+      ],
+      [4, 2],
+      aligned?.phase ?? 0,
+    );
+  };
+  // 10 to 11 lies wholly in the gap (dashes 6-10, 12-16): nothing is drawn.
+  expect(pieces(10, 11)).toEqual([]);
+  // 9 to 11.5 starts in the dash 6-10: only 9 to 10 is drawn.
+  expect(xs(pieces(9, 11.5))).toEqual([[9, 10]]);
+  // 7 to 9 is wholly inside the dash 6-10: it is drawn whole and reaches the tip.
+  expect(xs(pieces(7, 9))).toEqual([[7, 9]]);
+  // A longer tail is trimmed to the boundary at 12 and keeps native dashes.
+  const longer = alignDashPhase(route, [[...line(9, 20)]], [4, 2], 0)[0]?.part ?? [];
+  expect([longer[0]?.to.x, longer.at(-1)?.to.x]).toEqual([12, 20]);
+});
+
+test("a dashed tail ending in a gap keeps its head as a shape: filled triangle and open chevron", () => {
+  // 4 on / 2 off along 140..199; the label mask hides 130..197, leaving 197..199: the part
+  // starts 3 into the period and ends at 59 (5 in, a gap), shorter than the shift to 12.
+  const marker = (head: "triangle" | "open") =>
+    `<marker id="mk" markerWidth="12" markerHeight="12" refX="10.5" refY="6" viewBox="0 0 12 12" orient="auto" markerUnits="userSpaceOnUse">${
+      head === "triangle"
+        ? '<polygon points="0,0 12,6 0,12" fill="#112233" class="connection" stroke-width="1"/>'
+        : '<path d="M 0 0 L 12 6 L 0 12" fill="none" stroke="#112233" stroke-width="1"/>'
+    }</marker>`;
+  const source = (head: "triangle" | "open") =>
+    svg(200, 100, "M140 120L199 120").replace(
+      /<path class="connection"[^>]*\/>/,
+      `<mask id="m"><rect x="0" y="0" width="400" height="400" fill="white"/><rect x="130" y="110" width="67" height="20" fill="black"/></mask>${marker(head)}<path class="connection" d="M140 120L199 120" stroke="#000000" fill="none" style="stroke-dasharray:4,2;" marker-end="url(#mk)" mask="url(#m)"/>`,
+    );
+  for (const head of ["triangle", "open"] as const) {
+    const result = svgToEditablePptx(
+      source(head),
+      withEdge((e) => ({ ...e, targetArrowhead: head })),
+    );
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const slide = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+    const shapes = (slide.match(/<p:sp>.*?<\/p:sp>/g) ?? []).filter((x) =>
+      x.includes('name="e:#0"'),
+    );
+    // No native head on a line that would paint into the gap; the head is its own shape.
+    expect(shapes.join("")).not.toMatch(/<a:(headEnd|tailEnd)/);
+    const tip = shapes.find((x) =>
+      head === "triangle"
+        ? x.includes("<a:close/>")
+        : /<a:lnTo>.*<a:lnTo>/.test(x) &&
+          !x.includes("<a:close/>") &&
+          x.includes('<a:path w="76200"'),
+    );
+    expect(tip).toBeDefined();
+    if (head === "triangle") expect(tip).toContain('<a:srgbClr val="112233">');
+    else expect(tip).toContain("<a:noFill/><a:ln");
+  }
 });
