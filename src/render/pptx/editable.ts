@@ -18,7 +18,14 @@ import { fontFileFor, measureLabel } from "../../lint/geometry/measure";
 import { FontParseError } from "../../lint/sfnt";
 import { readSvgMetadata } from "../finalize";
 import { BoundsBuilder, type PathSegment, type Point, parsePath, type Rect } from "../geometry";
-import { CUT_D, CUT_HIDDEN, headFrame, trimPathStart, untrimmedRoutes } from "../hollow-arrowheads";
+import {
+  CUT_D,
+  CUT_HIDDEN,
+  type HeadOutline,
+  headFrame,
+  trimPathStart,
+  untrimmedRoutes,
+} from "../hollow-arrowheads";
 import {
   decodeElementClass,
   inspectSvg,
@@ -1193,7 +1200,7 @@ export function svgToEditablePptx(
         .filter((e) => e.name === "marker")
         .map((e) => [attribute(e, "id"), e]),
     );
-    /** Heads drawn as shapes of their own (SVG's hollow ones) are not native line ends. */
+    /** Heads drawn as shapes of their own (SVG's hollow ones, arrow, box and cross) are not native line ends. */
     const ends = (edge: EdgeIR, path: XmlElement, shapes: readonly ("start" | "end")[] = []) => {
       const emit = (at: "start" | "end", type: EdgeIR["sourceArrowhead"]) => {
         if (!type || type === "none" || shapes.includes(at)) return "";
@@ -1201,9 +1208,11 @@ export function svgToEditablePptx(
         const mapped = {
           triangle: "triangle",
           open: "arrow",
-          arrow: "arrow",
           diamond: "diamond",
           circle: "oval",
+          // Without a marker (the structured SVG) the OOXML end stands in; with one, `arrow`
+          // is drawn as a shape of its own (`hollowEnds`).
+          arrow: "arrow",
           box: "",
           cross: "",
         }[type];
@@ -1366,11 +1375,15 @@ export function svgToEditablePptx(
       if (!first || !last) throw new Error(`Empty edge ${key}`);
       // Hollow heads (#485) are shapes of their own, as in the SVG: the line stops at the
       // head (the SVG's cut `d`) and the head's outline has no fill. PowerPoint's native
-      // heads are all filled.
+      // heads are all filled, so are those it has no form for: D2's concave `arrow` (filled
+      // even when unfilled), `box` and `cross` (a white-filled plus), drawn from the D2 marker.
       const hollowEnds = (["start", "end"] as const).filter((at) => {
         const type = at === "start" ? element.sourceArrowhead : element.targetArrowhead;
         return (
-          !element.style.filled && (type === "triangle" || type === "diamond" || type === "circle")
+          ((type === "arrow" || type === "box" || type === "cross") &&
+            attribute(path, `marker-${at}`) !== undefined) ||
+          (!element.style.filled &&
+            (type === "triangle" || type === "diamond" || type === "circle"))
         );
       });
       const hiddenLine = hollowEnds.length > 0 && attribute(path, CUT_HIDDEN) === "true";
@@ -1379,6 +1392,33 @@ export function svgToEditablePptx(
       if (cutRoute && !cutRoute.ok) throw new Error(`Unreadable cut route of edge ${key}`);
       const route: PathSegment[] = hiddenLine ? [] : cutRoute?.ok ? cutRoute.segments : geo.path;
       const arrows = ends(element, path, hollowEnds);
+      /**
+       * One shape of a head as a freeform of its own, painted as the marker paints it: its
+       * fill (none for an open chevron and a hollow head), and its stroke, if the marker has
+       * one (D2's filled heads have none).
+       */
+      const headShape = (outline: HeadOutline, shapeId: number) => {
+        const bounds = new BoundsBuilder().addPath(outline.segments).rect();
+        if (!bounds) throw new Error(`Unbounded arrowhead of edge ${key}`);
+        const fill = property(outline.source, "fill");
+        const stroke = property(outline.source, "stroke");
+        return shape(
+          shapeId,
+          key,
+          bounds,
+          geometry([{ segments: outline.segments, filled: outline.closed }], bounds, emu),
+          !outline.closed || fill === "none"
+            ? "<a:noFill/>"
+            : paint(
+                fill ?? (property(path, "stroke") || element.style.stroke),
+                element.style.opacity,
+              ),
+          stroke === undefined || stroke === "none"
+            ? "<a:ln><a:noFill/></a:ln>"
+            : line(outline.source, element.style, "", edgeStroke, true),
+        );
+      };
+
       if (hiddenLine && arrows !== "")
         throw new Error(`Edge ${key} hides its line between hollow heads but has a native head`);
       const maskId = /^url\(#(.+)\)$/.exec(attribute(path, "mask") ?? "")?.[1];
@@ -1444,11 +1484,14 @@ export function svgToEditablePptx(
           .map(Number);
         // The offset belongs to the SVG's cut line (see `withDashOffset`), not to D2's full route.
         const dashOffset = cutRoute?.ok ? Number(property(path, "stroke-dashoffset") ?? 0) : 0;
+        // Round dots (a zero-length dash, #427) are PowerPoint's `sysDot`: its period differs
+        // from the SVG's, but each part still starts on one of the SVG's dots.
+        const dotted = dashes.length === 2 && dashes[0] === 0 && (dashes[1] ?? 0) > 0;
         const aligned =
           !zoom &&
           dashes.length >= 2 &&
           dashes.length % 2 === 0 &&
-          dashes.every((n) => Number.isFinite(n) && n > 0) &&
+          (dotted || dashes.every((n) => Number.isFinite(n) && n > 0)) &&
           Number.isFinite(dashOffset);
         const split =
           route.length === 0 ? [] : masks.length ? splitMaskedPath(route, masks) : [route];
@@ -1469,7 +1512,8 @@ export function svgToEditablePptx(
           if (carriesHead) return [{ part: original, index, last, solid: false, tail: true }];
           if (aligned?.part) return [{ part: aligned.part, index, last, solid: false, tail: true }];
           if (!carriesTail || !aligned) return [];
-          const pieces = dashOnPieces(flattenPath(original), dashes, aligned.phase);
+          // A part shorter than the way to its next dot has none.
+          const pieces = dotted ? [] : dashOnPieces(flattenPath(original), dashes, aligned.phase);
           const tip = original.at(-1)?.to as Point;
           const reaches = pieces.at(-1)?.at(-1);
           const tipOn = !!reaches && Math.hypot(reaches.x - tip.x, reaches.y - tip.y) < 1e-6;
@@ -1510,32 +1554,7 @@ export function svgToEditablePptx(
             "end",
             Number(property(path, "stroke-width") ?? 1),
           );
-          [...descendants(marker)]
-            .filter((e) => e !== marker)
-            .forEach((el, k) => {
-              const outline = frame.outlines()[k];
-              const bounds = outline && new BoundsBuilder().addPath(outline.segments).rect();
-              if (!outline || !bounds) throw new Error(`Unbounded arrowhead of edge ${key}`);
-              const fill = property(el, "fill");
-              output.push(
-                shape(
-                  next++,
-                  key,
-                  bounds,
-                  geometry([{ segments: outline.segments, filled: outline.closed }], bounds, emu),
-                  // An open chevron has no interior; a filled head takes its own fill.
-                  !outline.closed
-                    ? "<a:noFill/>"
-                    : fill && fill !== "none"
-                      ? paint(fill, element.style.opacity)
-                      : paint(
-                          property(path, "stroke") ?? element.style.stroke,
-                          element.style.opacity,
-                        ),
-                  line(el, element.style, "", edgeStroke, true),
-                ),
-              );
-            });
+          for (const outline of frame.outlines()) output.push(headShape(outline, next++));
         }
         for (const at of hollowEnds) {
           const marker = markers.get(
@@ -1548,22 +1567,7 @@ export function svgToEditablePptx(
             at,
             Number(property(path, "stroke-width") ?? 1),
           );
-          const drawn = [...descendants(marker)].filter((e) => e !== marker);
-          drawn.forEach((el, k) => {
-            const outline = frame.outlines()[k];
-            const bounds = outline && new BoundsBuilder().addPath(outline.segments).rect();
-            if (!outline || !bounds) throw new Error(`Unbounded arrowhead of edge ${key}`);
-            output.push(
-              shape(
-                next++,
-                key,
-                bounds,
-                geometry([{ segments: outline.segments, filled: outline.closed }], bounds, emu),
-                "<a:noFill/>",
-                line(el, element.style, "", edgeStroke),
-              ),
-            );
-          });
+          for (const outline of frame.outlines()) output.push(headShape(outline, next++));
         }
       }
       const children = childElements(group);

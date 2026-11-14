@@ -26,15 +26,17 @@ const binary = findD2Binary();
 const available = binary.ok && (await checkD2Version(binary.value.path)).ok;
 
 const HEADS = ["triangle", "diamond", "circle", "box", "cross"] as const;
-type Head = (typeof HEADS)[number];
+type Head = "arrow" | (typeof HEADS)[number];
 
 /** A figure with one edge per head (heads at both ends, all unfilled) and a dashed one. */
 async function render(
   background: "canvas" | "transparent" = "canvas",
   heads: readonly Head[] = HEADS,
+  filled = false,
 ) {
   const registry = createBuiltinRegistry();
-  for (const head of heads) {
+  // The dashed edge always has a triangle.
+  for (const head of new Set<Head>([...heads, "triangle"])) {
     const registered = registry.register({
       version: 1,
       kind: "edge",
@@ -67,10 +69,7 @@ ${heads.map((h) => `  - { from: a${h}, to: b${h}, component: test/${h} }`).join(
   const ir = withStyles(
     figure.ir,
     Object.fromEntries(
-      figure.ir.edges.map((e) => [
-        e.key,
-        { filled: false, ...(e.key === last && { strokeDash: 3 }) },
-      ]),
+      figure.ir.edges.map((e) => [e.key, { filled, ...(e.key === last && { strokeDash: 3 }) }]),
     ),
   );
   const value = { ...figure, ir, d2Source: generateD2(ir) };
@@ -252,6 +251,105 @@ describe.skipIf(!available)("hollow arrowheads as shapes in editable PPTX (#485)
     // The SVG's pattern is at (distance + offset) mod 6; the line starts on a boundary.
     const phase = (((x - startX + offset) % 6) + 6) % 6;
     expect(Math.min(phase, 6 - phase)).toBeLessThan(0.01);
+  });
+});
+
+describe.skipIf(!available)("arrow, box and cross heads as shapes in editable PPTX (#485)", () => {
+  const heads = ["arrow", "box", "cross"] as const;
+  const slide = async (filled: boolean) => {
+    const rendered = await render("canvas", heads, filled);
+    const d2 = expectD2Rendered(rendered);
+    const result = svgToEditablePptx(rendered.svg, d2.compiled.ir);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const xml = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+    const shapes = xml.match(/<p:sp>.*?<\/p:sp>/g) ?? [];
+    const of = (i: number) => shapes.filter((x) => x.includes(`name="e:#${i}"`));
+    const fill = (x: string) =>
+      /<\/a:custGeom>(<a:noFill\/>|<a:solidFill>.*?<\/a:solidFill>)/.exec(x)?.[1];
+    return { xml, of, fill };
+  };
+
+  test("arrow is the SVG's filled concave polygon, filled or not, without a native head", async () => {
+    for (const filled of [true, false]) {
+      const { of, fill } = await slide(filled);
+      const shapes = of(0);
+      expect(shapes.join("")).not.toMatch(/<a:(headEnd|tailEnd)/);
+      // The line, then the two heads: tip, back corner, notch, back corner (12 x 12 units).
+      const tips = shapes.slice(1);
+      expect(tips).toHaveLength(2);
+      for (const tip of tips) {
+        expect(tip.match(/<a:lnTo>/g)).toHaveLength(3);
+        expect(tip).toContain("<a:close/>");
+        expect(fill(tip)).toContain('srgbClr val="000000"');
+        // D2's marker has no stroke: nothing may widen the polygon.
+        expect(tip).toContain("<a:ln><a:noFill/></a:ln>");
+      }
+      expect(tips[0]).toContain('<a:ext cx="76200" cy="76200"/>');
+    }
+  });
+
+  test("box is a square: filled with the line under it, or an outline where the line stops", async () => {
+    const filled = await slide(true);
+    const [line, ...boxes] = filled.of(1);
+    expect(boxes).toHaveLength(2);
+    expect(line).toContain('<a:ext cx="260350"');
+    for (const box of boxes) {
+      expect(box).toContain('<a:ext cx="101600" cy="101600"/>');
+      expect(filled.fill(box)).toContain('srgbClr val="000000"');
+    }
+    const hollow = await slide(false);
+    const [cut, ...outlines] = hollow.of(1);
+    expect(cut).toContain('<a:ext cx="76200"');
+    for (const box of outlines) {
+      expect(hollow.fill(box)).toBe("<a:noFill/>");
+      expect(box).toContain('<a:ln w="6350"');
+    }
+  });
+
+  test("cross is the SVG's turned plus: white inside and the line through it, or no fill", async () => {
+    for (const filled of [true, false]) {
+      const { of, fill } = await slide(filled);
+      // The line, a plus (12 vertices) and its stem per end, as D2 draws them.
+      const shapes = of(2);
+      const pluses = shapes.filter((x) => x.match(/<a:lnTo>/g)?.length === 11);
+      expect(pluses).toHaveLength(2);
+      for (const plus of pluses) {
+        expect(plus).toContain("<a:close/>");
+        if (filled) expect(fill(plus)).toContain('srgbClr val="FFFFFF"');
+        else expect(fill(plus)).toBe("<a:noFill/>");
+        expect(plus).toContain('<a:ln w="6350"');
+      }
+      expect(shapes.join("")).not.toMatch(/<a:(headEnd|tailEnd)/);
+      expect(shapes).toHaveLength(5);
+    }
+  });
+});
+
+describe.skipIf(!available)("dotted lines split under a label in editable PPTX (#485)", () => {
+  test("each part starts on one of the SVG's dots", async () => {
+    const rendered = await render("canvas", ["triangle"]);
+    const d2 = expectD2Rendered(rendered);
+    // D2's auto layout draws no dots: give the dashed line the structured layout's pattern.
+    const dotted = rendered.svg.replace(/stroke-dasharray:[^;]*;/g, "stroke-dasharray:0,3;");
+    expect(dotted).not.toBe(rendered.svg);
+    const result = svgToEditablePptx(dotted, d2.compiled.ir);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const xml = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+    const lines = (xml.match(/<p:sp>.*?<\/p:sp>/g) ?? []).filter(
+      (x) => x.includes('name="e:#1"') && x.includes('<a:prstDash val="sysDot"/>'),
+    );
+    // Split at the label's gap: still editable dotted lines, one per side.
+    expect(lines.length).toBeGreaterThanOrEqual(2);
+    const { path } = edgeParts(dotted, 1);
+    const startX = points(path)[0]?.x as number;
+    const offset = Number(
+      /stroke-dashoffset:([\d.]+)/.exec(attribute(path, "style") ?? "")?.[1] ?? 0,
+    );
+    for (const part of lines) {
+      const x = Number(/<a:off x="(\d+)"/.exec(part)?.[1]) / 6350;
+      const phase = (((x - startX + offset) % 3) + 3) % 3;
+      expect(Math.min(phase, 3 - phase)).toBeLessThan(0.01);
+    }
   });
 });
 
