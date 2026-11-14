@@ -1,0 +1,20 @@
+version: 1
+figure:
+  id: legend-all-samples
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        items: [key]
+nodes:
+  - id: key
+    component: legend
+    props:
+      entries:
+        - { node: {}, label: Box }
+        - { edge: { component: arrow }, label: Solid }
+        - { edge: { component: arrow, variant: dashed }, label: Dashed }
+        - { set: { tone: green }, label: Set }
+        - { glyph: { kind: dot, tone: red }, labelAt: left, label: Glyph }
+        - { icon: tabler/flask, labelAt: left, label: Icon }

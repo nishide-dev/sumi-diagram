@@ -98,7 +98,7 @@ import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
 import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
 import { groupArrowheadStems } from "./padding";
-import { separateParallelRuns } from "./parallel";
+import { separateParallelRuns, separateSameSideRuns } from "./parallel";
 import {
   bottomOf,
   DIRS,
@@ -146,7 +146,12 @@ export const ROUTE = Object.freeze({
    * The arrowhead-length stub remains a hard constraint.
    */
   arrowRoom: 60,
+  /** Extra grid lines beside a same-side skip's ends, for nested skips to take separate lanes. */
+  sideLanes: 3,
 });
+
+/** Stroke-to-stroke gap between lanes of nested same-side skips (1.5pt, with rounding room). */
+const SIDE_LANE_GAP = 3.02;
 
 // In its own module so the structured engine can size group padding by it
 // (#171, `padding.ts`) without importing the router.
@@ -672,24 +677,27 @@ class Router {
       this.#occupy(cells, edge);
       routes.set(edge.ir.key, points);
     }
-    separateParallelRuns(
+    const parallelEdges = routable.map((e) => ({
+      key: e.ir.key,
+      width: e.ir.style.strokeWidth.units,
+      fromRoom: Math.max(e.fromLane, e.fromRoom),
+      toRoom: Math.max(e.toLane, e.toRoom),
+    }));
+    const obstacles = [
+      ...this.#obstacles.map((o) => o.rect),
+      ...this.#layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
+      ...captionBoxes(this.#ir, this.#layout),
+    ];
+    const byKey = new Map(routable.map((e) => [e.ir.key, e] as const));
+    const shares = (a: ElementKey, b: ElementKey) =>
+      sharable(byKey.get(a) as Edge, byKey.get(b) as Edge);
+    separateParallelRuns(routes, parallelEdges, obstacles, shares);
+    separateSameSideRuns(
       routes,
-      routable.map((e) => ({
-        key: e.ir.key,
-        width: e.ir.style.strokeWidth.units,
-        fromRoom: Math.max(e.fromLane, e.fromRoom),
-        toRoom: Math.max(e.toLane, e.toRoom),
-      })),
-      [
-        ...this.#obstacles.map((o) => o.rect),
-        ...this.#layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
-        ...captionBoxes(this.#ir, this.#layout),
-      ],
-      (a, b) =>
-        sharable(
-          routable.find((e) => e.ir.key === a) as Edge,
-          routable.find((e) => e.ir.key === b) as Edge,
-        ),
+      parallelEdges,
+      obstacles,
+      this.#layout.groups.map((g) => g.rect),
+      shares,
     );
     return { layout: this.#result(routable, routes), diagnostics: this.#diagnostics };
   }
@@ -1130,6 +1138,25 @@ class Router {
           for (const length of room === 0 ? [lane] : this.#stubLines ? [lane, room] : [room]) {
             xs.add(roundUnits(end.port.x + d.x * length));
             ys.add(roundUnits(end.port.y + d.y * length));
+          }
+        }
+      }
+      // A skip that leaves and re-enters on one side has to share the gutter
+      // with the others there: a line per further lane, so they can nest (#512).
+      if (
+        edge.from.dir >= 0 &&
+        edge.from.dir === edge.to.dir &&
+        !edge.from.junction &&
+        !edge.to.junction
+      ) {
+        const d = DIRS[edge.from.dir] as Point;
+        for (const end of [edge.from, edge.to]) {
+          const room = end === edge.from ? edge.fromRoom : edge.toRoom;
+          const lane = end === edge.from ? edge.fromLane : edge.toLane;
+          for (let k = 1; k <= ROUTE.sideLanes; k++) {
+            const at = Math.max(room, lane) + k * (edge.ir.style.strokeWidth.units + SIDE_LANE_GAP);
+            xs.add(roundUnits(end.port.x + d.x * at));
+            ys.add(roundUnits(end.port.y + d.y * at));
           }
         }
       }

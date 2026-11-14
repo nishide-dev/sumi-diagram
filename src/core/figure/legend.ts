@@ -45,6 +45,7 @@ import {
 import type { Registry } from "../registry/registry";
 import { resolveComponents } from "../registry/resolve";
 import { getTheme } from "../theme/builtin";
+import { figureTheme } from "../theme/overrides";
 import { resolveStyle } from "../theme/resolve";
 import { withStrokes } from "../theme/strokes";
 import type { Tone } from "../theme/tones";
@@ -173,9 +174,14 @@ export function legendSizes(emPt: number, junctionPt: number): LegendSizes {
 }
 
 /** The sizes for the figure's theme: its label font size and hidden junction. */
-function themeSizes(themeId: string | undefined): LegendSizes {
-  const theme = themeId === undefined ? undefined : getTheme(themeId);
-  if (theme === undefined) return legendSizes(FALLBACK_EM_PT, 0.5);
+function themeSizes(
+  themeId: string | undefined,
+  overrides: Parameters<typeof figureTheme>[1],
+): LegendSizes {
+  const builtin = themeId === undefined ? undefined : getTheme(themeId);
+  if (builtin === undefined) return legendSizes(FALLBACK_EM_PT, 0.5);
+  // The figure's text scale (#543) applies: samples follow the scaled text.
+  const theme = figureTheme(builtin, overrides);
   const text = resolveStyle(theme, { kind: "node", id: "sumi/label", variant: "default" });
   const junction = resolveStyle(theme, { kind: "node", id: "sumi/junction", variant: "hidden" });
   // A point mark's diameter (design doc §6.20): `size` stroke widths, at least one D2 unit.
@@ -441,7 +447,7 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
     }
 
     // 3. Expand.
-    sizes ??= themeSizes(doc.figure?.theme);
+    sizes ??= themeSizes(doc.figure?.theme, doc.figure?.themeOverrides);
     const size = sizes;
     const legendName = `legend "${node.id}"`;
     // Entries are read as a list: wrapped lines start at the left (#333), unless
@@ -528,7 +534,8 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
         ]);
         takenEdges.set(ids.line, linePath);
         expansion.entries.push({ kind: "edge", sample, path: entryPath, label });
-        const theme = getTheme(doc.figure?.theme ?? "paper");
+        const builtinTheme = getTheme(doc.figure?.theme ?? "paper");
+        const theme = builtinTheme && figureTheme(builtinTheme, doc.figure?.themeOverrides);
         let line = sizes.line;
         if (theme !== undefined) {
           const resolved = registry.resolve(edge.component, "edge");
