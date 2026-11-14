@@ -183,3 +183,63 @@ describe("formats", () => {
     expect(icon?.subject).toEqual({ kind: "node", id: "key" });
   });
 });
+
+describe("text scale (#543)", () => {
+  const legend = (overrides: string) => `version: 1
+figure: { id: scaled-legend, theme: sumi, profile: paper-double, ${overrides} layout: { arrange: { stack: { items: [key] } } } }
+nodes:
+  - id: key
+    component: legend
+    props:
+      entries:
+        - { edge: { component: arrow, variant: dashed }, label: Negative }
+        - { node: {}, label: Box }
+`;
+  const render = async (overrides: string) => {
+    const result = await renderFigure(legend(overrides));
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    // The metadata and the scoped class name hash the source, which differs.
+    return result.value.svg
+      .replace(/<metadata>[\s\S]*?<\/metadata>/, "")
+      .replace(/sumi-\d+/g, "sumi-x");
+  };
+  const sampleBox = (svg: string) => {
+    const box = [
+      ...svg.matchAll(
+        /<rect x="(\S+)" y="\S+" width="(\S+)" height="(\S+)" fill="[^"]+" stroke="#30364f"/g,
+      ),
+    ][0];
+    return { x: Number(box?.[1]), width: Number(box?.[2]), height: Number(box?.[3]) };
+  };
+  const textX = (svg: string) =>
+    Math.min(...[...svg.matchAll(/<text x="(\S+)"/g)].map((m) => Number(m[1])));
+
+  test("a scale of 1 draws the same legend as no scale", async () => {
+    expect(await render("themeOverrides: { textScale: 1 },")).toBe(await render(""));
+  });
+
+  test("samples, dashes and the sample-to-text gap grow with the scale", async () => {
+    const plain = await render("");
+    const scaled = await render("themeOverrides: { textScale: 2 },");
+    const [a, b] = [sampleBox(plain), sampleBox(scaled)];
+    expect(b.width).toBe(2 * a.width);
+    expect(b.height).toBe(2 * a.height);
+    const gap = (svg: string) => textX(svg) - sampleBox(svg).x - sampleBox(svg).width;
+    expect(gap(scaled)).toBeGreaterThanOrEqual(2 * gap(plain) - 1);
+    // The dash period follows the line width, and the line still holds whole periods.
+    const period = (svg: string) => {
+      const [on, off] =
+        svg
+          .match(/stroke-dasharray="([^"]+)"/)?.[1]
+          ?.split(",")
+          .map(Number) ?? [];
+      return (on ?? 0) + (off ?? 0);
+    };
+    expect(period(scaled)).toBeGreaterThan(1.9 * period(plain));
+    const wire = (svg: string) => {
+      const m = svg.match(/class="sumi-wire" d="M ([\d.]+) \S+ L ([\d.]+)/);
+      return Number(m?.[2]) - Number(m?.[1]);
+    };
+    expect(wire(scaled) / period(scaled)).toBeGreaterThanOrEqual(wire(plain) / period(plain) - 0.5);
+  });
+});
