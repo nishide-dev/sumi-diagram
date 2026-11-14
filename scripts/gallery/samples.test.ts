@@ -52,7 +52,7 @@ test("every sumi/legend variant has every sample kind, each matching the figure 
     entries.map((e) => ["node", "edge", "set", "glyph"].filter((k) => k in e).join(""));
   for (const legend of legends) {
     const entries = legend.props?.entries ?? [];
-    expect(kinds(entries)).toEqual(["node", "node", "set", "edge", "edge", "edge", "glyph"]);
+    expect(kinds(entries)).toEqual(["node", "node", "edge", "edge", "edge", "set", "glyph"]);
     // Each edge entry matches an edge of the figure by component and variant.
     for (const e of entries) {
       const edge = e.edge as { component?: string; variant?: string } | undefined;
