@@ -18,7 +18,7 @@ import { fontFileFor, measureLabel } from "../../lint/geometry/measure";
 import { FontParseError } from "../../lint/sfnt";
 import { readSvgMetadata } from "../finalize";
 import { BoundsBuilder, type PathSegment, type Point, parsePath, type Rect } from "../geometry";
-import { CUT_D, CUT_HIDDEN, headFrame, untrimmedRoutes } from "../hollow-arrowheads";
+import { CUT_D, CUT_HIDDEN, headFrame, trimPathStart, untrimmedRoutes } from "../hollow-arrowheads";
 import {
   decodeElementClass,
   inspectSvg,
@@ -265,73 +265,55 @@ export function flattenPath(path: readonly PathSegment[]): Point[] {
 }
 
 /**
- * The dashes of a dash pattern (SVG's `stroke-dasharray` and `stroke-dashoffset`,
- * in user units) along a polyline, each as its own polyline. PowerPoint's dash
- * pattern always starts at a line's start, so a line that must keep the SVG's
- * pattern (cut at a head, or split under a label) is drawn as its dashes.
+ * The parts a label mask leaves of `route` with their dash pattern in the SVG's phase
+ * (#485). PowerPoint's pattern starts at a line's start and has no offset, so a part
+ * starts at the next period boundary of the SVG's pattern (`stroke-dasharray` summing to
+ * one period, shifted by `stroke-dashoffset`): the dash it cuts into is dropped, and
+ * every part stays an ordinary dashed line. A part shorter than that is `undefined`.
  */
-export function explodeDashes(
-  points: readonly Point[],
+export function alignDashPhase(
+  route: readonly PathSegment[],
+  parts: readonly PathSegment[][],
   pattern: readonly number[],
   offset: number,
-): Point[][] {
+): (PathSegment[] | undefined)[] {
   const period = pattern.reduce((a, b) => a + b, 0);
-  const first = points[0];
-  if (!first || !(period > 0)) return [];
-  let index = 0;
-  let position = ((offset % period) + period) % period;
-  while (position >= (pattern[index] as number)) {
-    position -= pattern[index] as number;
-    index = (index + 1) % pattern.length;
+  const flat = flattenPath(route);
+  const cumulative = [0];
+  for (let i = 1; i < flat.length; i++) {
+    const a = flat[i - 1] as Point,
+      b = flat[i] as Point;
+    cumulative.push((cumulative[i - 1] as number) + Math.hypot(b.x - a.x, b.y - a.y));
   }
-  let remaining = (pattern[index] as number) - position;
-  let current: Point[] | undefined = index % 2 === 0 ? [first] : undefined;
-  const out: Point[][] = [];
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1] as Point,
-      b = points[i] as Point;
-    const length = Math.hypot(b.x - a.x, b.y - a.y);
-    let travelled = 0;
-    while (length - travelled > remaining) {
-      travelled += remaining;
-      const t = travelled / length;
-      const p = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-      if (current) {
-        current.push(p);
-        out.push(current);
-        current = undefined;
-      } else current = [p];
-      index = (index + 1) % pattern.length;
-      remaining = pattern[index] as number;
+  let previous = 0;
+  return parts.map((part) => {
+    const start = part[0]?.to;
+    if (!start || !(period > 0)) return [...part];
+    // Where the part starts along the route: the nearest point of the route from the last part on.
+    let best = { distance: Number.POSITIVE_INFINITY, at: previous };
+    for (let i = 1; i < flat.length; i++) {
+      if ((cumulative[i] as number) < previous - 1e-6) continue;
+      const a = flat[i - 1] as Point,
+        b = flat[i] as Point;
+      const dx = b.x - a.x,
+        dy = b.y - a.y;
+      const length = Math.hypot(dx, dy);
+      const t =
+        length === 0
+          ? 0
+          : Math.max(
+              0,
+              Math.min(1, ((start.x - a.x) * dx + (start.y - a.y) * dy) / (length * length)),
+            );
+      const distance = Math.hypot(a.x + dx * t - start.x, a.y + dy * t - start.y);
+      if (distance < best.distance - 1e-9)
+        best = { distance, at: (cumulative[i - 1] as number) + t * length };
     }
-    remaining -= length - travelled;
-    current?.push(b);
-  }
-  if (current && current.length > 1) out.push(current);
-  return out.filter((piece) => piece.length > 1);
-}
-
-/** A polyline as M / L segments. */
-export const polylineSegments = (points: readonly Point[]): PathSegment[] =>
-  points.map((to, i) => ({ command: i === 0 ? "M" : "L", to }));
-
-/** The last (or first) `length` units of a polyline, for a head on a dashed line. */
-export function endStub(points: readonly Point[], end: "start" | "end", length: number): Point[] {
-  const forward = end === "start" ? [...points] : [...points].reverse();
-  const stub: Point[] = [forward[0] as Point];
-  let walked = 0;
-  for (let i = 1; i < forward.length && walked < length; i++) {
-    const a = forward[i - 1] as Point,
-      b = forward[i] as Point;
-    const step = Math.hypot(b.x - a.x, b.y - a.y);
-    if (walked + step <= length) stub.push(b);
-    else {
-      const t = (length - walked) / step;
-      stub.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
-    }
-    walked += step;
-  }
-  return end === "start" ? stub : stub.reverse();
+    previous = best.at;
+    const phase = (((best.at + offset) % period) + period) % period;
+    if (phase < 1e-3 || period - phase < 1e-3) return [...part];
+    return trimPathStart(part, period - phase);
+  });
 }
 
 /** Cut masked portions out of a path, preserving untouched cubic segments. */
@@ -757,12 +739,10 @@ export function svgToEditablePptx(
       style: { stroke: string; strokeWidth: { units: number }; opacity: number },
       ends = "",
       strokeStyle: "round" | "svg-default" = "round",
-      solid = false,
     ) => {
       const width = Number(property(el, "stroke-width") ?? style.strokeWidth.units);
       if (!Number.isFinite(width) || width < 0) throw new Error("Unsupported stroke width");
-      // `solid`: the dashes are drawn one by one, so the line itself has none.
-      const dash = (solid ? "" : (property(el, "stroke-dasharray") ?? ""))
+      const dash = (property(el, "stroke-dasharray") ?? "")
         .split(/[ ,]+/)
         .filter(Boolean)
         .map(Number);
@@ -1378,12 +1358,16 @@ export function svgToEditablePptx(
       const crossesMask = masks.length > 0 && maskedLength(route, masks) > 0.01;
       const splitTransparent = ir.meta.transparentBackground === true && crossesMask;
       const ownHeads = hollowEnds.length > 0;
+      // The connector is glued (and hides its gap under the label with a canvas patch) only
+      // when it is emitted as one; a freeform fallback is split at the mask instead.
+      const gluedConnector =
+        connectors === "glued" && element.routing !== "zoom" && !splitTransparent && !ownHeads;
       if (connectors === "glued" && element.route === "curve" && !splitTransparent && !ownHeads) {
         throw new Error(
           "Curved edges require freeform connectors; glued connectors cannot preserve cubic tangents. Use --pptx-connectors freeform.",
         );
       }
-      if (connectors === "glued" && element.routing !== "zoom" && !splitTransparent && !ownHeads) {
+      if (gluedConnector) {
         if (element.from === element.to)
           throw new Error("Glued self-loops are unsupported; use freeform connectors.");
         const src = objects.get(element.from),
@@ -1405,82 +1389,42 @@ export function svgToEditablePptx(
       } else {
         const zoom = element.routing === "zoom";
         if (!zoom) firstRouted ??= output.length;
-        // A dash pattern starts at the line's start in PowerPoint, so a dashed line that was
-        // cut at a head or is split under a label is drawn dash by dash (#485), with the
-        // SVG's pattern and offset; the native heads sit on short solid stubs.
+        // A dash pattern starts at the line's start in PowerPoint: parts after a label gap,
+        // and a line cut at a head, start at the SVG pattern's next period boundary (#485).
         const dashes = (property(path, "stroke-dasharray") ?? "")
           .split(/[ ,]+/)
           .filter(Boolean)
           .map(Number);
         // The offset belongs to the SVG's cut line (see `withDashOffset`), not to D2's full route.
         const dashOffset = cutRoute?.ok ? Number(property(path, "stroke-dashoffset") ?? 0) : 0;
-        const explode =
+        const aligned =
           !zoom &&
-          route.length > 1 &&
           dashes.length >= 2 &&
           dashes.length % 2 === 0 &&
           dashes.every((n) => Number.isFinite(n) && n > 0) &&
-          Number.isFinite(dashOffset) &&
-          (crossesMask || dashOffset !== 0);
-        const parts = explode
-          ? []
-          : route.length === 0
-            ? []
-            : masks.length
-              ? splitMaskedPath(route, masks)
-              : [route];
-        if (explode) {
-          const flat = flattenPath(route);
-          const pieces = explodeDashes(flat, dashes, dashOffset).flatMap((piece) =>
-            splitMaskedPath(polylineSegments(piece), masks),
-          );
-          const bounds = new BoundsBuilder();
-          for (const piece of pieces) bounds.addPath(piece);
-          const box = bounds.rect();
-          if (box)
-            output.push(
-              shape(
-                id,
-                key,
-                box,
-                geometry(
-                  pieces.map((segments) => ({ segments, filled: false })),
-                  box,
-                  emu,
-                ),
-                "<a:noFill/>",
-                line(path, element.style, "", edgeStroke, true),
-              ),
-            );
-          for (const at of ["start", "end"] as const) {
-            const native = arrows.match(
-              at === "start" ? /<a:headEnd[^>]*\/>/ : /<a:tailEnd[^>]*\/>/,
-            )?.[0];
-            if (!native) continue;
-            const stub = polylineSegments(endStub(flat, at, 1));
-            const stubBox = new BoundsBuilder().addPath(stub).rect();
-            if (!stubBox) throw new Error(`Unbounded edge ${key}`);
-            output.push(
-              shape(
-                next++,
-                key,
-                stubBox,
-                geometry([{ segments: stub, filled: false }], stubBox, emu),
-                "<a:noFill/>",
-                line(path, element.style, native, edgeStroke, true),
-              ),
-            );
-          }
-        }
-        parts.forEach((part, index) => {
+          Number.isFinite(dashOffset);
+        const split =
+          route.length === 0 ? [] : masks.length ? splitMaskedPath(route, masks) : [route];
+        const phased = aligned ? alignDashPhase(route, split, dashes, dashOffset) : split;
+        // The head sits on the first, the tail on the last of the route's parts. Trimming a
+        // part's start would move a head, and a tail's part too short to trim is kept whole.
+        const parts = split.flatMap((original, index) => {
+          const carriesHead = index === 0 && arrows.includes("<a:headEnd");
+          const carriesTail = index === split.length - 1 && arrows.includes("<a:tailEnd");
+          const part = carriesHead
+            ? original
+            : (phased[index] ?? (carriesTail ? original : undefined));
+          return part ? [{ part, index, last: index === split.length - 1 }] : [];
+        });
+        parts.forEach(({ part, index, last }, n) => {
           const bounds = new BoundsBuilder().addPath(part).rect();
           if (!bounds) throw new Error(`Unbounded edge ${key}`);
           const partArrows =
             (index === 0 ? (arrows.match(/<a:headEnd[^>]*\/>/)?.[0] ?? "") : "") +
-            (index === parts.length - 1 ? (arrows.match(/<a:tailEnd[^>]*\/>/)?.[0] ?? "") : "");
+            (last ? (arrows.match(/<a:tailEnd[^>]*\/>/)?.[0] ?? "") : "");
           (zoom ? zooms : output).push(
             shape(
-              index === 0 ? id : next++,
+              n === 0 ? id : next++,
               key,
               bounds,
               geometry([{ segments: part, filled: false }], bounds, emu),
@@ -1525,10 +1469,7 @@ export function svgToEditablePptx(
       const background =
         before?.name === "rect"
           ? paint(property(before, "fill") ?? "#ffffff")
-          : connectors === "glued" &&
-              element.routing !== "zoom" &&
-              !ir.meta.transparentBackground &&
-              masks.length > 0
+          : gluedConnector && !ir.meta.transparentBackground && masks.length > 0
             ? paint(canvasColor)
             : "<a:noFill/>";
       geo.labels.forEach((label, i) => {

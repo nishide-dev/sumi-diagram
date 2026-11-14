@@ -3,13 +3,7 @@ import { expect, test } from "bun:test";
 import { compileFigure } from "../../compiler/compile";
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import { attribute, descendants, parseXml } from "../xml";
-import {
-  endStub,
-  explodeDashes,
-  polylineSegments,
-  splitMaskedPath,
-  svgToEditablePptx,
-} from "./editable";
+import { alignDashPhase, splitMaskedPath, svgToEditablePptx } from "./editable";
 import { readPptx } from "./testing";
 
 const compiled = compileFigure(`version: 1
@@ -165,38 +159,31 @@ test("unsupported arrowheads and glued self-loops fail with diagnostics", () => 
   expect(svgToEditablePptx(svg(200, 100, "M140 120L200 120"), loop).ok).toBe(true);
 });
 
-test("dashes keep the SVG's phase along a line, across an offset and a label gap", () => {
-  const line = [
-    { x: 0, y: 0 },
-    { x: 20, y: 0 },
-  ];
-  // 4 on / 2 off: dashes at 0-4, 6-10, 12-16, 18-20.
-  expect(explodeDashes(line, [4, 2], 0).map((d) => [d[0]?.x, d.at(-1)?.x])).toEqual([
-    [0, 4],
-    [6, 10],
-    [12, 16],
-    [18, 20],
+test("parts after a label gap or a dash offset start at the SVG pattern's next period boundary", () => {
+  const route = [
+    { command: "M", to: { x: 0, y: 0 } },
+    { command: "L", to: { x: 20, y: 0 } },
+  ] as const;
+  const xs = (parts: ({ to: { x: number } }[] | undefined)[]) =>
+    parts.map((p) => p && [p[0]?.to.x, p.at(-1)?.to.x]);
+  // 4 on / 2 off, period 6. A mask wholly inside the dash at 6-10 (7 to 9) leaves two parts:
+  // the first runs to 7; the second starts at 9, 3 into the period, so at 12 (the dash at 9-10 goes).
+  const masked = splitMaskedPath([...route], [{ x: 7, y: -1, width: 2, height: 2 }]);
+  expect(xs(masked)).toEqual([
+    [0, 7],
+    [9, 20],
   ]);
-  // An offset of 3 starts 3 units into the pattern: 1 on, 2 off, then 4 on.
-  expect(explodeDashes(line, [4, 2], 3).map((d) => [d[0]?.x, d.at(-1)?.x])).toEqual([
-    [0, 1],
-    [3, 7],
-    [9, 13],
-    [15, 19],
+  expect(xs(alignDashPhase(route, masked, [4, 2], 0))).toEqual([
+    [0, 7],
+    [12, 20],
   ]);
-  // A label gap at x 7-11 cuts a dash in two without moving the others.
-  const pieces = explodeDashes(line, [4, 2], 0).flatMap((d) =>
-    splitMaskedPath(polylineSegments(d), [{ x: 7, y: -1, width: 4, height: 2 }]),
-  );
-  expect(pieces.map((p) => [p[0]?.to.x, p.at(-1)?.to.x])).toEqual([
-    [0, 4],
-    [6, 7],
-    [12, 16],
-    [18, 20],
-  ]);
-  expect(endStub(line, "end", 1)).toEqual([
-    { x: 19, y: 0 },
-    { x: 20, y: 0 },
-  ]);
-  expect(endStub(line, "start", 1).at(-1)).toEqual({ x: 1, y: 0 });
+  // An offset of 3 begins 3 into the period: the line starts at its next dash, at 3.
+  expect(xs(alignDashPhase(route, [[...route]], [4, 2], 3))).toEqual([[3, 20]]);
+  // A part already on a boundary stays; one shorter than the shift is dropped.
+  expect(xs(alignDashPhase(route, [[...route]], [4, 2], 6))).toEqual([[0, 20]]);
+  const short = [
+    { command: "M", to: { x: 8, y: 0 } },
+    { command: "L", to: { x: 9, y: 0 } },
+  ] as const;
+  expect(alignDashPhase(route, [[...short]], [4, 2], 0)).toEqual([undefined]);
 });

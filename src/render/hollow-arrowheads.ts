@@ -563,6 +563,15 @@ export function cutPath(
   return end === "start" ? cut : reversePath(cut);
 }
 
+/** The path without its first `length` units (`undefined` if it is not longer). */
+export function trimPathStart(
+  segments: readonly PathSegment[],
+  length: number,
+): PathSegment[] | undefined {
+  const past = measureTo(segments, length);
+  return past === undefined ? undefined : from(segments, past.i, past.t);
+}
+
 /** The parameter at arc length `length` from the path's start (by chords of the samples). */
 function measureTo(
   forward: readonly PathSegment[],

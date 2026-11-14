@@ -232,14 +232,26 @@ describe.skipIf(!available)("hollow arrowheads as shapes in editable PPTX (#485)
     expect(of(2)[1]).toContain("<a:cubicBezTo>");
   });
 
-  test("a dashed line cut at a head keeps the pattern of the SVG", async () => {
-    const shapes = await slide();
-    const dashed = shapes.filter((x) => x.includes('name="e:#3"'));
-    // The line is its dashes (3 on, 3 off), solid, in the phase the SVG gives them.
-    const first = dashed[0] ?? "";
-    expect(first).not.toContain("<a:custDash>");
-    expect(first.match(/<a:path /g)?.length).toBeGreaterThan(5);
-    expect(first).toContain('<a:pt x="0" y="0"/></a:moveTo><a:lnTo><a:pt x="19050" y="0"/>');
+  test("a dashed line cut at a head keeps the SVG's dash phase and stays a dashed line", async () => {
+    const rendered = await render("canvas", heads);
+    const d2 = expectD2Rendered(rendered);
+    const result = svgToEditablePptx(rendered.svg, d2.compiled.ir);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const xml = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+    const lines = (xml.match(/<p:sp>.*?<\/p:sp>/g) ?? []).filter(
+      (x) => x.includes('name="e:#3"') && x.includes("<a:custDash>"),
+    );
+    // Native 3 on / 3 off dashes, split at the label's gap: still editable dashed lines.
+    expect(lines.length).toBeGreaterThanOrEqual(1);
+    const { path } = edgeParts(rendered.svg, 3);
+    const offset = Number(/stroke-dashoffset:([\d.]+)/.exec(attribute(path, "style") ?? "")?.[1]);
+    expect(offset).toBeGreaterThan(0);
+    const startX = points(path)[0]?.x as number;
+    const first = lines[0] as string;
+    const x = Number(/<a:off x="(\d+)"/.exec(first)?.[1]) / 6350;
+    // The SVG's pattern is at (distance + offset) mod 6; the line starts on a boundary.
+    const phase = (((x - startX + offset) % 6) + 6) % 6;
+    expect(Math.min(phase, 6 - phase)).toBeLessThan(0.01);
   });
 });
 
