@@ -46,7 +46,7 @@ into panels. Measure candidates instead of applying a rule:
    | --- | --- | --- |
    | width W (column, full width, single-column text width, slide, web column) | yes | `profile`; for a W between or below the profiles use the wider (or `paper-single`), keep `size.widthMm` ≤ W and count reserved area as W × height yourself (`fit: scale` and `placement-usage` use the profile width) |
    | maximum height (paper profiles 220mm, slides 190.5mm; venues differ) | yes | profile, `geometry/exceeds-page-height` |
-   | minimum final text size (venues differ widely, in print or on a slide) | yes | `figure.target.minFontSize`, `geometry/text-too-small`; math scripts (0.7×: 8pt → 5.6pt) are checked against it by `geometry/script-below-target` |
+   | minimum final text size (venues differ widely, in print or on a slide) | yes | `figure.target.minFontSize`, `geometry/text-too-small`; math scripts (0.7×, raised to the minimum up to the base size: 8pt → 7pt with a 7pt minimum) are checked against it by `geometry/script-below-target` |
    | minimum line width, if the venue sets one | yes | `figure.target.minLineWidth`, `geometry/line-too-thin` |
    | height budget: what the document can spare | no | `figure.target.height`, `geometry/exceeds-target-height` |
    | reading context: print, screen, projection; beside a caption or alone | no | profile (`paper-*`, `screen-doc` for a README or blog at about 760px, `presentation-16x9`) and `themeOverrides.textScale` so the theme's text meets its minimum ([text scale](figure-format.md#text-scale)); which sizes read comfortably |
@@ -193,8 +193,10 @@ to 70%`; `--json` has `size.scale`.
 Text is checked at its printed size: by default the 8pt / 7pt of the built-in
 themes must print at 5pt or more on paper profiles (`geometry/text-too-small`), so a
 figure can shrink to about 70%; `figure.target.minFontSize` replaces that minimum
-and also judges math scripts (0.7 × base) at their final size, scaled or not
-(`geometry/script-below-target`, warning: an 8pt `$q_1$` prints at 5.6pt). Without a
+and also judges math scripts at their final size, scaled or not
+(`geometry/script-below-target`, warning). Scripts are 0.7 × base (an 8pt `$q_1$` has a 5.6pt
+subscript) but are raised to the minimum, up to the base size, so with `minFontSize: 7pt`
+the subscript prints at 7pt; only a base below the minimum, or scaling, leaves it under. This is a structured-layout feature (math labels exist only there). Without a
 target, subscripts of scaled label math are reported once as information
 (`geometry/script-too-small`). When the smallest scaled text (including scripts and
 placed HTML) has at most **20% headroom** over the minimum, `geometry/heavy-scaling`

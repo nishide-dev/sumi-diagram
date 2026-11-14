@@ -753,7 +753,7 @@ export function composeCylinders(
       n.shape === "cylinder" &&
       n.render === undefined &&
       bbox !== undefined &&
-      cylinderArc(bbox.height) < CYLINDER_ARC_UNITS
+      cylinderArc(bbox.height) !== CYLINDER_ARC_UNITS
     );
   });
   if (short.length === 0) return { ok: true, value: svg, diagnostics };
@@ -846,23 +846,59 @@ export function composeCylinders(
               ? segment.c2
               : (route[index - 1] as PathSegment).to;
         const length = Math.hypot(point.x - neighbour.x, point.y - neighbour.y);
-        if (length <= 1e-9 || depthInside(outline, point) <= 0.01) continue;
-        // Back along the last segment, from the end towards the neighbour, to the outline.
-        const toward = { x: (neighbour.x - point.x) / length, y: (neighbour.y - point.y) / length };
-        let lo = 0;
-        let hi = length;
-        if (depthInside(outline, neighbour) > 0) hi = length * 4;
-        for (let i = 0; i < 40; i++) {
-          const mid = (lo + hi) / 2;
-          const inside =
-            depthInside(outline, {
-              x: point.x + toward.x * mid,
-              y: point.y + toward.y * mid,
-            }) > 0;
-          if (inside) lo = mid;
-          else hi = mid;
+        if (length <= 1e-9) continue;
+        let moved: Point | undefined;
+        if (depthInside(outline, point) <= 0.01) {
+          // Deeper caps than D2's (#547): an end D2 put on its own, shallower outline (or
+          // on the bounding box, for a top or bottom entry) now floats above the cap.
+          // Continue the last segment, away from its neighbour, onto the new outline.
+          const box = geometry.get(end === "source" ? edge.from : edge.to)?.bbox;
+          if (!box) continue;
+          const arc = cylinderArc(box.height);
+          if (arc <= CYLINDER_ARC_UNITS || depthInside(outline, point) < -3 * arc) continue;
+          const away = {
+            x: -(neighbour.x - point.x) / length,
+            y: -(neighbour.y - point.y) / length,
+          };
+          let reach: number | undefined;
+          for (let t = 0.25; t <= 3 * arc; t += 0.25) {
+            if (depthInside(outline, { x: point.x + away.x * t, y: point.y + away.y * t }) > 0) {
+              reach = t;
+              break;
+            }
+          }
+          if (reach === undefined) continue;
+          let near = reach - 0.25;
+          let far = reach;
+          for (let i = 0; i < 40; i++) {
+            const mid = (near + far) / 2;
+            if (depthInside(outline, { x: point.x + away.x * mid, y: point.y + away.y * mid }) > 0)
+              far = mid;
+            else near = mid;
+          }
+          moved = { x: point.x + away.x * far, y: point.y + away.y * far };
         }
-        const moved = { x: point.x + toward.x * hi, y: point.y + toward.y * hi };
+        // Back along the last segment, from the end towards the neighbour, to the outline.
+        if (moved === undefined) {
+          const toward = {
+            x: (neighbour.x - point.x) / length,
+            y: (neighbour.y - point.y) / length,
+          };
+          let lo = 0;
+          let hi = length;
+          if (depthInside(outline, neighbour) > 0) hi = length * 4;
+          for (let i = 0; i < 40; i++) {
+            const mid = (lo + hi) / 2;
+            const inside =
+              depthInside(outline, {
+                x: point.x + toward.x * mid,
+                y: point.y + toward.y * mid,
+              }) > 0;
+            if (inside) lo = mid;
+            else hi = mid;
+          }
+          moved = { x: point.x + toward.x * hi, y: point.y + toward.y * hi };
+        }
         const shift = { x: moved.x - point.x, y: moved.y - point.y };
         route[index] = { ...segment, to: moved };
         if (end === "source" && route[1]?.command === "C")

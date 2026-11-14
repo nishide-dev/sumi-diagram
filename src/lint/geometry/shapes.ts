@@ -44,6 +44,13 @@ export const CYLINDER_MIN_ARC_UNITS = 2;
 /** Height up to which the caps scale down; from `CYLINDER_FULL_HEIGHT_UNITS` they are D2's 24 units. */
 const CYLINDER_FLAT_HEIGHT_UNITS = 32;
 const CYLINDER_FULL_HEIGHT_UNITS = 100;
+/**
+ * Height beyond which the caps deepen again (#547): text scaled up makes a
+ * cylinder taller, and D2's fixed 24 units then leave shallow caps on a bulky
+ * can. Above it each unit of height adds 1/6 unit of depth, up to twice D2's.
+ */
+const CYLINDER_DEEP_HEIGHT_UNITS = 140;
+const CYLINDER_DEEP_SLOPE = 1 / 6;
 
 /**
  * The depth of a cylinder's elliptical caps for a cylinder `height` tall: D2's
@@ -52,6 +59,11 @@ const CYLINDER_FULL_HEIGHT_UNITS = 100;
  * of text between its caps (#516).
  */
 export function cylinderArc(height: number): number {
+  if (height >= CYLINDER_DEEP_HEIGHT_UNITS)
+    return Math.min(
+      2 * CYLINDER_ARC_UNITS,
+      CYLINDER_ARC_UNITS + (height - CYLINDER_DEEP_HEIGHT_UNITS) * CYLINDER_DEEP_SLOPE,
+    );
   if (height >= CYLINDER_FULL_HEIGHT_UNITS) return CYLINDER_ARC_UNITS;
   const t = Math.max(
     0,

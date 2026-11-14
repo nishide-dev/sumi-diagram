@@ -14,6 +14,7 @@ import type { NodeShape } from "../../core/registry/manifest";
 import {
   CYLINDER_ARC_UNITS,
   cylinderArc,
+  cylinderMinHeight,
   DOCUMENT_BODY_RATIO,
   PARALLELOGRAM_WEDGE_UNITS,
 } from "../../lint/geometry/shapes";
@@ -50,7 +51,7 @@ export interface NodePadding {
  *   horizontally fits between the slanted sides;
  * - parallelogram: height `P.h`, width so that the padded label box clears
  *   the slanted sides (D2's 26-unit wedge);
- * - cylinder: `P` plus the caps (3 × D2's 24-unit arc) in height;
+ * - cylinder: `P` plus the caps (3 × D2's 24-unit arc, deeper when tall, #547) in height;
  * - document: `P` with the height divided by the part above the wavy edge.
  */
 export function naturalSize(
@@ -108,8 +109,17 @@ export function naturalSize(
       );
       return { width, height };
     }
-    case "cylinder":
-      return { width: padded.width, height: padded.height + 3 * CYLINDER_ARC_UNITS };
+    case "cylinder": {
+      // Caps deepen on tall cylinders (#547): the body between them keeps the padded height.
+      const height = padded.height + 3 * CYLINDER_ARC_UNITS;
+      return {
+        width: padded.width,
+        height:
+          cylinderArc(height) === CYLINDER_ARC_UNITS
+            ? height
+            : Math.ceil(cylinderMinHeight(padded.height)),
+      };
+    }
     case "document":
       return { width: padded.width, height: Math.ceil(padded.height / DOCUMENT_BODY_RATIO) };
     default:

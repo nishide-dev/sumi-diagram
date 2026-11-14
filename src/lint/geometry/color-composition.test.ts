@@ -159,9 +159,11 @@ describe("the overlap of sets is painted opaquely", () => {
     expect(overlaps.length).toBeGreaterThan(0);
     for (const overlap of overlaps) {
       const lightness = (overlap.of ?? []).map((c) => toOklch(c).l);
-      // The average of its sets: neither darker nor lighter than all of them.
-      expect(toOklch(overlap.color).l).toBeGreaterThanOrEqual(Math.min(...lightness) - 1e-3);
-      expect(toOklch(overlap.color).l).toBeLessThanOrEqual(Math.max(...lightness) + 1e-3);
+      // The average of its sets: neither darker nor lighter than all of them. Three or more
+      // sets may be moved up to 0.08 away to differ from each of them (#547).
+      const slack = lightness.length >= 3 ? 0.081 : 1e-3;
+      expect(toOklch(overlap.color).l).toBeGreaterThanOrEqual(Math.min(...lightness) - slack);
+      expect(toOklch(overlap.color).l).toBeLessThanOrEqual(Math.max(...lightness) + slack);
       expect(toOklch(overlap.color).c).toBeGreaterThan(0.005);
     }
   });

@@ -29,6 +29,17 @@ describe("fontClassOf", () => {
 });
 
 describe("measureText", () => {
+  test("a script is raised to the measurer's minimum, up to the base size (#547)", () => {
+    const sizes = (m: TextMeasurer) =>
+      measureText("$q_1$", style(), m)
+        ?.runs?.flat()
+        .map((r) => r.fontSizeUnits);
+    expect(sizes(measurer)).toEqual([16, 11.2]);
+    expect(sizes({ ...measurer, scriptMinUnits: 14 })).toEqual([16, 14]);
+    expect(sizes({ ...measurer, scriptMinUnits: 20 })).toEqual([16, 16]);
+    expect(sizes({ ...measurer, scriptMinUnits: 8 })).toEqual([16, 11.2]);
+  });
+
   test("measures with the bundled TTF advance widths and hhea metrics", () => {
     const regular = loadFontMetrics(fonts.regular);
     const label = measureText("Add & Norm\nx", style(), measurer);
