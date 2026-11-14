@@ -9,7 +9,7 @@
  */
 
 import type { SetVariant } from "../figure/schema";
-import { fromOklch, toOklch } from "./color-math";
+import { deltaE, fromOklch, toOklch } from "./color-math";
 import { resolveStyle } from "./resolve";
 import type { Theme } from "./schema";
 import type { ElementStrokes, FigureStrokes } from "./strokes";
@@ -123,12 +123,26 @@ export function mixTints(colors: readonly string[], canvas = "#ffffff"): string 
   const x = hues.reduce((sum, v) => sum + Math.cos((v.h * Math.PI) / 180), 0);
   const y = hues.reduce((sum, v) => sum + Math.sin((v.h * Math.PI) / 180), 0);
   const h = Math.hypot(x, y) < 1e-10 ? 0 : (Math.atan2(y, x) * 180) / Math.PI;
-  return fromOklch({
-    l: mean((v) => v.l),
-    c: mean((v) => v.c),
-    h: (h + 360) % 360,
-  });
+  const mixed = { l: mean((v) => v.l), c: mean((v) => v.c), h: (h + 360) % 360 };
+  const result = fromOklch(mixed);
+  if (values.length < 3) return result;
+  // The average of three or more tints can land on one of them (#547): the
+  // overlap then reads as that set alone. Deepen it, away from the canvas,
+  // until it differs from every tint by MIN_OVERLAP_DELTA_E.
+  const inks = colors.filter((color) => channels(color) !== undefined);
+  const sign = darkCanvas(canvas) ? 1 : -1;
+  for (let step = 0; step <= OVERLAP_SEPARATION_STEPS; step++) {
+    const candidate =
+      step === 0 ? result : fromOklch({ ...mixed, l: mixed.l + sign * step * 0.005 });
+    if (inks.every((ink) => deltaE(candidate, ink) >= MIN_OVERLAP_DELTA_E)) return candidate;
+  }
+  return fromOklch({ ...mixed, l: mixed.l + sign * OVERLAP_SEPARATION_STEPS * 0.005 });
 }
+
+/** Smallest CIE76 difference (#547) between a three-or-more-way overlap and any tint in it. */
+export const MIN_OVERLAP_DELTA_E = 5;
+/** The most the overlap's OKLCH lightness is moved for it: 16 steps of 0.005. */
+const OVERLAP_SEPARATION_STEPS = 16;
 
 /** A multiply preference on any participating set preserves its legacy intersection. */
 export function overlapTint(

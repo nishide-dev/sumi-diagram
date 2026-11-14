@@ -267,7 +267,7 @@ test("math scripts are judged against minFontSize at the natural size (#356)", (
   expect(found[0]?.severity).toBe("warning");
   expect(found[0]?.path).toEqual(["nodes", 0, "label"]);
   expect(found[0]?.message).toContain("5.6pt");
-  expect(found[0]?.hint).toContain("10pt");
+  expect(found[0]?.hint).toContain("7pt");
   // No target, or a script that stays above the minimum: unchanged and silent.
   expect(lintSpec(compile(source()), spec(), { code })).toEqual([]);
   expect(lintSpec(compile(source("{ minFontSize: 5pt }")), spec(), { code })).toEqual([]);
@@ -330,10 +330,12 @@ test("emitted JSON Schema keeps positive-length and 4.5pt floor constraints", as
   }
 });
 
+// 9pt is above the 8pt label and the 7pt sublabel, so scripts (raised to the minimum up to
+// their base, #547) still print below it.
 test("a script in a node's sublabel is reported as the sublabel with its own path (#356)", async () => {
   const scripts = async (label: string) => {
     const result = await lintRenderedFigure(
-      source("{ minFontSize: 7pt }").replace(
+      source("{ minFontSize: 9pt }").replace(
         "label: A }",
         `label: ${JSON.stringify(label)}, sublabel: "sub $y_1$" }`,
       ),
@@ -351,4 +353,18 @@ test("a script in a node's sublabel is reported as the sublabel with its own pat
   ]);
   expect(both[0]?.message).toContain("in the label of");
   expect(both[1]?.message).toContain("in the sublabel of");
+});
+
+test("a script is raised to minFontSize, so a base that meets it passes (#547)", async () => {
+  const found = async (target: string) => {
+    const result = await lintRenderedFigure(
+      source(target).replace("label: A }", 'label: "$q_1$" }'),
+    );
+    return result.diagnostics.filter((d) => d.code === "geometry/script-below-target");
+  };
+  // The 8pt label's subscript is 5.6pt by default, 7pt with the minimum.
+  expect(await found("{ minFontSize: 7pt }")).toEqual([]);
+  expect(await found("{ minFontSize: 8pt }")).toEqual([]);
+  // A base below the minimum still reports.
+  expect(await found("{ minFontSize: 9pt }")).toHaveLength(1);
 });

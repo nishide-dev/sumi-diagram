@@ -753,7 +753,7 @@ export function composeCylinders(
       n.shape === "cylinder" &&
       n.render === undefined &&
       bbox !== undefined &&
-      cylinderArc(bbox.height) < CYLINDER_ARC_UNITS
+      cylinderArc(bbox.height) !== CYLINDER_ARC_UNITS
     );
   });
   if (short.length === 0) return { ok: true, value: svg, diagnostics };

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { getTheme } from "./builtin";
-import { toOklch } from "./color-math";
-import { mixTints } from "./set-style";
+import { deltaE, toOklch } from "./color-math";
+import { MIN_OVERLAP_DELTA_E, mixTints } from "./set-style";
 
 test("perceptual overlap mixing is symmetric for three tints and keeps their average lightness", () => {
   const colors = ["#c9e2f5", "#d1ead5", "#f1d6d9"];
@@ -11,7 +11,9 @@ test("perceptual overlap mixing is symmetric for three tints and keeps their ave
   expect(toOklch(mixed).l).toBeCloseTo(average, 2);
   const dark = ["#36455a", "#435449", "#54434c"];
   const darkAverage = dark.reduce((sum, c) => sum + toOklch(c).l, 0) / dark.length;
-  expect(toOklch(mixTints(dark, "#171b22")).l).toBeCloseTo(darkAverage, 2);
+  // Dark tints this close are deepened (lighter on a dark canvas, #547) by at most 0.08.
+  expect(toOklch(mixTints(dark, "#171b22")).l).toBeGreaterThanOrEqual(darkAverage - 0.005);
+  expect(toOklch(mixTints(dark, "#171b22")).l).toBeLessThanOrEqual(darkAverage + 0.081);
 });
 
 import { resolveStyle } from "./resolve";
@@ -95,4 +97,27 @@ describe("the paper theme's panels (#440)", () => {
   test("gray panels are asked for: variant filled stays gray", () => {
     expect(fillOf("filled")).toBe("#f3f3f5");
   });
+});
+
+test("a three-way overlap differs from every tint in it, on light and dark canvases (#547)", () => {
+  // The plain average lands on the purple tint (deltaE 0.4 before #547).
+  const light = ["#d8dfe4", "#d9e0da", "#dfdce4"];
+  expect(deltaE(mixTints(light, "#ffffff"), light[2] as string)).toBeGreaterThanOrEqual(
+    MIN_OVERLAP_DELTA_E,
+  );
+  const dark = ["#36455a", "#435449", "#3b4560"];
+  for (const color of dark)
+    expect(deltaE(mixTints(dark, "#171b22"), color)).toBeGreaterThanOrEqual(MIN_OVERLAP_DELTA_E);
+  // The deepening goes away from the canvas.
+  expect(toOklch(mixTints(light, "#ffffff")).l).toBeLessThan(toOklch(light[2] as string).l);
+  expect(toOklch(mixTints(dark, "#171b22")).l).toBeGreaterThan(toOklch(dark[0] as string).l);
+});
+
+test("two tints are the plain average (#505)", () => {
+  const pair = ["#c9e2f5", "#d1ead5"];
+  const mixed = mixTints(pair);
+  expect(toOklch(mixed).l).toBeCloseTo(
+    (toOklch(pair[0] as string).l + toOklch(pair[1] as string).l) / 2,
+    2,
+  );
 });

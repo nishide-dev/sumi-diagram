@@ -120,8 +120,8 @@ describe.each([
         const rendered = await render(source(height, variant));
         expect(rendered.compiled.engine).toBe(engine === "d2" ? "auto" : "structured");
         const { bbox, arc, labelOffset } = check(rendered, variant);
-        // Centred in the body as in a tall cylinder (80pt), and clear of the bottom cap.
-        const tall = check(await render(source("80pt", variant)), variant);
+        // Centred in the body as in a tall cylinder (70pt = 140 units, D2's caps), and clear of the bottom cap.
+        const tall = check(await render(source("70pt", variant)), variant);
         expect(tall.arc).toBe(CYLINDER_ARC_UNITS);
         expect(Math.abs(labelOffset - tall.labelOffset)).toBeLessThan(0.5);
         if (bbox.height >= 40) {
@@ -149,6 +149,23 @@ describe.each([
       expect(svgToPptx(rendered.svg).ok).toBe(true);
       expect(svgToEditablePptx(rendered.svg, rendered.compiled.ir).ok).toBe(true);
     });
+  });
+});
+
+describe.each([
+  ["structured", structuredSource, true],
+  ["d2", d2Source, d2Available || inCI],
+] as const)("tall cylinder, %s engine (#547)", (engine, source, enabled) => {
+  test.skipIf(!enabled)("caps deepen with the height and the label stays in the body", async () => {
+    const rendered = await render(source("100pt", "default"));
+    expect(rendered.compiled.engine).toBe(engine === "d2" ? "auto" : "structured");
+    const { bbox, arc } = check(rendered, "default");
+    expect(bbox.height).toBe(200);
+    expect(arc).toBe(cylinderArc(200));
+    expect(arc).toBeGreaterThan(CYLINDER_ARC_UNITS);
+    expect(
+      lintGeometry(rendered).filter((d: { code: string }) => d.code === "geometry/label-overflow"),
+    ).toEqual([]);
   });
 });
 

@@ -436,6 +436,14 @@ export const textTooSmall = defineGeometryRule({
   },
 });
 
+/**
+ * Whether a run is a subscript or superscript: smaller than the label, or (a
+ * script raised to the minimum can be as large as the label, #547) off its
+ * baseline.
+ */
+const isScriptRun = (run: { fontSizeUnits: number; shiftUnits: number }, base: number): boolean =>
+  run.fontSizeUnits < base || run.shiftUnits !== 0;
+
 /** How many labels `script-too-small` names before "and N more". */
 const SCRIPT_NAMES = 3;
 
@@ -463,7 +471,7 @@ export const scriptTooSmall = defineGeometryRule({
       const scripts = element.labels.flatMap(({ label }) =>
         (label.runs ?? [])
           .flat()
-          .filter((run) => run.fontSizeUnits < label.fontSizeUnits)
+          .filter((run) => isScriptRun(run, label.fontSizeUnits))
           .map((run) => unitsToPt(run.fontSizeUnits)),
       );
       const smallest = Math.min(...scripts);
@@ -515,7 +523,7 @@ export const scriptBelowTarget = defineGeometryRule({
       texts.forEach(({ label }, index) => {
         const sizes = (label.runs ?? [])
           .flat()
-          .filter((run) => run.text.trim() && run.fontSizeUnits < label.fontSizeUnits)
+          .filter((run) => run.text.trim() && isScriptRun(run, label.fontSizeUnits))
           .map((run) => unitsToPt(run.fontSizeUnits));
         if (sizes.length === 0) return;
         const smallest = Math.min(...sizes);
@@ -523,9 +531,10 @@ export const scriptBelowTarget = defineGeometryRule({
         const base = unitsToPt(label.fontSizeUnits);
         const sublabel = hasSublabel && index === 1;
         const what = sublabel ? "sublabel" : "label";
-        const needed = Math.ceil((min / 0.7 - PT_EPSILON) * 2) / 2;
+        // A script meets the minimum once the base does (#547); a scaled figure also shrinks it.
+        const needed = Math.ceil((min / (scale < 1 ? scale : 1) - PT_EPSILON) * 2) / 2;
         findings.push({
-          message: `A math subscript or superscript in the ${what} of ${element.name} prints at ${formatPt(smallest * scale)}${scaleNote(smallest, scale)}, below the ${formatPt(min)} figure.target.minFontSize (scripts are set at 0.7 of the base text, here ${formatPt(base * scale)}).`,
+          message: `A math subscript or superscript in the ${what} of ${element.name} prints at ${formatPt(smallest * scale)}${scaleNote(smallest, scale)}, below the ${formatPt(min)} figure.target.minFontSize (scripts are set at 0.7 of the base text, raised to the minimum up to the base size; the base here is ${formatPt(base * scale)}).`,
           path: sublabel ? [...element.docPath, "sublabel"] : labelPath(element),
           subject: element.subject,
           hint: `Raise the base text to about ${formatPt(needed)} or more at the final size (a larger theme/variant font size${scale < 1 ? ", or less scaling" : ""}${sublabel ? "; a sublabel is drawn at 7/8 of its node's font size" : ""}), or write it without a script (for example a plain "q1" or a separate label).`,
