@@ -1,6 +1,6 @@
 # Stroke options
 
-[Gallery](README.md) · [Examples](examples.md) · [Legend samples](legend-samples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Stroke options](strokes.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
+[Gallery](README.md) · [Examples](examples.md) · [Themes](themes.md) · [Tones](tones.md) · [Dimmed groups](dim.md) · [Node glyphs](glyphs.md) · [Set enclosures](sets.md) · [Stroke options](strokes.md) · [Palettes](palettes.md) · [Profiles and comparison](compare.md)
 
 In knowledge distillation, per\-edge <code>lineWidth</code> and <code>arrowheadScale</code> distinguish the main training path from auxiliary teacher input\. Dashed arrows carry soft targets; dotted arrows show inference\. Group <code>cornerRadius</code> distinguishes the rounded training frame from the square, dotted inference frame\. Element <code>lineWidth</code> is absolute: the 1\.5pt main path is thinner than the slides theme's 2pt default line\. The same options can also be set figure\-wide with <code>themeOverrides</code>\.
 

@@ -21,7 +21,6 @@
   - <a id="generic-three-tier-system"></a>[Generic three\-tier system](examples.md#generic-three-tier-system)
   - <a id="examplestransformertransformersumiyaml"></a><a id="transformer-structured-layout-paper-theme"></a>[Transformer \(structured layout, paper theme\)](examples.md#transformer-structured-layout-paper-theme)
   - <a id="tricl--overview-of-tri-directional-contrastive-learning"></a>[TriCL — overview of tri\-directional contrastive learning](examples.md#tricl--overview-of-tri-directional-contrastive-learning)
-- <a id="legend-samples"></a>[Legend samples](legend-samples.md): Legend entries with icon, glyph, edge and set samples in rows under headings, under every theme\.
 - <a id="themes-and-profiles"></a>[Themes](themes.md): The built\-in themes side by side: a structured Transformer and an auto\-layout pipeline under every theme\.
 - <a id="tones"></a>[Tones](tones.md): Every tone under every theme: fills, solid and tinted tokens, outlines and edge tones\.
   - <a id="solid-and-tinted-tones"></a>[Solid and tinted tones](tones.md#solid-and-tinted-tones)
