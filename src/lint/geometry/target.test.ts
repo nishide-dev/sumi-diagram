@@ -368,3 +368,11 @@ test("a script is raised to minFontSize, so a base that meets it passes (#547)",
   // A base below the minimum still reports.
   expect(await found("{ minFontSize: 9pt }")).toHaveLength(1);
 });
+
+test("a math accent's mark is not a script (#547)", async () => {
+  const result = await lintRenderedFigure(
+    source("{ minFontSize: 9pt }").replace("label: A }", 'label: "$\\\\hat{x}$" }'),
+  );
+  expect(result.rendered).toBeDefined();
+  expect(result.diagnostics.filter((d) => d.code === "geometry/script-below-target")).toEqual([]);
+});

@@ -196,7 +196,7 @@ figure can shrink to about 70%; `figure.target.minFontSize` replaces that minimu
 and also judges math scripts at their final size, scaled or not
 (`geometry/script-below-target`, warning). Scripts are 0.7 × base (an 8pt `$q_1$` has a 5.6pt
 subscript) but are raised to the minimum, up to the base size, so with `minFontSize: 7pt`
-the subscript prints at 7pt; only a base below the minimum, or scaling, leaves it under. Without a
+the subscript prints at 7pt; only a base below the minimum, or scaling, leaves it under. This is a structured-layout feature (math labels exist only there). Without a
 target, subscripts of scaled label math are reported once as information
 (`geometry/script-too-small`). When the smallest scaled text (including scripts and
 placed HTML) has at most **20% headroom** over the minimum, `geometry/heavy-scaling`

@@ -121,3 +121,15 @@ test("two tints are the plain average (#505)", () => {
     2,
   );
 });
+
+test("identical tints are separated by moving the overlap, and the guarantee is best effort at the gamut's edge (#547)", () => {
+  const same = ["#d8dfe4", "#d8dfe4", "#d8dfe4"];
+  expect(deltaE(mixTints(same), same[0] as string)).toBeGreaterThanOrEqual(MIN_OVERLAP_DELTA_E);
+  // White tints on a white canvas cannot go lighter; the other direction is tried.
+  const white = ["#ffffff", "#ffffff", "#ffffff"];
+  expect(deltaE(mixTints(white, "#000000"), "#ffffff")).toBeGreaterThanOrEqual(MIN_OVERLAP_DELTA_E);
+  // Within the cap at most; never an exception, and still a valid color.
+  const black = ["#000000", "#000000", "#000000"];
+  expect(mixTints(black, "#000000")).toMatch(/^#[0-9a-f]{6}$/);
+  expect(deltaE(mixTints(black, "#000000"), "#000000")).toBeGreaterThan(0);
+});

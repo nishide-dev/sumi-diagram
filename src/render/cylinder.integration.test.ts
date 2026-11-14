@@ -169,6 +169,31 @@ describe.each([
   });
 });
 
+describe.skipIf(!d2Available && !inCI)("D2 edges at a deepened cap (#547)", () => {
+  test("off-centre edges from above and below end on the new outline", async () => {
+    const rendered = await render(d2Source("100pt", "default"));
+    const bbox = rendered.inspection.elements.find((e) => e.key === "n:db")?.bbox;
+    if (bbox === undefined) throw new Error("no cylinder");
+    expect(cylinderArc(bbox.height)).toBeGreaterThan(CYLINDER_ARC_UNITS);
+    const points = outlineOf(bbox).points;
+    const edges = rendered.inspection.elements.filter((e) => e.key.startsWith("e:"));
+    expect(edges.length).toBe(4);
+    for (const edge of edges) {
+      const route = edge.path ?? [];
+      const ends = [route[0]?.to, route[route.length - 1]?.to].filter((p) => p !== undefined);
+      const onShape = ends.filter(
+        (p) =>
+          p.x >= bbox.x - 1 &&
+          p.x <= bbox.x + bbox.width + 1 &&
+          p.y >= bbox.y - 1 &&
+          p.y <= bbox.y + bbox.height + 1,
+      );
+      expect(onShape.length).toBeGreaterThan(0);
+      for (const p of onShape) expect(distanceToOutline(points, p)).toBeLessThan(0.75);
+    }
+  });
+});
+
 describe.skipIf(!d2Available && !inCI)("D2 edges at a shortened cap (#516)", () => {
   test.each(["20pt", "34pt", "50pt"])(
     "edges into and out of the top and bottom (off-centre too) stay outside the shape, height %s",

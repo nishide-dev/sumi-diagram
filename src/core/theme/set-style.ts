@@ -127,21 +127,34 @@ export function mixTints(colors: readonly string[], canvas = "#ffffff"): string 
   const result = fromOklch(mixed);
   if (values.length < 3) return result;
   // The average of three or more tints can land on one of them (#547): the
-  // overlap then reads as that set alone. Deepen it, away from the canvas,
-  // until it differs from every tint by MIN_OVERLAP_DELTA_E.
+  // overlap then reads as that set alone. Move its lightness, first away from
+  // the canvas, then the other way, until it differs from every tint by
+  // MIN_OVERLAP_DELTA_E. Best effort: where no shift within the cap gets there
+  // (a tint at the edge of the gamut, say), the candidate farthest from its
+  // nearest tint is returned.
   const inks = colors.filter((color) => channels(color) !== undefined);
-  const sign = darkCanvas(canvas) ? 1 : -1;
-  for (let step = 0; step <= OVERLAP_SEPARATION_STEPS; step++) {
-    const candidate =
-      step === 0 ? result : fromOklch({ ...mixed, l: mixed.l + sign * step * 0.005 });
-    if (inks.every((ink) => deltaE(candidate, ink) >= MIN_OVERLAP_DELTA_E)) return candidate;
+  const away = darkCanvas(canvas) ? 1 : -1;
+  const nearest = (candidate: string) => Math.min(...inks.map((ink) => deltaE(candidate, ink)));
+  let best = result;
+  let bestGap = nearest(result);
+  if (bestGap >= MIN_OVERLAP_DELTA_E) return result;
+  for (let step = 1; step <= OVERLAP_SEPARATION_STEPS; step++) {
+    for (const direction of [away, -away]) {
+      const candidate = fromOklch({ ...mixed, l: mixed.l + direction * step * 0.005 });
+      const gap = nearest(candidate);
+      if (gap >= MIN_OVERLAP_DELTA_E) return candidate;
+      if (gap > bestGap) {
+        best = candidate;
+        bestGap = gap;
+      }
+    }
   }
-  return fromOklch({ ...mixed, l: mixed.l + sign * OVERLAP_SEPARATION_STEPS * 0.005 });
+  return best;
 }
 
 /** Smallest CIE76 difference (#547) between a three-or-more-way overlap and any tint in it. */
 export const MIN_OVERLAP_DELTA_E = 5;
-/** The most the overlap's OKLCH lightness is moved for it: 16 steps of 0.005. */
+/** The most the overlap's OKLCH lightness is moved for it, either way: 16 steps of 0.005. */
 const OVERLAP_SEPARATION_STEPS = 16;
 
 /** A multiply preference on any participating set preserves its legacy intersection. */

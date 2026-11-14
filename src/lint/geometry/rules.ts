@@ -439,10 +439,12 @@ export const textTooSmall = defineGeometryRule({
 /**
  * Whether a run is a subscript or superscript: smaller than the label, or (a
  * script raised to the minimum can be as large as the label, #547) off its
- * baseline.
+ * baseline; a math accent's mark (#129) is not a script.
  */
-const isScriptRun = (run: { fontSizeUnits: number; shiftUnits: number }, base: number): boolean =>
-  run.fontSizeUnits < base || run.shiftUnits !== 0;
+const isScriptRun = (
+  run: { fontSizeUnits: number; shiftUnits: number; accent?: true },
+  base: number,
+): boolean => run.accent !== true && (run.fontSizeUnits < base || run.shiftUnits !== 0);
 
 /** How many labels `script-too-small` names before "and N more". */
 const SCRIPT_NAMES = 3;
@@ -531,8 +533,10 @@ export const scriptBelowTarget = defineGeometryRule({
         const base = unitsToPt(label.fontSizeUnits);
         const sublabel = hasSublabel && index === 1;
         const what = sublabel ? "sublabel" : "label";
-        // A script meets the minimum once the base does (#547); a scaled figure also shrinks it.
-        const needed = Math.ceil((min / (scale < 1 ? scale : 1) - PT_EPSILON) * 2) / 2;
+        // At the natural size a script is raised to the minimum, so a base that meets it
+        // is enough (#547); a scaled figure shrinks the script's floor with the rest, which
+        // leaves 0.7 of the base: min / 0.7 at the final size.
+        const needed = Math.ceil(((scale < 1 ? min / 0.7 : min) - PT_EPSILON) * 2) / 2;
         findings.push({
           message: `A math subscript or superscript in the ${what} of ${element.name} prints at ${formatPt(smallest * scale)}${scaleNote(smallest, scale)}, below the ${formatPt(min)} figure.target.minFontSize (scripts are set at 0.7 of the base text, raised to the minimum up to the base size; the base here is ${formatPt(base * scale)}).`,
           path: sublabel ? [...element.docPath, "sublabel"] : labelPath(element),
