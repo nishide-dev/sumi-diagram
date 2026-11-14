@@ -527,6 +527,38 @@ describe("validateUsage", () => {
     });
   }
 
+  test("a null matrix cell text names the failing cell and says what to do (#549)", () => {
+    const matrix = builtinRegistry().get("sumi/matrix") as ComponentManifest;
+    const result = registry.validateUsage(matrix, {
+      props: { classes: { o: {} }, cells: [[{ class: "o", text: null }]] },
+    });
+    const [d, ...rest] = result.diagnostics;
+    expect(rest).toEqual([]);
+    expect(d).toMatchObject({
+      code: "component/invalid-prop",
+      path: ["props", "cells", 0, 0, "text"],
+    });
+    expect(d?.hint).toContain("omit the key");
+  });
+
+  test("a null required field is told to take a value; nested unknown keys suggest nested keys (#549)", () => {
+    const matrix = builtinRegistry().get("sumi/matrix") as ComponentManifest;
+    const header = registry.validateUsage(matrix, {
+      props: { cells: ["o"], classes: { o: {} }, rows: [{ label: null }] },
+    }).diagnostics;
+    const required = header.find((d) => d.hint?.includes("null"));
+    expect(required?.hint).toContain("required");
+    expect(required?.hint).not.toContain("omit");
+    const cell = registry.validateUsage(matrix, {
+      props: { classes: { o: {} }, cells: [[{ class: "o", tex: "hi" }]] },
+    }).diagnostics;
+    expect(cell[0]).toMatchObject({
+      code: "component/unknown-prop",
+      path: ["props", "cells", 0, 0, "tex"],
+      hint: 'Did you mean "text"?',
+    });
+  });
+
   test("fixed-aspect components need equal width and height, compared exactly", () => {
     // 2.54cm is exactly 72pt, though 2.54 * 3600 / 127 is not 72 in floating point.
     expect(registry.validateUsage(circle, { props: { width: "1in", height: "2.54cm" } }).ok).toBe(

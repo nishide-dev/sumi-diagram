@@ -56,7 +56,7 @@ Vocabulary (confirm names with `sumi catalog --json`, never invent):
 - Looks: a tone from the theme's list; a variant from that component's own entry in the catalog
   (variants differ by component, e.g. `tinted`, `outlined`, `emphasis`, `dashed`); state markers
   (`sumi/initial`, `sumi/final`); corner radius and line width only through `themeOverrides`. One font size per role, regular or bold only.
-- Groups: a frame with the title above the border or a `caption`; nest them; `dim`.
+- Groups: a frame with the title inside the border (`labelAt: top-left` / `top` / `top-right`) or above it (`labelAt: above-left` / `above` / `above-right`, structured layout), or a `caption`; the frame's `props.padding` (inner margin); nest them; `dim`.
 - `sets`: overlapping ellipses (Venn) or hyperedge enclosures; nothing freehand.
 - Edges: straight, orthogonal or curved lines between element sides, an arrowhead from the
   theme's list (open or triangle), solid / dashed / dotted, a label beside the line, never over a

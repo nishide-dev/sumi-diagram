@@ -346,6 +346,12 @@ describe("skill references", () => {
     for (const value of values) expect(text, value).toContain(`\`${value}\``);
   });
 
+  test("the mockup vocabulary names the group title positions and padding (#549)", () => {
+    const text = docs.find((d) => d.name === "references/mockup.md")?.text ?? "";
+    expect(text).toContain("labelAt: above-left");
+    expect(text).toContain("props.padding");
+  });
+
   test("themes and profiles in code blocks and CLI flags exist", () => {
     for (const block of blocks) {
       if (marker(block.body, "expect-error") !== undefined) continue;
@@ -923,6 +929,27 @@ describe("scripts/preview", () => {
         expect(existsSync(png)).toBe(true);
       }
       expect(existsSync(join(work, "arch.png"))).toBe(false);
+    });
+  });
+
+  test("-o may follow the figure and the size (#549)", async () => {
+    await withFakeQuickLook(async (env, { work }) => {
+      const svg = join(work, "arch.svg");
+      await writeFile(svg, "<svg xmlns='http://www.w3.org/2000/svg'/>");
+      for (const [pre, flag, name] of [
+        [[svg], "-o", "a.png"],
+        [[svg, "400"], "--out", "b.png"],
+      ] as const) {
+        const png = join(work, "after", name);
+        const run = await runScript("preview", [...pre, flag, png], env);
+        expect(run.stderr).toBe("");
+        expect(run.exitCode).toBe(0);
+        expect(run.stdout.trim()).toBe(png);
+        expect(existsSync(png)).toBe(true);
+      }
+      expect(existsSync(join(work, "arch.png"))).toBe(false);
+      const missing = await runScript("preview", [svg, "-o"], env);
+      expect(missing.exitCode).toBe(2);
     });
   });
 
