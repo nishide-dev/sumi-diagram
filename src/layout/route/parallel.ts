@@ -297,3 +297,172 @@ export function separateParallelRuns(
     for (const [i, l] of group.entries()) routes.set(l.edge.key, moved[i] as Point[]);
   }
 }
+
+interface SideLane {
+  edge: ParallelEdge;
+  points: Point[];
+  /** The axis the run (the middle piece) is placed on: "x" for a vertical run, "y" for a horizontal one. */
+  axis: "x" | "y";
+  /** +1 when the legs leave toward larger coordinates on `axis`, -1 toward smaller. */
+  sign: 1 | -1;
+  /** Position along the outward direction (`sign * coordinate`). */
+  at: number;
+  /** The nearest the run may sit: the stubs / arrow rooms of both legs. */
+  min: number;
+  from: number;
+  to: number;
+}
+
+const spanOverlap = (a: SideLane, b: SideLane) => Math.min(a.to, b.to) - Math.max(a.from, b.from);
+const sideSpacing = (a: SideLane, b: SideLane) => (a.edge.width + b.edge.width) / 2 + LANE_GAP;
+
+/**
+ * A route that leaves and re-enters on one side: a leg out of each end in the
+ * same direction, everything between beyond both ends (a run with at most a
+ * jog or two). The run is its longest piece across the legs.
+ */
+function sideLane(edge: ParallelEdge, points: Point[] | undefined): SideLane | undefined {
+  if (points === undefined || points.length < 4 || points.length > 6) return undefined;
+  const a = points[0] as Point;
+  const d = points[points.length - 1] as Point;
+  const first = points[1] as Point;
+  const last = points[points.length - 2] as Point;
+  const axis = a.y === first.y ? "x" : a.x === first.x ? "y" : undefined;
+  if (axis === undefined) return undefined;
+  const along = axis === "x" ? "y" : "x";
+  const sign = Math.sign(first[axis] - a[axis]);
+  if (
+    !sign ||
+    last[along] !== d[along] ||
+    Math.sign(last[axis] - d[axis]) !== sign ||
+    Math.abs(a[along] - d[along]) < MIN_RUN
+  )
+    return undefined;
+  const inner = points.slice(1, -1);
+  const outward = Math.max(sign * a[axis], sign * d[axis]);
+  if (inner.some((p) => sign * p[axis] < outward)) return undefined;
+  const pieces = inner.slice(1).map((p, i) => [inner[i] as Point, p] as const);
+  const run = pieces
+    .filter(([p, q]) => p[axis] === q[axis])
+    .sort((p, q) => Math.abs(q[1][along] - q[0][along]) - Math.abs(p[1][along] - p[0][along]))[0];
+  return {
+    edge,
+    points,
+    axis,
+    sign: sign as 1 | -1,
+    at: sign * (run?.[0][axis] ?? first[axis]),
+    min: Math.max(sign * a[axis] + edge.fromRoom, sign * d[axis] + edge.toRoom),
+    from: Math.min(a[along], d[along]),
+    to: Math.max(a[along], d[along]),
+  };
+}
+
+/**
+ * Edges that leave and re-enter on one side of a column or row of boxes
+ * (nested skip connections) each get a run of their own: the router can put
+ * them on one line, which reads as a single trunk (#512). Shorter spans sit
+ * nearer the boxes so the nested ones never cross. Only runs that overlap
+ * for at least 3mm and lie closer than a lane gap move, outward and only as
+ * far as needed; a move that would reach into a node, cross a group border
+ * or crowd another edge is dropped.
+ */
+export function separateSameSideRuns(
+  routes: Map<ElementKey, Point[]>,
+  edges: readonly ParallelEdge[],
+  obstacles: readonly Rect[],
+  frames: readonly Rect[],
+  shares: (a: ElementKey, b: ElementKey) => boolean,
+): void {
+  const lanes = edges.flatMap((edge) => {
+    const lane = sideLane(edge, routes.get(edge.key));
+    return lane === undefined ? [] : [lane];
+  });
+  const related = (a: SideLane, b: SideLane) =>
+    a.axis === b.axis &&
+    a.sign === b.sign &&
+    spanOverlap(a, b) >= MIN_RUN &&
+    !shares(a.edge.key, b.edge.key);
+  const problem = (a: SideLane, b: SideLane) =>
+    related(a, b) && Math.abs(a.at - b.at) < sideSpacing(a, b) - EPSILON;
+  const seen = new Set<SideLane>();
+  for (const seed of lanes) {
+    if (seen.has(seed)) continue;
+    const group = [seed];
+    seen.add(seed);
+    for (const a of group)
+      for (const b of lanes)
+        if (!seen.has(b) && (related(a, b) || problem(a, b))) {
+          seen.add(b);
+          group.push(b);
+        }
+    if (!group.some((a, i) => group.slice(i + 1).some((b) => problem(a, b)))) continue;
+    group.sort(
+      (a, b) => a.to - a.from - (b.to - b.from) || edges.indexOf(a.edge) - edges.indexOf(b.edge),
+    );
+    let at = Math.min(...group.map((l) => l.at));
+    let previous: SideLane | undefined;
+    const moved = new Map<ElementKey, Point[]>();
+    for (const l of group) {
+      at = Math.max(l.min, previous === undefined ? at : at + sideSpacing(previous, l));
+      previous = l;
+      const value = roundUnits(l.sign * at);
+      const a = l.points[0] as Point;
+      const d = l.points[l.points.length - 1] as Point;
+      moved.set(l.edge.key, [a, { ...a, [l.axis]: value }, { ...d, [l.axis]: value }, d]);
+    }
+    const reaches = (points: Point[]) =>
+      points.slice(1).some((b, i) => {
+        const a = points[i] as Point;
+        return obstacles.some((r) =>
+          a.x === b.x
+            ? a.x > r.x &&
+              a.x < r.x + r.width &&
+              Math.max(a.y, b.y) > r.y &&
+              Math.min(a.y, b.y) < r.y + r.height
+            : a.y > r.y &&
+              a.y < r.y + r.height &&
+              Math.max(a.x, b.x) > r.x &&
+              Math.min(a.x, b.x) < r.x + r.width,
+        );
+      });
+    const crossesFrame = (l: SideLane, now: Point[]) => {
+      const lo = Math.min(l.sign * l.at, (now[1] as Point)[l.axis]);
+      const hi = Math.max(l.sign * l.at, (now[1] as Point)[l.axis]);
+      const along = l.axis === "x" ? "y" : "x";
+      const size = l.axis === "x" ? "width" : "height";
+      const sizeAlong = l.axis === "x" ? "height" : "width";
+      return frames.some(
+        (f) =>
+          Math.max(f[along], l.from) < Math.min(f[along] + f[sizeAlong], l.to) &&
+          [f[l.axis], f[l.axis] + f[size]].some((border) => border > lo && border < hi),
+      );
+    };
+    if (
+      group.some((l) => {
+        const now = moved.get(l.edge.key) as Point[];
+        return reaches(now) || crossesFrame(l, now);
+      })
+    )
+      continue;
+    const next = new Map(routes);
+    for (const [key, points] of moved) next.set(key, points);
+    const crowded = group.some((l) =>
+      edges.some((other) => {
+        if (moved.has(other.key) || shares(l.edge.key, other.key)) return false;
+        const a = next.get(l.edge.key),
+          b = next.get(other.key),
+          oldA = routes.get(l.edge.key),
+          oldB = routes.get(other.key);
+        return (
+          a &&
+          b &&
+          oldA &&
+          oldB &&
+          newConflict(a, b, oldA, oldB, (l.edge.width + other.width) / 2 + LANE_GAP)
+        );
+      }),
+    );
+    if (crowded) continue;
+    for (const [key, points] of moved) routes.set(key, points);
+  }
+}
