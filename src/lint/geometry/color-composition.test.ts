@@ -342,3 +342,31 @@ describe("calibration on the repository's figures (#440)", () => {
     }
   });
 });
+
+describe("geometry/color-on-panel across tones of the sumi theme (#548)", () => {
+  const panelOf = (tone: string) => `version: 1
+figure:
+  id: tones
+  theme: sumi
+  layout:
+    arrange: { row: { gap: 4mm, items: [g] } }
+groups:
+  - id: g
+    caption: Panel
+    tone: gray
+    variant: filled
+    arrange: { row: { gap: 4mm, items: [a, b, c] } }
+nodes:
+${["a", "b", "c"].map((id) => `  - { id: ${id}, component: box, label: ${id}, tone: ${tone}, variant: filled }`).join("\n")}
+edges: []
+`;
+
+  test("every chromatic tone is reported alike, pale blue as much as pale green; gray is not", async () => {
+    for (const tone of ["red", "orange", "yellow", "green", "blue", "purple", "pink"]) {
+      const context = await contextOf(panelOf(tone));
+      expect(panelFindings(analyze(paintItems(context))), tone).toHaveLength(1);
+    }
+    const gray = await contextOf(panelOf("gray"));
+    expect(panelFindings(analyze(paintItems(gray)))).toEqual([]);
+  });
+});
