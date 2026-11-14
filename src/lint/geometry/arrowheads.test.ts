@@ -58,9 +58,21 @@ describe("geometry/arrowhead-cramped", () => {
     expect(findings[0]?.message).toContain("source arrowhead");
   });
 
-  test("straight short edges, headless edges, and D2 are exempt", () => {
+  test("a straight edge is reported once when it barely outlasts its heads (#546)", () => {
+    const run = (text: string, length: number) =>
+      lintSpec(compile(text), { elements: { "e:e": { path: [p(0, 0), p(length, 0)] } } }, { code });
+    // Two heads of 8 units leave nothing of a 10-unit line; one finding for the edge.
+    const double = run(source, 10);
+    expect(double).toHaveLength(1);
+    expect(double[0]).toMatchObject({ severity: "info", subject: { kind: "edge", id: "e" } });
+    expect(double[0]?.message).toContain("straight line");
+    // Room for both heads and 1pt (2 units) of line is fine.
+    expect(run(source, 18)).toEqual([]);
+    expect(run(source.replace("double-arrow", "arrow"), 10)).toEqual([]);
+  });
+
+  test("headless edges and D2 are exempt", () => {
     for (const text of [
-      source,
       source.replace("double-arrow", "line"),
       source.replace(", layout: { arrange: { row: { items: [a, b] } } }", ""),
     ]) {
