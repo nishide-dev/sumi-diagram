@@ -852,9 +852,9 @@ export function composeCylinders(
           // Deeper caps than D2's (#547): an end D2 put on its own, shallower outline (or
           // on the bounding box, for a top or bottom entry) now floats above the cap.
           // Continue the last segment, away from its neighbour, onto the new outline.
-          const arc = cylinderArc(
-            (geometry.get(end === "source" ? edge.from : edge.to)?.bbox as Rect).height,
-          );
+          const box = geometry.get(end === "source" ? edge.from : edge.to)?.bbox;
+          if (!box) continue;
+          const arc = cylinderArc(box.height);
           if (arc <= CYLINDER_ARC_UNITS || depthInside(outline, point) < -3 * arc) continue;
           const away = {
             x: -(neighbour.x - point.x) / length,
