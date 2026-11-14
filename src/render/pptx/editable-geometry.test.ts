@@ -3,7 +3,7 @@ import { expect, test } from "bun:test";
 import { compileFigure } from "../../compiler/compile";
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import { attribute, descendants, parseXml } from "../xml";
-import { alignDashPhase, splitMaskedPath, svgToEditablePptx } from "./editable";
+import { alignDashPhase, dashOnPieces, splitMaskedPath, svgToEditablePptx } from "./editable";
 import { readPptx } from "./testing";
 
 const compiled = compileFigure(`version: 1
@@ -164,12 +164,12 @@ test("parts after a label gap or a dash offset start at the SVG pattern's next p
     { command: "M", to: { x: 0, y: 0 } },
     { command: "L", to: { x: 20, y: 0 } },
   ] as const;
-  const xs = (parts: ({ to: { x: number } }[] | undefined)[]) =>
-    parts.map((p) => p && [p[0]?.to.x, p.at(-1)?.to.x]);
+  const xs = (parts: { part: { to: { x: number } }[] | undefined }[]) =>
+    parts.map(({ part }) => part && [part[0]?.to.x, part.at(-1)?.to.x]);
   // 4 on / 2 off, period 6. A mask wholly inside the dash at 6-10 (7 to 9) leaves two parts:
   // the first runs to 7; the second starts at 9, 3 into the period, so at 12 (the dash at 9-10 goes).
   const masked = splitMaskedPath([...route], [{ x: 7, y: -1, width: 2, height: 2 }]);
-  expect(xs(masked)).toEqual([
+  expect(xs(masked.map((part) => ({ part })))).toEqual([
     [0, 7],
     [9, 20],
   ]);
@@ -185,5 +185,39 @@ test("parts after a label gap or a dash offset start at the SVG pattern's next p
     { command: "M", to: { x: 8, y: 0 } },
     { command: "L", to: { x: 9, y: 0 } },
   ] as const;
-  expect(alignDashPhase(route, [[...short]], [4, 2], 0)).toEqual([undefined]);
+  expect(alignDashPhase(route, [[...short]], [4, 2], 0)[0]?.part).toBeUndefined();
+});
+
+test("a tail part too short to align draws only what the SVG pattern draws in it", () => {
+  const route = [
+    { command: "M", to: { x: 0, y: 0 } },
+    { command: "L", to: { x: 20, y: 0 } },
+  ] as const;
+  const xs = (pieces: { x: number }[][]) => pieces.map((p) => [p[0]?.x, p.at(-1)?.x]);
+  const line = (a: number, b: number) =>
+    [
+      { command: "M", to: { x: a, y: 0 } },
+      { command: "L", to: { x: b, y: 0 } },
+    ] as const;
+  const pieces = (a: number, b: number) => {
+    const [aligned] = alignDashPhase(route, [[...line(a, b)]], [4, 2], 0);
+    expect(aligned?.part).toBeUndefined();
+    return dashOnPieces(
+      [
+        { x: a, y: 0 },
+        { x: b, y: 0 },
+      ],
+      [4, 2],
+      aligned?.phase ?? 0,
+    );
+  };
+  // 10 to 11 lies wholly in the gap (dashes 6-10, 12-16): nothing is drawn.
+  expect(pieces(10, 11)).toEqual([]);
+  // 9 to 11.5 starts in the dash 6-10: only 9 to 10 is drawn.
+  expect(xs(pieces(9, 11.5))).toEqual([[9, 10]]);
+  // 7 to 9 is wholly inside the dash 6-10: it is drawn whole and reaches the tip.
+  expect(xs(pieces(7, 9))).toEqual([[7, 9]]);
+  // A longer tail is trimmed to the boundary at 12 and keeps native dashes.
+  const longer = alignDashPhase(route, [[...line(9, 20)]], [4, 2], 0)[0]?.part ?? [];
+  expect([longer[0]?.to.x, longer.at(-1)?.to.x]).toEqual([12, 20]);
 });

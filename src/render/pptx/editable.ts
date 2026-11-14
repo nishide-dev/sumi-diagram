@@ -269,14 +269,15 @@ export function flattenPath(path: readonly PathSegment[]): Point[] {
  * (#485). PowerPoint's pattern starts at a line's start and has no offset, so a part
  * starts at the next period boundary of the SVG's pattern (`stroke-dasharray` summing to
  * one period, shifted by `stroke-dashoffset`): the dash it cuts into is dropped, and
- * every part stays an ordinary dashed line. A part shorter than that is `undefined`.
+ * every part stays an ordinary dashed line. A part shorter than that has no `part`; its
+ * `phase` (the pattern position at its start) tells which of it the SVG draws.
  */
 export function alignDashPhase(
   route: readonly PathSegment[],
   parts: readonly PathSegment[][],
   pattern: readonly number[],
   offset: number,
-): (PathSegment[] | undefined)[] {
+): { part: PathSegment[] | undefined; phase: number }[] {
   const period = pattern.reduce((a, b) => a + b, 0);
   const flat = flattenPath(route);
   const cumulative = [0];
@@ -288,7 +289,7 @@ export function alignDashPhase(
   let previous = 0;
   return parts.map((part) => {
     const start = part[0]?.to;
-    if (!start || !(period > 0)) return [...part];
+    if (!start || !(period > 0)) return { part: [...part], phase: 0 };
     // Where the part starts along the route: the nearest point of the route from the last part on.
     let best = { distance: Number.POSITIVE_INFINITY, at: previous };
     for (let i = 1; i < flat.length; i++) {
@@ -311,9 +312,53 @@ export function alignDashPhase(
     }
     previous = best.at;
     const phase = (((best.at + offset) % period) + period) % period;
-    if (phase < 1e-3 || period - phase < 1e-3) return [...part];
-    return trimPathStart(part, period - phase);
+    if (phase < 1e-3 || period - phase < 1e-3) return { part: [...part], phase: 0 };
+    return { part: trimPathStart(part, period - phase), phase };
   });
+}
+
+/**
+ * The stretches of a polyline the dash pattern draws (SVG's `stroke-dasharray`), when the
+ * pattern is `phase` units into its period at the polyline's start, each as a polyline.
+ */
+export function dashOnPieces(
+  points: readonly Point[],
+  pattern: readonly number[],
+  phase: number,
+): Point[][] {
+  const first = points[0];
+  if (!first) return [];
+  let index = 0;
+  let position = phase;
+  while (position >= (pattern[index] as number)) {
+    position -= pattern[index] as number;
+    index = (index + 1) % pattern.length;
+  }
+  let remaining = (pattern[index] as number) - position;
+  let current: Point[] | undefined = index % 2 === 0 ? [first] : undefined;
+  const out: Point[][] = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1] as Point,
+      b = points[i] as Point;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    let travelled = 0;
+    while (length - travelled > remaining) {
+      travelled += remaining;
+      const t = travelled / length;
+      const p = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      if (current) {
+        current.push(p);
+        out.push(current);
+        current = undefined;
+      } else current = [p];
+      index = (index + 1) % pattern.length;
+      remaining = pattern[index] as number;
+    }
+    remaining -= length - travelled;
+    current?.push(b);
+  }
+  if (current) out.push(current);
+  return out.filter((piece) => piece.length > 1);
 }
 
 /** Cut masked portions out of a path, preserving untouched cubic segments. */
@@ -739,10 +784,12 @@ export function svgToEditablePptx(
       style: { stroke: string; strokeWidth: { units: number }; opacity: number },
       ends = "",
       strokeStyle: "round" | "svg-default" = "round",
+      solid = false,
     ) => {
       const width = Number(property(el, "stroke-width") ?? style.strokeWidth.units);
       if (!Number.isFinite(width) || width < 0) throw new Error("Unsupported stroke width");
-      const dash = (property(el, "stroke-dasharray") ?? "")
+      // `solid`: a stretch the SVG pattern draws whole, or a head's outline.
+      const dash = (solid ? "" : (property(el, "stroke-dasharray") ?? ""))
         .split(/[ ,]+/)
         .filter(Boolean)
         .map(Number);
@@ -1405,23 +1452,42 @@ export function svgToEditablePptx(
           Number.isFinite(dashOffset);
         const split =
           route.length === 0 ? [] : masks.length ? splitMaskedPath(route, masks) : [route];
-        const phased = aligned ? alignDashPhase(route, split, dashes, dashOffset) : split;
+        const phased = aligned
+          ? alignDashPhase(route, split, dashes, dashOffset)
+          : split.map((part) => ({ part: part as PathSegment[] | undefined, phase: 0 }));
         // The head sits on the first, the tail on the last of the route's parts. Trimming a
-        // part's start would move a head, and a tail's part too short to trim is kept whole.
+        // part's start would move a head, so that part is kept whole. A tail part too short
+        // to trim has only what the SVG pattern draws in it: solid lines for the dashes, and
+        // a filled head of its own if no dash reaches the tip (a native head would sit on a
+        // line that paints into the gap).
+        const tipHeads: { at: "end"; segments: PathSegment[] }[] = [];
         const parts = split.flatMap((original, index) => {
+          const last = index === split.length - 1;
           const carriesHead = index === 0 && arrows.includes("<a:headEnd");
-          const carriesTail = index === split.length - 1 && arrows.includes("<a:tailEnd");
-          const part = carriesHead
-            ? original
-            : (phased[index] ?? (carriesTail ? original : undefined));
-          return part ? [{ part, index, last: index === split.length - 1 }] : [];
+          const carriesTail = last && arrows.includes("<a:tailEnd");
+          const aligned = phased[index];
+          if (carriesHead) return [{ part: original, index, last, solid: false, tail: true }];
+          if (aligned?.part) return [{ part: aligned.part, index, last, solid: false, tail: true }];
+          if (!carriesTail || !aligned) return [];
+          const pieces = dashOnPieces(flattenPath(original), dashes, aligned.phase);
+          const tip = original.at(-1)?.to as Point;
+          const reaches = pieces.at(-1)?.at(-1);
+          const tipOn = !!reaches && Math.hypot(reaches.x - tip.x, reaches.y - tip.y) < 1e-6;
+          if (!tipOn) tipHeads.push({ at: "end", segments: original });
+          return pieces.map((piece, k) => ({
+            part: piece.map((to, i): PathSegment => ({ command: i === 0 ? "M" : "L", to })),
+            index,
+            last,
+            solid: true,
+            tail: tipOn && k === pieces.length - 1,
+          }));
         });
-        parts.forEach(({ part, index, last }, n) => {
+        parts.forEach(({ part, index, last, solid, tail }, n) => {
           const bounds = new BoundsBuilder().addPath(part).rect();
           if (!bounds) throw new Error(`Unbounded edge ${key}`);
           const partArrows =
             (index === 0 ? (arrows.match(/<a:headEnd[^>]*\/>/)?.[0] ?? "") : "") +
-            (last ? (arrows.match(/<a:tailEnd[^>]*\/>/)?.[0] ?? "") : "");
+            (last && tail ? (arrows.match(/<a:tailEnd[^>]*\/>/)?.[0] ?? "") : "");
           (zoom ? zooms : output).push(
             shape(
               n === 0 ? id : next++,
@@ -1429,10 +1495,45 @@ export function svgToEditablePptx(
               bounds,
               geometry([{ segments: part, filled: false }], bounds, emu),
               "<a:noFill/>",
-              line(path, element.style, partArrows, edgeStroke),
+              line(path, element.style, partArrows, edgeStroke, solid),
             ),
           );
         });
+        for (const { segments } of tipHeads) {
+          const marker = markers.get(
+            /^url\(#(.+)\)$/.exec(attribute(path, "marker-end") ?? "")?.[1],
+          );
+          if (!marker) throw new Error(`Missing end arrowhead marker of edge ${key}`);
+          const frame = headFrame(
+            marker,
+            segments,
+            "end",
+            Number(property(path, "stroke-width") ?? 1),
+          );
+          [...descendants(marker)]
+            .filter((e) => e !== marker)
+            .forEach((el, k) => {
+              const outline = frame.outlines()[k];
+              const bounds = outline && new BoundsBuilder().addPath(outline).rect();
+              if (!outline || !bounds) throw new Error(`Unbounded arrowhead of edge ${key}`);
+              const fill = property(el, "fill");
+              output.push(
+                shape(
+                  next++,
+                  key,
+                  bounds,
+                  geometry([{ segments: outline, filled: true }], bounds, emu),
+                  fill && fill !== "none"
+                    ? paint(fill, element.style.opacity)
+                    : paint(
+                        property(path, "stroke") ?? element.style.stroke,
+                        element.style.opacity,
+                      ),
+                  line(el, element.style, "", edgeStroke, true),
+                ),
+              );
+            });
+        }
         for (const at of hollowEnds) {
           const marker = markers.get(
             /^url\(#(.+)\)$/.exec(attribute(path, `marker-${at}`) ?? "")?.[1],
