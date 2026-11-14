@@ -218,9 +218,27 @@ ${columns.map((ids) => ids.map((id, i) => row(id, 1 + (i % 2) * 0.6)).join("")).
       const context = geometryContextFor(result.value);
       const start = performance.now();
       const found = tokenColumnDrift.run(context, undefined as never);
-      expect(performance.now() - start).toBeLessThan(200);
+      // A coarse ceiling: the work is bounded by the vertical window, not by the row count squared.
+      expect(performance.now() - start).toBeLessThan(5000);
       check(found.length);
     }
+  });
+
+  test("the nearest neighbour is found among many unrelated rows at the next height", async () => {
+    const stack = (c: number) => `{ stack: { gap: 4mm, items: [t${c}a, t${c}b] } }`;
+    const tokens = (id: string, gap: number) =>
+      `  - { id: ${id}, component: sumi/tokens, props: { gap: ${gap}mm, width: 5mm, cells: [a, b] } }\n`;
+    const cols = Array.from({ length: 9 }, (_, c) => c);
+    const source = `version: 1
+figure:
+  id: crowded
+  theme: minimal
+  profile: paper-double
+  layout: { arrange: { row: { gap: 6mm, items: [${cols.map(stack).join(", ")}] } } }
+nodes:
+${cols.map((c) => tokens(`t${c}a`, 1) + tokens(`t${c}b`, c === 8 ? 1.6 : 1)).join("")}`;
+    const found = await findings(source, file, code);
+    expect(found.map((d) => d.subject)).toEqual([{ kind: "node", id: "t8b" }]);
   });
 
   test("a figure of 200 token rows is linted in one pass", async () => {

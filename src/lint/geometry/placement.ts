@@ -149,9 +149,6 @@ function tokenRows(elements: readonly GeometryElement[]): TokenRow[] {
 /** How many row heights below a row another row still counts as its neighbour. */
 const NEIGHBOUR_ROW_HEIGHTS = 3;
 
-/** The most candidates below a row that are examined before giving up. */
-const MAX_CANDIDATES = 8;
-
 /** Index of the first row (rows sorted by top) whose top is at least `y`. */
 function firstRowFrom(rows: readonly TokenRow[], y: number): number {
   let lo = 0;
@@ -209,12 +206,13 @@ export const tokenColumnDrift = defineGeometryRule({
     for (let i = 0; i < rows.length; i++) {
       const upper = rows[i] as TokenRow;
       // The nearest row below that shares columns with this one, within a few
-      // row heights: binary search to the first row clear of this one, then at
-      // most MAX_CANDIDATES rows, in order of height.
+      // row heights: binary search to the first row clear of this one, then
+      // the rows in the window in order of height, skipping (cheaply) those in
+      // other columns; the first row that shares columns is the neighbour.
       const reach = upper.bottom + NEIGHBOUR_ROW_HEIGHTS * (upper.bottom - upper.top);
       let lower: TokenRow | undefined;
       const start = firstRowFrom(rows, upper.bottom - 1);
-      for (let j = start; j < Math.min(rows.length, start + MAX_CANDIDATES); j++) {
+      for (let j = start; j < rows.length; j++) {
         const row = rows[j] as TokenRow;
         if (row.top > reach) break;
         if (row.left < upper.right && upper.left < row.right) {
