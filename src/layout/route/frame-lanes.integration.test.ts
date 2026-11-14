@@ -201,4 +201,78 @@ edges:
     const lowest = Math.max(...(paths[0] as { y: number }[]).map((p) => p.y));
     expect(Math.abs(lowest - bottom)).toBeGreaterThanOrEqual(6);
   });
+
+  /** The size of the largest group frame (width plus height: a side grows either). */
+  const size = async (source: string) => {
+    const { svg } = await routes(source);
+    return Math.max(
+      ...[...svg.matchAll(/<rect[^>]* width="([\d.]+)" height="([\d.]+)"[^>]*fill="#efeddd"/g)].map(
+        (m) => Number(m[1]) + Number(m[2]),
+      ),
+    );
+  };
+  const withEdges = (source: string, list: string[]) =>
+    source.replace(
+      /edges:[\s\S]*$/,
+      list.length === 0 ? "edges: []\n" : `edges:\n${list.map((e) => `  - {${e}}`).join("\n")}\n`,
+    );
+  const FAN_EDGES = ["from: a, to: store", "from: b, to: store"];
+  const U_EDGE = "from: src, to: b, fromAnchor: south, toAnchor: south";
+
+  test("the growth does not depend on the order of the fan-in edges", async () => {
+    expect(await size(withEdges(FAN_IN, FAN_EDGES))).toBe(
+      await size(withEdges(FAN_IN, [...FAN_EDGES].reverse())),
+    );
+  });
+
+  test("a fan-in grows the group; a single arrival or one in line does not", async () => {
+    const none = await size(withEdges(FAN_IN, []));
+    expect(await size(withEdges(FAN_IN, FAN_EDGES))).toBeGreaterThan(none);
+    expect(await size(withEdges(FAN_IN, [FAN_EDGES[0] as string]))).toBe(none);
+    expect(await size(withEdges(FAN_IN, ["from: a, to: top"]))).toBe(none);
+  });
+
+  test("curved or straight edges do not grow the group", async () => {
+    const none = await size(withEdges(FAN_IN, []));
+    for (const route of ["curve", "straight"]) {
+      const list = FAN_EDGES.map((e) => `${e}, route: ${route}`);
+      expect(await size(withEdges(FAN_IN, list))).toBe(none);
+    }
+    const base = await size(withEdges(U_TURN, []));
+    expect(await size(withEdges(U_TURN, [U_EDGE]))).toBeGreaterThan(base);
+    expect(await size(withEdges(U_TURN, [`${U_EDGE}, route: curve`]))).toBe(base);
+  });
+
+  test("an arrival facing the other end is not a U-turn", async () => {
+    const base = await size(withEdges(U_TURN, []));
+    expect(await size(withEdges(U_TURN, ["from: src, to: b, toAnchor: west"]))).toBe(base);
+  });
+
+  // Around the 3pt threshold: whatever the padding that the profile, density
+  // and text scale give, the group grows only where the trunk would be within
+  // 3pt of the frame, and then until it is clear (no near-border finding).
+  test("the group grows only where the trunk would be within 3pt of the frame", async () => {
+    let grew = 0;
+    let kept = 0;
+    for (const profile of ["paper-single", "paper-double"]) {
+      for (const density of ["compact", "normal"]) {
+        for (const textScale of [1, 1.5, 2]) {
+          for (const source of [FAN_IN, U_TURN]) {
+            const text = source
+              .replace(/profile: [\w-]+/, `profile: ${profile}`)
+              .replace(
+                "  layout:\n",
+                `  themeOverrides: {textScale: ${textScale}}\n  layout:\n    density: ${density}\n`,
+              );
+            const before = await size(withEdges(text, []));
+            if ((await size(text)) > before) grew++;
+            else kept++;
+            expect(await nearBorder(text)).toEqual([]);
+          }
+        }
+      }
+    }
+    expect(grew).toBeGreaterThan(0);
+    expect(kept).toBeGreaterThan(0);
+  });
 });
