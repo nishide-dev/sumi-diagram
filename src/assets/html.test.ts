@@ -6,6 +6,7 @@ import { svgToEditablePptx, svgToPptx } from "../render/pptx";
 import { renderFigure } from "../render/render";
 import { assetMarkup, imagePlaceholder } from "./draw";
 import { HTML_LIMITS, htmlViewport, validateHtml } from "./html";
+import { smearSyntheticBold } from "./html-bold";
 import { validCssValue } from "./html-css";
 import { htmlRadius } from "./html-radius";
 import { htmlThemeVariables, renderHtmlAssets } from "./html-render";
@@ -336,6 +337,21 @@ async function drawHtml(html: string): Promise<string> {
   if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics));
   return [...rendered.value.values()][0] ?? "";
 }
+
+test("synthetic bold mono text is smeared sideways instead of stroked, keeping the dot of i (#495)", async () => {
+  const svg = await drawHtml(
+    '<div style="width:320px;height:176px;font-family:var(--sumi-mono);font-size:14px;font-weight:bold">figure.sumi.yaml</div>',
+  );
+  expect(svg).not.toContain("stroke-width");
+  expect(svg).toContain("matrix(1 0 0 1 0.278 0)");
+  expect(
+    smearSyntheticBold('<path d="M0 0h1v1Z" fill="#fff" stroke="#fff" stroke-width=".5"/>'),
+  ).toBe(
+    '<g fill="#fff"><path d="M0 0h1v1Z" transform="translate(-0.25 0)"/><path d="M0 0h1v1Z" transform="translate(0.25 0)"/></g>',
+  );
+  const plain = '<path d="M0 0h1v1Z" fill="#fff" stroke="#000" stroke-width=".5"/>';
+  expect(smearSyntheticBold(plain)).toBe(plain);
+});
 
 const flexProbe = (css: string, width = 20) =>
   `<div style="display:flex;width:100px;height:20px"><div style="width:${width}px;height:20px;background-color:red;${css}"></div><div style="width:20px;height:20px;flex-shrink:0;background-color:blue"></div></div>`;
