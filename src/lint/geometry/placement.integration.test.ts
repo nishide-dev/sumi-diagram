@@ -7,7 +7,8 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { renderFigure } from "../../render/render";
-import { lintGeometry } from "./lint";
+import { geometryContextFor, lintGeometry } from "./lint";
+import { tokenColumnDrift } from "./placement";
 
 const ROOT = join(import.meta.dir, "..", "..", "..");
 
@@ -163,6 +164,63 @@ ${row("a", "12mm")}${row("b", "12.5mm")}${row("c", "13mm")}`;
       { kind: "node", id: "b" },
       { kind: "node", id: "c" },
     ]);
+  });
+
+  test("close rows of the same count but other cell widths or little overlap are unrelated", async () => {
+    const make = (a: string, b: string, shift: string) => `version: 1
+figure:
+  id: unrelated
+  theme: minimal
+  profile: paper-double
+  layout: { arrange: { stack: { gap: 4mm, items: [a, { row: { items: [pad, b] } }] } } }
+nodes:
+  - { id: a, component: sumi/tokens, props: { gap: 2mm, width: ${a}, cells: [x1, x2, x3, x4] } }
+  - { id: pad, component: box, label: ' ', props: { width: ${shift}, height: 4mm } }
+  - { id: b, component: sumi/tokens, props: { gap: 2mm, width: ${b}, cells: [y1, y2, y3, y4] } }
+`;
+    // Cell widths 12mm and 13.5mm: more than 10% apart.
+    expect(await findings(make("12mm", "13.5mm", "0.1mm"), file, code)).toEqual([]);
+    // Same widths, but the second row starts at the first row's last cell: little overlap.
+    expect(await findings(make("12mm", "12mm", "42mm"), file, code)).toEqual([]);
+  });
+
+  test("worst cases stay fast: 300 rows at one height, and 300 rows in nearby columns", async () => {
+    const row = (id: string, gap: number) =>
+      `  - { id: ${id}, component: sumi/tokens, props: { gap: ${gap}mm, width: 5mm, cells: [a, b] } }\n`;
+    const flat = Array.from({ length: 300 }, (_, i) => `r${i}`);
+    const flatSource = `version: 1
+figure:
+  id: flat
+  theme: minimal
+  profile: paper-double
+  layout: { arrange: { row: { gap: 1mm, items: [${flat.join(", ")}] } } }
+nodes:
+${flat.map((id) => row(id, 1)).join("")}`;
+    const columns = Array.from({ length: 5 }, (_, c) =>
+      Array.from({ length: 60 }, (_, i) => `c${c}r${i}`),
+    );
+    const colSource = `version: 1
+figure:
+  id: columns
+  theme: minimal
+  profile: paper-double
+  layout: { arrange: { row: { gap: 1mm, items: [${columns
+    .map((ids) => `{ stack: { gap: 1mm, items: [${ids.join(", ")}] } }`)
+    .join(", ")}] } } }
+nodes:
+${columns.map((ids) => ids.map((id, i) => row(id, 1 + (i % 2) * 0.6)).join("")).join("")}`;
+    for (const [source, check] of [
+      [flatSource, (n: number) => expect(n).toBe(0)],
+      [colSource, (n: number) => expect(n).toBeGreaterThan(200)],
+    ] as const) {
+      const result = await renderFigure(source, { assetBase: ROOT });
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
+      const context = geometryContextFor(result.value);
+      const start = performance.now();
+      const found = tokenColumnDrift.run(context, undefined as never);
+      expect(performance.now() - start).toBeLessThan(200);
+      check(found.length);
+    }
   });
 
   test("a figure of 200 token rows is linted in one pass", async () => {

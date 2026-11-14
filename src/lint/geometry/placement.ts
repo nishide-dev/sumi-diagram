@@ -123,7 +123,9 @@ function tokenRows(elements: readonly GeometryElement[]): TokenRow[] {
     if (e.ir.kind !== "node" || t === undefined || e.bbox === undefined) continue;
     if (t.separator !== undefined || t.blank !== undefined) continue;
     const key = `${t.id}\0${t.line ?? 0}`;
-    groups.set(key, [...(groups.get(key) ?? []), e]);
+    const group = groups.get(key);
+    if (group === undefined) groups.set(key, [e]);
+    else group.push(e);
   }
   const rows: TokenRow[] = [];
   for (const group of groups.values()) {
@@ -147,13 +149,32 @@ function tokenRows(elements: readonly GeometryElement[]): TokenRow[] {
 /** How many row heights below a row another row still counts as its neighbour. */
 const NEIGHBOUR_ROW_HEIGHTS = 3;
 
+/** The most candidates below a row that are examined before giving up. */
+const MAX_CANDIDATES = 8;
+
+/** Index of the first row (rows sorted by top) whose top is at least `y`. */
+function firstRowFrom(rows: readonly TokenRow[], y: number): number {
+  let lo = 0;
+  let hi = rows.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if ((rows[mid] as TokenRow).top < y) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
 /** The most drifted cell of `lower` under `upper`, if the rows are columns of one grid that slipped. */
 function worstDrift(
   upper: TokenRow,
   lower: TokenRow,
   tolerance: number,
+  sameWidth: number,
 ): { cell: GeometryElement; other: GeometryElement; drift: number } | undefined {
   if (upper.cells.length !== lower.cells.length) return undefined;
+  // Grid evidence: the rows' extents mostly coincide.
+  const shared = Math.min(upper.right, lower.right) - Math.max(upper.left, lower.left);
+  if (shared < 0.5 * Math.min(upper.right - upper.left, lower.right - lower.left)) return undefined;
   let worst: { cell: GeometryElement; other: GeometryElement; drift: number } | undefined;
   for (const [n, a] of upper.cells.entries()) {
     const b = lower.cells[n] as GeometryElement;
@@ -163,6 +184,8 @@ function worstDrift(
     const drift = Math.abs(rb.x + rb.width / 2 - (ra.x + ra.width / 2));
     const overlap = Math.min(ra.x + ra.width, rb.x + rb.width) - Math.max(ra.x, rb.x);
     const narrow = Math.min(ra.width, rb.width);
+    // ...and the cells are the same size (within 10% or 1pt).
+    if (Math.abs(ra.width - rb.width) > Math.max(0.1 * narrow, sameWidth)) return undefined;
     // Columns of one grid, not two unrelated rows: every pair is under the
     // other, and the miss is a small fraction of the cell.
     if (overlap < 0.75 * narrow || drift > 0.25 * narrow) return undefined;
@@ -182,22 +205,25 @@ export const tokenColumnDrift = defineGeometryRule({
     const findings: LintFinding[] = [];
     const rows = tokenRows(context.elements);
     const tolerance = drawnUnits(context, TOKEN_DRIFT_UNITS);
+    const sameWidth = drawnUnits(context, 2);
     for (let i = 0; i < rows.length; i++) {
       const upper = rows[i] as TokenRow;
-      // Only the nearest row below that shares columns with this one, within a
-      // few row heights, so every row is compared once and at most once.
+      // The nearest row below that shares columns with this one, within a few
+      // row heights: binary search to the first row clear of this one, then at
+      // most MAX_CANDIDATES rows, in order of height.
       const reach = upper.bottom + NEIGHBOUR_ROW_HEIGHTS * (upper.bottom - upper.top);
       let lower: TokenRow | undefined;
-      for (let j = i + 1; j < rows.length; j++) {
+      const start = firstRowFrom(rows, upper.bottom - 1);
+      for (let j = start; j < Math.min(rows.length, start + MAX_CANDIDATES); j++) {
         const row = rows[j] as TokenRow;
         if (row.top > reach) break;
-        if (row.top < upper.bottom - 1) continue;
         if (row.left < upper.right && upper.left < row.right) {
           lower = row;
           break;
         }
       }
-      const worst = lower === undefined ? undefined : worstDrift(upper, lower, tolerance);
+      const worst =
+        lower === undefined ? undefined : worstDrift(upper, lower, tolerance, sameWidth);
       if (worst === undefined) continue;
       const { cell, other, drift } = worst;
       findings.push({
