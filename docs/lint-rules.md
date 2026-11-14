@@ -68,7 +68,7 @@ set の塗りは不透明な淡い色で、重なりは既定で全参加色の�
 | `geometry/muddy-color` | warning | 有彩色（own の OKLCH 彩度 0.03 以上）の塗りが、同じ塗りを白に置いたときと比べて、最終の色で彩度の半分超を失う、または明度が 0.06 以上下がって彩度 0.045 未満の灰色になる、または色相が 30° 以上ずれて彩度 0.05 未満になる。`mix` の重なりは混色後の塗りを基準に、濁った色や上の半透明塗りによる変化を検査する。`multiply` は参加色の最大彩度の半分を下回るときに報告する。見えている点（4×4 の格子）の半数以上で成り立つ塗りを報告する。あわせて塗りと線のカーキ・黄土色・オリーブ・タンを調べる（#455、#459）。文字は対象外（#465） |
 | `geometry/translucent-over-color` | warning | 不透明度が 1 未満の塗りが、白以外の面（パネル・ほかの塗り）の上にある。色が下の面で変わる |
 | `geometry/low-stroke-contrast` | info / warning | エッジの線（3:1 未満で info、1.5:1 未満で warning）と、塗りが背後の色とほぼ同じで輪郭だけで形を示すノードの枠（2:1 未満で info）が、実際に描かれた背景（地・グループ・set の合成色）から区別しにくい。グループの枠、operator・junction・zoom、`dim` の中の要素は対象外（#463） |
-| `geometry/color-on-panel` | info | 白以外の塗りのグループが、有彩色（OKLCH 彩度 0.025 以上）のノードか set を 3 つ以上持つ。パネルの色と要素の色が競う。1〜2 個（Llama 4 のアクセント）は報告しない |
+| `geometry/color-on-panel` | info | 白以外の塗りのグループが、有彩色のノードか set を 3 つ以上持つ（OKLCH 彩度 0.025 以上。`gray` 以外の tone を書いたノードは、淡い tone も拾うため 0.008 以上）。パネルの色と要素の色が競う。1〜2 個（Llama 4 のアクセント）は報告しない |
 
 warning にしたのは、最終の色を実際に合成して測る検査で、図の意図ではなく結果の濁りを見ているため。`geometry/color-on-panel` は好みと意図に左右されるので info とし、`maxWarnings` に含めない。
 しきい値は、試行 3 の図（灰色のパネルに半透明の set。変更前の描き方で `muddy-color` 6 件、`translucent-over-color` 9 件、`color-on-panel` 2 件）で出て、`examples/llada` と `examples/llama4-moe` で何も出ず、
