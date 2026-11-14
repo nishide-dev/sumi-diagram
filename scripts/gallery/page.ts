@@ -47,7 +47,6 @@ export interface GalleryModel {
   strokes: { sample: ToneSample; outcomes: RenderOutcome[] };
   /** One figure under every built-in palette (#417). */
   palettes: { sample: PaletteSample; outcomes: RenderOutcome[] };
-  /** Legend entries with icon, glyph, edge and set samples under every theme (#409). */
   /** Every tone as an outline and on edges under every theme (#177). */
   outlinedTones: { sample: ToneSample; outcomes: RenderOutcome[] };
   filledTones: { sample: ToneSample; outcomes: RenderOutcome[] };

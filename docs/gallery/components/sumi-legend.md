@@ -16,7 +16,7 @@ A key that explains styles: one sample per entry \(a line, a box, an icon, a gly
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <img src="sumi-legend.minimal.svg" alt="sumi/legend, theme minimal"> | <img src="sumi-legend.academic.svg" alt="sumi/legend, theme academic"> | <img src="sumi-legend.slides.svg" alt="sumi/legend, theme slides"> | <img src="sumi-legend.color.svg" alt="sumi/legend, theme color"> | <img src="sumi-legend.paper.svg" alt="sumi/legend, theme paper"> | <img src="sumi-legend.llama.svg" alt="sumi/legend, theme llama"> | <img src="sumi-legend.sumi.svg" alt="sumi/legend, theme sumi"> | <img src="sumi-legend.sumi-dark.svg" alt="sumi/legend, theme sumi-dark"> |
-| <code>sumi render sumi\-legend\.sumi\.yaml</code><br>150\.46mm × 44\.1mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme academic</code><br>144\.11mm × 43\.57mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>286\.63mm × 79\.2mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme color</code><br>150\.46mm × 44\.1mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme paper</code><br>132\.82mm × 44\.1mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme llama</code><br>136\.35mm × 44\.1mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme sumi</code><br>139\.17mm × 44\.1mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme sumi\-dark</code><br>139\.17mm × 44\.1mm \(max width 180mm, max height 220mm\) |
+| <code>sumi render sumi\-legend\.sumi\.yaml</code><br>116\.59mm × 73\.91mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme academic</code><br>116\.59mm × 72\.85mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme slides \-\-profile presentation\-16x9</code><br>195\.44mm × 132\.64mm \(max width 338\.7mm, max height 190\.5mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme color</code><br>116\.59mm × 73\.91mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme paper</code><br>110\.42mm × 73\.91mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme llama</code><br>110\.42mm × 73\.91mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme sumi</code><br>110\.42mm × 73\.91mm \(max width 180mm, max height 220mm\) | <code>sumi render sumi\-legend\.sumi\.yaml \-\-theme sumi\-dark</code><br>110\.42mm × 73\.91mm \(max width 180mm, max height 220mm\) |
 
 <details>
 <summary>Source: <code>sumi-legend.sumi.yaml</code></summary>
@@ -35,12 +35,14 @@ figure:
         gap: 6mm
         align: center
         items:
-          - row: { gap: 14mm, align: center, items: [input, model, output] }
-          - row: { gap: 10mm, align: start, items: [default, plain] }
+          - row: { gap: 16mm, align: center, items: [input, model, store, output] }
+          - default
+          - plain
 
 nodes:
   - { id: input, component: box, label: Input, tone: blue, glyphs: [{ kind: vector, tone: gray, direction: right, at: north }] }
   - { id: model, component: box, label: Model }
+  - { id: store, component: box, label: Memory }
   - { id: output, component: box, label: Output, tone: orange }
   - id: default
     component: sumi/legend
@@ -48,14 +50,15 @@ nodes:
     props:
       flow: row
       headings: inline
-      perRow: 2
+      perRow: 3
       entries:
         - { heading: Boxes, node: { tone: blue }, label: Input }
         - { node: { tone: orange }, label: Output }
+        - { set: { tone: gray }, label: Group }
         - { heading: Lines, edge: {}, label: Data flow }
+        - { edge: { component: double-arrow }, label: Two-way }
         - { edge: { variant: dashed }, label: Optional }
-        - { heading: Marks, set: { tone: gray }, label: Group }
-        - { glyph: { kind: vector, tone: gray, direction: right }, label: Features }
+        - { heading: Marks, glyph: { kind: vector, tone: gray, direction: right }, label: Features }
   - id: plain
     component: sumi/legend
     label: plain
@@ -63,18 +66,20 @@ nodes:
     props:
       flow: row
       headings: inline
-      perRow: 2
+      perRow: 3
       entries:
         - { heading: Boxes, node: { tone: blue }, label: Input }
         - { node: { tone: orange }, label: Output }
+        - { set: { tone: gray }, label: Group }
         - { heading: Lines, edge: {}, label: Data flow }
+        - { edge: { component: double-arrow }, label: Two-way }
         - { edge: { variant: dashed }, label: Optional }
-        - { heading: Marks, set: { tone: gray }, label: Group }
-        - { glyph: { kind: vector, tone: gray, direction: right }, label: Features }
+        - { heading: Marks, glyph: { kind: vector, tone: gray, direction: right }, label: Features }
 
 edges:
   - { from: input, to: model }
-  - { from: model, to: output, variant: dashed }
+  - { from: model, to: store, component: double-arrow }
+  - { from: store, to: output, variant: dashed }
 
 sets:
   - { id: stage, members: [input, model], shape: rect, tone: gray, padding: 3mm, enclose: footprint }

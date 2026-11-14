@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { parse as parseYaml } from "yaml";
 import { compileFigure } from "../../src/compiler/compile";
 import { writtenComponentOf } from "../../src/compiler/testing";
 import { createBuiltinRegistry } from "../../src/core/registry/builtins";
@@ -30,16 +31,48 @@ import {
 
 const samples = componentSamples();
 
-test("the sumi/legend sample shows every sample kind in every variant (#550)", () => {
+test("every sumi/legend variant has every sample kind, each matching the figure (#550)", () => {
   const sample = samples.find((s) => s.entry.id === "sumi/legend");
   if (!sample) throw new Error("no sumi/legend sample");
-  const source = sample.source;
-  expect(source).toContain("items: [default, plain]");
-  expect(source.match(/node: \{ tone: blue \}/g)).toHaveLength(2);
-  expect(source.match(/edge: \{ variant: dashed \}/g)).toHaveLength(2);
-  expect(source.match(/set: \{ tone: gray \}/g)).toHaveLength(2);
-  expect(source.match(/glyph: \{ kind: vector/g)).toHaveLength(2);
-  expect(source).toContain("members: [input, model]");
+  type Entry = Record<string, { component?: string; variant?: string; tone?: string } | string>;
+  const doc = parseYaml(sample.source) as {
+    nodes: {
+      id: string;
+      component: string;
+      variant?: string;
+      tone?: string;
+      props?: { entries: Entry[] };
+    }[];
+    edges: { component?: string; variant?: string }[];
+    sets: { tone?: string }[];
+  };
+  const legends = doc.nodes.filter((n) => n.component === "sumi/legend");
+  expect(legends.map((n) => n.variant ?? "default")).toEqual(sample.entry.variants as string[]);
+  const kinds = (entries: Entry[]) =>
+    entries.map((e) => ["node", "edge", "set", "glyph"].filter((k) => k in e).join(""));
+  for (const legend of legends) {
+    const entries = legend.props?.entries ?? [];
+    expect(kinds(entries)).toEqual(["node", "node", "set", "edge", "edge", "edge", "glyph"]);
+    // Each edge entry matches an edge of the figure by component and variant.
+    for (const e of entries) {
+      const edge = e.edge as { component?: string; variant?: string } | undefined;
+      if (edge === undefined) continue;
+      expect(
+        doc.edges.some(
+          (x) =>
+            (x.component ?? "arrow") === (edge.component ?? "arrow") &&
+            (x.variant ?? "default") === (edge.variant ?? "default"),
+        ),
+      ).toBe(true);
+    }
+    // Box tones match nodes, the set tone matches a set.
+    for (const e of entries) {
+      const node = e.node as { tone?: string } | undefined;
+      if (node) expect(doc.nodes.some((n) => n.tone === node.tone)).toBe(true);
+      const set = e.set as { tone?: string } | undefined;
+      if (set) expect(doc.sets.some((x) => x.tone === set.tone)).toBe(true);
+    }
+  }
 });
 
 test("glyph and stroke stories preserve their visual semantics and slides profile", () => {
