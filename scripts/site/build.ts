@@ -8,7 +8,6 @@ import {
   componentSamples,
   dimSample,
   glyphSample,
-  legendSample,
   setsSample,
   strokeSample,
   THEMES,
@@ -44,11 +43,6 @@ const options = [
     sample: strokeSample(),
     title: "Stroke options",
     description: "Line widths, arrowheads and frame styles.",
-  },
-  {
-    sample: legendSample(),
-    title: "Legends",
-    description: "Explain the visual marks in a figure.",
   },
 ];
 const examples = [];

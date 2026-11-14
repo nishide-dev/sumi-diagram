@@ -271,7 +271,7 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
           expect(run.exitCode, stderr).toBe(0);
           if (example === "examples/dit-block/dit-block.sumi.yaml") {
             // The original's gray panel holds the colored blocks (#440, pinned in #441).
-            expect(stderr).toContain("0 errors, 0 warnings, 5 infos");
+            expect(stderr).toContain("0 errors, 0 warnings, 6 infos");
             expect(
               [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
                 ([, severity, code]) => [severity, code],
@@ -282,6 +282,8 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               ["info", "geometry/color-on-panel"],
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/group-empty-area"],
+              // The original's edge label sits 0.25mm from its line (#546).
+              ["info", "geometry/edge-label-hugging"],
             ]);
           } else if (example === "examples/transformer/transformer.sumi.yaml") {
             // The original's gray encoder and decoder panels hold colored blocks (#440, #441).

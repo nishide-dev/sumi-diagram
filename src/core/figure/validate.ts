@@ -19,6 +19,7 @@ import {
   type PartialFigure,
 } from "../check-state";
 import { type Diagnostic, type DocPath, didYouMean, formatDocPath } from "../diagnostics";
+import { builtinRegistry } from "../registry/builtins";
 import { RESERVED_KEY, reservedKeyMessage, reservedKeyPaths } from "../reserved-keys";
 import { errorAt } from "./report";
 import {
@@ -241,7 +242,11 @@ function issueToDiagnostics(
     }
     case "unrecognized_keys": {
       const known = objectKeysAt(schema, relative);
-      return issue.keys.map((key) => errorAt(locate, ...unknownField(key, path, known)));
+      // Elements (nodes, edges, groups) carry component options under `props`.
+      const component = known.includes("props")
+        ? elementComponent(valueAt(root, relative), path)
+        : undefined;
+      return issue.keys.map((key) => errorAt(locate, ...unknownField(key, path, known, component)));
     }
     case "invalid_type":
       if (actual === undefined) {
@@ -328,8 +333,20 @@ function issueToDiagnostics(
   ];
 }
 
-function unknownField(key: string, path: DocPath, known: readonly string[]): ErrorArgs {
-  const suggestion = didYouMean(key, known);
+function unknownField(
+  key: string,
+  path: DocPath,
+  known: readonly string[],
+  component?: { id: string; props: readonly string[] },
+): ErrorArgs {
+  // A component option written beside the element's own fields (`height: 10`
+  // on a node) belongs under `props`. Only the exact name of one of the
+  // element's own component's props says so; a near miss stays a typo of an
+  // element field (#549).
+  const suggestion =
+    component?.props.includes(key) && !known.includes(key)
+      ? `"${key}" is an option of ${component.id}: write it under props (props: { ${key}: ... }).`
+      : didYouMean(key, known);
   return [
     "schema/unknown-field",
     `Unknown field "${key}" in ${formatDocPath(path)}.`,
@@ -339,6 +356,25 @@ function unknownField(key: string, path: DocPath, known: readonly string[]): Err
       hint: `${suggestion ? `${suggestion} ` : ""}If this field was added in a newer Sumi version, upgrade Sumi.`,
     },
   ];
+}
+
+const DEFAULT_COMPONENT: Record<string, string> = { groups: "container", edges: "arrow" };
+
+/**
+ * The built-in component of a node, group or edge and the names of its props,
+ * or `undefined` when the component is not a built-in (custom components are
+ * resolved later, so no claim is made about their props).
+ */
+function elementComponent(
+  element: unknown,
+  path: DocPath,
+): { id: string; props: readonly string[] } | undefined {
+  const ref = isRecord(element) ? element.component : undefined;
+  const name = typeof ref === "string" ? ref : DEFAULT_COMPONENT[String(path[0])];
+  if (name === undefined) return undefined;
+  const id = name.includes("/") ? name : `sumi/${name}`;
+  const manifest = builtinRegistry().get(id);
+  return manifest === undefined ? undefined : { id, props: objectKeysAt(manifest.props, []) };
 }
 
 /** Keys of the object schema at `path` inside `schema`, or `[]`. */

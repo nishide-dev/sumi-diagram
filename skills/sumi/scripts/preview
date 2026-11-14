@@ -1,6 +1,7 @@
 #!/bin/sh
 # Rasterize a rendered Sumi SVG to a PNG for visual inspection and print the
 # PNG's path. Usage: preview [-o <out.png>] <figure.svg> [size-in-px, default 1600]
+# (-o may also follow the figure)
 #
 # The PNG is written next to the SVG (figure.svg -> figure.png, overwriting an
 # existing figure.png) unless -o/--out names another .png path. Missing output
@@ -25,18 +26,29 @@ usage() {
   exit 2
 }
 dest=
-while [ $# -gt 0 ]; do
-  case $1 in
+# Options may come before or after the figure (#549); `--` ends them. Operands
+# are rotated to the end of "$@" as they are met, so no file name is re-split.
+n=$#
+while [ "$n" -gt 0 ]; do
+  a=$1
+  shift
+  n=$((n - 1))
+  case $a in
     -o | --out)
-      [ $# -ge 2 ] || usage
-      dest=$2
-      shift 2
+      [ "$n" -ge 1 ] || usage
+      dest=$1
+      shift
+      n=$((n - 1))
       ;;
     --)
-      shift
-      break
+      while [ "$n" -gt 0 ]; do
+        set -- "$@" "$1"
+        shift
+        n=$((n - 1))
+      done
       ;;
-    *) break ;;
+    -?*) usage ;;
+    *) set -- "$@" "$a" ;;
   esac
 done
 if [ $# -lt 1 ] || [ $# -gt 2 ] || [ ! -f "$1" ]; then usage; fi
