@@ -226,7 +226,9 @@ nodes:
       return result.value.svg;
     };
     const plain = await svgOf(fixture);
-    expect(new Bun.CryptoHasher("sha256").update(plain).digest("hex")).toBe(golden.sha256);
+    // The metadata carries the Sumi version, which changes at every release.
+    const drawing = plain.replace(/<metadata>[\s\S]*?<\/metadata>/, "");
+    expect(new Bun.CryptoHasher("sha256").update(drawing).digest("hex")).toBe(golden.sha256);
     // An explicit scale of 1 differs only in the source-derived metadata and class name.
     const strip = (svg: string) =>
       svg.replace(/<metadata>[\s\S]*?<\/metadata>/, "").replace(/sumi-\d+/g, "sumi-x");
