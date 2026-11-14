@@ -81,20 +81,21 @@ function dotStemGap(rows: number[]): number {
   return gap;
 }
 
-const card = (color: string, extra = "") =>
-  `<div style="font-family:M;font-size:14px;font-weight:700;color:${color};${extra}">i</div>`;
+const card = (color: string, glyph = "i") =>
+  `<div style="font-family:M;font-size:14px;font-weight:700;color:${color}">${glyph}</div>`;
 
-test("the dot of a synthetic-bold i stays separate from its stem, which the stroked output loses (#495)", async () => {
-  for (const color of ["#000000", "rgba(0,0,0,0.5)"]) {
-    const svg = await raw(card(color));
-    expect(svg).toContain("stroke-width");
-    const fixed = smearSyntheticBold(svg);
-    expect(fixed).not.toContain("stroke-width");
-    // Regular text sets the gap; the stroke eats a row of it, the smear does not.
-    const regular = dotStemGap(inkRows(await raw(card(color).replace("700", "400"))));
-    expect(dotStemGap(inkRows(fixed))).toBe(regular);
-    expect(dotStemGap(inkRows(svg))).toBeLessThan(regular);
-  }
+test("the dot of a synthetic-bold i or j stays separate from its stem, which the stroked output loses (#495)", async () => {
+  for (const glyph of ["i", "j"])
+    for (const color of ["#000000", "rgba(0,0,0,0.5)"]) {
+      const svg = await raw(card(color, glyph));
+      expect(svg).toContain("stroke-width");
+      const fixed = smearSyntheticBold(svg);
+      expect(fixed).not.toContain("stroke-width");
+      // Regular text sets the gap; the stroke eats a row of it, the smear does not.
+      const regular = dotStemGap(inkRows(await raw(card(color, glyph).replace("700", "400"))));
+      expect(dotStemGap(inkRows(fixed))).toBe(regular);
+      expect(dotStemGap(inkRows(svg))).toBeLessThan(regular);
+    }
 });
 
 test("rewriting keeps opacity and a path-level transform and ignores non-bold strokes", () => {
