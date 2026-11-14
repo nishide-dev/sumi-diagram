@@ -730,10 +730,10 @@ describe("anchors", () => {
     ]);
     const [east, sooth] = checkFigureSource(text).state.diagnostics;
     expect(east?.message).toBe(
-      'Invalid anchor "east:1.5" at edges[0].fromAnchor; expected "<side>", "<side>:<position>" or "straight".',
+      'Invalid anchor "east:1.5" at edges[0].fromAnchor; expected "<side>", "<side>:<position>", "straight" or "straight:span".',
     );
     expect(sooth?.hint).toBe(
-      'Did you mean "south"? Sides: north, east, south, west; the position is a number from 0 to 1 (default 0.5), e.g. "south:0.25". Or "straight": in line with the other end, on the side facing it.',
+      'Did you mean "south"? Sides: north, east, south, west; the position is a number from 0 to 1 (default 0.5), e.g. "south:0.25". Or "straight": in line with the other end, on the side facing it ("straight:span": at the middle of the span the two share, for boxes that span several grid columns).',
     );
   });
 });

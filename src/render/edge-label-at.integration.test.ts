@@ -78,9 +78,12 @@ describe("the stage-B draft of figure 2 (research/124-stage-b)", () => {
     expect(overlapWarnings(diagnostics).map((d) => d.path)).toEqual([["edges", 3]]);
     const findings = lintGeometry(rendered, { source });
     const about = (path: readonly unknown[] | undefined) => path?.[0] === "edges" && path[1] === 7;
+    // The only note: the label is 0.48mm from a corner of the box beside it (#546).
     expect(
-      findings.filter((d) => about(d.path) || (d.related ?? []).some((r) => about(r.path))),
-    ).toEqual([]);
+      findings
+        .filter((d) => about(d.path) || (d.related ?? []).some((r) => about(r.path)))
+        .map((d) => [d.code, d.severity, d.subject?.id]),
+    ).toEqual([["geometry/edge-label-on-corner", "info", "edges[7]"]]);
   });
 });
 

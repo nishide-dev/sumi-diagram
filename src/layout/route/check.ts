@@ -409,7 +409,12 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
         // corner margin, or at most the tolerance outside it on a
         // one-segment line (moved there by `straighten()`, #169); where it
         // has no such side it is a default end.
-        const at = straightPlacement(rect, rects.get(other) as Rect);
+        const at = straightPlacement(
+          rect,
+          rects.get(other) as Rect,
+          (which === "from" ? edgeIR.get(edge.key)?.fromSpan : edgeIR.get(edge.key)?.toSpan) ===
+            true,
+        );
         if ("offset" in at) {
           const along = SIDE_DIR[side] % 2 === 1 ? end.x : end.y;
           const outside = straightMarginDistance(rect, side, along);

@@ -431,6 +431,11 @@
             "exclusiveMinimum": 0,
             "maximum": 1000
           },
+          "matchWidth": {
+            "description": "Structured layout: nodes that write the same name get the width of the widest of them (a table of same-kind boxes without writing props.width). Boxes only: circles, squares and outline components keep their size.",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
           "component": {
             "type": "string",
             "minLength": 1,
@@ -805,7 +810,7 @@
           "fromAnchor": {
             "description": "Where the edge leaves the source (structured layout only).",
             "type": "string",
-            "pattern": "^(?:straight|(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?)$"
+            "pattern": "^(?:straight(?::span)?|(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?)$"
           },
           "to": {
             "type": "string",
@@ -815,7 +820,7 @@
           "toAnchor": {
             "description": "Where the edge enters the target (structured layout only).",
             "type": "string",
-            "pattern": "^(?:straight|(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?)$"
+            "pattern": "^(?:straight(?::span)?|(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?)$"
           },
           "label": {
             "default": "",
@@ -983,6 +988,16 @@
                 "const": 0
               }
             ]
+          },
+          "width": {
+            "description": "Exact width of the outline (circle, ellipse or rect, not hull), e.g. \"58mm\", rounded to the nearest 0.5pt: about the center of the fit around the members. If the members do not fit that width the outline stays larger and layout/set-size-too-small says so. Not together with minWidth. A tilted ellipse takes it along its first axis; a circle takes the larger of width and height.",
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?(mm|cm|in|pt)$"
+          },
+          "height": {
+            "description": "Exact height of the outline (circle, ellipse or rect, not hull), as width (positive, rounded to 0.5pt). Not together with minHeight. A tilted ellipse takes it along its second axis.",
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?(mm|cm|in|pt)$"
           },
           "minWidth": {
             "description": "Least width of the outline (circle, ellipse or rect, not hull), e.g. \"50mm\", rounded to the nearest 0.5pt like a component width: a smaller fit grows about its center, so sets can share one size without hidden anchor nodes. A tilted ellipse takes it along its first axis; a circle takes the larger of minWidth and minHeight.",

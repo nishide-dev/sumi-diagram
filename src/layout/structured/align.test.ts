@@ -97,9 +97,13 @@ describe("multi-line tokens remain a unit under align (#305)", () => {
           expect(b.x - moved.x).toBeCloseTo(a.x - origin.x, 2);
           expect(b.y - moved.y).toBeCloseTo(a.y - origin.y, 2);
         }
-        const warning = aligned.diagnostics.find((d) => d.code === "layout/unsatisfied-align");
-        expect(warning?.path).toEqual(["figure", "layout", "align", 0]);
-        expect(warning?.location?.line).toBeGreaterThan(0);
+        // The block cannot move (#305); `head` takes the cross-axis space instead (#545).
+        expect(aligned.diagnostics.find((d) => d.code === "layout/unsatisfied-align")).toBe(
+          undefined,
+        );
+        const head = rectOf(aligned.layout, "head");
+        const mid = (r: Rect) => (horizontal ? r.x + r.width / 2 : r.y + r.height / 2);
+        expect(mid(head)).toBeCloseTo(mid(moved), 1);
       }
     },
   );

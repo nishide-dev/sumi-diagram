@@ -6,6 +6,7 @@ import { svgToEditablePptx, svgToPptx } from "../render/pptx";
 import { renderFigure } from "../render/render";
 import { assetMarkup, imagePlaceholder } from "./draw";
 import { HTML_LIMITS, htmlViewport, validateHtml } from "./html";
+import { smearSyntheticBold } from "./html-bold";
 import { validCssValue } from "./html-css";
 import { htmlRadius } from "./html-radius";
 import { htmlThemeVariables, renderHtmlAssets } from "./html-render";

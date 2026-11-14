@@ -117,6 +117,17 @@ and spreads extra room between items (one item stays centred). For tighter
 title/caption spacing do not stretch a panel to an unrelated sibling: use
 `align: start` there and stretch only its inner columns.
 
+**Equal widths: `matchWidth`.** Boxes of one kind that should be one width (the cells of
+a column, the stages of a pipeline, a row of options) write the same name:
+`{id: a, component: box, label: Short, matchWidth: stage}`. Every node with that name
+takes the width of the widest of them, whatever trees they sit in, so no `props.width`
+is written (or recomputed when a label changes). A node's own `props.width` counts as
+its width in the comparison. Boxes only: circles, squares and outline components
+(`bowtie`, `trapezoid`, ...) keep their size; it needs the structured layout
+(`layout/structured-only`). A grid's `align: stretch` widens boxes to their column
+instead, which is the other way to a column of equal boxes; if a stretch widens only some
+members of one name, `layout/match-width-unmet` says so.
+
 ## Coordinate placement
 
 Use `place` for small graphs whose shape you choose. `unit` is a positive length
@@ -190,6 +201,7 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
 | `angle` | `shape: ellipse` only (else `ref/set-angle-needs-ellipse`). `auto` turns the ellipse to the members (the smallest area; hugs diagonal members, like a hyperedge around a diagonal row), or degrees clockwise on the page (`rx` runs along it). Both fit the tightest ellipse that keeps `padding` clear of every member, with no 3:1 limit. Omitted: the axis-parallel ellipse above, unchanged |
 | `padding` | room between members and outline (default: the profile's group padding) |
 | `minWidth`, `minHeight` | least size of the outline (`circle`, `ellipse`, `rect`; `ref/set-min-size-needs-fixed-shape` on a hull). Lengths are rounded to the nearest 0.5pt like component sizes (`18mm` is the same for a box and a set minimum) and must be positive. A smaller fit grows about its own center, so several sets can share one size or aspect without hidden `junction` anchors; a circle takes the larger of the two. The fit's center is unchanged, so place the members symmetrically if the sets should line up |
+| `width`, `height` | the **exact** size of the outline (`circle`, `ellipse`, `rect`; a hull has no size), the same lengths as `minWidth`. The outline is that size about the center of the fit, so four sets can be exactly 58mm × 48mm without a `junction` to widen them; one axis alone leaves the other fitted. Members that do not fit inside it (with `padding`) keep the outline as large as they need and `layout/set-size-too-small` (warning) gives both sizes: make the size larger, bring the members closer or drop it. With `minWidth` / `minHeight` of the same axis it is `ref/set-size-conflict`; the minimum of the other axis applies first (`width` + `minHeight` is fine), but a `circle` cannot take both |
 | `enclose` | `body` (default) fits member bodies and badges; `footprint` also includes their glyphs before adding padding. Larger outlines can cover nearby non-members. |
 | `overlap` | `mix` (default) or `multiply` (legacy). `figure.setOverlap` sets the figure-wide default; a set overrides it. All participating sets contribute, including five or more; if they disagree, `multiply` wins. Unfilled sets do not paint overlaps. At the 1024-region budget, `layout/set-overlap-budget` warns that deeper intersections can omit colors; reduce overlaps or split the figure. |
 | `label`, `labelAt` | outside the outline: `top` (default), `bottom`, `left`, `right`, or beside a diagonal extreme `top-left`, `top-right`, `bottom-left`, `bottom-right`. For a label inside, make a `label` node a member |
@@ -448,6 +460,31 @@ narrow end's **center** over the wide box's side (3pt inside its corners); when 
 is not but the two sides overlap, the warning's hint names the anchors for the
 shared span (`south:0.126` / `north:0.937`). Without anchors Sumi already draws a
 straight line when a wide end faces a narrower one whose center is over it.
+
+**Straight through two spanning boxes: `straight:span`.** Two boxes that each span
+several columns and are offset by one (a plan whose activities last two periods and
+follow each other) share a stretch of columns, but neither centre is over the other,
+so `straight` has no effect (`layout/straight-off-side`). Write `straight:span` at both
+ends instead (the mode is per end; a written end always takes the middle, even when the other centre is over the side): the line drops through the middle of the span the two share (3pt inside
+the corners of both sides), with no fractional anchor such as `south:0.7692` to
+recompute when a width or gap changes. Without a shared span, or too narrow a one, it
+is the same off-side warning as `straight`. `straight` keeps its rule everywhere else.
+
+```yaml
+edges:
+  - {from: a1, to: b1, fromAnchor: "straight:span", toAnchor: "straight:span", variant: dashed}
+```
+
+**A group spanning columns: its content on the columns above.** A group in
+`{item: group, span: 2}` is as wide as its two columns and its content is inset by the
+group padding `p`, so the boxes inside do not sit under the column headings. Make each
+box `column - 2p` wide (`props.width`) and the gap between them `columnGap + 2p`: the
+group's natural width is then exactly the two columns and every box is centered under
+its column (the grid's `align: stretch` keeps the group on the tracks; write the padding
+with the group's `props.padding` so the sum is plain, e.g. column 26mm, columnGap 5mm,
+`padding: 3mm` gives boxes 20mm and an inner gap of 11mm). There is no feature that
+borrows the grid's tracks: a group's tree is laid out by itself, and its padding is
+what moves its content off the tracks.
 
 ## Panel separators
 
@@ -854,9 +891,14 @@ figure:
   (for `x`) that holds just one of them, never inside a `gap: 0` box. So it
   aligns elements in different branches (`y` across stacks side by side in a
   row, `x` across rows in a stack), not two items of one stack on `y` nor of
-  one row on `x`. Two items of one row on `y` need a stack around one:
-  `items: [a, {stack: {items: [key]}}]`. Put the element **in the tree**
-  (not `attach`ed into a gap).
+  one row on `x`. **An item that sits directly in a stack can move sideways, and
+  one directly in a row up or down:** where the space along the axis above cannot
+  meet a constraint, Sumi tries again with space on the other axis (left / right of a
+  stack item for `x`, above / below a row item for `y`; only the item that holds the
+  element, never a whole branch), so an `x` constraint reaches an item of a stack
+  without wrapping it in a row of one. A constraint the first search meets is
+  solved exactly as before; grid cells and the cells of a one-line `tokens` row take
+  no such space. Put the element **in the tree** (not `attach`ed into a gap).
 - **A cell of a one-line `tokens` row is not a box of its own**: aligning
   `{x: [patches.3, emb.2]}` adds space inside the `emb` row, pulling its cells apart
   (`layout/align-splits-tokens`, warning, no other signal). Align the whole

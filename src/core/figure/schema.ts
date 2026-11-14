@@ -202,7 +202,7 @@ export const ROW_DIRECTIONS = ["right", "left"] as const;
  * anchor as `layout/invalid-anchor`; the pattern is for editors.
  */
 export const ANCHOR_PATTERN =
-  /^(?:straight|(north|east|south|west)(?::(0(?:\.\d+)?|1(?:\.0+)?))?)$/;
+  /^(?:straight(?::span)?|(north|east|south|west)(?::(0(?:\.\d+)?|1(?:\.0+)?))?)$/;
 
 /** A non-negative layout length such as `3mm` (or `0`), for the JSON Schema. */
 const LAYOUT_LENGTH_PATTERN = /^(0|\d+(\.\d+)?(mm|cm|in|pt))$/;
@@ -654,7 +654,7 @@ const Anchor = z
   .string()
   .meta({ pattern: ANCHOR_PATTERN.source })
   .describe(
-    '"<side>" or "<side>:<0..1>", e.g. "south" or "south:0.25"; or "straight": in line with the other end, on the side facing it (structured layout only).',
+    '"<side>" or "<side>:<0..1>", e.g. "south" or "south:0.25"; or "straight": in line with the other end, on the side facing it; or "straight:span": straight at the middle of the span the two ends share, for boxes that span several grid columns and do not centre over each other (structured layout only).',
   );
 
 /**
@@ -1014,6 +1014,9 @@ export const NodeSchema = z.strictObject({
     .describe(
       "Structured layout: relative weight of extra main-axis space under the immediate row/stack's justify: stretch (0 < grow <= 1000, default 1), apportioned in whole 0.5pt increments, not a final-size ratio. No effect without extra space, under other justification modes, in grid or attach, or on explicit main-axis sizes and non-stretchable shapes. Does not inherit. Rejected on expanded tokens, matrix and legend components.",
     ),
+  matchWidth: Id.optional().describe(
+    "Structured layout: nodes that write the same name get the width of the widest of them (a table of same-kind boxes without writing props.width). Boxes only: circles, squares and outline components keep their size.",
+  ),
   component: ComponentRef.describe("Component reference (kind: node), e.g. `box` or `sumi/box`."),
   label: Label,
   sublabel: z
@@ -1200,6 +1203,12 @@ export const SetSchema = z.strictObject({
     ),
   padding: LayoutLength.optional().describe(
     "Room between the members and the outline. Omitted means the profile's group padding.",
+  ),
+  width: SizeLength.optional().describe(
+    'Exact width of the outline (circle, ellipse or rect, not hull), e.g. "58mm", rounded to the nearest 0.5pt: about the center of the fit around the members. If the members do not fit that width the outline stays larger and layout/set-size-too-small says so. Not together with minWidth. A tilted ellipse takes it along its first axis; a circle takes the larger of width and height.',
+  ),
+  height: SizeLength.optional().describe(
+    "Exact height of the outline (circle, ellipse or rect, not hull), as width (positive, rounded to 0.5pt). Not together with minHeight. A tilted ellipse takes it along its second axis.",
   ),
   minWidth: SizeLength.optional().describe(
     'Least width of the outline (circle, ellipse or rect, not hull), e.g. "50mm", rounded to the nearest 0.5pt like a component width: a smaller fit grows about its center, so sets can share one size without hidden anchor nodes. A tilted ellipse takes it along its first axis; a circle takes the larger of minWidth and minHeight.',

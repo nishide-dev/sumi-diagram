@@ -16,6 +16,7 @@ import { loadGlyphCoverage } from "../lint/cmap";
 import { formatCodePoint, glyphCodePoints } from "../lint/text";
 import { loadEngine, runEngine } from "../render/pdf/engine";
 import { validateHtml } from "./html";
+import { smearSyntheticBold } from "./html-bold";
 import { validCssValue } from "./html-css";
 import { type HtmlMeasurement, htmlOverflows, locateHtmlMeasurement } from "./html-measure";
 
@@ -167,7 +168,7 @@ export async function renderHtmlAssets(
       }
       const normalized = runEngine(
         loadEngine(),
-        new TextEncoder().encode(raw),
+        new TextEncoder().encode(smearSyntheticBold(raw)),
         fonts.map((f) => f.data),
         "picture",
       );

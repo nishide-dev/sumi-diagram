@@ -107,7 +107,7 @@ describe("structured: #167 figures B and C on paper-double", () => {
     const all = lintGeometry(b);
     expect(
       all.filter((d) => d.code === "geometry/arrowhead-cramped").map((d) => d.subject?.id),
-    ).toEqual([]);
+    ).toEqual(["edges[6]", "edges[7]", "edges[24]", "edges[46]", "edges[59]"]);
     const diagnostics = all.filter((d) => d.code !== "geometry/arrowhead-cramped");
     expect(diagnostics.map((d) => [d.code, d.severity, d.subject?.id])).toEqual([
       ["geometry/heavy-scaling", "info", "stage-c-dit"],
@@ -120,6 +120,8 @@ describe("structured: #167 figures B and C on paper-double", () => {
       ["geometry/text-too-small", "error", "edges[26]"],
       ["geometry/text-too-small", "error", "edges[27]"],
       ["geometry/text-too-small", "error", "edges[28]"],
+      // The 7pt label sits 0.25mm from its line (#546).
+      ["geometry/edge-label-hugging", "info", "edges[29]"],
       ["geometry/text-too-small", "error", "edges[29]"],
     ]);
     expect(diagnostics[6]?.message).toContain("printed at 4.9pt (7pt shrunk to 70%");
@@ -132,13 +134,23 @@ describe("structured: #167 figures B and C on paper-double", () => {
     const all = lintGeometry(c);
     expect(
       all.filter((d) => d.code === "geometry/arrowhead-cramped").map((d) => d.subject?.id),
-    ).toEqual(["edges[26]", "edges[31]"]);
+    ).toEqual([
+      "edges[11]",
+      "edges[12]",
+      "edges[13]",
+      "edges[14]",
+      "edges[15]",
+      "edges[16]",
+      "edges[26]",
+      "edges[31]",
+    ]);
     const diagnostics = all.filter((d) => d.code !== "geometry/arrowhead-cramped");
     expect(diagnostics.map((d) => [d.code, d.severity, d.subject?.id])).toEqual([
       ["geometry/heavy-scaling", "info", "stage-c-h3world"],
       ["geometry/script-too-small", "info", "stage-c-h3world"],
       ["geometry/text-heavy-nodes", "info", "stage-c-h3world"],
       ["geometry/edge-jog", "info", "edges[17]"],
+      ["geometry/edge-label-on-corner", "info", "edges[19]"],
     ]);
     expect(diagnostics[1]?.message).toContain("down to 4.34pt (5.6pt shrunk to 77.4%");
   });

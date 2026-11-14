@@ -32,6 +32,16 @@ import { arrowheadStraightRun } from "./arrowheads";
 import { colorOnPanel, muddyColor, translucentOverColor } from "./color-composition";
 import { colorHarmony } from "./color-harmony";
 import { themeColorUse } from "./color-use";
+import {
+  capitalize,
+  drawnUnits,
+  isDrawnEdge,
+  isOpaque,
+  isStructured,
+  mmText,
+  printedUnits,
+  printScale,
+} from "./common";
 import type { GeometryContext, GeometryElement } from "./context";
 import { deadSpace } from "./dead-space";
 import { sparseFigure, textHeavy } from "./density";
@@ -40,6 +50,7 @@ import { groupEmptySpace } from "./empty-space";
 import { microJogLengths } from "./jogs";
 import { inkLines, unionOf } from "./measure";
 import { regionsOverlap } from "./outlines";
+import { edgeLabelHugging, edgeLabelOnCorner, tokenColumnDrift } from "./placement";
 import {
   axisSegments,
   type Bundle,
@@ -91,21 +102,6 @@ export const LABEL_TOUCH_UNITS = 2;
 /** Slack for comparing physical sizes in pt (floating point only; sizes are not quantized). */
 const PT_EPSILON = 1e-6;
 
-/**
- * Printed size ÷ drawn size (#183, `figure.fit: scale`; 1 otherwise). Element
- * geometry stays in drawing units: containment and intersection are checked
- * there as drawn, while physical thresholds (a gap in pt, a run in mm) are
- * converted with {@link drawnUnits} and reported lengths with {@link printedUnits}.
- */
-const printScale = (context: GeometryContext): number => context.inspection.scale ?? 1;
-
-/** A length given at printed size (in units of 0.5pt), in drawing units. */
-const drawnUnits = (context: GeometryContext, units: number): number => units / printScale(context);
-
-/** A drawn length in units, at its printed size (still in units of 0.5pt). */
-const printedUnits = (context: GeometryContext, units: number): number =>
-  units * printScale(context);
-
 const formatSize = (context: GeometryContext, rect: Rect): string =>
   `${formatPt(unitsToPt(printedUnits(context, rect.width)))} × ${formatPt(unitsToPt(printedUnits(context, rect.height)))}`;
 
@@ -136,10 +132,6 @@ const hasIcon = (element: GeometryElement): boolean =>
 
 /** `label`, or `icon` for a node that draws an icon in place of its label (#94). */
 const contentNoun = (element: GeometryElement): string => (hasIcon(element) ? "icon" : "label");
-
-const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
-
-const isStructured = (context: GeometryContext): boolean => context.ir.meta.engine === "structured";
 
 /** `true` if the auto layout runs left / right, so the layers are side by side. */
 const isHorizontal = (context: GeometryContext): boolean =>
@@ -1129,22 +1121,6 @@ export const PROXIMITY_GAP_UNITS = 3;
  */
 export const PROXIMITY_MIN_RUN_UNITS = ptToD2Units(mmToPt(3));
 
-/** A drawn length in mm at its printed size (#183). */
-const mmText = (context: GeometryContext, units: number, digits = 1): string =>
-  `${unitsToMm(printedUnits(context, units)).toFixed(digits)}mm`;
-
-/** `true` if the element is painted at all (not fully transparent). */
-const isOpaque = (e: GeometryElement): boolean => e.ir.style.opacity > 0;
-
-/** `true` for an edge drawn with a visible stroke, other than a legend's sample line. */
-const isDrawnEdge = (e: GeometryElement): boolean =>
-  e.ir.kind === "edge" &&
-  e.drawn !== undefined &&
-  e.ir.legend === undefined &&
-  e.ir.style.strokeWidth.units > 0 &&
-  e.ir.style.stroke !== "transparent" &&
-  isOpaque(e);
-
 /** One printed point, matching the physical-size convention of geometry lint. */
 export const EDGE_JOG_MIN_UNITS = ptToD2Units(1);
 
@@ -1284,7 +1260,8 @@ const ARROWHEAD_MIN_STEM_UNITS = ARROWHEAD_STEM_UNITS / 2;
 
 export const arrowheadCramped = defineGeometryRule({
   id: "geometry/arrowhead-cramped",
-  description: "A structured arrowhead has less than 1pt of visible straight stem before a bend.",
+  description:
+    "A structured arrowhead has less than 1pt of visible straight stem before a bend, or a straight edge shows less than 1pt of line beyond its heads.",
   defaultSeverity: "info",
   fixable: false,
   run(context) {
@@ -1305,12 +1282,23 @@ export const arrowheadCramped = defineGeometryRule({
             (sum, p, i) => sum + Math.hypot(p.x - (route[i]?.x ?? p.x), p.y - (route[i]?.y ?? p.y)),
             0,
           );
-        // Straight edges have no preceding bend. Overlap already has a warning.
-        if (run >= total - 0.002 || run + GEOMETRY_TOLERANCE_UNITS < length) continue;
-        const stem = Math.max(0, printedUnits(context, run - length));
+        // A straight edge has no bend to sit on, but a line barely longer than
+        // its head(s) is as cramped (#546): the visible line is what is left
+        // after every head, and each end names the whole edge.
+        const straight = run >= total - 0.002;
+        const heads =
+          (edge.ir.sourceArrowhead === undefined ? 0 : length) +
+          (edge.ir.targetArrowhead === undefined ? 0 : length);
+        const available = straight ? total - heads : run - length;
+        // Overlap already has a warning.
+        if (!straight && run + GEOMETRY_TOLERANCE_UNITS < length) continue;
+        if (straight && !source && edge.ir.sourceArrowhead !== undefined) continue;
+        const stem = Math.max(0, printedUnits(context, available));
         if (stem >= ARROWHEAD_MIN_STEM_UNITS - 0.002) continue;
         findings.push({
-          message: `The ${source ? "source" : "target"} arrowhead of ${edge.name} has only ${formatPt(unitsToPt(stem))} of visible straight stem before a bend (less than 1pt).`,
+          message: straight
+            ? `${capitalize(edge.name)} is a straight line with only ${formatPt(unitsToPt(stem))} visible beyond its arrowhead${heads > length ? "s" : ""} (less than 1pt), so ${heads > length ? "the heads crowd" : "the head crowds"} the line.`
+            : `The ${source ? "source" : "target"} arrowhead of ${edge.name} has only ${formatPt(unitsToPt(stem))} of visible straight stem before a bend (less than 1pt).`,
           path: edge.docPath,
           subject: edge.subject,
           hint: "Leave the arrowhead length plus at least 1pt of straight approach after rounding (the router aims at 2pt before scaling). Increase the gap or change fromAnchor / toAnchor; a fitted figure may need more room before scaling.",
@@ -2163,6 +2151,9 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   edgeNearBorder,
   edgeNearEdge,
   edgeTouchesLabel,
+  edgeLabelHugging,
+  edgeLabelOnCorner,
+  tokenColumnDrift,
   aspectDistorted,
   reversedEdge,
   setContainsNonMember,
