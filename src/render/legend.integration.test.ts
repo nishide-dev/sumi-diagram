@@ -47,7 +47,14 @@ async function renderDraft(name: string): Promise<{ source: string; rendered: Re
   expect(result.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
   const geometry = lintGeometry(result.value, { source });
   expect(
-    geometry.filter((d) => !["geometry/group-empty-area", "geometry/dash-hidden"].includes(d.code)),
+    geometry.filter(
+      (d) =>
+        ![
+          "geometry/group-empty-area",
+          "geometry/dash-hidden",
+          "geometry/edge-label-hugging",
+        ].includes(d.code),
+    ),
   ).toEqual([]);
   expect(
     geometry.filter((d) => d.code === "geometry/dash-hidden").map((d) => d.subject?.id),

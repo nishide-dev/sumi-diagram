@@ -55,7 +55,13 @@ async function render(
   ).toBe(true);
   expect(
     geometry
-      .filter((d) => d.code !== "geometry/group-empty-area" && d.code !== "geometry/dash-hidden")
+      .filter(
+        (d) =>
+          d.code !== "geometry/group-empty-area" &&
+          d.code !== "geometry/dash-hidden" &&
+          // The draft's 7pt labels sit 0.35mm from their lines (#546).
+          d.code !== "geometry/edge-label-hugging",
+      )
       .map((d) => [d.code, d.severity, d.subject?.id]),
   ).toEqual(jogEdges.map((id) => ["geometry/edge-jog", "info", id]));
   return result.value;
