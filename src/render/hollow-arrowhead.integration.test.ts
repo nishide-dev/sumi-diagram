@@ -201,6 +201,60 @@ describe.skipIf(!available)("hollow arrowheads in editable PPTX", () => {
   });
 });
 
+describe.skipIf(!available)("hollow arrowheads as shapes in editable PPTX (#485)", () => {
+  const heads = ["triangle", "diamond", "circle"] as const;
+  const slide = async () => {
+    const rendered = await render("canvas", heads);
+    const d2 = expectD2Rendered(rendered);
+    const result = svgToEditablePptx(rendered.svg, d2.compiled.ir);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const xml = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+    return xml.match(/<p:sp>.*?<\/p:sp>/g) ?? [];
+  };
+
+  test("an unfilled head is an outline shape without fill; the line stops at it", async () => {
+    const shapes = await slide();
+    const of = (i: number) => shapes.filter((x) => x.includes(`name="e:#${i}"`));
+    for (const i of [0, 1, 2]) {
+      // The diamonds meet: no line between them, only the two heads.
+      const [line, ...tips] = i === 1 ? [undefined, ...of(i)] : of(i);
+      // No native (filled) head: the two ends are shapes.
+      expect(of(i).join("")).not.toMatch(/<a:(headEnd|tailEnd)/);
+      expect(tips).toHaveLength(2);
+      for (const tip of tips) {
+        expect(tip).toContain("<a:noFill/><a:ln");
+        expect(tip).not.toContain("<a:prstDash");
+      }
+      // The SVG's line is cut at the head: 147.5..165.5 for the first edge, not D2's 136..177.
+      if (i === 0) expect(line ?? "").toContain('<a:ext cx="114300"');
+    }
+    expect(of(0)[1]).toContain("<a:close/>");
+    expect(of(2)[1]).toContain("<a:cubicBezTo>");
+  });
+
+  test("a dashed line cut at a head keeps the SVG's dash phase and stays a dashed line", async () => {
+    const rendered = await render("canvas", heads);
+    const d2 = expectD2Rendered(rendered);
+    const result = svgToEditablePptx(rendered.svg, d2.compiled.ir);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const xml = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+    const lines = (xml.match(/<p:sp>.*?<\/p:sp>/g) ?? []).filter(
+      (x) => x.includes('name="e:#3"') && x.includes("<a:custDash>"),
+    );
+    // Native 3 on / 3 off dashes, split at the label's gap: still editable dashed lines.
+    expect(lines.length).toBeGreaterThanOrEqual(1);
+    const { path } = edgeParts(rendered.svg, 3);
+    const offset = Number(/stroke-dashoffset:([\d.]+)/.exec(attribute(path, "style") ?? "")?.[1]);
+    expect(offset).toBeGreaterThan(0);
+    const startX = points(path)[0]?.x as number;
+    const first = lines[0] as string;
+    const x = Number(/<a:off x="(\d+)"/.exec(first)?.[1]) / 6350;
+    // The SVG's pattern is at (distance + offset) mod 6; the line starts on a boundary.
+    const phase = (((x - startX + offset) % 6) + 6) % 6;
+    expect(Math.min(phase, 6 - phase)).toBeLessThan(0.01);
+  });
+});
+
 describe("cutPath", () => {
   const segments = (d: string) => {
     const parsed = parsePath(d);
@@ -237,8 +291,8 @@ describe("untrimmedRoutes", () => {
       '<path d="M 0 5 L 4 5" stroke="none" data-sumi-route-stroke="#123"/>' +
       '<path d="M 0 9 L 4 9" stroke="#000"/></g>';
     expect(untrimmedRoutes(svg)).toBe(
-      '<g><path d="M 0 0 L 10 0" stroke="#000"/>' +
-        '<path d="M 0 5 L 4 5" stroke="#123"/>' +
+      '<g><path d="M 0 0 L 10 0" stroke="#000" data-sumi-cut="M 1 0 L 9 0"/>' +
+        '<path d="M 0 5 L 4 5" stroke="#123" data-sumi-hidden="true"/>' +
         '<path d="M 0 9 L 4 9" stroke="#000"/></g>',
     );
   });
