@@ -138,7 +138,7 @@ real, searchable text in the bundled STIX Two math fonts:
 - Letters and lowercase Greek are italic variables (`$x$`, `$\alpha$`, or `α`
   typed directly); digits, uppercase Greek and symbols are upright.
 - `_` / `^`: one level of sub/superscript, one character or `{…}`
-  (`$W_{\mathrm{out}}$`; not `$x_{i_j}$`), 0.7× the label size; both on one base
+  (`$W_{\mathrm{out}}$`; not `$x_{i_j}$`), 0.7× the label size (structured layout: raised to `figure.target.minFontSize`, up to the label size); both on one base
   are drawn one after the other, not stacked.
 - Commands: Greek (`\alpha` … `\omega`, `\Gamma` …), operators and relations (`\times`
   `\cdot` `\pm` `\oplus` `\otimes` `\odot` `\leq` `\geq` `\neq` `\approx` `\sim` `\equiv`

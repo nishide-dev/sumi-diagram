@@ -80,12 +80,12 @@ describe("regions", () => {
   });
 
   test("a short cylinder has shallower caps and a body that grows with its height (#516)", () => {
-    expect(cylinderArc(200)).toBe(24);
     expect(cylinderArc(110)).toBe(24);
+    expect(cylinderArc(140)).toBe(24);
     expect(cylinderArc(32)).toBe(2);
     expect(cylinderArc(6)).toBe(2);
     let previous = 0;
-    for (let h = 12; h <= 160; h += 2) {
+    for (let h = 12; h <= 400; h += 2) {
       const arc = cylinderArc(h);
       expect(arc).toBeLessThanOrEqual(h / 3);
       expect(cylinderBodyHeight(h)).toBeGreaterThanOrEqual(previous);
@@ -95,6 +95,15 @@ describe("regions", () => {
     const area = labelArea("cylinder", flat);
     expect(area.kind === "polygon" && area.points[2]?.y).toBeCloseTo(68 - cylinderArc(68), 9);
     expect(cylinderBodyHeight(68)).toBeGreaterThan(24);
+  });
+
+  test("a tall cylinder (large text) has deeper caps, up to twice D2's, and a growing body (#547)", () => {
+    expect(cylinderArc(176)).toBeCloseTo(24 + 36 / 6, 9);
+    expect(cylinderArc(1000)).toBe(48);
+    expect(cylinderArc(176)).toBeGreaterThan(cylinderArc(140));
+    const h = cylinderMinHeight(110);
+    expect(cylinderBodyHeight(h)).toBeGreaterThanOrEqual(110);
+    expect(h).toBeGreaterThan(110 + 72);
   });
 
   test("cylinderMinHeight is the least height whose body holds the content", () => {

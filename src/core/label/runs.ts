@@ -47,14 +47,20 @@ export const SCRIPT_SCALE = 0.7;
 export const SUBSCRIPT_SHIFT = 0.21;
 export const SUPERSCRIPT_SHIFT = 0.36;
 
-/** A run's size and baseline offset (positive down) at a label font size. */
+/**
+ * A run's size and baseline offset (positive down) at a label font size.
+ * `floor` (#547: `figure.target.minFontSize` in units) raises a script above
+ * 0.7 of the label so that it meets the minimum, but never above the label's
+ * own size.
+ */
 export function scriptGeometry(
   script: RunScript,
   fontSize: number,
+  floor?: number,
 ): { fontSize: number; shift: number } {
   if (script === "base") return { fontSize, shift: 0 };
   return {
-    fontSize: fontSize * SCRIPT_SCALE,
+    fontSize: Math.min(fontSize, Math.max(fontSize * SCRIPT_SCALE, floor ?? 0)),
     shift: (script === "sub" ? SUBSCRIPT_SHIFT : -SUPERSCRIPT_SHIFT) * fontSize,
   };
 }

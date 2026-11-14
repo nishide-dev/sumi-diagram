@@ -52,6 +52,12 @@ export interface TextMeasurer {
   glyphBox?(font: string, char: string, sizeUnits: number): GlyphBox | undefined;
   /** The font's slant: tan of its italic angle, positive leaning right (#129). */
   slant?(font: string): number;
+  /**
+   * The smallest size (units) a math script may be set at (#547): the
+   * figure's `target.minFontSize`. Scripts are 0.7 of the label otherwise,
+   * which cannot meet a minimum the label itself just meets.
+   */
+  scriptMinUnits?: number;
 }
 
 /** A glyph's outline box in units, y up from the baseline. */
@@ -130,7 +136,7 @@ export function measureText(
     // Each run in its font and size; scripts move the line's extent up and down.
     measuredRuns = runs.map((line) =>
       line.map((run): TextRun => {
-        const { fontSize, shift } = scriptGeometry(run.script, size);
+        const { fontSize, shift } = scriptGeometry(run.script, size, measurer.scriptMinUnits);
         const v = measurer.verticalMetrics(run.font, fontSize);
         ascent = Math.max(ascent, v.ascent - shift);
         descent = Math.max(descent, v.descent + shift);

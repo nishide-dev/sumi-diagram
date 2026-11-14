@@ -181,6 +181,9 @@ export function placeStructured(
       throw new Error(`internal error: unknown font set ${ir.meta.fontSetId}`);
     measurer = fontSetMeasurer(fonts);
   }
+  // #547: scripts of label math meet an explicit figure.target.minFontSize.
+  const minFontSize = ir.meta.target?.minFontSize;
+  if (minFontSize !== undefined) measurer = { ...measurer, scriptMinUnits: minFontSize * 2 };
   const engine = new StructuredLayout(ir, profile, measurer);
   // The align budget (`MAX_ALIGN_LAYOUTS`) is the figure's, shared by the
   // solves of the re-layouts below; the stats count them all.
