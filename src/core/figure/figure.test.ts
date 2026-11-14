@@ -134,6 +134,28 @@ describe("diagnostic details", () => {
     );
   });
 
+  test("a component option beside the element's fields is pointed to props (#549)", () => {
+    const source = [
+      "version: 1",
+      "figure:",
+      "  id: t",
+      "nodes:",
+      "  - id: a",
+      "    component: box",
+      "    height: 10",
+      "    heigth: 10",
+      "    wieght: 3",
+      "",
+    ].join("\n");
+    const { state } = checkFigureSource(source, { file: "t.sumi.yaml" });
+    const hints = state.diagnostics.map((d) => d.hint ?? "");
+    expect(hints[0]).toContain('"height" is a component option');
+    expect(hints[0]).toContain("props");
+    expect(hints[0]).not.toContain("weight");
+    expect(hints[1]).toContain('"height" is a component option');
+    expect(hints[2]).toContain('Did you mean "weight"?');
+  });
+
   test("unknown references suggest the closest ID", async () => {
     const [endpoint] = await diagnosticsOf("invalid/ref-unknown-endpoint.sumi.yaml");
     expect(endpoint?.hint).toBe('Did you mean "server"?');

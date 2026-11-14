@@ -527,6 +527,21 @@ describe("validateUsage", () => {
     });
   }
 
+  test("a null matrix cell text names the failing cell and says what to do (#549)", () => {
+    const matrix = builtinRegistry().get("sumi/matrix") as ComponentManifest;
+    const result = registry.validateUsage(matrix, {
+      props: { classes: { o: {} }, cells: [[{ class: "o", text: null }]] },
+    });
+    const [d, ...rest] = result.diagnostics;
+    expect(rest).toEqual([]);
+    expect(d).toMatchObject({
+      code: "component/invalid-prop",
+      path: ["props", "cells", 0, 0, "text"],
+    });
+    expect(d?.message).not.toBe('Invalid prop "cells[0]" for sumi/matrix: Invalid input.');
+    expect(d?.hint).toContain("omit the key");
+  });
+
   test("fixed-aspect components need equal width and height, compared exactly", () => {
     // 2.54cm is exactly 72pt, though 2.54 * 3600 / 127 is not 72 in floating point.
     expect(registry.validateUsage(circle, { props: { width: "1in", height: "2.54cm" } }).ok).toBe(

@@ -18,7 +18,14 @@ import {
   nodeKey,
   type PartialFigure,
 } from "../check-state";
-import { type Diagnostic, type DocPath, didYouMean, formatDocPath } from "../diagnostics";
+import {
+  closestMatch,
+  type Diagnostic,
+  type DocPath,
+  didYouMean,
+  formatDocPath,
+} from "../diagnostics";
+import { builtinRegistry } from "../registry/builtins";
 import { RESERVED_KEY, reservedKeyMessage, reservedKeyPaths } from "../reserved-keys";
 import { errorAt } from "./report";
 import {
@@ -241,7 +248,9 @@ function issueToDiagnostics(
     }
     case "unrecognized_keys": {
       const known = objectKeysAt(schema, relative);
-      return issue.keys.map((key) => errorAt(locate, ...unknownField(key, path, known)));
+      // Elements (nodes, edges, groups) carry component options under `props`.
+      const props = known.includes("props") ? componentPropNames() : [];
+      return issue.keys.map((key) => errorAt(locate, ...unknownField(key, path, known, props)));
     }
     case "invalid_type":
       if (actual === undefined) {
@@ -328,8 +337,21 @@ function issueToDiagnostics(
   ];
 }
 
-function unknownField(key: string, path: DocPath, known: readonly string[]): ErrorArgs {
-  const suggestion = didYouMean(key, known);
+function unknownField(
+  key: string,
+  path: DocPath,
+  known: readonly string[],
+  props: readonly string[] = [],
+): ErrorArgs {
+  // A component option written beside the element's own fields (`height: 10`
+  // on a node) belongs under `props`; that beats a near-miss field name such
+  // as `weight` (#549).
+  // Props come first so that they win ties in the edit distance.
+  const near = closestMatch(key, [...props, ...known]);
+  const suggestion =
+    near !== undefined && props.includes(near) && !known.includes(near)
+      ? `"${near}" is a component option: write it under props (props: { ${near}: ... }).`
+      : didYouMean(key, known);
   return [
     "schema/unknown-field",
     `Unknown field "${key}" in ${formatDocPath(path)}.`,
@@ -339,6 +361,20 @@ function unknownField(key: string, path: DocPath, known: readonly string[]): Err
       hint: `${suggestion ? `${suggestion} ` : ""}If this field was added in a newer Sumi version, upgrade Sumi.`,
     },
   ];
+}
+
+let propNames: string[] | undefined;
+
+/** Every option name any built-in component takes under `props`. */
+function componentPropNames(): string[] {
+  propNames ??= [
+    ...new Set(
+      builtinRegistry()
+        .list()
+        .flatMap((manifest) => objectKeysAt(manifest.props, [])),
+    ),
+  ].sort();
+  return propNames;
 }
 
 /** Keys of the object schema at `path` inside `schema`, or `[]`. */

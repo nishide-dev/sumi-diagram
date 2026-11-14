@@ -272,9 +272,25 @@ export function validateUsage(
   return { ok: true, value: { variant, props: parsed.data }, diagnostics };
 }
 
-function propIssue(manifest: ComponentManifest, issue: z.core.$ZodIssue): Diagnostic[] {
+function propIssue(
+  manifest: ComponentManifest,
+  issue: z.core.$ZodIssue,
+  prefix: PropertyKey[] = [],
+): Diagnostic[] {
   const id = componentId(manifest);
-  const path = ["props", ...issue.path.filter((s) => typeof s !== "symbol")];
+  const relative = [...prefix, ...issue.path];
+  const path = ["props", ...relative.filter((s) => typeof s !== "symbol")];
+  if (issue.code === "invalid_union") {
+    // Report the branch that matches the value's type, not a bare "Invalid input"
+    // (a matrix cell `{ class: o, text: ~ }` fails the object branch, #549).
+    const matching = issue.errors.filter(
+      (branch) => !branch.some((i) => i.code === "invalid_type" && i.path.length === 0),
+    );
+    const [branch] = matching;
+    if (matching.length === 1 && branch !== undefined) {
+      return branch.flatMap((i) => propIssue(manifest, i, relative));
+    }
+  }
   if (issue.code === "unrecognized_keys") {
     const known = Object.keys(manifest.props.shape);
     return issue.keys.map((key) =>
@@ -289,7 +305,12 @@ function propIssue(manifest: ComponentManifest, issue: z.core.$ZodIssue): Diagno
   const subject = path.length > 1 ? `prop "${formatDocPath(path.slice(1))}"` : "props";
   const message = issue.message.replace(/\.$/, "");
   // Prop schemas may pass a hint through custom issue params (see SizeLength).
-  const hint = issue.code === "custom" ? issue.params?.hint : undefined;
+  const hint =
+    issue.code === "custom"
+      ? issue.params?.hint
+      : issue.code === "invalid_type" && issue.message.endsWith("received null")
+        ? "A null value (`~`) is not accepted here: omit the key, or write the value."
+        : undefined;
   return [
     error("component/invalid-prop", `Invalid ${subject} for ${id}: ${message}.`, path, {
       ...(typeof hint === "string" && { hint }),
