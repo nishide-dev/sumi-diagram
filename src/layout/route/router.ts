@@ -688,11 +688,9 @@ class Router {
       ...this.#layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
       ...captionBoxes(this.#ir, this.#layout),
     ];
+    const byKey = new Map(routable.map((e) => [e.ir.key, e] as const));
     const shares = (a: ElementKey, b: ElementKey) =>
-      sharable(
-        routable.find((e) => e.ir.key === a) as Edge,
-        routable.find((e) => e.ir.key === b) as Edge,
-      );
+      sharable(byKey.get(a) as Edge, byKey.get(b) as Edge);
     separateParallelRuns(routes, parallelEdges, obstacles, shares);
     separateSameSideRuns(
       routes,

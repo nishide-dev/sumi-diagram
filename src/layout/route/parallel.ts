@@ -313,6 +313,31 @@ interface SideLane {
   to: number;
 }
 
+/** Points where two orthogonal routes cross or touch at right angles. */
+function crossingCount(a: readonly Point[], b: readonly Point[]): number {
+  let count = 0;
+  for (let i = 1; i < a.length; i++) {
+    const p = a[i - 1] as Point;
+    const q = a[i] as Point;
+    for (let j = 1; j < b.length; j++) {
+      const r = b[j - 1] as Point;
+      const t = b[j] as Point;
+      const pv = p.x === q.x;
+      const rv = r.x === t.x;
+      if (pv === rv) continue;
+      const [v0, v1, h0, h1] = pv ? [p, q, r, t] : [r, t, p, q];
+      if (
+        v0.x >= Math.min(h0.x, h1.x) &&
+        v0.x <= Math.max(h0.x, h1.x) &&
+        h0.y >= Math.min(v0.y, v1.y) &&
+        h0.y <= Math.max(v0.y, v1.y)
+      )
+        count++;
+    }
+  }
+  return count;
+}
+
 const spanOverlap = (a: SideLane, b: SideLane) => Math.min(a.to, b.to) - Math.max(a.from, b.from);
 const sideSpacing = (a: SideLane, b: SideLane) => (a.edge.width + b.edge.width) / 2 + LANE_GAP;
 
@@ -384,6 +409,7 @@ export function separateSameSideRuns(
     !shares(a.edge.key, b.edge.key);
   const problem = (a: SideLane, b: SideLane) =>
     related(a, b) && Math.abs(a.at - b.at) < sideSpacing(a, b) - EPSILON;
+  const order = new Map(edges.map((e, i) => [e, i] as const));
   const seen = new Set<SideLane>();
   for (const seed of lanes) {
     if (seen.has(seed)) continue;
@@ -391,14 +417,20 @@ export function separateSameSideRuns(
     seen.add(seed);
     for (const a of group)
       for (const b of lanes)
-        if (!seen.has(b) && (related(a, b) || problem(a, b))) {
+        if (!seen.has(b) && related(a, b)) {
           seen.add(b);
           group.push(b);
         }
     if (!group.some((a, i) => group.slice(i + 1).some((b) => problem(a, b)))) continue;
     group.sort(
-      (a, b) => a.to - a.from - (b.to - b.from) || edges.indexOf(a.edge) - edges.indexOf(b.edge),
+      (a, b) =>
+        a.to - a.from - (b.to - b.from) || (order.get(a.edge) ?? 0) - (order.get(b.edge) ?? 0),
     );
+    // Only properly nested spans nest without crossing; others stay as routed.
+    const nested = group.every((a, i) =>
+      group.slice(i + 1).every((b) => !related(a, b) || (b.from <= a.from && a.to <= b.to)),
+    );
+    if (!nested) continue;
     let at = Math.min(...group.map((l) => l.at));
     let previous: SideLane | undefined;
     const moved = new Map<ElementKey, Point[]>();
@@ -448,7 +480,20 @@ export function separateSameSideRuns(
     for (const [key, points] of moved) next.set(key, points);
     const crowded = group.some((l) =>
       edges.some((other) => {
-        if (moved.has(other.key) || shares(l.edge.key, other.key)) return false;
+        if (other.key === l.edge.key || shares(l.edge.key, other.key)) return false;
+        const newer = next.get(l.edge.key);
+        const newerOther = next.get(other.key);
+        const olderA = routes.get(l.edge.key);
+        const olderB = routes.get(other.key);
+        if (
+          newer &&
+          newerOther &&
+          olderA &&
+          olderB &&
+          crossingCount(newer, newerOther) > crossingCount(olderA, olderB)
+        )
+          return true;
+        if (moved.has(other.key)) return false;
         const a = next.get(l.edge.key),
           b = next.get(other.key),
           oldA = routes.get(l.edge.key),

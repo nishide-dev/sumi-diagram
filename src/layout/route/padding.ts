@@ -81,8 +81,8 @@ export function arrowheadPaddingDeficits(
     {
       group: ElementKey;
       side: Side;
-      free: number;
-      need: number;
+      /** The largest `need - free` of its members (order-independent). */
+      deficit: number;
       count: number;
       across: Set<number>;
     }
@@ -109,19 +109,25 @@ export function arrowheadPaddingDeficits(
         )
           entered = { key: group.key, free, depth: up.length };
       }
-      if (entered !== undefined && entered.free < need) {
+      // Only edges that bend (not `route`d, not already in line with the other
+      // end) share an orthogonal trunk that can end up beside the frame.
+      const across = end.dir % 2 === 0 ? "y" : "x";
+      if (
+        entered !== undefined &&
+        edge.route === undefined &&
+        Math.abs(other.port[across] - end.port[across]) > 0.5
+      ) {
         const id = `${other.key}|${other.port.x},${other.port.y}|${entered.key}|${end.dir}`;
         const fan = fans.get(id) ?? {
           group: entered.key,
           side: DIR_SIDE[end.dir] as Side,
-          free: entered.free,
-          need,
+          deficit: 0,
           count: 0,
           across: new Set<number>(),
         };
         fan.count++;
-        fan.need = Math.max(fan.need, need);
-        fan.across.add(end.dir % 2 === 0 ? end.port.y : end.port.x);
+        fan.deficit = Math.max(fan.deficit, need - entered.free);
+        fan.across.add(end.port[across]);
         fans.set(id, fan);
       }
       let nearest: { key: ElementKey; free: number; depth: number } | undefined;
@@ -150,9 +156,9 @@ export function arrowheadPaddingDeficits(
     if (edge.targetArrowhead !== undefined) check(ends.to, ends.from);
   });
   for (const fan of fans.values()) {
-    if (fan.count < 2 || fan.across.size < 2) continue;
+    if (fan.count < 2 || fan.across.size < 2 || fan.deficit <= 0) continue;
     const sides = deficits.get(fan.group) ?? { north: 0, east: 0, south: 0, west: 0 };
-    sides[fan.side] = Math.max(sides[fan.side], fan.need - fan.free);
+    sides[fan.side] = Math.max(sides[fan.side], fan.deficit);
     deficits.set(fan.group, sides);
   }
   // Grow both sides of the axis equally (#247): the group's border and its

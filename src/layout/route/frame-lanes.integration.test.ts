@@ -98,3 +98,26 @@ describe("frames and lanes (#512)", () => {
     ).toEqual([]);
   });
 });
+
+describe("fan padding (#512)", () => {
+  const width = async (source: string) => {
+    const { svg } = await routes(source);
+    return Number(/<rect x="[\d.]+" y="[\d.]+" width="([\d.]+)"[^>]*fill="#efeddd"/.exec(svg)?.[1]);
+  };
+  const edges = (list: string[], extra = "") =>
+    FAN.replace(
+      /edges:[\s\S]*$/,
+      `edges:\n${list.map((t) => `  - {from: src, to: ${t}${extra}}`).join("\n")}\n`,
+    );
+
+  test("the growth does not depend on the order of the edges", async () => {
+    expect(await width(edges(["a", "b", "c"]))).toBe(await width(edges(["c", "b", "a"])));
+  });
+
+  test("curved or straight fan-outs do not grow the group", async () => {
+    const single = await width(edges(["a"]));
+    expect(await width(edges(["a", "b", "c"], ", route: curve"))).toBe(single);
+    expect(await width(edges(["a", "b", "c"], ", route: straight"))).toBe(single);
+    expect(await width(edges(["a", "b", "c"]))).toBeGreaterThan(single);
+  });
+});
