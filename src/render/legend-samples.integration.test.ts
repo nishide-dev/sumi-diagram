@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { BUILTIN_THEMES } from "../core/theme/builtin";
 import { getFontSet } from "../core/theme/fonts";
 import { lintGeometry } from "../lint";
@@ -214,8 +215,54 @@ nodes:
   const textX = (svg: string) =>
     Math.min(...[...svg.matchAll(/<text x="(\S+)"/g)].map((m) => Number(m[1])));
 
-  test("a scale of 1 draws the same legend as no scale", async () => {
-    expect(await render("themeOverrides: { textScale: 1 },")).toBe(await render(""));
+  test("a scale of 1 draws the legend as before the change (golden from origin/main)", async () => {
+    const fixture = readFileSync("tests/fixtures/legend-scale/all-samples.sumi.yaml", "utf8");
+    const golden = JSON.parse(
+      readFileSync("tests/fixtures/legend-scale/svg-sha256.json", "utf8"),
+    ) as { sha256: string };
+    const svgOf = async (source: string) => {
+      const result = await renderFigure(source);
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      return result.value.svg;
+    };
+    const plain = await svgOf(fixture);
+    expect(new Bun.CryptoHasher("sha256").update(plain).digest("hex")).toBe(golden.sha256);
+    // An explicit scale of 1 differs only in the source-derived metadata and class name.
+    const strip = (svg: string) =>
+      svg.replace(/<metadata>[\s\S]*?<\/metadata>/, "").replace(/sumi-\d+/g, "sumi-x");
+    const one = await svgOf(
+      fixture.replace("  profile:", "  themeOverrides: { textScale: 1 }\n  profile:"),
+    );
+    expect(strip(one)).toBe(strip(plain));
+  });
+
+  test("set swatches, glyphs, icons and row spacing grow with the scale", async () => {
+    const fixture = readFileSync("tests/fixtures/legend-scale/all-samples.sumi.yaml", "utf8");
+    const svgOf = async (source: string) => {
+      const result = await renderFigure(source);
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      return result.value.svg;
+    };
+    const plain = await svgOf(fixture);
+    const scaled = await svgOf(
+      fixture.replace("  profile:", "  themeOverrides: { textScale: 2 }\n  profile:"),
+    );
+    const attr = (svg: string, pattern: RegExp) => Number(svg.match(pattern)?.[1]);
+    // Set swatch: width and height double.
+    const swatch = /class="sumi-set-shape" x="\S+" y="\S+" width="(\S+)"/;
+    expect(attr(scaled, swatch)).toBe(2 * attr(plain, swatch));
+    // Icon box follows the text size.
+    const icon = /<rect x="\S+" y="\S+" width="(\S+)" height="\S+" fill="none" stroke="none"\/>/g;
+    const iconSize = (svg: string) => Number([...svg.matchAll(icon)].at(-1)?.[1]);
+    expect(iconSize(scaled)).toBe(2 * iconSize(plain));
+    // Glyph (dot) diameter follows the text size, to within D2 rounding.
+    const dot = /<rect x="\S+" y="\S+" width="(\S+)" height="\S+" rx=/;
+    expect(attr(scaled, dot)).toBeGreaterThanOrEqual(1.8 * attr(plain, dot));
+    // Row pitch (distance between the first two entry labels) doubles.
+    const ys = (svg: string) =>
+      [...svg.matchAll(/<text x="\S+" y="(\S+)"/g)].map((m) => Number(m[1]));
+    const pitch = (svg: string) => (ys(svg)[1] ?? 0) - (ys(svg)[0] ?? 0);
+    expect(pitch(scaled)).toBeCloseTo(2 * pitch(plain), 0);
   });
 
   test("samples, dashes and the sample-to-text gap grow with the scale", async () => {
