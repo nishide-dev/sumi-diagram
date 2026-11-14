@@ -211,6 +211,16 @@ edges:
       ),
     );
   };
+  /** The size of the group frame farthest right (the second group of the figures). */
+  const dataSize = async (source: string) => {
+    const { svg } = await routes(source);
+    const frames = [
+      ...svg.matchAll(
+        /<rect x="([\d.]+)"[^>]* width="([\d.]+)" height="([\d.]+)"[^>]*fill="#efeddd"/g,
+      ),
+    ].map((m) => ({ x: Number(m[1]), size: Number(m[2]) + Number(m[3]) }));
+    return (frames.sort((p, q) => q.x - p.x)[0] as { size: number }).size;
+  };
   const withEdges = (source: string, list: string[]) =>
     source.replace(
       /edges:[\s\S]*$/,
@@ -219,10 +229,23 @@ edges:
   const FAN_EDGES = ["from: a, to: store", "from: b, to: store"];
   const U_EDGE = "from: src, to: b, fromAnchor: south, toAnchor: south";
 
-  test("the growth does not depend on the order of the fan-in edges", async () => {
-    expect(await size(withEdges(FAN_IN, FAN_EDGES))).toBe(
-      await size(withEdges(FAN_IN, [...FAN_EDGES].reverse())),
-    );
+  test("the growth is the largest deficit, whatever the order of the fan-in edges", async () => {
+    // Edges of different arrowhead sizes lack different padding: the pairs of
+    // equal edges show that the two deficits differ.
+    const edge = (from: string, scale: number) =>
+      `from: ${from}, to: store, arrowheadScale: ${scale}`;
+    const small = await dataSize(withEdges(FAN_IN, [edge("a", 0.5), edge("b", 0.5)]));
+    const large = await dataSize(withEdges(FAN_IN, [edge("a", 1), edge("b", 1)]));
+    expect(small).toBeLessThan(large);
+    // Mixed: the larger deficit wins, first or last in the document.
+    for (const list of [
+      [edge("a", 1), edge("b", 0.5)],
+      [edge("a", 0.5), edge("b", 1)],
+      [edge("b", 1), edge("a", 0.5)],
+      [edge("b", 0.5), edge("a", 1)],
+    ]) {
+      expect(await dataSize(withEdges(FAN_IN, list))).toBe(large);
+    }
   });
 
   test("a fan-in grows the group; a single arrival or one in line does not", async () => {
@@ -248,12 +271,44 @@ edges:
     expect(await size(withEdges(U_TURN, ["from: src, to: b, toAnchor: west"]))).toBe(base);
   });
 
-  // Around the 3pt threshold: whatever the padding that the profile, density
-  // and text scale give, the group grows only where the trunk would be within
-  // 3pt of the frame, and then until it is clear (no near-border finding).
-  test("the group grows only where the trunk would be within 3pt of the frame", async () => {
-    let grew = 0;
-    let kept = 0;
+  // Either side of the 3pt guard (`compact` padding, the store's width moves
+  // the port off the frame by 1pt steps): at 26pt the trunk would land just
+  // under 3pt from the frame and the group grows; at 28pt it lands 3.5pt
+  // outside the frame, a bending fan-in all the same, and nothing changes.
+  const narrow = (width: number) =>
+    FAN_IN.replace("  layout:\n", "  layout:\n    density: compact\n").replace(
+      "{id: store, component: cylinder, label: Store}",
+      `{id: store, component: cylinder, label: Store, props: {width: ${width}pt}}`,
+    );
+  const trunkAndFrame = async (source: string) => {
+    const { paths, svg } = await routes(source);
+    const frame = Math.max(
+      ...[...svg.matchAll(/<rect x="([\d.]+)"[^>]*fill="#efeddd"/g)].map((m) => Number(m[1])),
+    );
+    const path = paths[0] as { x: number }[];
+    return { frame, trunk: path[1]?.x as number, bends: path.length };
+  };
+
+  test("a trunk just under 3pt from the frame grows the group until it is clear", async () => {
+    const text = narrow(26);
+    expect(await dataSize(text)).toBeGreaterThan(await dataSize(withEdges(text, [])));
+    const { frame, trunk } = await trunkAndFrame(text);
+    expect(trunk - frame).toBeGreaterThanOrEqual(6);
+    expect(await nearBorder(text)).toEqual([]);
+  });
+
+  test("a bending fan-in whose trunk is just over 3pt from the frame is left alone", async () => {
+    const text = narrow(28);
+    const { frame, trunk, bends } = await trunkAndFrame(text);
+    // Positive geometry: the trunk bends outside the frame, 3.5pt from it.
+    expect(bends).toBe(4);
+    expect(frame - trunk).toBeGreaterThanOrEqual(6);
+    expect(frame - trunk).toBeLessThan(8);
+    expect(await dataSize(text)).toBe(await dataSize(withEdges(text, [])));
+    expect(await nearBorder(text)).toEqual([]);
+  });
+
+  test("the group does not grow for a trunk already clear, on any profile or scale", async () => {
     for (const profile of ["paper-single", "paper-double"]) {
       for (const density of ["compact", "normal"]) {
         for (const textScale of [1, 1.5, 2]) {
@@ -264,15 +319,10 @@ edges:
                 "  layout:\n",
                 `  themeOverrides: {textScale: ${textScale}}\n  layout:\n    density: ${density}\n`,
               );
-            const before = await size(withEdges(text, []));
-            if ((await size(text)) > before) grew++;
-            else kept++;
             expect(await nearBorder(text)).toEqual([]);
           }
         }
       }
     }
-    expect(grew).toBeGreaterThan(0);
-    expect(kept).toBeGreaterThan(0);
   });
 });
