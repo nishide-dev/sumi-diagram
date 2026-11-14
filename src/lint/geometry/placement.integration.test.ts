@@ -218,7 +218,7 @@ ${columns.map((ids) => ids.map((id, i) => row(id, 1 + (i % 2) * 0.6)).join("")).
       const context = geometryContextFor(result.value);
       const start = performance.now();
       const found = tokenColumnDrift.run(context, undefined as never);
-      // A coarse ceiling: the work is bounded by the vertical window, not by the row count squared.
+      // A coarse ceiling: each row scans only rows in its vertical window (quadratic only when many unrelated rows share one window).
       expect(performance.now() - start).toBeLessThan(5000);
       check(found.length);
     }
