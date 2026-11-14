@@ -68,9 +68,23 @@ import type { LayoutIR, Rect } from "../ir";
 export interface Struts {
   readonly lead: ReadonlyMap<ArrangeItemIR, number>;
   readonly trail: ReadonlyMap<ArrangeItemIR, number>;
+  /**
+   * Space across the box's main axis (#545): left / right of an item in a
+   * stack, above / below it in a row. For an item that sits in a stack and
+   * must move sideways (an `x` constraint), without a one-item row around it.
+   */
+  readonly crossLead: ReadonlyMap<ArrangeItemIR, number>;
+  readonly crossTrail: ReadonlyMap<ArrangeItemIR, number>;
 }
 
-export const NO_STRUTS: Struts = Object.freeze({ lead: new Map(), trail: new Map() });
+export const NO_STRUTS: Struts = Object.freeze({
+  lead: new Map(),
+  trail: new Map(),
+  crossLead: new Map(),
+  crossTrail: new Map(),
+});
+
+type StrutKind = keyof Struts;
 
 /** A constraint is met when its items' coordinates differ by at most this (units). */
 export const ALIGN_EPSILON = 0.01;
@@ -115,10 +129,12 @@ interface Step {
   readonly item: ArrangeItemIR;
 }
 
-interface MutableStruts {
-  lead: Map<ArrangeItemIR, number>;
-  trail: Map<ArrangeItemIR, number>;
+/** A step that can take a strut, and whether it is a cross-axis one (#545). */
+interface StrutStep extends Step {
+  readonly cross: boolean;
 }
+
+type MutableStruts = { [K in StrutKind]: Map<ArrangeItemIR, number> };
 
 /** Bounds of the search (tests lower them). */
 export interface AlignLimits {
@@ -130,15 +146,60 @@ export interface AlignLimits {
 
 type Trial = { struts: Struts; layout: LayoutIR; residuals: number[]; total: number };
 
+/** Whether an element may take cross-axis space: not a cell of a `tokens` row or a matrix (#545). */
+function holdsCross(ir: FigureIR, key: ElementKey): boolean {
+  const element = ir.elements.get(key);
+  return !(
+    element?.kind === "node" &&
+    (element.tokens !== undefined || element.matrix !== undefined)
+  );
+}
+
 /**
  * Solves `constraints` (the figure's `align`) with `layoutWith`, the engine's
- * pass with struts.
+ * pass with struts. Space along the main axis only first; if a constraint is
+ * still unmet and an item of it sits in a box of the other kind (an `x`
+ * item in a stack), the search runs again with cross-axis struts (#545) and
+ * keeps that result only if it leaves less distance. A figure that meets its
+ * constraints without them is laid out exactly as before.
  */
 export function solveAlignment(
   ir: FigureIR,
   constraints: readonly AlignIR[],
   layoutWith: (struts: Struts) => LayoutIR,
   limits: AlignLimits = {},
+): AlignResult {
+  const first = solveOnce(ir, constraints, layoutWith, limits, false);
+  if (converged(first.stats.residuals)) return first;
+  const budget = (limits.maxLayouts ?? MAX_ALIGN_LAYOUTS) - first.stats.layouts;
+  if (budget <= 0) return first;
+  // Only an item held directly by a box of the other kind can take one.
+  const pathOf = paths(ir);
+  const holdable = constraints.some((c) =>
+    c.items.some((key) => {
+      const own = pathOf.get(key)?.at(-1);
+      return (
+        holdsCross(ir, key) &&
+        own?.item === key &&
+        own.box.gapPt !== 0 &&
+        own.box.kind === (c.axis === "y" ? "row" : "stack")
+      );
+    }),
+  );
+  if (!holdable) return first;
+  const second = solveOnce(ir, constraints, layoutWith, { ...limits, maxLayouts: budget }, true);
+  const spent = first.stats.layouts + second.stats.layouts;
+  const better = sum(second.stats.residuals) < sum(first.stats.residuals) - TIE;
+  const chosen = better ? second : first;
+  return { ...chosen, stats: { ...chosen.stats, layouts: spent } };
+}
+
+function solveOnce(
+  ir: FigureIR,
+  constraints: readonly AlignIR[],
+  layoutWith: (struts: Struts) => LayoutIR,
+  limits: AlignLimits,
+  allowCross: boolean,
 ): AlignResult {
   const maxRounds = limits.maxRounds ?? MAX_ALIGN_ROUNDS;
   const maxLayouts = limits.maxLayouts ?? MAX_ALIGN_LAYOUTS;
@@ -150,29 +211,45 @@ export function solveAlignment(
     layouts++;
     return layoutWith(struts);
   };
-  /** The deepest step along `c.axis` on `key`'s path that can take a strut for `c`. */
-  const stepFor = (key: ElementKey, c: AlignIR): Step | undefined => {
+  /**
+   * The deepest step along `c.axis` on `key`'s path that can take a strut for
+   * `c`; failing that (the item sits in a stack for `x`, in a row for `y`),
+   * the box that holds the item itself, when it is the other kind of box,
+   * which takes a cross-axis strut (#545).
+   */
+  const stepFor = (key: ElementKey, c: AlignIR): StrutStep | undefined => {
     const others = c.items.filter((k) => k !== key);
-    const kind = c.axis === "y" ? "stack" : "row";
-    return [...(pathOf.get(key) ?? [])]
-      .reverse()
-      .find(
-        (s) =>
-          s.box.kind === kind &&
-          s.box.gapPt !== 0 &&
-          !others.some((o) => (pathOf.get(o) ?? []).some((p) => p.item === s.item)),
-      );
+    const free = (s: Step) =>
+      s.box.gapPt !== 0 &&
+      !others.some((o) => (pathOf.get(o) ?? []).some((p) => p.item === s.item));
+    const path = [...(pathOf.get(key) ?? [])].reverse();
+    const along = path.find((s) => s.box.kind === (c.axis === "y" ? "stack" : "row") && free(s));
+    if (along !== undefined) return { ...along, cross: false };
+    if (!allowCross || !holdsCross(ir, key)) return undefined;
+    // Only the box that holds the item itself: a branch moves as a unit otherwise.
+    const own = path[0];
+    const crossKind = c.axis === "y" ? "row" : "stack";
+    return own !== undefined && own.item === key && own.box.kind === crossKind && free(own)
+      ? { ...own, cross: true }
+      : undefined;
   };
   /** `base` plus struts of `kind` (each added to what is there). */
   const add = (
     base: Struts,
-    kind: "lead" | "trail",
+    kind: StrutKind,
     struts: readonly (readonly [ArrangeItemIR, number])[],
   ): Struts => {
-    const next: MutableStruts = { lead: new Map(base.lead), trail: new Map(base.trail) };
+    const next: MutableStruts = {
+      lead: new Map(base.lead),
+      trail: new Map(base.trail),
+      crossLead: new Map(base.crossLead),
+      crossTrail: new Map(base.crossTrail),
+    };
     for (const [item, value] of struts) next[kind].set(item, (next[kind].get(item) ?? 0) + value);
     return next;
   };
+  const kindOf = (step: StrutStep, side: "lead" | "trail"): StrutKind =>
+    step.cross ? (side === "lead" ? "crossLead" : "crossTrail") : side;
   /**
    * The candidates for an unmet constraint, in trial order: a lead before the
    * first item, a trail after the last, and, with three or more items, a lead
@@ -190,16 +267,23 @@ export function solveAlignment(
     if (short <= ALIGN_EPSILON) return [];
     const out: Struts[] = [];
     const a = stepFor(first.key, c);
-    if (a !== undefined) out.push(add(base, "lead", [[a.item, short]]));
+    if (a !== undefined) out.push(add(base, kindOf(a, "lead"), [[a.item, short]]));
     const b = stepFor(last.key, c);
-    if (b !== undefined) out.push(add(base, "trail", [[b.item, short]]));
+    if (b !== undefined) out.push(add(base, kindOf(b, "trail"), [[b.item, short]]));
     if (ps.length > 2) {
-      const all = (kind: "lead" | "trail", gapOf: (p: Coordinate) => number) => {
-        const struts = ps.flatMap((p) => {
+      const all = (side: "lead" | "trail", gapOf: (p: Coordinate) => number) => {
+        // One candidate per strut kind (main-axis and cross-axis steps do not mix).
+        const steps = ps.flatMap((p) => {
           const step = gapOf(p) > ALIGN_EPSILON ? stepFor(p.key, c) : undefined;
-          return step === undefined ? [] : [[step.item, gapOf(p)] as const];
+          return step === undefined ? [] : [{ step, value: gapOf(p) }];
         });
-        if (struts.length > 1) out.push(add(base, kind, struts));
+        for (const cross of [false, true]) {
+          const struts = steps
+            .filter((e) => e.step.cross === cross)
+            .map((e) => [e.step.item, e.value] as const);
+          const kind: StrutKind = cross ? (side === "lead" ? "crossLead" : "crossTrail") : side;
+          if (struts.length > 1) out.push(add(base, kind, struts));
+        }
       };
       all("lead", (p) => last.value - p.value);
       all("trail", (p) => p.value - first.value);
@@ -563,7 +647,7 @@ function strutRecord(struts: Struts): Record<string, number> {
     return name;
   };
   const out: Record<string, number> = {};
-  for (const kind of ["lead", "trail"] as const) {
+  for (const kind of ["lead", "trail", "crossLead", "crossTrail"] as const) {
     for (const [item, value] of struts[kind]) {
       out[`${kind} ${nameOf(item)}`] = Math.round(value * 1000) / 1000;
     }

@@ -42,12 +42,12 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
-| node | **`id`**, **`component`**, `label`, `sublabel`¹, `sublabelInk`¹, `text`¹, `weight`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `variant`, `tone`, `mono`, `icon`, `iconSize`, `badge`, `glyphs`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
-| set¹ | **`id`**, **`members`**, `label`, `labelAt`, `shape`, `angle`, `padding`, `enclose`, `variant`, `tone`, `fillOpacity` | shape `circle`, labelAt `top`, enclose `body`, variant `default`, no tone (gray), padding = the profile's group padding |
+| node | **`id`**, **`component`**, `label`, `sublabel`¹, `sublabelInk`¹, `text`¹, `weight`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `matchWidth`¹, `variant`, `tone`, `mono`, `icon`, `iconSize`, `badge`, `glyphs`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
+| set¹ | **`id`**, **`members`**, `label`, `labelAt`, `shape`, `angle`, `padding`, `width`, `height`, `minWidth`, `minHeight`, `enclose`, `variant`, `tone`, `fillOpacity` | shape `circle`, labelAt `top`, enclose `body`, variant `default`, no tone (gray), padding = the profile's group padding |
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `route`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`):
-[structured](structured.md) (`grow`: [filling extra height](structured.md#arrange-trees)).
+[structured](structured.md) (`grow`: [filling extra height](structured.md#arrange-trees); `matchWidth`: [equal widths](structured.md#arrange-trees)).
 Exception: `bubble` supports `textAlign` in auto layout too.
 `icon` / `badge` / `glyphs`: [assets](assets.md#glyphs). Group `labelAt` / `caption`: [groups](#groups).
 

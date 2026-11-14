@@ -45,7 +45,14 @@
 
 import { badgeRect, iconBox } from "../../assets/draw";
 import { glyphRects } from "../../assets/glyphs";
-import type { ArrangeBoxIR, ArrangeItemIR, FigureIR, GroupIR, NodeIR } from "../../compiler/ir";
+import type {
+  ArrangeBoxIR,
+  ArrangeItemIR,
+  FigureIR,
+  GroupIR,
+  NodeIR,
+  SetIR,
+} from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
 import type { EdgeAnchor } from "../../core/figure/layout";
@@ -76,6 +83,7 @@ import { sampleCubic } from "../route/cubic";
 import { curveLabel, loopLabelEdge, selfLoopAnchors, selfLoopPoints } from "../route/curve";
 import { arrowheadPaddingDeficits, type SidePadding } from "../route/padding";
 import { anchorPoint, isJunction } from "../route/ports";
+import { outlineBounds } from "../set-shape";
 import { captionGap, fontSetMeasurer, measureText, type TextMeasurer } from "../text";
 import {
   type AlignLimits,
@@ -259,6 +267,8 @@ class StructuredLayout {
   readonly #boxSizes = new Map<ArrangeBoxIR, Size>();
   readonly #chatFrames = new Map<ArrangeBoxIR, Rect>();
   readonly #centerPaddings = new Map<ArrangeBoxIR, { before: number; after: number }>();
+  /** `layout/set-size-too-small` of the last pass (#545). */
+  #setDiagnostics: Diagnostic[] = [];
 
   constructor(ir: FigureIR, profile: Profile, measurer: TextMeasurer) {
     this.#ir = ir;
@@ -331,6 +341,60 @@ class StructuredLayout {
       const label = measureText(group.label, group.style, measurer);
       if (label !== undefined) this.#labels.set(group.key, label);
     }
+    this.#matchWidths(ir);
+  }
+
+  /**
+   * `matchWidth` (#545): the nodes that write one name take the widest body
+   * among them. Fixed-aspect shapes and outline components keep their size.
+   */
+  #matchGroups(ir: FigureIR): Map<string, NodeIR[]> {
+    const named = new Map<string, NodeIR[]>();
+    for (const node of ir.nodes) {
+      if (node.matchWidth === undefined || node.sizing === "fixed-aspect-1") continue;
+      if (node.render !== undefined || node.component === SEPARATOR_ID) continue;
+      named.set(node.matchWidth, [...(named.get(node.matchWidth) ?? []), node]);
+    }
+    return named;
+  }
+
+  /** `layout/match-width-unmet`: a stretch (grid / stack `align: stretch`) widened a member after matching. */
+  #matchWidthDiagnostics(): Diagnostic[] {
+    const out: Diagnostic[] = [];
+    for (const [name, nodes] of this.#matchGroups(this.#ir)) {
+      const widths = nodes.map((n) => this.#rects.get(n.key)?.width ?? 0);
+      const widest = Math.max(...widths);
+      const odd = nodes.filter((_, i) => widest - (widths[i] ?? 0) > 0.5);
+      if (odd.length === 0) continue;
+      const first = odd[0] as NodeIR;
+      const source = this.#ir.sourceMap.get(first.key);
+      out.push({
+        code: "layout/match-width-unmet",
+        severity: "warning",
+        message: `The nodes of matchWidth "${name}" end up with different widths (${odd.map((n) => `"${n.id}"`).join(", ")} narrower than the widest): an align: stretch widened another member to its cell after the widths were matched.`,
+        path: [...(source?.path ?? ["nodes"]), "matchWidth"],
+        ...(source?.location !== undefined && { location: source.location }),
+        subject: { kind: "node", id: first.id },
+        hint: "Use either matchWidth or align: stretch for these nodes (stretch makes a node as wide as its column or stack), or give every member the same column width.",
+      });
+    }
+    return out;
+  }
+
+  #matchWidths(ir: FigureIR): void {
+    const named = this.#matchGroups(ir);
+    const bodyWidth = (node: NodeIR) => {
+      const extra = this.#badgeOverhangs.get(node.key) ?? NO_OVERHANG;
+      return (this.#leafSizes.get(node.key)?.width ?? 0) - extra.west - extra.east;
+    };
+    for (const nodes of named.values()) {
+      const widest = Math.max(...nodes.map(bodyWidth));
+      for (const node of nodes) {
+        const leaf = this.#leafSizes.get(node.key);
+        if (leaf === undefined) continue;
+        this.#leafSizes.set(node.key, { ...leaf, width: leaf.width + widest - bodyWidth(node) });
+      }
+    }
   }
 
   /**
@@ -389,8 +453,31 @@ class StructuredLayout {
 
   // --- Measuring -----------------------------------------------------------
 
+  /** `layout/set-size-too-small` (#545): the members do not fit the exact size written. */
+  #setSizeTooSmall(
+    set: SetIR,
+    outline: SetOutline,
+    unmet: readonly ("width" | "height")[],
+  ): Diagnostic {
+    const bounds = outlineBounds(outline);
+    const mm = (units: number) => `${((units * 0.5 * 25.4) / 72).toFixed(1)}mm`;
+    const parts = unmet.map((axis) => {
+      const written = (axis === "width" ? set.widthPt : set.heightPt) as number;
+      return `${axis} ${mm(written * 2)} (the members need ${mm(axis === "width" ? bounds.width : bounds.height)})`;
+    });
+    return {
+      code: "layout/set-size-too-small",
+      severity: "warning",
+      message: `The members of set "${set.id}" do not fit its exact ${parts.join(" and ")}; the outline is as large as they need.`,
+      path: [...set.source.path, unmet[0] as string],
+      ...(set.source.location !== undefined && { location: set.source.location }),
+      subject: { kind: "set", id: set.id },
+      hint: "Make the size at least the one the members need, move the members closer together (the place coordinates or the gaps), shrink the set's padding, or remove the exact size to let the outline fit.",
+    };
+  }
+
   placementDiagnostics(): Diagnostic[] {
-    const diagnostics: Diagnostic[] = [];
+    const diagnostics: Diagnostic[] = [...this.#setDiagnostics, ...this.#matchWidthDiagnostics()];
     for (const box of this.#boxSizes.keys()) {
       if (box.kind === "chat") diagnostics.push(...this.#chatGeometry(box).diagnostics);
       if (box.centerOn !== undefined) {
@@ -490,8 +577,10 @@ class StructuredLayout {
       0,
       ...box.items.map((item, i) => {
         const size = sizes[i] as Size;
-        const length = vertical ? size.width : size.height;
-        if (typeof item !== "string") return length;
+        const margin = this.#crossLead(item) + this.#crossTrail(item);
+        const length = (vertical ? size.width : size.height) + margin;
+        // An item with cross-axis space is centered as a whole (#545).
+        if (typeof item !== "string" || margin > 0) return length;
         const body = this.#bodyRect(item, { x: 0, y: 0, ...size });
         const center = vertical ? body.x + body.width / 2 : body.y + body.height / 2;
         return 2 * Math.max(center, length - center);
@@ -509,7 +598,8 @@ class StructuredLayout {
             : { x: 0, y: 0, ...size };
         const start = vertical ? body.x : body.y;
         const end = start + (vertical ? body.width : body.height);
-        return { start, end, length };
+        // Cross-axis space (#545) sits on the side the item moves away from.
+        return { start, end, length, margin: this.#crossLead(item) + this.#crossTrail(item) };
       });
       const padding = Math.max(
         0,
@@ -517,7 +607,9 @@ class StructuredLayout {
       );
       const alignedCross = Math.max(
         0,
-        ...extents.map((e) => padding + (alignment === "start" ? e.length - e.start : e.end)),
+        ...extents.map(
+          (e) => padding + e.margin + (alignment === "start" ? e.length - e.start : e.end),
+        ),
       );
       cross = box.align === undefined ? Math.max(cross, alignedCross) : alignedCross;
     }
@@ -576,6 +668,16 @@ class StructuredLayout {
   /** Strut after `item` (below / right of it). */
   #trail(item: ArrangeItemIR): number {
     return this.#struts.trail.get(item) ?? 0;
+  }
+
+  /** Space left of an item in a stack, above it in a row (#545). */
+  #crossLead(item: ArrangeItemIR): number {
+    return this.#struts.crossLead.get(item) ?? 0;
+  }
+
+  /** Space right of an item in a stack, below it in a row (#545). */
+  #crossTrail(item: ArrangeItemIR): number {
+    return this.#struts.crossTrail.get(item) ?? 0;
   }
 
   #groupSize(group: GroupIR): Size {
@@ -922,17 +1024,19 @@ class StructuredLayout {
       const crossNatural = vertical ? size.width : size.height;
       const separator =
         typeof item === "string" && this.#nodes.get(item)?.component === SEPARATOR_ID;
-      const cross =
-        separator || (align === "stretch" && this.#stretchable(item, vertical))
-          ? crossAvailable
-          : crossNatural;
+      // Space across the axis (#545) moves an item within its cell; a stretched item gives it up.
+      const crossLead = separator ? 0 : this.#crossLead(item);
+      const crossTrail = separator ? 0 : this.#crossTrail(item);
+      const margin = crossLead + crossTrail;
+      const stretched = separator || (align === "stretch" && this.#stretchable(item, vertical));
+      const cross = stretched ? crossAvailable - margin : crossNatural;
       let offset =
-        separator || align === "start" || (align === "stretch" && cross === crossAvailable)
+        separator || align === "start" || (align === "stretch" && stretched)
           ? 0
           : align === "end"
-            ? crossAvailable - cross
-            : (crossAvailable - cross) / 2;
-      if (align === "center" && typeof item === "string" && !separator) {
+            ? crossAvailable - cross - margin
+            : (crossAvailable - cross - margin) / 2;
+      if (align === "center" && typeof item === "string" && !separator && margin === 0) {
         const body = this.#bodyRect(item, { x: 0, y: 0, ...size });
         const center = vertical ? body.x + body.width / 2 : body.y + body.height / 2;
         offset = crossAvailable / 2 - center;
@@ -944,8 +1048,10 @@ class StructuredLayout {
             : { x: 0, y: 0, ...size };
         const start = vertical ? body.x : body.y;
         const end = start + (vertical ? body.width : body.height);
-        offset = align === "start" ? crossPadding - start : crossAvailable - crossPadding - end;
+        offset =
+          align === "start" ? crossPadding - start : crossAvailable - crossPadding - end - margin;
       }
+      offset += crossLead;
       cursor += this.#lead(item);
       const rect: Rect = vertical
         ? { x: frame.x + offset, y: cursor, width: cross, height: size.height }
@@ -1256,6 +1362,9 @@ class StructuredLayout {
         const node = this.#nodes.get(key);
         return node === undefined ? undefined : this.#captionRect(node, this.#rect(key));
       },
+    );
+    this.#setDiagnostics = fitted.flatMap(({ set, outline, unmet }) =>
+      unmet.length === 0 ? [] : [this.#setSizeTooSmall(set, outline, unmet)],
     );
     const setBoxes = fitted.flatMap(({ rect, label }) => [
       rect,

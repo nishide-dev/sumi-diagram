@@ -12,6 +12,9 @@
  *   no orientation to set.
  * - `minWidth` / `minHeight` set the least size of the outline (#518): on a
  *   hull they are an error (`ref/set-min-size-needs-fixed-shape`).
+ * - `width` / `height` set the exact size (#545): on a hull they are an error
+ *   too, and with the minimum of the same axis they are a conflict
+ *   (`ref/set-size-conflict`).
  * - Sets are drawn by the structured layout only (`layout/structured-only`).
  *
  * A set with an error is dropped from the document (`doc.sets[i]` becomes
@@ -99,17 +102,71 @@ export function checkSets(state: CheckState, locate: Locator): void {
       );
       continue;
     }
-    if (set.shape === "hull" && (set.minWidth !== undefined || set.minHeight !== undefined)) {
+    for (const axis of ["Width", "Height"] as const) {
+      const exact = axis === "Width" ? set.width : set.height;
+      const least = axis === "Width" ? set.minWidth : set.minHeight;
+      if (exact === undefined || least === undefined) continue;
+      report(
+        index,
+        errorAt(
+          locate,
+          "ref/set-size-conflict",
+          `Set "${set.id}" has both ${axis.toLowerCase()} and min${axis}; an exact size already says the least.`,
+          [...path, `min${axis}`],
+          {
+            subject: subject(set.id),
+            hint: `Remove min${axis}, or remove ${axis.toLowerCase()} to keep the fitted size as a minimum.`,
+          },
+        ),
+      );
+    }
+    // A circle has one size: an exact width cannot meet a minimum on the other axis.
+    if (
+      set.shape === "circle" &&
+      ((set.width !== undefined && set.minHeight !== undefined) ||
+        (set.height !== undefined && set.minWidth !== undefined))
+    ) {
+      const [exact, least] =
+        set.width !== undefined
+          ? (["width", "minHeight"] as const)
+          : (["height", "minWidth"] as const);
+      report(
+        index,
+        errorAt(
+          locate,
+          "ref/set-size-conflict",
+          `Set "${set.id}" is a circle with ${exact} and ${least}; a circle has one size, so the minimum on the other axis would change the exact one.`,
+          [...path, least],
+          {
+            subject: subject(set.id),
+            hint: `Use shape: ellipse for different sizes per axis, or write only ${exact} (a circle is as large as the larger of width and height).`,
+          },
+        ),
+      );
+    }
+    if (sets[index] === undefined) continue;
+    if (
+      set.shape === "hull" &&
+      (set.minWidth !== undefined ||
+        set.minHeight !== undefined ||
+        set.width !== undefined ||
+        set.height !== undefined)
+    ) {
       report(
         index,
         errorAt(
           locate,
           "ref/set-min-size-needs-fixed-shape",
-          `Set "${set.id}" has minWidth or minHeight, but its shape is hull; a hull follows its members and has no size to set.`,
-          [...path, set.minWidth !== undefined ? "minWidth" : "minHeight"],
+          `Set "${set.id}" has a size (width, height, minWidth or minHeight), but its shape is hull; a hull follows its members and has no size to set.`,
+          [
+            ...path,
+            (["width", "height", "minWidth", "minHeight"] as const).find(
+              (field) => set[field] !== undefined,
+            ) ?? "width",
+          ],
           {
             subject: subject(set.id),
-            hint: "Use shape: circle, ellipse or rect, or remove the minimum size.",
+            hint: "Use shape: circle, ellipse or rect, or remove the size.",
           },
         ),
       );
