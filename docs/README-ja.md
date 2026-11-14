@@ -77,7 +77,7 @@ sumi render hello.sumi.yaml -o hello.pdf    # ベクター PDF を書き出す
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/nishide-dev/sumi-diagram/main/install.sh | \
-  SUMI_VERSION=0.18.0 SUMI_HOME="$HOME/.local/share/sumi" SUMI_BIN_DIR="$HOME/.local/bin" sh
+  SUMI_VERSION=0.18.1 SUMI_HOME="$HOME/.local/share/sumi" SUMI_BIN_DIR="$HOME/.local/bin" sh
 ```
 
 **更新:** 同じインストーラーを再実行します。旧版のディレクトリは残るので、不要になったら削除できます。既定のパスでの**アンインストール**:
