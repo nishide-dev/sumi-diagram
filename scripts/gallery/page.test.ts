@@ -102,14 +102,6 @@ const model: GalleryModel = {
     sample: { fileName: "palette.sumi.yaml", source: "# ``` fence\nversion: 1\n", renderings: [] },
     outcomes: [outcome({ diagnostics: [{ code: "x/y", severity: "warning", message: NASTY }] })],
   },
-  legends: {
-    sample: {
-      fileName: "legend-samples.sumi.yaml",
-      source: "# ``` fence\nversion: 1\n",
-      renderings: [],
-    },
-    outcomes: [outcome()],
-  },
   outlinedTones: {
     sample: { fileName: "outlined.sumi.yaml", source: "# ``` fence\nversion: 1\n", renderings: [] },
     outcomes: [outcome()],
@@ -148,7 +140,6 @@ describe("Markdown escaping", () => {
       "dimmed-groups",
       "node-glyphs",
       "set-enclosures",
-      "legend-samples",
       "profiles",
       "one-figure-every-theme--profile",
     ]) {
@@ -199,7 +190,6 @@ describe("Markdown escaping", () => {
       "docs/gallery/dim.md",
       "docs/gallery/examples.md",
       "docs/gallery/glyphs.md",
-      "docs/gallery/legend-samples.md",
       "docs/gallery/palettes.md",
       "docs/gallery/sets.md",
       "docs/gallery/strokes.md",

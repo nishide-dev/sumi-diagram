@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { parse as parseYaml } from "yaml";
 import { compileFigure } from "../../src/compiler/compile";
 import { writtenComponentOf } from "../../src/compiler/testing";
 import { createBuiltinRegistry } from "../../src/core/registry/builtins";
@@ -16,7 +17,6 @@ import {
   dimSample,
   filledToneSample,
   glyphSample,
-  legendSample,
   outlinedToneSample,
   PROFILES,
   SAMPLE_PROFILE,
@@ -31,18 +31,48 @@ import {
 
 const samples = componentSamples();
 
-test("legend story uses the same relations and symbols as its key", () => {
-  const source = legendSample().source;
-  expect(source.startsWith("# Contrastive pre-training")).toBe(true);
-  expect(source).toContain("from: f1, to: e1, component: double-arrow, tone: blue");
-  expect(source).toContain("from: e1, to: g2, component: double-arrow, variant: dashed, tone: red");
-  expect(source).toContain(
-    "edge: { component: double-arrow, variant: dashed, tone: red }, label: Negative",
-  );
-  expect(source).toContain("members: [d1, t1, s1]");
-  expect(source.match(/enclose: footprint/g)).toHaveLength(2);
-  expect(source).not.toContain("tabler/database");
-  expect(source).toContain("tabler/flask");
+test("every sumi/legend variant has every sample kind, each matching the figure (#550)", () => {
+  const sample = samples.find((s) => s.entry.id === "sumi/legend");
+  if (!sample) throw new Error("no sumi/legend sample");
+  type Entry = Record<string, { component?: string; variant?: string; tone?: string } | string>;
+  const doc = parseYaml(sample.source) as {
+    nodes: {
+      id: string;
+      component: string;
+      variant?: string;
+      tone?: string;
+      props?: { entries: Entry[] };
+    }[];
+    edges: { component?: string; variant?: string }[];
+    sets: { tone?: string }[];
+  };
+  const legends = doc.nodes.filter((n) => n.component === "sumi/legend");
+  expect(legends.map((n) => n.variant ?? "default")).toEqual(sample.entry.variants as string[]);
+  const kinds = (entries: Entry[]) =>
+    entries.map((e) => ["node", "edge", "set", "glyph"].filter((k) => k in e).join(""));
+  for (const legend of legends) {
+    const entries = legend.props?.entries ?? [];
+    expect(kinds(entries)).toEqual(["node", "node", "edge", "edge", "edge", "set", "glyph"]);
+    // Each edge entry matches an edge of the figure by component and variant.
+    for (const e of entries) {
+      const edge = e.edge as { component?: string; variant?: string } | undefined;
+      if (edge === undefined) continue;
+      expect(
+        doc.edges.some(
+          (x) =>
+            (x.component ?? "arrow") === (edge.component ?? "arrow") &&
+            (x.variant ?? "default") === (edge.variant ?? "default"),
+        ),
+      ).toBe(true);
+    }
+    // Box tones match nodes, the set tone matches a set.
+    for (const e of entries) {
+      const node = e.node as { tone?: string } | undefined;
+      if (node) expect(doc.nodes.some((n) => n.tone === node.tone)).toBe(true);
+      const set = e.set as { tone?: string } | undefined;
+      if (set) expect(doc.sets.some((x) => x.tone === set.tone)).toBe(true);
+    }
+  }
 });
 
 test("glyph and stroke stories preserve their visual semantics and slides profile", () => {
@@ -141,6 +171,8 @@ test("only slides rows of more than three node or group variants use the wide pr
     "sumi/stack",
     "sumi/bubble",
     "sumi/waveform",
+    // Two legends side by side (#550).
+    "sumi/legend",
     "sumi/container",
   ]);
   for (const sample of samples) {
@@ -180,7 +212,6 @@ test("every theme-wide sample passes structural lint under every theme (#177)", 
     glyphSample(),
     setsSample(),
     strokeSample(),
-    legendSample(),
   ]) {
     for (const theme of THEMES) {
       const source = sample.source.replace(/^ {2}theme: .*$/m, `  theme: ${theme}`);

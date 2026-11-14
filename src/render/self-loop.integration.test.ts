@@ -4,7 +4,7 @@
  */
 import { expect, test } from "bun:test";
 import { stringify } from "yaml";
-import type { Point } from "../layout/ir";
+import type { Point, Rect } from "../layout/ir";
 import { checkRoutes } from "../layout/route/check";
 import type { Cubic } from "../layout/route/cubic";
 import { lintRenderedFigure } from "../lint";
@@ -191,17 +191,37 @@ test("a loop that overflows the content moves the sets with the nodes", async ()
     });
   const plain = await render(text(false));
   const looped = await render(text(true));
-  const nodeA = (r: typeof plain) => r.layout.nodes.find((n) => n.key === "n:a")?.rect;
-  const dx = (nodeA(looped)?.x ?? 0) - (nodeA(plain)?.x ?? 0);
-  const dy = (nodeA(looped)?.y ?? 0) - (nodeA(plain)?.y ?? 0);
-  expect(dx !== 0 || dy !== 0).toBe(true); // the loop did overflow and move everything
+  const members: Record<string, string[]> = { s: ["a"], t: ["b"], u: ["a", "b"], v: ["a"] };
+  const nodeRect = (r: typeof plain, id: string) =>
+    r.layout.nodes.find((n) => n.key === `n:${id}`)?.rect as Rect;
+  const shift = (id: string) => ({
+    dx: nodeRect(looped, id).x - nodeRect(plain, id).x,
+    dy: nodeRect(looped, id).y - nodeRect(plain, id).y,
+  });
+  const a = shift("a");
+  expect(a.dx !== 0 || a.dy !== 0).toBe(true); // the loop did overflow and move things
   for (const set of plain.layout.sets ?? []) {
     const moved = looped.layout.sets?.find((s) => s.id === set.id);
-    expect(moved?.rect.x).toBeCloseTo(set.rect.x + dx, 1);
-    expect(moved?.rect.y).toBeCloseTo(set.rect.y + dy, 1);
-    if (set.label !== undefined) {
-      expect(moved?.label?.anchor.x).toBeCloseTo(set.label.anchor.x + dx, 1);
-      expect(moved?.label?.anchor.y).toBeCloseTo(set.label.anchor.y + dy, 1);
+    const own = members[set.id] ?? [];
+    if (own.length === 1) {
+      // A set with one member moves with that member, whichever way it went.
+      const { dx, dy } = shift(own[0] as string);
+      expect(moved?.rect.x).toBeCloseTo(set.rect.x + dx, 1);
+      expect(moved?.rect.y).toBeCloseTo(set.rect.y + dy, 1);
+      if (set.label !== undefined) {
+        expect(moved?.label?.anchor.x).toBeCloseTo(set.label.anchor.x + dx, 1);
+        expect(moved?.label?.anchor.y).toBeCloseTo(set.label.anchor.y + dy, 1);
+      }
+    } else {
+      // A shared set is fitted again: it still encloses all its members.
+      const r = moved?.rect as Rect;
+      for (const id of own) {
+        const m = nodeRect(looped, id);
+        expect(r.x).toBeLessThanOrEqual(m.x + 0.01);
+        expect(r.y).toBeLessThanOrEqual(m.y + 0.01);
+        expect(r.x + r.width).toBeGreaterThanOrEqual(m.x + m.width - 0.01);
+        expect(r.y + r.height).toBeGreaterThanOrEqual(m.y + m.height - 0.01);
+      }
     }
   }
 });
