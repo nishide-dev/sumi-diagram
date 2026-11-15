@@ -84,13 +84,19 @@ describe("buildPrompt", () => {
     expect(paper).toContain("Keep it within 60mm tall");
     expect(paper).not.toContain("no taller than the content needs");
   });
-  test("arrows are connections taken from whichever sources are given", () => {
+  test("arrows are connections taken from whichever inputs are given", () => {
     const notes = buildPrompt({ ...DEFAULT_STATE, content: "A then B" });
     expect(notes).toContain("join stages only where the notes give them as consecutive steps");
     const source = buildPrompt({ ...DEFAULT_STATE, refs: "paper.pdf" });
-    expect(source).toContain("from the sources and notes only");
-    expect(source).toContain("join stages only where the sources and notes give them");
-    const ja = buildPrompt({ ...DEFAULT_STATE, ui: "ja", refs: "paper.pdf" });
-    expect(ja).toContain("参考資料とメモが順につながる手順");
+    expect(source).toContain("from the sources only");
+    expect(source).toContain("join stages only where the sources give them");
+    const both = buildPrompt({ ...DEFAULT_STATE, refs: "paper.pdf", content: "A then B" });
+    expect(both).toContain("join stages only where the sources and notes give them");
+    const ja = (v: Partial<typeof DEFAULT_STATE>) =>
+      buildPrompt({ ...DEFAULT_STATE, ui: "ja", ...v });
+    expect(ja({ refs: "paper.pdf" })).toContain("参考資料が順につながる手順");
+    expect(ja({ refs: "paper.pdf" })).not.toContain("メモが順に");
+    expect(ja({ content: "A" })).toContain("メモが順につながる手順");
+    expect(ja({ refs: "paper.pdf", content: "A" })).toContain("参考資料とメモが順につながる手順");
   });
 });

@@ -247,13 +247,11 @@ export function buildPrompt(s: PromptState): string {
     H(J ? "内容" : "Content");
     for (const r of refs) out.push(`- ${J ? "参考資料" : "Source"}: ${r}`);
     if (s.content.trim()) out.push(`- ${J ? "メモ" : "Notes"}: ${s.content.trim()}`);
-    const from = refs.length
-      ? J
-        ? "参考資料とメモ"
-        : "the sources and notes"
-      : J
-        ? "メモ"
-        : "the notes";
+    const notes = Boolean(s.content.trim());
+    // Name only the inputs that were given, so no rule asks for evidence from an absent one.
+    const from = J
+      ? [refs.length && "参考資料", notes && "メモ"].filter(Boolean).join("と")
+      : `the ${[refs.length && "sources", notes && "notes"].filter(Boolean).join(" and ")}`;
     out.push(
       J
         ? `要素・接続・数値などの事実は${from}だけから取り、書かれていないものは足さないでください。配置・グループ分け・ラベルの短縮などの見せ方は任せます。矢印は接続なので、段階どうしを結ぶのは${from}が順につながる手順として書いているときだけにし、それ以外で結んだときは仮定として報告してください。曖昧な点は描く前に一度だけ質問し、答えが得られないときは最も素直な解釈で進めて、その仮定を報告してください。`
