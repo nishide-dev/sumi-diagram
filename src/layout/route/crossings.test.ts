@@ -49,7 +49,7 @@ describe("layout/edge-crossing", () => {
         "info",
         ["edges", 16],
         78,
-        'The line shared by edges[16] ("train-api" → "metadata") and edges[17] ("auth" → "metadata") crosses the line shared by edges[8] ("queue" → "train-worker") and edges[9] ("queue" → "prep-worker") at 129.0mm, 37.5mm from the top left of the canvas.',
+        'The line shared by edges[16] ("train-api" → "metadata") and edges[17] ("auth" → "metadata") crosses the line shared by edges[8] ("queue" → "train-worker") and edges[9] ("queue" → "prep-worker") at 130.8mm, 37.5mm from the top left of the canvas.',
       ],
     ]);
     // The other wire's edges, then the rest of the own wire's, as related locations.

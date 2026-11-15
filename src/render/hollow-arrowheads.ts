@@ -338,6 +338,10 @@ const number = (element: XmlElement, name: string, fallback?: number): number =>
 export interface HeadOutline {
   segments: PathSegment[];
   closed: boolean;
+  /** The SVG shape, with the paint attributes it inherits from the `<g>` around it (a cross). */
+  source: XmlElement;
+  /** User units per marker unit: the factor for the shape's `stroke-width` (marker units). */
+  strokeScale: number;
 }
 
 /** A head placed at one end of a path, in the marker's coordinates. */
@@ -389,10 +393,29 @@ export function headFrame(
   const shapes: ((p: Point) => boolean)[] = [];
   /** Each shape's outline in marker coordinates. */
   const outlines: ((toUser: (p: Point) => Point) => HeadOutline)[] = [];
-  for (const shape of descendants(marker)) {
-    if (shape === marker) continue;
-    if (attribute(shape, "transform") !== undefined)
-      throw new Error(`Unsupported transformed <${shape.name}> in an arrowhead marker.`);
+  /** The `<g>` a shape sits in: it passes its paint on and may not turn or move it. */
+  const wrappers = new Map<XmlElement, XmlElement>();
+  for (const wrapper of descendants(marker)) {
+    if (wrapper.name !== "g") continue;
+    if (attribute(wrapper, "transform") !== undefined)
+      throw new Error("Unsupported transformed <g> in an arrowhead marker.");
+    for (const child of childElements(wrapper)) wrappers.set(child, wrapper);
+  }
+  for (const element of descendants(marker)) {
+    if (element === marker || element.name === "g") continue;
+    const wrapper = wrappers.get(element);
+    const shape: XmlElement = wrapper
+      ? {
+          ...element,
+          attributes: [
+            ...wrapper.attributes.filter(
+              (a) => a.name !== "class" && !element.attributes.some((b) => b.name === a.name),
+            ),
+            ...element.attributes,
+          ],
+        }
+      : element;
+    const transform = shapeTransform(shape);
     if (shape.name === "polygon") {
       const values = (attribute(shape, "points") ?? "")
         .trim()
@@ -402,10 +425,12 @@ export function headFrame(
         throw new Error("Unreadable polygon in an arrowhead marker.");
       const vertices: Point[] = [];
       for (let i = 0; i < values.length; i += 2)
-        vertices.push({ x: values[i] as number, y: values[i + 1] as number });
+        vertices.push(transform({ x: values[i] as number, y: values[i + 1] as number }));
       shapes.push((p) => insidePolygon(vertices, p));
       outlines.push((toUser) => ({
         closed: true,
+        source: shape,
+        strokeScale: scale,
         segments: [
           { command: "M", to: toUser(vertices[0] as Point) },
           ...vertices.slice(1).map((v): PathSegment => ({ command: "L", to: toUser(v) })),
@@ -415,6 +440,8 @@ export function headFrame(
     } else if (shape.name === "circle") {
       const cx = number(shape, "cx", 0);
       const cy = number(shape, "cy", 0);
+      if (attribute(shape, "transform") !== undefined)
+        throw new Error("Unsupported transformed <circle> in an arrowhead marker.");
       const r = number(shape, "r");
       shapes.push((p) => Math.hypot(p.x - cx, p.y - cy) <= r);
       outlines.push((toUser) => {
@@ -423,6 +450,8 @@ export function headFrame(
         const at = (x: number, y: number) => toUser({ x: cx + x, y: cy + y });
         return {
           closed: true,
+          source: shape,
+          strokeScale: scale,
           segments: [
             { command: "M", to: at(r, 0) },
             { command: "C", c1: at(r, k), c2: at(k, r), to: at(0, r) },
@@ -439,10 +468,18 @@ export function headFrame(
       shapes.push(() => false);
       outlines.push((toUser) => ({
         closed: false,
+        source: shape,
+        strokeScale: scale,
         segments: parsed.segments.map((seg): PathSegment => {
+          const to = toUser(transform(seg.to));
           if (seg.command === "C")
-            return { command: "C", c1: toUser(seg.c1), c2: toUser(seg.c2), to: toUser(seg.to) };
-          return { command: seg.command, to: toUser(seg.to) };
+            return {
+              command: "C",
+              c1: toUser(transform(seg.c1)),
+              c2: toUser(transform(seg.c2)),
+              to,
+            };
+          return { command: seg.command, to };
         }),
       }));
     } else {
@@ -483,6 +520,44 @@ export function headFrame(
       return outlines.map((outline) => outline(toUser));
     },
   };
+}
+
+/**
+ * A shape's `transform` (`translate` and `rotate`, which D2 writes on a cross) as a map of
+ * its points; none is the identity.
+ */
+function shapeTransform(shape: XmlElement): (p: Point) => Point {
+  const text = attribute(shape, "transform");
+  if (text === undefined) return (p) => p;
+  const steps: ((p: Point) => Point)[] = [];
+  const pattern = /\s*(translate|rotate)\(([^)]*)\)\s*/y;
+  let at = 0;
+  while (at < text.length) {
+    pattern.lastIndex = at;
+    const match = pattern.exec(text);
+    if (match === null) throw new Error(`Unsupported transform "${text}" in an arrowhead marker.`);
+    at = pattern.lastIndex;
+    const args = (match[2] as string)
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number);
+    if (args.some((n) => !Number.isFinite(n)))
+      throw new Error(`Unsupported transform "${text}" in an arrowhead marker.`);
+    if (match[1] === "translate") {
+      const [dx = 0, dy = 0] = args;
+      steps.push((p) => ({ x: p.x + dx, y: p.y + dy }));
+    } else {
+      const [degrees = 0, cx = 0, cy = 0] = args;
+      const cos = Math.cos((degrees * Math.PI) / 180);
+      const sin = Math.sin((degrees * Math.PI) / 180);
+      steps.push((p) => ({
+        x: cx + (p.x - cx) * cos - (p.y - cy) * sin,
+        y: cy + (p.x - cx) * sin + (p.y - cy) * cos,
+      }));
+    }
+  }
+  // SVG applies the list from its last transform to its first.
+  return (p) => steps.reduceRight((q, step) => step(q), p);
 }
 
 /** Even-odd point in polygon; a point on the outline counts as inside. */
@@ -620,7 +695,7 @@ function measureTo(
 }
 
 /** The same path drawn from its end (one subpath of M / L / C). */
-function reversePath(segments: readonly PathSegment[]): PathSegment[] {
+export function reversePath(segments: readonly PathSegment[]): PathSegment[] {
   const out: PathSegment[] = [{ command: "M", to: (segments.at(-1) as PathSegment).to }];
   for (let i = segments.length - 1; i >= 1; i--) {
     const s = segments[i] as PathSegment;
