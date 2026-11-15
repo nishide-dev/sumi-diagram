@@ -256,8 +256,8 @@ export function buildPrompt(s: PromptState): string {
         : "the notes";
     out.push(
       J
-        ? `要素・接続・数値などの事実は${from}だけから取り、書かれていないものは足さないでください。配置・グループ分け・ラベルの短縮などの見せ方は任せます。矢印は接続なので、段階どうしを結ぶのはメモが順につながる手順として書いているときだけにし、それ以外で結んだときは仮定として報告してください。曖昧な点は描く前に一度だけ質問し、答えが得られないときは最も素直な解釈で進めて、その仮定を報告してください。`
-        : `Take the facts (elements, connections, labels and numbers) from ${from} only; add none that are not there. Presentation is yours: layout, grouping and shortened labels. An arrow is a connection: join stages only where the notes give them as consecutive steps, and list any other arrow you draw as an assumption. If something is ambiguous, ask once before drawing; if no one can answer, take the simplest reading and list the assumptions in your report.`,
+        ? `要素・接続・数値などの事実は${from}だけから取り、書かれていないものは足さないでください。配置・グループ分け・ラベルの短縮などの見せ方は任せます。矢印は接続なので、段階どうしを結ぶのは${from}が順につながる手順として書いているときだけにし、それ以外で結んだときは仮定として報告してください。曖昧な点は描く前に一度だけ質問し、答えが得られないときは最も素直な解釈で進めて、その仮定を報告してください。`
+        : `Take the facts (elements, connections, labels and numbers) from ${from} only; add none that are not there. Presentation is yours: layout, grouping and shortened labels. An arrow is a connection: join stages only where ${from} give them as consecutive steps, and list any other arrow you draw as an assumption. If something is ambiguous, ask once before drawing; if no one can answer, take the simplest reading and list the assumptions in your report.`,
     );
   }
   H(J ? "図の種類" : "Figure type");

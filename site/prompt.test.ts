@@ -84,4 +84,13 @@ describe("buildPrompt", () => {
     expect(paper).toContain("Keep it within 60mm tall");
     expect(paper).not.toContain("no taller than the content needs");
   });
+  test("arrows are connections taken from whichever sources are given", () => {
+    const notes = buildPrompt({ ...DEFAULT_STATE, content: "A then B" });
+    expect(notes).toContain("join stages only where the notes give them as consecutive steps");
+    const source = buildPrompt({ ...DEFAULT_STATE, refs: "paper.pdf" });
+    expect(source).toContain("from the sources and notes only");
+    expect(source).toContain("join stages only where the sources and notes give them");
+    const ja = buildPrompt({ ...DEFAULT_STATE, ui: "ja", refs: "paper.pdf" });
+    expect(ja).toContain("参考資料とメモが順につながる手順");
+  });
 });
