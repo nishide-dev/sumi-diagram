@@ -143,6 +143,11 @@ export interface ThemeDefinition {
   arrowhead?: ThemeArrowhead;
   /** How the theme prefers its colors to be used (#513); omitted means no guidance. */
   colorUse?: ThemeColorUse;
+  /**
+   * Space between an edge label and its line, in units of 0.5pt (#546);
+   * omitted means the router's own gap (3 units).
+   */
+  edgeLabelGap?: number;
 }
 
 /** A validated theme. All values are checked and resolved; component keys are canonical. */
@@ -171,6 +176,8 @@ export interface Theme {
   readonly arrowhead?: ThemeArrowhead;
   /** Guidance on using the theme's colors (#513); present only when the definition sets it. */
   readonly colorUse?: ThemeColorUse;
+  /** The edge label gap in units (#546); present only when the definition sets it. */
+  readonly edgeLabelGap?: number;
   /**
    * A figure's `themeOverrides.tones` (#380), already merged into `tones` and
    * `toneLines`; kept for the tinted and solid node variants, whose frame and
@@ -226,6 +233,7 @@ export const ThemeSchema = z.strictObject({
     .optional(),
   arrowhead: z.enum(THEME_ARROWHEADS).optional(),
   colorUse: ColorUseSchema.optional(),
+  edgeLabelGap: z.number().int().min(1).max(24).optional(),
 });
 
 export interface ValidateThemeOptions {
@@ -400,6 +408,7 @@ class ThemeChecker {
         ...(dim !== undefined && { dim }),
         ...(theme.arrowhead !== undefined && { arrowhead: theme.arrowhead }),
         ...(theme.colorUse !== undefined && { colorUse: theme.colorUse }),
+        ...(theme.edgeLabelGap !== undefined && { edgeLabelGap: theme.edgeLabelGap }),
       }),
       diagnostics: this.diagnostics,
     };

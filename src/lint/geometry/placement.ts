@@ -4,6 +4,7 @@
  * and a row of tokens that drifts off the column of the row above it.
  */
 
+import { labelGap } from "../../layout/route/labels";
 import type { Rect } from "../../render/geometry";
 import { unitsToPt } from "../../render/geometry";
 import { defineGeometryRule, type LintFinding } from "../rule";
@@ -23,6 +24,14 @@ const OVERLAP_TOLERANCE_UNITS = 1;
  * is drawn under it.
  */
 export const LABEL_HUG_UNITS = 2;
+
+/**
+ * Under a theme that sets `edgeLabelGap` (#546) the label has that gap by
+ * default, so a label counts as pressed against its line when it is closer
+ * than this share of it (a label the router moved off its default place, or
+ * one set by hand).
+ */
+export const LABEL_HUG_SHARE = 0.75;
 
 /** The printed distance (1.5pt) within which an edge label counts as sitting on a box's corner. */
 export const LABEL_CORNER_UNITS = 3;
@@ -47,9 +56,16 @@ export const edgeLabelHugging = defineGeometryRule({
         Math.min(...edge.labels.flatMap(inkLines).map((ink) => polylinesRectDistance(drawn, ink))) -
         edge.strokeInset;
       // On or across the line: not a near miss.
-      if (gap <= 0 || printedUnits(context, gap) >= LABEL_HUG_UNITS) continue;
+      if (gap <= 0) continue;
+      const style = edge.ir.style;
+      const themed = style.kind === "edge" ? style.labelGap : undefined;
+      const tooClose =
+        style.kind === "edge" && themed !== undefined
+          ? gap < labelGap(style) * LABEL_HUG_SHARE
+          : printedUnits(context, gap) < LABEL_HUG_UNITS;
+      if (!tooClose) continue;
       findings.push({
-        message: `The label of ${edge.name} sits ${mmText(context, gap, 2)} from its line (under 1pt), so it reads as pressed against it.`,
+        message: `The label of ${edge.name} sits ${mmText(context, gap, 2)} from its line (under ${themed === undefined ? "1pt" : "the theme's label gap"}), so it reads as pressed against it.`,
         path: [...edge.docPath, "label"],
         subject: edge.subject,
         hint: "Move the label with labelAt / labelSide to a longer segment, widen the gap before the arrowhead, or use a smaller label so the text keeps clear of its line.",

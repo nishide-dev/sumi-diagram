@@ -87,6 +87,45 @@ describe("geometry/edge-label-hugging", () => {
   });
 });
 
+describe("geometry/edge-label-hugging under a theme's label gap (#546)", () => {
+  const code = "geometry/edge-label-hugging";
+  const file = join(ROOT, "gap.sumi.yaml");
+  const figure = (theme: string) => `version: 1
+figure:
+  id: gap
+  theme: ${theme}
+  profile: paper-double
+  layout: { arrange: { row: { gap: 20mm, items: [a, b] } } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges:
+  - { from: a, to: b, label: gap, labelSide: left }
+`;
+  const gapMm = async (theme: string) => {
+    const result = await renderFigure(figure(theme), { assetBase: ROOT });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const text = result.value.svg;
+    const line = /<path class="connection" d="M ([\d.]+) ([\d.]+) L/.exec(text);
+    const label = /<text x="[\d.]+" y="([\d.]+)"[^>]*>gap<\/text>/.exec(text);
+    if (!line || !label) throw new Error("no edge");
+    return Math.abs(Number(label[1]) - Number(line[2]));
+  };
+
+  test("a sumi label sits about twice as far from its line as a paper label, and is not reported", async () => {
+    expect(await gapMm("sumi")).toBeGreaterThan(await gapMm("paper"));
+    expect(await findings(figure("sumi"), file, code)).toEqual([]);
+  });
+
+  test("the shipped sumi layouts have no hugging labels", async () => {
+    for (const path of [
+      "skills/sumi/layouts/pipeline-feedback/pipeline-feedback.sumi.yaml",
+      "skills/sumi/layouts/agent-loop/agent-loop.sumi.yaml",
+    ])
+      expect(await fixture(path, code), path).toEqual([]);
+  });
+});
+
 describe("geometry/edge-label-on-corner", () => {
   const code = "geometry/edge-label-on-corner";
 

@@ -522,6 +522,8 @@ function sumiTheme(dark: boolean): ThemeDefinition {
     ) as Record<Tone, StyleLayerInput>,
     toneLines: toneLines(inks),
     dim: { fontColor: muted, stroke: muted, lighten: 0.3 },
+    // Labels keep about 1mm from their line (#546).
+    edgeLabelGap: 6,
     // A neutral base (gray) with up to three accents, in pale or outlined variants (#513).
     colorUse: {
       maxAccentTones: 3,
