@@ -4,7 +4,11 @@ import { buildPrompt, DEFAULT_STATE } from "./prompt";
 describe("buildPrompt", () => {
   test("generates English instructions without implicit colour meanings", () => {
     const text = buildPrompt({ ...DEFAULT_STATE, content: "A → B" });
-    expect(text).toContain("Make a system architecture.");
+    expect(text).toContain("Make a system architecture diagram.");
+    expect(text).toContain("from the notes only");
+    expect(text).toContain("Presentation is yours");
+    expect(text).not.toContain("no taller than the content needs");
+    expect(text).toContain("list the assumptions");
     expect(text).toContain("- Notes: A → B");
     expect(text).not.toContain("Colour meaning (tone):");
   });
@@ -37,9 +41,40 @@ describe("buildPrompt", () => {
         ["", "red"],
       ],
     });
-    expect(text).toContain("Theme: slides (switched from paper for a slide)");
+    expect(text).toContain("Theme: paper\n");
+    expect(text).toContain("at most 338.7mm wide and 190.5mm tall");
+    expect(text).toContain("textScaleFor.presentation-16x9");
     expect(text).toContain("Palette: slate (figure.themeOverrides.palette)");
     expect(text).toContain("- service → blue");
     expect(text).not.toContain("→ red");
+  });
+  test("README placement uses screen-doc with the theme's text scale", () => {
+    const text = buildPrompt({ ...DEFAULT_STATE, theme: "sumi" });
+    expect(text).toContain("profile: screen-doc, at most 200mm wide and 150mm tall");
+    expect(text).toContain("textScaleFor.screen-doc");
+    expect(text).toContain("Theme: sumi");
+  });
+  test("articles, Japanese target spacing and gray themes", () => {
+    expect(buildPrompt({ ...DEFAULT_STATE, kind: "overview" })).toContain(
+      "Make an overview figure in panels.",
+    );
+    const ja = buildPrompt({
+      ...DEFAULT_STATE,
+      ui: "ja",
+      kind: "pipeline",
+      target: "RAG システム",
+    });
+    expect(ja).toContain("RAG システムを表す処理・パイプラインを作る。");
+    const slides = buildPrompt({
+      ...DEFAULT_STATE,
+      theme: "slides",
+      place: "presentation-16x9",
+      tones: [["failure", "red"]],
+    });
+    expect(slides).not.toContain("textScaleFor");
+    expect(slides).toContain("slides draws tones as shades of gray");
+    expect(buildPrompt({ ...DEFAULT_STATE, place: "paper-single" })).toContain(
+      "no taller than the content needs",
+    );
   });
 });
