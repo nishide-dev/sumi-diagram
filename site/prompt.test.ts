@@ -92,11 +92,16 @@ describe("buildPrompt", () => {
     expect(source).toContain("join stages only where the sources give them");
     const both = buildPrompt({ ...DEFAULT_STATE, refs: "paper.pdf", content: "A then B" });
     expect(both).toContain("join stages only where the sources and notes give them");
+    expect(notes).toContain("from the notes only;");
+    expect(both).toContain("from the sources and notes only;");
     const ja = (v: Partial<typeof DEFAULT_STATE>) =>
       buildPrompt({ ...DEFAULT_STATE, ui: "ja", ...v });
     expect(ja({ refs: "paper.pdf" })).toContain("参考資料が順につながる手順");
     expect(ja({ refs: "paper.pdf" })).not.toContain("メモが順に");
     expect(ja({ content: "A" })).toContain("メモが順につながる手順");
     expect(ja({ refs: "paper.pdf", content: "A" })).toContain("参考資料とメモが順につながる手順");
+    expect(ja({ refs: "paper.pdf" })).toContain("事実は参考資料だけから取り");
+    expect(ja({ content: "A" })).toContain("事実はメモだけから取り");
+    expect(ja({ refs: "paper.pdf", content: "A" })).toContain("事実は参考資料とメモだけから取り");
   });
 });
