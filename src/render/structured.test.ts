@@ -813,18 +813,59 @@ edges:
     expect(svgHeadFills(swapped.svg).get(0)).toEqual(["none", "none"]);
   });
 
-  // DrawingML line ends have no interior: a hollow `arrow` is an open arrow,
-  // the other hollow heads are refused (editable-geometry.test.ts).
-  test("a hollow arrow head stays an open arrow line end in the editable PPTX", async () => {
+  // The structured SVG draws `arrow`, `box` and `cross` itself, filled or hollow (#485):
+  // editable PPTX draws the same shapes, not a native line end.
+  test("arrow, box and cross heads are drawn in the editable PPTX as the SVG draws them", async () => {
     const rendered = await render(nested("minimal", "", ""));
-    const { svg, ir } = redraw(rendered, { filled: false, targetArrowhead: "arrow" });
-    const editable = svgToEditablePptx(svg, ir);
-    if (!editable.ok) throw new Error(JSON.stringify(editable.diagnostics));
-    const slide = new TextDecoder().decode(readPptx(editable.value).get("ppt/slides/slide1.xml"));
-    expect([...slide.matchAll(/<a:tailEnd type="([a-z]+)"/g)].map(([, t]) => t)).toEqual([
-      "arrow",
-      "arrow",
-    ]);
+    const xml = (svg: string, ir: Parameters<typeof svgToEditablePptx>[1]) => {
+      const editable = svgToEditablePptx(svg, ir);
+      if (!editable.ok) throw new Error(JSON.stringify(editable.diagnostics));
+      return new TextDecoder().decode(readPptx(editable.value).get("ppt/slides/slide1.xml"));
+    };
+    for (const head of ["arrow", "box", "cross"] as const) {
+      for (const filled of [true, false]) {
+        const { svg, ir } = redraw(rendered, { filled, targetArrowhead: head });
+        const slide = xml(svg, ir);
+        expect(slide).not.toMatch(/<a:(headEnd|tailEnd)/);
+        const shapes = slide.match(/<p:sp>.*?<\/p:sp>/g) ?? [];
+        const drawn = shapes.filter((x) => x.includes('name="e:#0"'));
+        const polygons = [...svg.matchAll(/<polygon points="([^"]*)"([^>]*)\/>/g)];
+        if (head === "cross") {
+          // Two strokes, no interior: the wire (to the tip) and a freeform of both diagonals.
+          const strokes = drawn.filter(
+            (x) => x.includes('fill="none"') && x.includes("<a:moveTo>"),
+          );
+          expect(strokes.some((x) => (x.match(/<a:moveTo>/g) ?? []).length === 2)).toBe(true);
+          continue;
+        }
+        const heads = drawn.filter((x) => x.includes("<a:close/>"));
+        expect(heads.length).toBeGreaterThanOrEqual(1);
+        // The SVG polygon's points are the freeform's vertices (its bounding box in EMU).
+        const points = (polygons.at(-1)?.[1] ?? "")
+          .trim()
+          .split(/\s+/)
+          .map((p) => p.split(",").map(Number));
+        const xs = points.map((q) => q[0] as number);
+        const ys = points.map((q) => q[1] as number);
+        const w = Math.round((Math.max(...xs) - Math.min(...xs)) * 6350);
+        const h = Math.round((Math.max(...ys) - Math.min(...ys)) * 6350);
+        expect(
+          heads.some(
+            (x) =>
+              x.includes(`<a:ext cx="${w}" cy="${h}"/>`) ||
+              x.includes(`<a:ext cx="${h}" cy="${w}"/>`),
+          ),
+        ).toBe(true);
+        const sample = heads[0] as string;
+        // Hollow: an outline without fill; filled: a fill without a line, as the SVG's polygon.
+        if (filled) {
+          expect(sample).toContain("<a:solidFill>");
+          expect(sample).toContain("<a:ln><a:noFill/></a:ln>");
+        } else {
+          expect(sample).toContain("<a:noFill/><a:ln w=");
+        }
+      }
+    }
   });
 
   test("backgroundAt() is labelBackground() at a point", () => {
