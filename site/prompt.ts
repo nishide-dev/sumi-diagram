@@ -256,8 +256,8 @@ export function buildPrompt(s: PromptState): string {
         : "the notes";
     out.push(
       J
-        ? `要素・接続・数値などの事実は${from}だけから取り、書かれていないものは足さないでください。配置・グループ分け・ラベルの短縮、順に並んだ段階をつなぐ流れの矢印などの見せ方は任せます。曖昧な点は描く前に一度だけ質問し、答えが得られないときは最も素直な解釈で進めて、その仮定を報告してください。`
-        : `Take the facts (elements, connections, labels and numbers) from ${from} only; add none that are not there. Presentation is yours: layout, grouping, shortened labels, and flow arrows between stages the notes give in order. If something is ambiguous, ask once before drawing; if no one can answer, take the simplest reading and list the assumptions in your report.`,
+        ? `要素・接続・数値などの事実は${from}だけから取り、書かれていないものは足さないでください。配置・グループ分け・ラベルの短縮などの見せ方は任せます。矢印は接続なので、段階どうしを結ぶのはメモが順につながる手順として書いているときだけにし、それ以外で結んだときは仮定として報告してください。曖昧な点は描く前に一度だけ質問し、答えが得られないときは最も素直な解釈で進めて、その仮定を報告してください。`
+        : `Take the facts (elements, connections, labels and numbers) from ${from} only; add none that are not there. Presentation is yours: layout, grouping and shortened labels. An arrow is a connection: join stages only where the notes give them as consecutive steps, and list any other arrow you draw as an assumption. If something is ambiguous, ask once before drawing; if no one can answer, take the simplest reading and list the assumptions in your report.`,
     );
   }
   H(J ? "図の種類" : "Figure type");
@@ -272,11 +272,13 @@ export function buildPrompt(s: PromptState): string {
       ? `${place.jaP}（profile: ${place.profile}、幅 ${place.w}mm・高さ ${place.h}mm 以内）。`
       : `${place.enP[0]?.toUpperCase()}${place.enP.slice(1)} (profile: ${place.profile}, at most ${place.w}mm wide and ${place.h}mm tall).`,
   );
-  if (String(s.maxh).trim())
+  const maxh = Number(String(s.maxh).trim());
+  // A budget above the profile's own limit adds nothing: the profile's height applies.
+  if (maxh > 0 && maxh < place.h)
     out.push(
       J
-        ? `高さは ${s.maxh}mm 以内（figure.target.height に設定）。`
-        : `Keep it within ${s.maxh}mm tall (set figure.target.height).`,
+        ? `高さは ${maxh}mm 以内（figure.target.height に設定）。`
+        : `Keep it within ${maxh}mm tall (set figure.target.height).`,
     );
   const wide = place.profile === "screen-doc" || place.profile === "presentation-16x9";
   if (wide) {
@@ -291,7 +293,7 @@ export function buildPrompt(s: PromptState): string {
         ? "細長い縦の図より、幅を使った横長の形にする。"
         : "Prefer a landscape shape that uses the width over a tall, narrow one.",
     );
-  } else if (!String(s.maxh).trim())
+  } else if (!(maxh > 0 && maxh < place.h))
     out.push(
       J
         ? "高さは内容に必要な分だけにする。縦に長くなる一続きの流れは、段や列に折り返す。"
@@ -364,8 +366,8 @@ export function buildPrompt(s: PromptState): string {
   H(J ? "仕上げ" : "Finish");
   out.push(
     J
-      ? "- fmt → lint → render を通し、残ったエラーと警告は直すか理由を報告する"
-      : "- Run fmt → lint → render; fix the remaining errors and warnings or explain why they stay",
+      ? "- fmt → lint → render を通し、エラーはすべて直す。警告は直すか、残す理由を報告する"
+      : "- Run fmt → lint → render; resolve every error, and fix the warnings or explain why they stay",
   );
   out.push(
     J

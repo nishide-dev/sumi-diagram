@@ -7,10 +7,11 @@ describe("buildPrompt", () => {
     expect(text).toContain("Make a system architecture diagram.");
     expect(text).toContain("from the notes only");
     expect(text).toContain("Presentation is yours");
+    expect(text).toContain("resolve every error");
     expect(text).not.toContain("no taller than the content needs");
     expect(text).toContain("list the assumptions");
     expect(text).toContain("- Notes: A → B");
-    expect(text).not.toContain("Colour meaning (tone):");
+    expect(text).not.toContain("Colour meaning (tone");
   });
   test("generates Japanese custom goal and figure", () => {
     const text = buildPrompt({
@@ -76,5 +77,11 @@ describe("buildPrompt", () => {
     expect(buildPrompt({ ...DEFAULT_STATE, place: "paper-single" })).toContain(
       "no taller than the content needs",
     );
+  });
+  test("a height budget over the profile limit is dropped", () => {
+    expect(buildPrompt({ ...DEFAULT_STATE, maxh: "200" })).not.toContain("Keep it within 200mm");
+    const paper = buildPrompt({ ...DEFAULT_STATE, place: "paper-single", maxh: "60" });
+    expect(paper).toContain("Keep it within 60mm tall");
+    expect(paper).not.toContain("no taller than the content needs");
   });
 });
