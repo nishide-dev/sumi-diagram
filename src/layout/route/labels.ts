@@ -25,10 +25,12 @@ export const EDGE_LABEL_GAP = 3;
 /**
  * The gap of an edge's label (#514): {@link EDGE_LABEL_GAP}, times the
  * figure's `textScale` so the label keeps its distance to the line as the text
- * grows (whole units).
+ * grows (whole units). A theme's `edgeLabelGap` (#546) replaces the base gap.
  */
-export function labelGap(style: Pick<EdgeIR["style"], "textScale"> | undefined): number {
-  return Math.round(EDGE_LABEL_GAP * (style?.textScale ?? 1));
+export function labelGap(
+  style: Pick<EdgeIR["style"], "textScale" | "labelGap"> | undefined,
+): number {
+  return Math.round((style?.labelGap ?? EDGE_LABEL_GAP) * (style?.textScale ?? 1));
 }
 
 /** A place for a label: its center. */

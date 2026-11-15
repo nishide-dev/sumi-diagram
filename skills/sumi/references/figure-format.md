@@ -596,7 +596,8 @@ searches icons). One entry of each:
       "compatibleProfiles": ["paper-single", "paper-double"],
       "textScaleFor": { "screen-doc": 1.5, "presentation-16x9": 2 },
       "arrowhead": "triangle",
-      "colorUse": null
+      "colorUse": null,
+      "edgeLabelGap": null
     }
   ],
   "profiles": [
@@ -630,6 +631,9 @@ searches icons). One entry of each:
 - `arrowhead`: the theme's standard arrowhead, `triangle` (filled) or `open` (a
   chevron the line runs into; `llama`). It replaces every triangle end in SVG, PDF and
   PPTX (editable PPTX: the native open `arrow` end).
+- `edgeLabelGap`: the space between an edge label and its line in units of 0.5pt, or `null`
+  for the router's 3 (`sumi` and `sumi-dark`: 6, about 1mm from line to glyphs). It follows
+  `textScale`; `geometry/edge-label-hugging` compares against it.
 - `colorUse`: how the theme prefers its colours (`null` when it gives none; `sumi` and
   `sumi-dark` do): `maxAccentTones` (tones other than `gray`), `preferredVariants`,
   `heavyVariants` (`filled`, `solid`: blocks of colour), `maxHeavyShare` (of the node

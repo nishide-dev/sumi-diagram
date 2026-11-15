@@ -453,6 +453,8 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     }
     if (style.kind === "node" && entry.kind === "node")
       style = withTextStyle(style, theme, entry.element);
+    if (style.kind === "edge" && theme.edgeLabelGap !== undefined)
+      style = Object.freeze({ ...style, labelGap: theme.edgeLabelGap });
     if (style.kind === "edge" && overrides?.textScale !== undefined && overrides.textScale !== 1)
       style = Object.freeze({ ...style, textScale: overrides.textScale });
     if (overrides?.nodeCorners === "square" && style.kind !== "edge")

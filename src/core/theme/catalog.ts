@@ -78,6 +78,11 @@ export interface ThemeCatalogEntry {
    * area, which `geometry/theme-color-use` checks. `null` when it gives none.
    */
   colorUse: ThemeColorUse | null;
+  /**
+   * Space between an edge label and its line in units of 0.5pt (#546), when
+   * the theme sets one (`sumi`, `sumi-dark`: 6); `null` means the router's 3.
+   */
+  edgeLabelGap: number | null;
 }
 
 export interface ThemeCatalogOptions {
@@ -151,6 +156,7 @@ export function themeCatalogEntry(
     ),
     arrowhead: theme.arrowhead ?? "triangle",
     colorUse: theme.colorUse ?? null,
+    edgeLabelGap: theme.edgeLabelGap ?? null,
   };
 }
 

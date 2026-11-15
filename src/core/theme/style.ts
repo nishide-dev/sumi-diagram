@@ -95,6 +95,12 @@ export interface EdgeStyle extends CommonStyle {
    * layout only.
    */
   readonly textScale?: number;
+  /**
+   * The theme's `edgeLabelGap` (#546) in units, when it sets one: the space
+   * between an edge label and its line (the router's own gap otherwise).
+   * Structured layout only.
+   */
+  readonly labelGap?: number;
 }
 
 /** The complete, immutable effective style of one element. */

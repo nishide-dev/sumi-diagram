@@ -47,6 +47,10 @@ pipeline（[`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml)、自�
 
 `paper-single` が定めるのはフォントサイズの下限（7pt）であり、上限ではありません。`slides` の文字はこの下限を満たし、この pipeline はページ内に収まりますが、衝突の warning が 2 件（`geometry/label-collision`・`geometry/edge-crosses-label`）出ます。これは、間隔が広がって縦長の pipeline がスライドの高さを超える `presentation-16x9` の error（`geometry/exceeds-page-height`）とは別です（[プロファイルの比較](gallery/compare.md)）。投影には `slides` と `presentation-16x9` を使い、段数を減らしたレイアウトにしてください。
 
+## 線のラベルの間隔
+
+テーマは、線のラベルと線の間隔を `edgeLabelGap`（0.5pt 単位）で持てます（`sumi catalog --section themes --json` の `themes[].edgeLabelGap`。持たないテーマは `null` で、ルータの 3）。`sumi` と `sumi-dark` は 6（線から字まで約 1mm）、ほかのテーマは 3 のままなので再現図は変わりません。`textScale` に従います。
+
 ## 色の使い方
 
 テーマは、自分の色をどう使ってほしいかを `colorUse` として持てます（`sumi catalog --section themes`、`--json` では `themes[].colorUse`。持たないテーマは `null`）。`sumi` と `sumi-dark` が持ち、選んだ図がそのテーマらしく見えるようにします。
