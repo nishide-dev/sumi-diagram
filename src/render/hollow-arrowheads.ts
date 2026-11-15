@@ -340,6 +340,8 @@ export interface HeadOutline {
   closed: boolean;
   /** The SVG shape, with the paint attributes it inherits from the `<g>` around it (a cross). */
   source: XmlElement;
+  /** User units per marker unit: the factor for the shape's `stroke-width` (marker units). */
+  strokeScale: number;
 }
 
 /** A head placed at one end of a path, in the marker's coordinates. */
@@ -428,6 +430,7 @@ export function headFrame(
       outlines.push((toUser) => ({
         closed: true,
         source: shape,
+        strokeScale: scale,
         segments: [
           { command: "M", to: toUser(vertices[0] as Point) },
           ...vertices.slice(1).map((v): PathSegment => ({ command: "L", to: toUser(v) })),
@@ -448,6 +451,7 @@ export function headFrame(
         return {
           closed: true,
           source: shape,
+          strokeScale: scale,
           segments: [
             { command: "M", to: at(r, 0) },
             { command: "C", c1: at(r, k), c2: at(k, r), to: at(0, r) },
@@ -465,6 +469,7 @@ export function headFrame(
       outlines.push((toUser) => ({
         closed: false,
         source: shape,
+        strokeScale: scale,
         segments: parsed.segments.map((seg): PathSegment => {
           const to = toUser(transform(seg.to));
           if (seg.command === "C")
@@ -690,7 +695,7 @@ function measureTo(
 }
 
 /** The same path drawn from its end (one subpath of M / L / C). */
-function reversePath(segments: readonly PathSegment[]): PathSegment[] {
+export function reversePath(segments: readonly PathSegment[]): PathSegment[] {
   const out: PathSegment[] = [{ command: "M", to: (segments.at(-1) as PathSegment).to }];
   for (let i = segments.length - 1; i >= 1; i--) {
     const s = segments[i] as PathSegment;

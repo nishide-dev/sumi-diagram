@@ -19,7 +19,7 @@ import { cutPath, untrimmedRoutes } from "./hollow-arrowheads";
 import { svgToPdf } from "./pdf";
 import { svgToEditablePptx, svgToPptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
-import { expectD2Rendered, renderCompiledFigure } from "./render";
+import { expectD2Rendered, renderCompiledFigure, renderFigure } from "./render";
 import { attribute, childElements, classList, descendants, parseXml, type XmlElement } from "./xml";
 
 const binary = findD2Binary();
@@ -285,6 +285,13 @@ describe.skipIf(!available)("arrow, box and cross heads as shapes in editable PP
         expect(tip).toContain("<a:ln><a:noFill/></a:ln>");
       }
       expect(tips[0]).toContain('<a:ext cx="76200" cy="76200"/>');
+      // The start head points left: its tip is the left middle; the end head's is the right middle.
+      expect(tips[0]).toContain(
+        '<a:moveTo><a:pt x="0" y="38100"/></a:moveTo><a:lnTo><a:pt x="76200" y="0"/>',
+      );
+      expect(tips[1]).toContain(
+        '<a:moveTo><a:pt x="0" y="0"/></a:moveTo><a:lnTo><a:pt x="76200" y="38100"/>',
+      );
     }
   });
 
@@ -315,6 +322,12 @@ describe.skipIf(!available)("arrow, box and cross heads as shapes in editable PP
       expect(pluses).toHaveLength(2);
       for (const plus of pluses) {
         expect(plus).toContain("<a:close/>");
+        // D2 writes the plus upright and turns it by `translate(..) rotate(45)`: the turned
+        // plus is square, and its first vertex (0, 8.625) lands at the left of the box.
+        expect(plus).toContain('<a:ext cx="77455" cy="77455"/>');
+        expect(plus).toContain(
+          '<a:moveTo><a:pt x="0" y="1123"/></a:moveTo><a:lnTo><a:pt x="37605" y="38727"/>',
+        );
         if (filled) expect(fill(plus)).toContain('srgbClr val="FFFFFF"');
         else expect(fill(plus)).toBe("<a:noFill/>");
         expect(plus).toContain('<a:ln w="6350"');
@@ -325,7 +338,81 @@ describe.skipIf(!available)("arrow, box and cross heads as shapes in editable PP
   });
 });
 
+describe.skipIf(!available)("marker stroke widths in editable PPTX (#485)", () => {
+  test("a hollow head's line width follows the marker's scale", async () => {
+    const rendered = await render("canvas", ["box"]);
+    const d2 = expectD2Rendered(rendered);
+    const widthOf = (svg: string) => {
+      const result = svgToEditablePptx(svg, d2.compiled.ir);
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      const xml = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+      const boxes = (xml.match(/<p:sp>.*?<\/p:sp>/g) ?? []).filter(
+        (x) => x.includes('name="e:#0"') && x.includes("<a:close/>"),
+      );
+      expect(boxes).toHaveLength(2);
+      return boxes.map((x) => Number(/<a:ln w="(\d+)"/.exec(x)?.[1]));
+    };
+    // 16 marker units in a 16 unit viewBox: stroke-width 1 is one unit (6350 EMU).
+    expect(widthOf(rendered.svg)).toEqual([6350, 6350]);
+    // The same marker in 24 units: every marker unit is 1.5 units, so its stroke is too.
+    const scaled = rendered.svg.replace(
+      /markerWidth="16" markerHeight="16"/g,
+      'markerWidth="24" markerHeight="24"',
+    );
+    expect(scaled).not.toBe(rendered.svg);
+    expect(widthOf(scaled)).toEqual([9525, 9525]);
+  });
+});
+
 describe.skipIf(!available)("dotted lines split under a label in editable PPTX (#485)", () => {
+  test("a part too short to hold a dot is dropped; a tail head on it is drawn alone", async () => {
+    const rendered = await render("canvas", ["triangle"], true);
+    const d2 = expectD2Rendered(rendered);
+    const dotted = rendered.svg.replace(/stroke-dasharray:[^;]*;/g, "stroke-dasharray:0,3;");
+    const { path } = edgeParts(dotted, 1);
+    const pts = points(path);
+    const tipX = pts.at(-1)?.x as number;
+    const y = pts[0]?.y as number;
+    const maskId = /^url\(#(.+)\)$/.exec(attribute(path, "mask") ?? "")?.[1] as string;
+    const slides = [0.2, 0.7, 1.3, 1.9, 2.5].map((rest) => {
+      // One mask rectangle ends `rest` units before the tip: the part after it is that long.
+      const svg = dotted.replace(
+        new RegExp(`(<mask id="${maskId}"[^>]*>)`),
+        `$1<rect x="${tipX - 60}" y="${y - 3}" width="${60 - rest}" height="6" fill="black"/>`,
+      );
+      const result = svgToEditablePptx(svg, d2.compiled.ir);
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      const xml = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+      return (xml.match(/<p:sp>.*?<\/p:sp>/g) ?? []).filter((x) => x.includes('name="e:#1"'));
+    });
+    // Some rest holds no dot: the tail's line part is gone and its head is a shape of its own.
+    const dropped = slides.filter(
+      (shapes) =>
+        !shapes.some((x) => x.includes("<a:tailEnd")) &&
+        shapes.some((x) => x.includes("<a:close/>") && x.includes("<a:ln><a:noFill/></a:ln>")),
+    );
+    expect(dropped.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test("structured wires are never split: a label has a background, not a mask", async () => {
+    const result = await renderFigure(`version: 1
+figure: { id: dot, theme: paper, profile: paper-double, layout: { arrange: { row: { gap: 30mm, items: [ a, b ] } } } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+edges:
+  - { id: ab, from: a, to: b, variant: dotted, label: "gap under label" }
+`);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    expect(result.value.svg).toContain('stroke-dasharray="0,3"');
+    expect(result.value.svg).not.toContain("<mask");
+    const pptx = svgToEditablePptx(result.value.svg, result.value.compiled.ir);
+    if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+    const xml = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
+    // One dotted line shape for the edge, whole.
+    expect((xml.match(/<a:prstDash val="sysDot"\/>/g) ?? []).length).toBe(1);
+  });
+
   test("each part starts on one of the SVG's dots", async () => {
     const rendered = await render("canvas", ["triangle"]);
     const d2 = expectD2Rendered(rendered);

@@ -138,13 +138,13 @@ test("source and target arrowheads map independently", () => {
   }
 });
 test("unsupported arrowheads and glued self-loops fail with diagnostics", () => {
+  // Box and cross are drawn from the head the structured SVG would draw (#485).
   for (const head of ["box", "cross"] as const) {
     const result = svgToEditablePptx(
       svg(200, 100, "M140 120L200 120"),
       withEdge((e) => ({ ...e, targetArrowhead: head })),
     );
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics[0]?.code).toBe("pptx/unsupported-geometry");
+    expect(result.ok).toBe(true);
   }
   const unfilled = withEdge((e) => ({ ...e, style: { ...e.style, filled: false } }));
   const unfilledResult = svgToEditablePptx(svg(200, 100, "M140 120L200 120"), unfilled);
