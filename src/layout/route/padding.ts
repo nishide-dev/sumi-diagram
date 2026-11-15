@@ -25,7 +25,7 @@ import {
   GROUP_STEM_CORNER_UNITS,
   WIRE_CORNER_RADIUS,
 } from "./arrowhead";
-import { bottomOf, type End, resolveEnds, rightOf } from "./ports";
+import { bottomOf, DIRS, type End, resolveEnds, rightOf } from "./ports";
 import { withoutZoomEdges } from "./zoom";
 
 /**
@@ -85,6 +85,8 @@ export function arrowheadPaddingDeficits(
       deficit: number;
       count: number;
       across: Set<number>;
+      /** A U-turn: the edge alone puts its trunk beside the border. */
+      solo: boolean;
     }
   >();
   routed.edges.forEach((edge, index) => {
@@ -117,18 +119,48 @@ export function arrowheadPaddingDeficits(
         edge.route === undefined &&
         Math.abs(other.port[across] - end.port[across]) > 0.5
       ) {
-        const id = `${other.key}|${other.port.x},${other.port.y}|${entered.key}|${end.dir}`;
-        const fan = fans.get(id) ?? {
-          group: entered.key,
-          side: DIR_SIDE[end.dir] as Side,
-          deficit: 0,
-          count: 0,
-          across: new Set<number>(),
+        const sharing = (id: string, at: number, wanted: boolean, solo = false) => {
+          if (!wanted) return;
+          const fan = fans.get(id) ?? {
+            group: entered.key,
+            side: DIR_SIDE[end.dir] as Side,
+            deficit: 0,
+            count: 0,
+            across: new Set<number>(),
+            solo: false,
+          };
+          fan.solo ||= solo;
+          fan.count++;
+          fan.deficit = Math.max(fan.deficit, need - entered.free);
+          fan.across.add(at);
+          fans.set(id, fan);
         };
-        fan.count++;
-        fan.deficit = Math.max(fan.deficit, need - entered.free);
-        fan.across.add(end.port[across]);
-        fans.set(id, fan);
+        // Edges leaving one port outside the group for several members.
+        sharing(
+          `out|${other.key}|${other.port.x},${other.port.y}|${entered.key}|${end.dir}`,
+          end.port[across],
+          true,
+        );
+        // Edges from several places arriving at one port: the trunk runs
+        // `need - clearance - free` units inside the border. Only where that
+        // is within the clearance of the border (outside it or inside), the
+        // line reads as part of the frame; farther out it stays clear of it.
+        sharing(
+          `in|${end.key}|${end.port.x},${end.port.y}|${entered.key}|${end.dir}`,
+          other.port[across],
+          entered.free > need - 2 * clearance,
+        );
+        // An end that faces away from the other end (a south port reached
+        // from above) is entered by a U-turn whose trunk, `need - clearance -
+        // free` inside the border, has no other place to be.
+        const dir = DIRS[end.dir] as { x: number; y: number };
+        const away = (other.port.x - end.port.x) * dir.x + (other.port.y - end.port.y) * dir.y < 0;
+        sharing(
+          `u|${edge.key}|${end.dir}`,
+          end.port[across],
+          away && entered.free > need - 2 * clearance,
+          true,
+        );
       }
       let nearest: { key: ElementKey; free: number; depth: number } | undefined;
       for (const group of layout.groups) {
@@ -156,7 +188,8 @@ export function arrowheadPaddingDeficits(
     if (edge.targetArrowhead !== undefined) check(ends.to, ends.from);
   });
   for (const fan of fans.values()) {
-    if (fan.count < 2 || fan.across.size < 2 || fan.deficit <= 0) continue;
+    if (!fan.solo && (fan.count < 2 || fan.across.size < 2)) continue;
+    if (fan.deficit <= 0) continue;
     const sides = deficits.get(fan.group) ?? { north: 0, east: 0, south: 0, west: 0 };
     sides[fan.side] = Math.max(sides[fan.side], fan.deficit);
     deficits.set(fan.group, sides);
