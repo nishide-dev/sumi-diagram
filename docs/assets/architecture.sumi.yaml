@@ -1,47 +1,43 @@
-# The README figure (#474, #493): how Sumi works with a coding agent. The agent (with the
+# The README figure (#474, #493, #570): how Sumi works with a coding agent. The agent (with the
 # Sumi Skill) discovers the catalog and writes the YAML; the Sumi CLI compiles, lays out and
 # renders it, and geometry lint sends --json diagnostics back for the agent to fix.
 # `bun run gallery` renders it with the sumi and sumi-dark themes into
 # architecture.{light,dark}.svg. The agent marks in icons/ are from LobeHub Icons (icons/NOTICE.md).
+# Shown at GitHub's ~880 px README width: screen-doc with the sumi theme's textScale for it (1.5);
+# the HTML cards are sized so their text prints at the profile's 10pt minimum.
 version: 1
 figure:
   id: sumi-readme
   title: How Sumi works with a coding agent
   theme: sumi
-  profile: paper-double
+  profile: screen-doc
+  themeOverrides: {textScale: 1.5}
   background: transparent
-  # Read on screen at GitHub's ~880 px README width: 6pt is about 10 px there.
-  target: {minFontSize: 6pt, height: 70mm}
   layout:
     arrange:
-      grid:
-        columns: 11
-        rowGap: 10mm
-        columnGap: 1.1mm
+      stack:
+        gap: 12mm
+        align: center
         items:
-          - {item: agent, span: 2}
-          - {item: yaml, span: 3}
-          - null
-          - {item: diag, span: 3}
-          - {item: null, span: 2}
-          - cli-title
-          - stack: {gap: 1.2mm, align: center, items: [c-cmd, {row: {gap: 1mm, items: [c-comp, c-theme, c-pal, c-prof]}}]}
-          - compile
-          - f1
-          - layout
-          - f2
-          - render
-          - f3
-          - out
-          - f4
-          - lint
+          - row: {gap: 20mm, align: center, items: [agent, yaml, diag]}
+          - row:
+              gap: 4.5mm
+              align: center
+              items:
+                - cli-title
+                - stack: {gap: 1.5mm, align: center, items: [c-cmd, {grid: {columns: 2, rowGap: 1.5mm, columnGap: 2mm, items: [c-comp, c-theme, c-pal, c-prof]}}]}
+                - compile
+                - layout
+                - render
+                - out
+                - lint
 groups:
   - id: agent
     variant: plain
     arrange:
       stack: {gap: 1mm, align: center, items: [{row: {gap: 3mm, items: [logo-cc, logo-codex]}}, agent-name]}
 sets:
-  - {id: cli, shape: rect, members: [cli-title, c-cmd, c-comp, c-theme, c-pal, c-prof, compile, layout, render, out, f1, f2, f3, f4, lint], padding: 2mm, tone: gray, variant: outlined}
+  - {id: cli, shape: rect, members: [cli-title, c-cmd, c-comp, c-theme, c-pal, c-prof, compile, layout, render, out, lint], padding: 2mm, tone: gray, variant: outlined}
 nodes:
   - {id: logo-cc, component: image, props: {src: icons/claudecode.svg, width: 20pt, height: 20pt}}
   - {id: logo-codex, component: image, props: {src: icons/codex.svg, width: 20pt, height: 20pt}}
@@ -50,7 +46,7 @@ nodes:
     component: html
     props:
       viewport: 250x166
-      width: 96pt
+      width: 139pt
       html: |-
         <div style="width:250px;height:166px;padding:8px 12px;background-color:var(--sumi-bg);color:var(--sumi-fg);border:2px solid var(--sumi-fg);border-radius:7px;font-family:var(--sumi-mono);font-size:18px;line-height:1.3">
           <div style="white-space:pre;padding-bottom:3px;margin-bottom:4px;border-bottom:1.5px solid var(--sumi-fg)">figure.sumi.yaml</div>
@@ -64,7 +60,7 @@ nodes:
     component: html
     props:
       viewport: 290x96
-      width: 111pt
+      width: 162pt
       html: |-
         <div style="width:290px;height:96px;padding:8px 12px;background-color:var(--sumi-bg);color:var(--sumi-fg);border:2px solid var(--sumi-fg);border-radius:7px;font-family:var(--sumi-mono);font-size:18px;line-height:1.3">
           <div style="white-space:pre">{ "code":</div>
@@ -76,17 +72,17 @@ nodes:
   - {id: c-theme, component: label, icon: tabler/palette, iconSize: 1.8}
   - {id: c-pal, component: label, icon: tabler/layout-2, iconSize: 1.8}
   - {id: c-prof, component: label, icon: tabler/ruler-measure, iconSize: 1.8}
-  - {id: c-cmd, component: label, label: catalog --json, mono: true}
-  - {id: compile, component: box, label: Compile, sublabel: "schema · theme → IR", props: {height: 32pt}}
-  - {id: layout, component: box, label: Layout, sublabel: "structured · D2", props: {height: 32pt}}
-  - {id: render, component: box, label: Render, sublabel: "bundled fonts", props: {height: 32pt}}
+  - {id: c-cmd, component: label, label: "catalog\n--json", mono: true}
+  - {id: compile, component: box, label: Compile, sublabel: "schema +\ntheme → IR"}
+  - {id: layout, component: box, label: Layout, sublabel: "structured\nor D2"}
+  - {id: render, component: box, label: Render, sublabel: "bundled\nfonts"}
   - id: out
     component: html
     props:
-      viewport: 190x86
-      width: 66pt
+      viewport: 150x86
+      width: 79pt
       html: |-
-        <div style="width:190px;height:86px;padding:6px 8px;background-color:var(--sumi-bg);color:var(--sumi-fg);border:2px solid var(--sumi-fg);border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:var(--sumi-mono);font-size:19px">
+        <div style="width:150px;height:86px;padding:6px 4px;background-color:var(--sumi-bg);color:var(--sumi-fg);border:2px solid var(--sumi-fg);border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:var(--sumi-mono);font-size:19px">
           <div style="display:flex;align-items:center;height:42px">
             <div style="width:30px;height:24px;border:2px solid var(--sumi-fg);border-radius:4px"></div>
             <div style="width:10px;height:2px;background-color:var(--sumi-fg)"></div>
@@ -98,14 +94,14 @@ nodes:
           </div>
           <div style="white-space:pre">SVG PDF PPTX</div>
         </div>
-  - {id: f1, component: triangle-arrow, props: {length: 5pt, thickness: 6pt}}
-  - {id: f2, component: triangle-arrow, props: {length: 5pt, thickness: 6pt}}
-  - {id: f3, component: triangle-arrow, props: {length: 5pt, thickness: 6pt}}
-  - {id: f4, component: triangle-arrow, props: {length: 5pt, thickness: 6pt}}
-  - {id: lint, component: box, label: Geometry lint, sublabel: "fit · overlap · contrast", tone: orange, variant: outlined, props: {height: 32pt}}
+  - {id: lint, component: box, label: "Geometry\nlint", sublabel: "fit, overlap,\ncontrast", tone: orange, variant: outlined}
 edges:
-  - {from: yaml, to: compile, fromAnchor: straight}
+  - {from: compile, to: layout}
+  - {from: layout, to: render}
+  - {from: render, to: out}
+  - {from: out, to: lint}
+  - {from: yaml, to: compile}
   - {from: c-cmd, to: agent, toAnchor: straight, label: discover}
   - {from: agent, to: yaml, toAnchor: straight, label: write}
-  - {from: lint, to: diag, fromAnchor: north, toAnchor: east, tone: orange, variant: dashed, label: "--json"}
+  - {from: lint, to: diag, fromAnchor: "straight:span", toAnchor: "straight:span", tone: orange, variant: dashed, label: "--json"}
   - {from: diag, to: yaml, tone: orange, variant: dashed, label: agent fixes}
