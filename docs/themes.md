@@ -47,6 +47,10 @@ The pipeline ([`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml), au
 
 `paper-single` imposes a minimum font size (7pt), not a maximum: `slides` text meets it. This pipeline renders within the page limits, with two collision warnings (`geometry/label-collision` and `geometry/edge-crosses-label`). These are distinct from the `geometry/exceeds-page-height` error under `presentation-16x9`, where the larger spacing makes this tall pipeline exceed the slide height; see the [profile comparison](gallery/compare.md). For projection, use `slides` with `presentation-16x9` and a shallower layout.
 
+## Edge label gap
+
+A theme can set the space between an edge label and its line (`edgeLabelGap`, in units of 0.5pt; `sumi catalog --section themes --json` as `themes[].edgeLabelGap`, `null` for the router's 3). `sumi` and `sumi-dark` use 6 (about 1mm from line to glyphs); the other themes keep 3, so reproductions are unchanged. It follows `textScale`.
+
 ## Color use
 
 A theme can say how its colors are meant to be used (`colorUse`; `sumi catalog --section themes`, and `--json` as `themes[].colorUse`, `null` when a theme gives none). `sumi` and `sumi-dark` do, so that a figure that picks them looks like them:

@@ -707,6 +707,7 @@ describe("sumi catalog", () => {
         "textScaleFor",
         "arrowhead",
         "colorUse",
+        "edgeLabelGap",
       ]);
     }
     for (const profile of json.profiles) {

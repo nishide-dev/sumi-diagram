@@ -6,6 +6,8 @@
 
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
+import type { ElementIR } from "../../compiler/ir";
+import type { ElementKey } from "../../core/check-state";
 import { renderFigure } from "../../render/render";
 import { geometryContextFor, lintGeometry } from "./lint";
 import { tokenColumnDrift } from "./placement";
@@ -102,19 +104,70 @@ nodes:
 edges:
   - { from: a, to: b, label: gap, labelSide: left }
 `;
-  const gapMm = async (theme: string) => {
-    const result = await renderFigure(figure(theme), { assetBase: ROOT });
+  /**
+   * The rule's findings for the figure with every edge's `labelGap` replaced
+   * (the label stays where the router put it; only the threshold moves).
+   */
+  const withThemeGap = async (source: string, themeGap: number | undefined) => {
+    const result = await renderFigure(source, { assetBase: ROOT });
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-    const text = result.value.svg;
-    const line = /<path class="connection" d="M ([\d.]+) ([\d.]+) L/.exec(text);
-    const label = /<text x="[\d.]+" y="([\d.]+)"[^>]*>gap<\/text>/.exec(text);
-    if (!line || !label) throw new Error("no edge");
-    return Math.abs(Number(label[1]) - Number(line[2]));
+    const { compiled } = result.value;
+    const elements = new Map<ElementKey, ElementIR>(
+      [...compiled.ir.elements].map(([key, element]): [ElementKey, ElementIR] => {
+        if (element.kind !== "edge") return [key, element];
+        const { labelGap: _drop, ...style } = element.style;
+        return [
+          key,
+          { ...element, style: themeGap === undefined ? style : { ...style, labelGap: themeGap } },
+        ];
+      }),
+    );
+    const ir = { ...compiled.ir, elements };
+    return lintGeometry(
+      { ...result.value, compiled: { ...compiled, ir } },
+      { source, file },
+    ).filter((d) => d.code === code);
+  };
+  /** The printed clearance (mm) of the label from its line, read off a report forced by a huge threshold. */
+  const clearanceMm = async (source: string) => {
+    const found = await withThemeGap(source, 24);
+    const mm = /sits ([\d.]+)mm/.exec(found[0]?.message ?? "");
+    if (!mm) throw new Error("no finding");
+    return Number(mm[1]);
   };
 
-  test("a sumi label sits about twice as far from its line as a paper label, and is not reported", async () => {
-    expect(await gapMm("sumi")).toBeGreaterThan(await gapMm("paper"));
+  test("a sumi label sits about 1mm from its line, about twice the 3-unit gap, and is not reported", async () => {
     expect(await findings(figure("sumi"), file, code)).toEqual([]);
+    const sumi = await clearanceMm(figure("sumi"));
+    const minimal = await clearanceMm(figure("minimal"));
+    expect(sumi).toBeGreaterThan(0.8);
+    expect(sumi).toBeLessThan(1.4);
+    expect(minimal).toBeGreaterThan(0.3);
+    expect(minimal / sumi).toBeLessThan(0.7);
+  });
+
+  test("a label closer than 75% of the theme's gap is reported; the default place is not", async () => {
+    // 6 units: the placed label clears it. 9 units (threshold 6.75): it does not.
+    expect(await withThemeGap(figure("sumi"), 6)).toEqual([]);
+    const found = await withThemeGap(figure("sumi"), 9);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ severity: "info", subject: { kind: "edge" } });
+    expect(found[0]?.message).toContain("theme's label gap");
+    // A theme without a gap keeps the 1pt line: the same label is quiet.
+    expect(await withThemeGap(figure("sumi"), undefined)).toEqual([]);
+  });
+
+  test("the gap follows textScale", async () => {
+    const scaled = figure("sumi").replace(
+      "  theme: sumi\n",
+      "  theme: sumi\n  themeOverrides: { textScale: 2 }\n",
+    );
+    expect(scaled).toContain("textScale");
+    expect(await findings(scaled, file, code)).toEqual([]);
+    const one = await clearanceMm(figure("sumi"));
+    const two = await clearanceMm(scaled);
+    // Printed size also follows the profile's fit, so compare the ratio loosely.
+    expect(two).toBeGreaterThan(one * 1.3);
   });
 
   test("the shipped sumi layouts have no hugging labels", async () => {
