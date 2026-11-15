@@ -308,6 +308,52 @@ edges:
     expect(await nearBorder(text)).toEqual([]);
   });
 
+  // The U-turn's guard, the same way: the group's bottom edge is moved off
+  // the port by the height of B beside a taller A (`compact` padding). At 36pt
+  // the turn would land 2pt outside the frame; at 38pt it lands 3pt outside.
+  const turning = (height: number) =>
+    U_TURN.replace("{stack: {gap: 5mm, items: [a, b]}}", "{row: {gap: 5mm, items: [a, b]}}")
+      .replace("  layout:\n", "  layout:\n    density: compact\n")
+      .replace(
+        "{id: a, component: box, label: A}",
+        "{id: a, component: box, label: A, props: {height: 40pt}}",
+      )
+      .replace(
+        "{id: b, component: box, label: B}",
+        `{id: b, component: box, label: B, props: {height: ${height}pt}}`,
+      );
+  const turnAndFrame = async (source: string) => {
+    const { paths, svg } = await routes(source);
+    const frame =
+      /<rect x="[\d.]+" y="([\d.]+)" width="[\d.]+" height="([\d.]+)"[^>]*fill="#efeddd"/.exec(svg);
+    const path = paths[0] as { y: number }[];
+    return {
+      bottom: Number(frame?.[1]) + Number(frame?.[2]),
+      turn: Math.max(...path.map((q) => q.y)),
+      bends: path.length,
+    };
+  };
+
+  test("a U-turn just under 3pt from the frame grows the group until it is clear", async () => {
+    const text = turning(36);
+    expect(await size(text)).toBeGreaterThan(await size(withEdges(text, [])));
+    const { bottom, turn } = await turnAndFrame(text);
+    expect(bottom - turn).toBeGreaterThanOrEqual(6);
+    expect(await nearBorder(text)).toEqual([]);
+  });
+
+  test("a U-turn already 3pt or more from the frame leaves the group alone", async () => {
+    for (const height of [38, 40]) {
+      const text = turning(height);
+      const { bottom, turn, bends } = await turnAndFrame(text);
+      // Still a U-turn, below the member and outside the frame.
+      expect(bends).toBe(4);
+      expect(turn - bottom).toBeGreaterThanOrEqual(6);
+      expect(await size(text)).toBe(await size(withEdges(text, [])));
+      expect(await nearBorder(text)).toEqual([]);
+    }
+  });
+
   test("the group does not grow for a trunk already clear, on any profile or scale", async () => {
     for (const profile of ["paper-single", "paper-double"]) {
       for (const density of ["compact", "normal"]) {
