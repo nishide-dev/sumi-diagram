@@ -1296,25 +1296,10 @@ export function writeStructuredSvg(
     );
     useText(placed.label);
   }
-  // A receptive field (#576, a zoom edge between blocks of cuboids) is painted over its source and
-  // under its target, so that the target's volume hides the ends of its lines behind its cell.
-  const nodeOrder = new Map(layout.nodes.map((n, i) => [n.key, i]));
-  const beneath = new Map<ElementKey, string[]>();
-  const beneathEdges = new Set<ElementKey>();
-  for (const placed of layout.edges) {
-    const edge = edges.get(placed.key);
-    const lines = placed.route?.lines;
-    if (edge === undefined || lines === undefined) continue;
-    if (edge.fromPart === undefined && edge.toPart === undefined) continue;
-    if ((nodeOrder.get(edge.to) ?? 0) <= (nodeOrder.get(edge.from) ?? 0)) continue;
-    beneath.set(edge.to, [...(beneath.get(edge.to) ?? []), zoomGroup(edge, lines)]);
-    beneathEdges.add(placed.key);
-  }
   for (const placed of layout.nodes) {
     const node = nodes.get(placed.key);
     if (node === undefined)
       throw new Error(`internal error: ${placed.key} is not a node of the figure`);
-    body.push(...(beneath.get(placed.key) ?? []));
     const asset =
       hatchMarkup(node, placed.rect) +
       tokenSeparatorMarkup(node, placed.rect) +
@@ -1342,7 +1327,7 @@ export function writeStructuredSvg(
     }
     const lines = placed.route?.lines;
     if (lines !== undefined) {
-      if (!beneathEdges.has(placed.key)) body.push(zoomGroup(edge, lines));
+      body.push(zoomGroup(edge, lines));
       continue;
     }
     body.push(edgeGroup(edge, points, colored(placed.route?.label, edge), painted, canvas));

@@ -163,7 +163,15 @@ export function addZoomRoutes(
         side === "right"
           ? [sourcePart.faces.side, targetPart.faces.left]
           : [sourcePart.faces.left, targetPart.faces.side];
-      const lines = from.map((p, i) => [p, to[i] as Point] as [Point, Point]);
+      // A line starting at a hidden face (the left one) comes from behind its volume: it is seen
+      // from where it leaves the silhouette, whichever volume is drawn first.
+      const hidden = (part: OutlinePart, face: readonly Point[]) => face === part.faces.left;
+      const lines = from.map((p, i) => {
+        const q = to[i] as Point;
+        const start = hidden(sourcePart, from) ? leaves(sourcePart.volume, p, q) : p;
+        const end = hidden(targetPart, to) ? leaves(targetPart.volume, q, p) : q;
+        return [start, end] as [Point, Point];
+      });
       return { ...e, route: { points: [...(lines[0] as [Point, Point])], lines } };
     }
     const lines = zoomLines(sourcePart?.box ?? source, targetPart?.box ?? target, side, {
@@ -175,15 +183,47 @@ export function addZoomRoutes(
   return { layout: { ...routed, edges }, diagnostics };
 }
 
+/**
+ * Where the line from `inside` (a point behind the convex `outline`) toward `toward` leaves it;
+ * `inside` itself if it is not inside, or the line never leaves.
+ */
+function leaves(outline: readonly Point[], inside: Point, toward: Point): Point {
+  const d = { x: toward.x - inside.x, y: toward.y - inside.y };
+  let best: number | undefined;
+  for (const [i, a] of outline.entries()) {
+    const b = outline[(i + 1) % outline.length] as Point;
+    const e = { x: b.x - a.x, y: b.y - a.y };
+    const denominator = d.x * e.y - d.y * e.x;
+    if (Math.abs(denominator) < 1e-12) continue;
+    const t = ((a.x - inside.x) * e.y - (a.y - inside.y) * e.x) / denominator;
+    const u = ((a.x - inside.x) * d.y - (a.y - inside.y) * d.x) / denominator;
+    if (
+      t > 1e-9 &&
+      t <= 1 + 1e-9 &&
+      u >= -1e-9 &&
+      u <= 1 + 1e-9 &&
+      (best === undefined || t > best)
+    )
+      best = t;
+  }
+  return best === undefined
+    ? inside
+    : { x: roundUnits(inside.x + d.x * best), y: roundUnits(inside.y + d.y * best) };
+}
+
 /** The highlighted block `name` of a cuboid node drawn in `rect` (#576), if it is one. */
 function partOf(
   node: NodeIR | undefined,
   rect: Rect,
   name: string | undefined,
-): OutlinePart | undefined {
+): (OutlinePart & { volume: readonly Point[] }) | undefined {
   if (name === undefined || node?.render === undefined) return undefined;
   const renderer = getOutlineRenderer(node.render.renderer);
-  return renderer?.draw(rect, renderer.params.parse(node.render.params ?? {})).parts?.[name];
+  const drawing = renderer?.draw(rect, renderer.params.parse(node.render.params ?? {}));
+  const part = drawing?.parts?.[name];
+  return part === undefined || drawing === undefined
+    ? undefined
+    : { ...part, volume: drawing.outline };
 }
 
 function noSide(ir: FigureIR, edge: EdgeIR): Diagnostic {

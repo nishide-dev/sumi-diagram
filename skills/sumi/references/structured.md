@@ -1468,16 +1468,19 @@ highlight:
 ```
 
 A range past the grid (`at` + `size` over the cells), a repeated name, or a `highlight` without
-`cells` is `component/invalid-prop` at the field. A block keeps its three faces visible at the
-front (z = 0) and the top; further in, the volume's front covers it. Blocks are painted over the volume,
-far ones first.
+`cells` is `component/invalid-prop` at the field. A block at the front plane (z = 0) stands out
+whole with its three faces, however deep its range. One further in shows only the faces that lie on
+the volume's top (y = 0) or right (the last x) surface, since the volume's front hides the rest: a
+block fully inside draws nothing, but can still be named by a zoom. Blocks are painted over the
+volume, far ones first.
 
 A block is named in an edge end as **`<node>.<name>`** (like a tokens cell `<node>.<cell>`), and only
 a **`zoom`** edge may join one (`layout/part-needs-direct-route` otherwise): between two blocks
 it draws the **receptive field**, four lines from the corners of the source block's right face
 to the corners of the target block's left face (a pyramid), in the edge's tone, dashed. The lines
-are painted over the source volume and under the target volume, which hides their ends behind its
-cell. Between a block and a plain box the zoom keeps its two lines. Blocks need not be in one row:
+are drawn over the source volume and end where they enter the target volume, so the target hides
+their ends behind its cell, whichever volume comes first in the figure or the edge's direction (a
+line from a hidden left face is seen from where it leaves its volume). Between a block and a plain box the zoom keeps its two lines. Blocks need not be in one row:
 the target lies to the right or left of the source (above or below falls back to two lines).
 
 ```yaml
@@ -1515,8 +1518,8 @@ edges:
   - {from: input.kernel, to: output.cell, component: zoom, tone: orange}
 ```
 
-Start from the [conv3d layout](../layouts/README.md). Not yet: ports on a block for ordinary edges
-(only zoom), grids on a block that differ from its volume's cells; for tilted sheets see
+Start from the [conv3d layout](../layouts/README.md). Not yet (#584): ordinary edges to a block
+(only zoom), vertical receptive fields, a block grid different from its volume's cells; for tilted sheets see
 [tilted planes](#tilted-planes).
 
 ## Tilted planes

@@ -115,37 +115,51 @@ function solidShape(fx: number, fy: number, w: number, h: number, dx: number, dy
 
 type SolidShape = ReturnType<typeof solidShape>;
 
-/** The grid lines of `cells` on the three visible faces, as open two-point paths. */
-function gridPaths(s: SolidShape, [nx, ny, nz]: readonly [number, number, number]) {
+interface Visible {
+  readonly front: boolean;
+  readonly top: boolean;
+  readonly side: boolean;
+}
+const ALL: Visible = { front: true, top: true, side: true };
+
+/** The grid lines of `cells` on the given visible faces, as open two-point paths. */
+function gridPaths(
+  s: SolidShape,
+  [nx, ny, nz]: readonly [number, number, number],
+  visible: Visible,
+) {
   const lines: { points: Point[]; closed: false }[] = [];
   const line = (a: Point, b: Point) => lines.push({ points: [a, b], closed: false });
   const { fx, fy, w, h, dx, dy } = s;
   for (let i = 1; i < nx; i++) {
     const x = fx + (w * i) / nx;
-    line(pt(x, fy), pt(x, fy + h));
-    line(pt(x, fy), pt(x + dx, fy - dy));
+    if (visible.front) line(pt(x, fy), pt(x, fy + h));
+    if (visible.top) line(pt(x, fy), pt(x + dx, fy - dy));
   }
   for (let j = 1; j < ny; j++) {
     const y = fy + (h * j) / ny;
-    line(pt(fx, y), pt(fx + w, y));
-    line(pt(fx + w, y), pt(fx + w + dx, y - dy));
+    if (visible.front) line(pt(fx, y), pt(fx + w, y));
+    if (visible.side) line(pt(fx + w, y), pt(fx + w + dx, y - dy));
   }
   for (let k = 1; k < nz; k++) {
     const a = k / nz;
-    line(pt(fx + dx * a, fy - dy * a), pt(fx + w + dx * a, fy - dy * a));
-    line(pt(fx + w + dx * a, fy - dy * a), pt(fx + w + dx * a, fy + h - dy * a));
+    if (visible.top) line(pt(fx + dx * a, fy - dy * a), pt(fx + w + dx * a, fy - dy * a));
+    if (visible.side) line(pt(fx + w + dx * a, fy - dy * a), pt(fx + w + dx * a, fy + h - dy * a));
   }
   return lines;
 }
 
 /**
  * Faces back to front, the cells' grid, the inner edges and the silhouette of one solid. `block`
- * marks the layers of a highlighted sub-block (#576).
+ * marks the layers of a highlighted sub-block (#576); `visible` limits it to the faces that show
+ * (a block inside the volume has only the faces on the volume's top and right surfaces: the
+ * volume's front hides it), each framed on its own.
  */
 function solidLayers(
   s: SolidShape,
   cells: readonly [number, number, number] | undefined,
   block?: number,
+  visible: Visible = ALL,
 ): OutlineLayer[] {
   const tag = block === undefined ? {} : { block };
   const face = (points: Point[], shade: "front" | "top" | "side"): OutlineLayer => ({
@@ -156,22 +170,43 @@ function solidLayers(
   });
   const { fx, fy, w, h, dx, dy } = s;
   const y = fy - dy;
-  const grid = cells === undefined ? [] : gridPaths(s, cells);
-  return [
-    face(s.top, "top"),
-    face(s.side, "side"),
-    face(s.front, "front"),
-    ...(grid.length > 0
+  const grid = cells === undefined ? [] : gridPaths(s, cells, visible);
+  const whole = visible.front && visible.top && visible.side;
+  const faces: [boolean, Point[], "front" | "top" | "side"][] = [
+    [visible.top, s.top, "top"],
+    [visible.side, s.side, "side"],
+    [visible.front, s.front, "front"],
+  ];
+  const shown = faces.filter(([on]) => on);
+  if (shown.length === 0) return [];
+  const gridLayer: OutlineLayer[] =
+    grid.length > 0
       ? [
           {
-            role: "line" as const,
-            grid: true as const,
+            role: "line",
+            grid: true,
             path: grid[0] as OutlinePath,
             more: grid.slice(1),
             ...tag,
           },
         ]
-      : []),
+      : [];
+  if (!whole) {
+    const [first, ...rest] = shown;
+    return [
+      ...shown.map(([, points, shade]) => face(points, shade)),
+      ...gridLayer,
+      {
+        role: "line",
+        path: { points: (first as (typeof shown)[number])[1], closed: true },
+        more: rest.map(([, points]) => ({ points, closed: true })),
+        ...tag,
+      },
+    ];
+  }
+  return [
+    ...shown.map(([, points, shade]) => face(points, shade)),
+    ...gridLayer,
     // The front's top and right edges and the near corner: the three edges inside the silhouette.
     {
       role: "line",
@@ -249,7 +284,11 @@ export const cuboid: OutlineRenderer<CuboidParams> = {
           left: part.leftQuad,
         },
       };
-      return solidLayers(part, params.cells === undefined ? undefined : block.size, index);
+      // A block at the front plane stands out whole (as a highlight); one behind it shows only
+      // the faces on the volume's top and right surfaces, the volume's front hides the rest.
+      const visible: Visible =
+        k === 0 ? ALL : { front: false, top: j === 0, side: i + block.size[0] === nx };
+      return solidLayers(part, params.cells === undefined ? undefined : block.size, index, visible);
     });
     const parent = solidLayers(solid, cells);
     return {

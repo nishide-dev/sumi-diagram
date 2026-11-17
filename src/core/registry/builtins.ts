@@ -174,7 +174,7 @@ const cuboid: NodeManifest = {
         .max(16)
         .optional()
         .describe(
-          "Sub-blocks (ranges of cells, needs cells) drawn as smaller solids of their own tone inside the cuboid, e.g. a convolution kernel or one output cell. An edge or a zoom end can name one as <node>.<name>; a zoom edge between two blocks draws a receptive field of four corner lines.",
+          "Sub-blocks (ranges of cells, needs cells) drawn as smaller solids of their own tone inside the cuboid, e.g. a convolution kernel or one output cell. A zoom end can name one as <node>.<name> (ordinary edges to a block are not supported yet, #584); a zoom edge between two blocks draws a receptive field of four corner lines.",
         ),
       dims: z
         .strictObject({
@@ -1431,7 +1431,7 @@ const zoom: EdgeManifest = {
   kind: "edge",
   name: "zoom",
   description:
-    "Two straight lines joining the corners of the source to the matching corners of the target, which shows the source zoomed in (structured layout only; no label, no arrowheads). An end may be a highlighted block of a cuboid, <node>.<name>: between two blocks the zoom draws a receptive field of four lines from the corners of the source block's right face to those of the target block's left face, painted over the source and under the target.",
+    "Two straight lines joining the corners of the source to the matching corners of the target, which shows the source zoomed in (structured layout only; no label, no arrowheads). An end may be a highlighted block of a cuboid, <node>.<name>: between two blocks the zoom draws a receptive field of four lines from the corners of the source block's right face to those of the target block's left face, ending where they enter the target's volume (their ends behind its cell are hidden).",
   variants: ["default", "solid", "muted"],
   props: noProps,
   direction: "none",

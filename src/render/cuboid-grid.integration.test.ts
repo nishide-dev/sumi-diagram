@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { renderOne } from "../../scripts/gallery/render";
+import { componentSamples } from "../../scripts/gallery/samples";
 import { checkFigure } from "../core/check";
 import { cuboid, cuboidBlocks } from "../core/outline/cuboid";
+import { getTheme } from "../core/theme/builtin";
+import { mixColors } from "../core/theme/cuboid-shade";
 import { lintGeometry } from "../lint";
 import { svgToPdf } from "./pdf";
 import { svgToEditablePptx } from "./pptx";
@@ -70,8 +76,17 @@ describe("cuboid grids, highlighted blocks and receptive fields", () => {
       ).parts?.cell;
       if (!kernel || !cell) throw new Error("missing parts");
       edge?.route?.lines?.forEach(([from, to], i) => {
+        // From the kernel's right face corner; toward the cell's left face corner, seen from where
+        // it enters the output volume (the corner is hidden behind it).
+        const corner = cell.faces.left[i] as { x: number; y: number };
         expect(from).toEqual(kernel.faces.side[i] as never);
-        expect(to).toEqual(cell.faces.left[i] as never);
+        const cross = (to.x - from.x) * (corner.y - from.y) - (to.y - from.y) * (corner.x - from.x);
+        expect(Math.abs(cross) / Math.hypot(corner.x - from.x, corner.y - from.y)).toBeLessThan(
+          0.6,
+        );
+        expect(Math.hypot(to.x - from.x, to.y - from.y)).toBeLessThanOrEqual(
+          Math.hypot(corner.x - from.x, corner.y - from.y) + 0.01,
+        );
       });
     });
   }
@@ -81,36 +96,82 @@ describe("cuboid grids, highlighted blocks and receptive fields", () => {
     const node = value.compiled.ir.nodes.find((n) => n.id === "vin");
     const params = node?.render?.params ?? {};
     expect(params.cells).toBe("6,6,6");
-    expect(params.gridStroke).toMatch(/^#[0-9a-f]{6}$/);
+    // The grid is the frame's color mixed 45% toward the canvas, exactly.
+    const canvas = getTheme("sumi")?.canvas as string;
+    expect(params.gridStroke).toBe(mixColors(node?.style.stroke as string, canvas, 0.45));
     const [kernel] = cuboidBlocks(cuboid.params.parse(params));
+    expect(kernel?.grid).toBe(mixColors(kernel?.line as string, canvas, 0.45));
     // sumi's orange tone: pale fill, #814b2d line.
     expect(kernel?.line).toBe("#814b2d");
     expect(kernel?.fill).toBe("#efdfce");
     expect(kernel?.top).not.toBe(kernel?.fill);
   });
 
-  test("the receptive field is painted over its source and under its target", async () => {
-    const value = await render(conv());
-    const at = (needle: string) => value.svg.indexOf(needle);
-    const source = at("sumi-k-n--vin ");
-    const edge = at("sumi-k-e--_0 ");
-    const target = at("sumi-k-n--vout ");
-    expect(source).toBeGreaterThan(-1);
-    expect(edge).toBeGreaterThan(source);
-    expect(target).toBeGreaterThan(edge);
-  });
+  const inside = (p: { x: number; y: number }, polygon: readonly { x: number; y: number }[]) => {
+    // Strictly inside (more than half a unit from the boundary) a convex polygon.
+    let sign = 0;
+    for (const [i, a] of polygon.entries()) {
+      const b = polygon[(i + 1) % polygon.length] as { x: number; y: number };
+      const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+      if (Math.abs(cross) / Math.hypot(b.x - a.x, b.y - a.y) < 0.5) return false;
+      if (sign === 0) sign = Math.sign(cross);
+      else if (Math.sign(cross) !== sign) return false;
+    }
+    return true;
+  };
 
-  test("a cuboid without cells draws exactly as before (no marked outline, no grid)", async () => {
-    const value = await render(`version: 1
-figure: { id: plain, theme: sumi, profile: paper-double, layout: { arrange: { row: { items: [a] } } } }
-nodes:
-  - { id: a, component: cuboid, props: { width: 6mm, height: 12mm, depth: 8mm } }
-`);
-    expect(value.svg).not.toContain("sumi-solid-outline");
-    const shape =
-      value.svg.match(/<g class="sumi-k-n--a sumi-kind-node"><g class="shape">(.*?)<\/g>/)?.[1] ??
-      "";
-    expect([...shape.matchAll(/<path /g)]).toHaveLength(6);
+  // The volume hides what lies behind it whichever is drawn first and whichever way the edge goes:
+  // a line end at a hidden (left) face corner is never inside the silhouette of its own volume.
+  for (const order of ["vin, vout", "vout, vin"])
+    for (const edge of [
+      "{ from: vin.kernel, to: vout.cell, component: zoom }",
+      "{ from: vout.cell, to: vin.kernel, component: zoom }",
+    ]) {
+      test(`the receptive field's hidden ends are occluded (order ${order}; ${edge.slice(2, 30)})`, async () => {
+        const value = await render(
+          conv("sumi", edge).replace("items: [vin, vout]", `items: [${order}]`),
+        );
+        const lines = value.layout.edges[0]?.route?.lines ?? [];
+        expect(lines).toHaveLength(4);
+        const partsOf = (id: string) => {
+          const node = value.compiled.ir.nodes.find((n) => n.id === id);
+          return cuboid.draw(
+            value.layout.nodes.find((n) => n.key === `n:${id}`)?.rect as never,
+            cuboid.params.parse(node?.render?.params),
+          );
+        };
+        const drawn = { vin: partsOf("vin"), vout: partsOf("vout") };
+        const hiddenCorners = (id: "vin" | "vout", name: string) =>
+          drawn[id].parts?.[name]?.faces.left ?? [];
+        const targetEndsInside = lines
+          .flatMap((line) => line)
+          .filter((p) => {
+            // A point of a hidden left face (of the kernel or the cell) that is not the line's own
+            // truncation must not be inside its volume: it would be painted over it.
+            return (
+              (hiddenCorners("vin", "kernel").some(
+                (q) => Math.hypot(q.x - p.x, q.y - p.y) < 0.01,
+              ) &&
+                inside(p, drawn.vin.outline)) ||
+              (hiddenCorners("vout", "cell").some((q) => Math.hypot(q.x - p.x, q.y - p.y) < 0.01) &&
+                inside(p, drawn.vout.outline))
+            );
+          });
+        expect(targetEndsInside).toEqual([]);
+        expect(lintGeometry(value).filter((d) => d.severity !== "info")).toEqual([]);
+      });
+    }
+
+  test("a cuboid without cells draws exactly as the pinned gallery sample", async () => {
+    // The gallery's sumi-cuboid.sumi.svg is pinned by gallery:check and the PDF / PPTX goldens.
+    const sample = componentSamples().find((s) => s.entry.id === "sumi/cuboid");
+    const rendering = sample?.renderings.find((r) => r.theme === "sumi");
+    if (!sample || !rendering) throw new Error("missing gallery sample");
+    const outcome = await renderOne({ file: sample.fileName, source: sample.source, rendering });
+    expect(outcome.svg).toBe(
+      readFileSync(resolve(import.meta.dir, "../..", rendering.output), "utf8"),
+    );
+    expect(outcome.svg).not.toContain("sumi-solid-outline");
   });
 
   test("PDF and editable PPTX follow the SVG: the blocks are freeforms over the cuboid's outline", async () => {

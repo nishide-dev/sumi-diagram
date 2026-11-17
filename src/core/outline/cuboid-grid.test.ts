@@ -73,7 +73,7 @@ describe("cuboid cells and blocks", () => {
   test("blocks are painted after the cuboid, far (large z) ones first, each with its own layers", () => {
     const blocks = [
       block({ name: "a", at: [0, 0, 0], size: [1, 1, 1] }),
-      block({ name: "b", at: [2, 2, 4], size: [1, 1, 1] }),
+      block({ name: "b", at: [2, 0, 4], size: [1, 1, 1] }),
     ];
     const drawing = cuboid.draw(rect, parse({ blocks: JSON.stringify(blocks) }));
     const order = drawing.layers.flatMap((l) => (l.block === undefined ? [] : [l.block]));
@@ -98,5 +98,41 @@ describe("cuboid cells and blocks", () => {
       parse({ blocks: JSON.stringify([block({ size: [1, 1, 1] })]) }),
     );
     expect(single.layers.filter((l) => l.block === 0).some((l) => l.grid)).toBe(false);
+  });
+
+  test("a block behind the front face shows only the faces on the volume's top and right surfaces", () => {
+    const layersOf = (blocks: object[]) => {
+      const drawing = cuboid.draw(rect, parse({ blocks: JSON.stringify(blocks) }));
+      return {
+        drawing,
+        own: (index: number) => drawing.layers.filter((l) => l.block === index),
+      };
+    };
+    // Inside (not on the top, the right or the front): hidden by the front, no layers; still a part.
+    const inside = layersOf([block({ name: "in", at: [1, 1, 2], size: [1, 1, 1] })]);
+    expect(inside.own(0)).toEqual([]);
+    expect(Object.keys(inside.drawing.parts ?? {})).toEqual(["in"]);
+    // On the top surface: its top face only (no front, no side).
+    const top = layersOf([block({ name: "t", at: [1, 0, 2], size: [1, 1, 1] })]);
+    expect(top.own(0).flatMap((l) => (l.shade ? [l.shade] : []))).toEqual(["top"]);
+    // On the right surface: its side face only.
+    const side = layersOf([block({ name: "s", at: [5, 2, 2], size: [1, 1, 1] })]);
+    expect(side.own(0).flatMap((l) => (l.shade ? [l.shade] : []))).toEqual(["side"]);
+    // On the corner: both, each framed on its own.
+    const both = layersOf([block({ name: "b", at: [5, 0, 2], size: [1, 1, 1] })]);
+    expect(both.own(0).flatMap((l) => (l.shade ? [l.shade] : []))).toEqual(["top", "side"]);
+    const frame = both.own(0).at(-1);
+    expect([frame?.path, ...(frame?.more ?? [])].every((path) => path?.closed)).toBe(true);
+    // A block at the front plane stands out whole, however deep its range is.
+    const front = layersOf([block({ name: "f", at: [1, 1, 0], size: [1, 1, 3] })]);
+    expect(front.own(0).flatMap((l) => (l.shade ? [l.shade] : []))).toEqual([
+      "top",
+      "side",
+      "front",
+    ]);
+    // Parent layers are untouched by blocks.
+    expect(inside.drawing.layers.filter((l) => l.block === undefined)).toHaveLength(
+      cuboid.draw(rect, parse()).layers.length,
+    );
   });
 });
