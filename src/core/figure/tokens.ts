@@ -792,11 +792,14 @@ function resolveCellRefs(
     }
     // A block of a cuboid (#576, #584) is no element of the router: its edges are drawn as one
     // line (or a receptive field for a zoom edge), so an anchor on a block's end has no meaning.
+    // A zoom edge keeps its own warning (component/anchor-on-zoom) for anchors.
+    const isZoom = ["zoom", "sumi/zoom"].includes(edge.component);
     for (const [end, anchor, field] of [
       [edge.from, edge.fromAnchor, "fromAnchor"],
       [edge.to, edge.toAnchor, "toAnchor"],
     ] as const) {
       if (
+        isZoom ||
         anchor === undefined ||
         refCell(end) === undefined ||
         !cuboidBlockNames(doc, refOwner(end)).includes(refCell(end) as string)

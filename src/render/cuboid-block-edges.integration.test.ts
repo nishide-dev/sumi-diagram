@@ -194,6 +194,15 @@ describe("ordinary edges to cuboid blocks (#584)", () => {
     expect(codes(FIGURE(ROW, "{ from: vin.kernel, to: vout.cell }"))).toEqual([]);
   });
 
+  test("an anchor on a zoom edge's block keeps the anchor-on-zoom warning, not part-anchor", () => {
+    const found = checkFigure(
+      FIGURE(ROW, "{ from: vin.kernel, to: vout.cell, component: zoom, fromAnchor: east }"),
+    ).state.diagnostics;
+    expect(found.map((d) => d.code)).toContain("component/anchor-on-zoom");
+    expect(found.map((d) => d.code)).not.toContain("layout/part-anchor");
+    expect(found.find((d) => d.code === "component/anchor-on-zoom")?.severity).toBe("warning");
+  });
+
   test("PDF and editable PPTX draw the same line as the SVG", async () => {
     const value = await render(FIGURE(ROW, "{ from: vin.kernel, to: vout.cell, component: line }"));
     const [a, b] = routePoints(value);
