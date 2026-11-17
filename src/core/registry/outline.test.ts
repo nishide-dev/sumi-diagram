@@ -168,6 +168,7 @@ describe("outline manifests", () => {
           "sumi/bracket",
           "sumi/waveform",
           "sumi/bubble",
+          "sumi/cuboid",
           ...FLOW_ARROW_IDS,
           ...STATE_MARKER_IDS,
         ].includes(entry.id)

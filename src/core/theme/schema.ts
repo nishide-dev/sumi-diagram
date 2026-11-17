@@ -50,6 +50,7 @@ import {
 import type { Registry } from "../registry/registry";
 import { reservedKeyMessage, reservedKeyPaths } from "../reserved-keys";
 import type { Result } from "../result";
+import type { CuboidShade } from "./cuboid-shade";
 import type { DimColors } from "./dim";
 import { BUILTIN_FONT_SETS, type FontSet } from "./fonts";
 import type { Color } from "./style";
@@ -92,6 +93,11 @@ export interface ThemeColorUse {
    */
   readonly maxSolidNodes: number;
 }
+
+const CuboidShadeTargetSchema = z.strictObject({
+  toward: z.union([z.literal("line"), z.string().regex(/^#[0-9a-fA-F]{6}$/)]),
+  amount: z.number().min(0).max(1),
+});
 
 const ColorUseSchema = z.strictObject({
   maxAccentTones: z.number().int().min(0).max(TONE_NAMES.length),
@@ -148,6 +154,8 @@ export interface ThemeDefinition {
    * omitted means the router's own gap (3 units).
    */
   edgeLabelGap?: number;
+  /** Factors of a cuboid's top and side faces (#575); omitted means the light or dark default by the canvas. */
+  cuboidShade?: CuboidShade;
 }
 
 /** A validated theme. All values are checked and resolved; component keys are canonical. */
@@ -178,6 +186,8 @@ export interface Theme {
   readonly colorUse?: ThemeColorUse;
   /** The edge label gap in units (#546); present only when the definition sets it. */
   readonly edgeLabelGap?: number;
+  /** The cuboid face factors (#575); present only when the definition sets them. */
+  readonly cuboidShade?: CuboidShade;
   /**
    * A figure's `themeOverrides.tones` (#380), already merged into `tones` and
    * `toneLines`; kept for the tinted and solid node variants, whose frame and
@@ -234,6 +244,12 @@ export const ThemeSchema = z.strictObject({
   arrowhead: z.enum(THEME_ARROWHEADS).optional(),
   colorUse: ColorUseSchema.optional(),
   edgeLabelGap: z.number().int().min(1).max(24).optional(),
+  cuboidShade: z
+    .strictObject({
+      top: CuboidShadeTargetSchema,
+      side: CuboidShadeTargetSchema,
+    })
+    .optional(),
 });
 
 export interface ValidateThemeOptions {
@@ -409,6 +425,7 @@ class ThemeChecker {
         ...(theme.arrowhead !== undefined && { arrowhead: theme.arrowhead }),
         ...(theme.colorUse !== undefined && { colorUse: theme.colorUse }),
         ...(theme.edgeLabelGap !== undefined && { edgeLabelGap: theme.edgeLabelGap }),
+        ...(theme.cuboidShade !== undefined && { cuboidShade: theme.cuboidShade }),
       }),
       diagnostics: this.diagnostics,
     };

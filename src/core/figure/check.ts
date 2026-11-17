@@ -1,6 +1,7 @@
 import type { CheckState, PartialFigure } from "../check-state";
 import { type Result, toResult } from "../result";
 import { expandChats } from "./chat";
+import { expandCuboidDims } from "./cuboid";
 import { checkLayout } from "./layout";
 import { linkFigure } from "./link";
 import type { FigureDocument } from "./schema";
@@ -54,6 +55,7 @@ export function checkFigureSource(text: string, options: CheckFigureOptions = {}
   const locate = overrideLocator(parsed.source.locate, options.overrides);
   applyOverrides(state.doc, options.overrides);
   expandChats(state, locate, value);
+  expandCuboidDims(state, locate);
   linkFigure(state, locate);
   checkLayout(state, locate);
   checkSets(state, locate);

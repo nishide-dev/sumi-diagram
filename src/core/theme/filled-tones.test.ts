@@ -95,7 +95,7 @@ describe("solid and tinted nodes", () => {
     }
   });
   test("every shape, theme and tone has both variants and at least 4.5:1 text contrast", () => {
-    expect(shapes).toHaveLength(14);
+    expect(shapes).toHaveLength(15);
     for (const theme of BUILTIN_THEMES.values()) {
       for (const shape of shapes) {
         for (const variant of ["solid", "tinted"] as const) {
@@ -170,12 +170,15 @@ nodes:
 
   for (const theme of BUILTIN_THEMES.values()) {
     test(`${theme.id}: every dimmed solid shape and tone keeps at least 3:1 text contrast`, () => {
-      const nodes = shapes.flatMap((shape, i) =>
-        [undefined, ...TONE_NAMES].map(
-          (tone, j) =>
-            `  - { id: n${i}_${j}, component: ${shape.id}, variant: solid, group: g${tone ? `, tone: ${tone}` : ""}${shape.id === "sumi/operator" ? ", props: { symbol: plus }" : ""} }`,
-        ),
-      );
+      // Structured-only components (a cuboid) are checked by the structured render tests.
+      const nodes = shapes
+        .filter((shape) => shape.engines === undefined)
+        .flatMap((shape, i) =>
+          [undefined, ...TONE_NAMES].map(
+            (tone, j) =>
+              `  - { id: n${i}_${j}, component: ${shape.id}, variant: solid, group: g${tone ? `, tone: ${tone}` : ""}${shape.id === "sumi/operator" ? ", props: { symbol: plus }" : ""} }`,
+          ),
+        );
       const checked = checkFigure(`version: 1
 figure: { id: dim-contrast, theme: ${theme.id}, profile: paper-double }
 groups: [{ id: g, dim: true }]

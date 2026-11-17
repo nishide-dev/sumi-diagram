@@ -164,6 +164,8 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
       default: { fill: "#ffffff" },
       solid: { ...shape.solid, strokeWidth: "0pt" },
     },
+    // A cuboid (#575): default, muted, tinted and solid, whose fill its top and side faces shade.
+    cuboid: { muted: shape.muted, tinted: shape.tinted, solid: shape.solid },
     // A bracket (#281) is one line: no fill to vary.
     bracket: {
       emphasis: shape.emphasis,
@@ -524,6 +526,14 @@ function sumiTheme(dark: boolean): ThemeDefinition {
     dim: { fontColor: muted, stroke: muted, lighten: 0.3 },
     // Labels keep about 1mm from their line (#546).
     edgeLabelGap: 6,
+    // Cuboid faces (#575): the top toward white and the side toward the frame; on the navy canvas
+    // the top toward the frame and the side toward a deeper navy.
+    cuboidShade: dark
+      ? {
+          top: { toward: "line", amount: 0.22 },
+          side: { toward: "#1c2033", amount: 0.35 },
+        }
+      : { top: { toward: "#ffffff", amount: 0.55 }, side: { toward: "line", amount: 0.2 } },
     // A neutral base (gray) with up to three accents, in pale or outlined variants (#513).
     colorUse: {
       maxAccentTones: 3,

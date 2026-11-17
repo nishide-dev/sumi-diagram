@@ -807,6 +807,9 @@ function sampleBoxSize(manifest: NodeManifest, sizes: LegendSizes): Record<strin
   const shape = manifest.props.shape as Record<string, unknown>;
   if (!("width" in shape) || !("height" in shape)) return {};
   // Written as in a figure: the component stage validates them like any props.
+  // A solid (a cuboid, #575) is a small cube of the sample's height.
+  if ("depth" in shape)
+    return { width: `${sizes.box}pt`, height: `${sizes.box}pt`, depth: `${sizes.box}pt` };
   const width = manifest.sizing === "fixed-aspect-1" ? sizes.box : sizes.sample;
   return { width: `${width}pt`, height: `${sizes.box}pt` };
 }

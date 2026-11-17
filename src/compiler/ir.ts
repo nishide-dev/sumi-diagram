@@ -48,6 +48,11 @@ import type {
   SetShape,
 } from "../core/figure/schema";
 import { nodeOrder } from "../core/figure/tokens";
+import {
+  cuboidOffset,
+  DEFAULT_DEPTH_SCALE,
+  DEFAULT_PROJECTION_ANGLE,
+} from "../core/outline/cuboid";
 import { getProfile } from "../core/profile/builtin";
 import { spacedProfile } from "../core/profile/schema";
 import {
@@ -64,6 +69,7 @@ import {
   type ResolvedComponent,
 } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
+import { cuboidColors, cuboidShadeOf } from "../core/theme/cuboid-shade";
 import { dimmedElements } from "../core/theme/dim";
 import type { FontSetId } from "../core/theme/fonts";
 import { contrastRatio, pageTextContrast } from "../core/theme/node-variants";
@@ -649,7 +655,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     const caption = doc.captions?.get(index);
     const component = componentOf(state, key);
     if (component.manifest.kind !== "node") throw kindMismatch(key);
-    const { width, height } = component.props;
+    const isCuboid = component.id === "sumi/cuboid";
+    // A cuboid's width and height are its front face's: its footprint is the silhouette (#575).
+    const { width, height } = isCuboid ? ({} as Record<string, unknown>) : component.props;
     const style = styleOf(state, key, "node");
     // A waveform's label is a caption below its frame (#491).
     const captionBelow =
@@ -790,6 +798,16 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                     size: component.props.size * 2,
                   }),
                 }),
+                ...(component.manifest.render.renderer === "sumi/cuboid" && {
+                  width: (component.props.width as number) * 2,
+                  height: (component.props.height as number) * 2,
+                  depth: (component.props.depth as number) * 2,
+                  ...(figure.projection !== undefined && {
+                    angle: figure.projection.angle,
+                    depthScale: figure.projection.depthScale,
+                  }),
+                  ...cuboidFaces(style.fill, style.stroke, theme),
+                }),
                 ...(component.manifest.render.renderer === "sumi/trapezoid" &&
                   typeof component.props.narrow === "string" &&
                   component.props.narrow !== "south" && { narrow: component.props.narrow }),
@@ -800,6 +818,10 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         ...(mark !== undefined && { mark: freezeMark(mark) }),
         ...(typeof width === "number" && { width: lengthOf(width) }),
         ...(typeof height === "number" && { height: lengthOf(height) }),
+        ...(isCuboid &&
+          n.label.trim() === "" &&
+          n.icon === undefined &&
+          cuboidSilhouette(component.props, figure.projection)),
         ...(markSize !== undefined && { width: markSize, height: markSize }),
         style: captionBelow ? captionStyle(style, glyphTheme) : style,
         ...(n.attach !== undefined && {
@@ -992,6 +1014,31 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       sourceMap: readonlyMap(sourceMap),
     }),
   );
+}
+
+/**
+ * The explicit size of an unlabelled cuboid: its silhouette, whatever the
+ * padded empty label would take (#575). A labelled one takes its footprint.
+ */
+function cuboidSilhouette(
+  props: Readonly<Record<string, unknown>>,
+  projection: { angle: number; depthScale: number } | undefined,
+): { width: ReturnType<typeof lengthOf>; height: ReturnType<typeof lengthOf> } {
+  const { dx, dy } = cuboidOffset({
+    depth: (props.depth as number) * 2,
+    angle: projection?.angle ?? DEFAULT_PROJECTION_ANGLE,
+    depthScale: projection?.depthScale ?? DEFAULT_DEPTH_SCALE,
+  });
+  return {
+    width: lengthOf(Math.ceil((props.width as number) * 2 + dx) / 2),
+    height: lengthOf(Math.ceil((props.height as number) * 2 + dy) / 2),
+  };
+}
+
+/** The face colors a cuboid's renderers paint with (#575); none for a fill that is not a color. */
+function cuboidFaces(fill: string, stroke: string, theme: Theme) {
+  const colors = cuboidColors(fill, stroke, cuboidShadeOf(theme));
+  return colors && { topFill: colors.top, sideFill: colors.side, innerStroke: colors.inner };
 }
 
 function groupLayers(props: Readonly<Record<string, unknown>>): Pick<GroupIR, "layers"> {

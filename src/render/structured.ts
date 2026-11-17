@@ -83,6 +83,7 @@ import { cylinderPathData, shapeOutline } from "../lint/geometry/shapes";
 import { drawNodeOutline } from "./compose";
 import { subsetFont } from "./font-subset";
 import { HATCH, hatchSegments } from "./hatch";
+import { solidLayerAttributes } from "./outline-paint";
 import { dashArray, dashAttribute, n, paint, strokeAttributes } from "./stroke";
 import { type Arc, isHiddenJunction, roundCorners, type WirePolyline } from "./wire";
 import { escapeAttribute } from "./xml";
@@ -294,6 +295,9 @@ function nodeShape(node: NodeIR, r: Rect): string {
     const drawing = drawNodeOutline(node, r);
     return drawing.layers
       .map((layer) => {
+        const solid = solidLayerAttributes(node, layer);
+        if (solid !== undefined)
+          return `<path d="${pathData(layer.path.points, layer.path.closed)}"${solid}/>`;
         const fill = layer.role === "line" ? "none" : paint(style.fill);
         const signal =
           layer.role === "line" ? ' stroke-linecap="round" stroke-linejoin="round"' : "";

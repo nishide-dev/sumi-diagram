@@ -51,6 +51,14 @@ export function anchorPoint(rect: Rect, anchor: Anchor): Point {
   }
 }
 
+/** Whether a node's outline puts its default ports off the middle of its sides (a cuboid, #575). */
+export function hasPortOffsets(node: NodeIR | undefined, rect: Rect): boolean {
+  if (node?.render === undefined) return false;
+  const renderer = getOutlineRenderer(node.render.renderer);
+  const drawing = renderer?.draw(rect, renderer.params.parse(node.render.params ?? {}));
+  return drawing?.portOffsets !== undefined;
+}
+
 /** The shape a node draws, as a convex region (its bounding box for `text`). */
 export function nodeRegion(node: NodeIR, rect: Rect): Region {
   if (node.render !== undefined) {
@@ -1350,6 +1358,9 @@ function resolveEndsWith(
     if (ir.meta.fanIn !== undefined) return undefined;
     if (otherWritten !== undefined || edge.from === edge.to) return undefined;
     if (isJunction(self.node) || isJunction(other.node)) return undefined;
+    // A solid's ports are off its middle (#575): lining the boxes' centres up would miss them.
+    if (hasPortOffsets(self.node, self.rect) || hasPortOffsets(other.node, other.rect))
+      return undefined;
     const at = straightPlacement(self.rect, other.rect);
     if (!("offset" in at)) return undefined;
     const vertical = at.side === "north" || at.side === "south";
@@ -1411,6 +1422,19 @@ function resolveEndsWith(
   // A `straight` end (#179) takes part, so the other edges between the pair
   // keep their parallel positions; it is put in line just below.
   const sharing = new Map<string, Choice[]>();
+  const sharingKeys = new Map<Choice, ElementKey>();
+  // An outline may meet an unanchored edge off the middle of a side (a cuboid's front face, #575).
+  const lonelyOffset = (choice: Choice): number => {
+    const key = sharingKeys.get(choice);
+    const render = key === undefined ? undefined : element(key).node?.render;
+    if (key === undefined || render === undefined) return 0.5;
+    const renderer = getOutlineRenderer(render.renderer);
+    return (
+      renderer?.draw(element(key).rect, renderer.params.parse(render.params ?? {})).portOffsets?.[
+        choice.side
+      ] ?? 0.5
+    );
+  };
   for (const { edge, from, to } of choices) {
     const pair = [edge.from, edge.to].sort().join(" ");
     for (const [key, choice] of [
@@ -1421,14 +1445,65 @@ function resolveEndsWith(
       const id = `${pair}|${key}|${choice.side}`;
       const list = sharing.get(id) ?? [];
       list.push(choice);
+      sharingKeys.set(choice, key);
       sharing.set(id, list);
     }
   }
   /** Ends shared out with other ends of the same side and pair (multi-edges). */
   const sharedOut = new Set<Choice>();
   for (const list of sharing.values()) {
-    for (const [k, choice] of list.entries()) choice.offset = (k + 1) / (list.length + 1);
+    for (const [k, choice] of list.entries())
+      choice.offset = list.length === 1 ? lonelyOffset(choice) : (k + 1) / (list.length + 1);
     if (list.length > 1) for (const choice of list) sharedOut.add(choice);
+  }
+  // Neighbouring solids (#575): where the front faces (or a box's side) overlap along the facing
+  // sides, an unshared end on each takes the middle of the overlap, so the edge is one straight
+  // segment inside both; with no overlap the ends keep their front-face middles.
+  const lonely = new Set([...sharing.values()].filter((l) => l.length === 1).flat());
+  // Only the sole user of a port moves: ends that share a side of an element (fan-in, fan-out,
+  // merged or spread) keep the positions the fan-in rules gave them.
+  const users = new Map<string, number>();
+  for (const { edge, from, to } of choices)
+    for (const [key, choice] of [
+      [edge.from, from],
+      [edge.to, to],
+    ] as const)
+      if (choice !== undefined)
+        users.set(`${key}|${choice.side}`, (users.get(`${key}|${choice.side}`) ?? 0) + 1);
+  const sideSpan = (key: ElementKey, side: Side): { lo: number; hi: number; mid: number } => {
+    const { rect, node } = element(key);
+    const vertical = side === "north" || side === "south";
+    const render = node?.render;
+    const renderer = render && getOutlineRenderer(render.renderer);
+    const drawing = renderer?.draw(rect, renderer.params.parse(render?.params ?? {}));
+    const area = drawing?.portOffsets === undefined ? rect : drawing.safeArea;
+    const [lo, hi] = vertical ? [area.x, area.x + area.width] : [area.y, area.y + area.height];
+    return { lo, hi, mid: (lo + hi) / 2 };
+  };
+  for (const { edge, from, to } of choices) {
+    if (from === undefined || to === undefined || !lonely.has(from) || !lonely.has(to)) continue;
+    if (to.side !== OPPOSITE_SIDE[from.side] || from.inward || to.inward) continue;
+    if (users.get(`${edge.from}|${from.side}`) !== 1 || users.get(`${edge.to}|${to.side}`) !== 1)
+      continue;
+    const [a, b] = [element(edge.from), element(edge.to)];
+    if (!hasPortOffsets(a.node, a.rect) && !hasPortOffsets(b.node, b.rect)) continue;
+    const spanA = sideSpan(edge.from, from.side);
+    const spanB = sideSpan(edge.to, to.side);
+    const lo = Math.max(spanA.lo, spanB.lo);
+    const hi = Math.min(spanA.hi, spanB.hi);
+    if (!(hi - lo >= 2 * STRAIGHT_MARGIN)) continue;
+    // A plain box keeps its own middle when that lies in the overlap.
+    const own = [a, b].flatMap((e, i) =>
+      hasPortOffsets(e.node, e.rect) ? [] : [[spanA, spanB][i]?.mid as number],
+    );
+    const at = own.find((m) => m >= lo && m <= hi) ?? (lo + hi) / 2;
+    const vertical = from.side === "north" || from.side === "south";
+    for (const [choice, e] of [
+      [from, a],
+      [to, b],
+    ] as const)
+      choice.offset =
+        (at - (vertical ? e.rect.x : e.rect.y)) / (vertical ? e.rect.width : e.rect.height);
   }
 
   // `straight` ends (#179) in line with the other end's port, now that it is
