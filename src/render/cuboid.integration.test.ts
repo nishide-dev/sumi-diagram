@@ -242,6 +242,44 @@ edges:
     expect(points[0]?.y).toBeCloseTo(a.y, 0);
   });
 
+  const fan = (mode: string, out = false) => `version: 1
+figure:
+  id: fan
+  theme: sumi
+  profile: paper-double
+  layout:
+    fanIn: ${mode}
+    arrange:
+      row:
+        gap: 16mm
+        align: center
+        items: [${out ? "big, { stack: { gap: 10mm, items: [u, v] } }" : "{ stack: { gap: 10mm, items: [u, v] } }, big"}]
+nodes:
+  - { id: u, component: cuboid, props: { width: 3mm, height: 8mm, depth: 6mm } }
+  - { id: v, component: cuboid, props: { width: 3mm, height: 8mm, depth: 6mm } }
+  - { id: big, component: cuboid, props: { width: 3mm, height: 40mm, depth: 6mm } }
+edges:
+${out ? "  - { from: big, to: u }\n  - { from: big, to: v }" : "  - { from: u, to: big }\n  - { from: v, to: big }"}
+`;
+  for (const mode of ["merge", "spread"]) {
+    test(`fan-in (${mode}) into a cuboid is left to the fan-in rules, not straightened per edge`, async () => {
+      const value = await render(fan(mode));
+      const ends = value.layout.edges.map((e) => e.route?.points.at(-1)?.y ?? Number.NaN);
+      expect(ends).toHaveLength(2);
+      if (mode === "merge") expect(ends[0]).toBeCloseTo(ends[1] ?? Number.NaN, 6);
+      else expect(Math.abs((ends[0] ?? 0) - (ends[1] ?? 0))).toBeGreaterThan(5);
+      expect(Object.values(checkRoutes(value.compiled.ir, value.layout)).flat()).toEqual([]);
+    });
+  }
+
+  test("fan-out from a cuboid keeps one shared source port", async () => {
+    const value = await render(fan("merge", true));
+    const starts = value.layout.edges.map((e) => e.route?.points[0]?.y ?? Number.NaN);
+    expect(starts[0]).toBeCloseTo(starts[1] ?? Number.NaN, 6);
+    const big = frontCentre(value, "big");
+    expect(starts[0]).toBeCloseTo(big.y, 0);
+  });
+
   test("a thin plate keeps its requested front width and projection", async () => {
     const value = await render(`version: 1
 figure:

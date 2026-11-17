@@ -1406,7 +1406,7 @@ wider solid for a long row. The projection is figure-wide, never per node.
   the text collide (`geometry/label-collision`).
 - **Edges.** Unanchored, an edge meets the left of the front face (its middle), the
   right where the front's middle-height line leaves the silhouette, the bottom at the
-  front's bottom middle and the top at the back edge's middle. The collision outline is
+  front's bottom middle and the top at the back edge's middle. Exception: between two neighbouring solids (or a solid and a box) whose front faces overlap along the facing sides, an edge that is the only one on its side of both ends moves to the middle of that overlap, so it is one straight segment inside both faces; fan-in and fan-out ends, and fronts that do not overlap, keep their positions. The collision outline is
   the whole silhouette. A written anchor (`south`) is the middle of the box as for any
   node: write `north:0.85` and the like to leave the top near its right end, so a skip
   connection clears the width `dims` text.

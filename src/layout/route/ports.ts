@@ -1460,6 +1460,16 @@ function resolveEndsWith(
   // sides, an unshared end on each takes the middle of the overlap, so the edge is one straight
   // segment inside both; with no overlap the ends keep their front-face middles.
   const lonely = new Set([...sharing.values()].filter((l) => l.length === 1).flat());
+  // Only the sole user of a port moves: ends that share a side of an element (fan-in, fan-out,
+  // merged or spread) keep the positions the fan-in rules gave them.
+  const users = new Map<string, number>();
+  for (const { edge, from, to } of choices)
+    for (const [key, choice] of [
+      [edge.from, from],
+      [edge.to, to],
+    ] as const)
+      if (choice !== undefined)
+        users.set(`${key}|${choice.side}`, (users.get(`${key}|${choice.side}`) ?? 0) + 1);
   const sideSpan = (key: ElementKey, side: Side): { lo: number; hi: number; mid: number } => {
     const { rect, node } = element(key);
     const vertical = side === "north" || side === "south";
@@ -1473,6 +1483,8 @@ function resolveEndsWith(
   for (const { edge, from, to } of choices) {
     if (from === undefined || to === undefined || !lonely.has(from) || !lonely.has(to)) continue;
     if (to.side !== OPPOSITE_SIDE[from.side] || from.inward || to.inward) continue;
+    if (users.get(`${edge.from}|${from.side}`) !== 1 || users.get(`${edge.to}|${to.side}`) !== 1)
+      continue;
     const [a, b] = [element(edge.from), element(edge.to)];
     if (!hasPortOffsets(a.node, a.rect) && !hasPortOffsets(b.node, b.rect)) continue;
     const spanA = sideSpan(edge.from, from.side);
