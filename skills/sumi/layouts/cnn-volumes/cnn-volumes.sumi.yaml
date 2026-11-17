@@ -8,7 +8,7 @@
 #   thickness (`width`) = channels, front height and `depth` = spatial size; consecutive
 #   convolutions of one block sit in a nested row with a small gap and carry `dims` once, on
 #   the middle one (`width`: channels above, `height`: resolution below); a `legend` row
-#   explains the colours. Edges leave the right of one front face and enter the left of the next.
+#   explains the colours. Edges leave the 3D centre of one block and enter the next, straightened where the blocks overlap.
 # Change: the number of blocks (copy a block row and keep the heights shrinking); the sizes
 #   (`width` for channels, `height` and `depth` together for the resolution); the `dims`
 #   texts; the projection (`figure.projection`: angle 30 makes a flatter, wider solid,

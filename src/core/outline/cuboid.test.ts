@@ -75,20 +75,14 @@ describe("sumi/cuboid geometry", () => {
     expect(Math.max(...ys)).toBeCloseTo(rect.y + rect.height, 9);
   });
 
-  test("ports: left and right at the front's middle height, top at the back edge's middle, bottom at the front's", () => {
+  test("a solid aims edges at its projected centre: the front's centre moved by (dx/2, -dy/2), the box's middle", () => {
     const params = parse();
     const { dx, dy } = cuboidOffset(params);
     const drawing = cuboid.draw(rect, params);
-    const offsets = drawing.portOffsets;
-    const w = rect.width - dx;
-    const h = rect.height - dy;
-    // y of the front's middle, from the top of the footprint.
-    expect(offsets?.west).toBeCloseTo((dy + h / 2) / rect.height, 9);
-    expect(offsets?.east).toBe(offsets?.west);
-    expect(rect.y + (offsets?.west ?? 0) * rect.height).toBeCloseTo(rect.y + dy + h / 2, 9);
-    // top: the back edge's middle is the front's centre moved by dx; bottom: the front's centre.
-    expect(rect.x + (offsets?.north ?? 0) * rect.width).toBeCloseTo(rect.x + w / 2 + dx, 9);
-    expect(rect.x + (offsets?.south ?? 0) * rect.width).toBeCloseTo(rect.x + w / 2, 9);
+    expect(drawing.solid).toBe(true);
+    const { x, y, width, height } = drawing.safeArea;
+    expect(x + width / 2 + dx / 2).toBeCloseTo(rect.x + rect.width / 2, 9);
+    expect(y + height / 2 - dy / 2).toBeCloseTo(rect.y + rect.height / 2, 9);
   });
 
   test("a thin plate draws exactly the requested front and projection when the footprint holds them", () => {
