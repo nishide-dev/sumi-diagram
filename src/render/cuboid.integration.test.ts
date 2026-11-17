@@ -208,6 +208,40 @@ edges:
     });
   }
 
+  test("unequal neighbours with overlapping front faces get one horizontal segment inside both", async () => {
+    const value = await render(pair(["28mm", "16mm"]));
+    const points = value.layout.edges[0]?.route?.points ?? [];
+    expect(points).toHaveLength(2);
+    expect(points[0]?.y).toBeCloseTo(points[1]?.y ?? Number.NaN, 6);
+    for (const id of ["a", "b"]) {
+      const node = value.compiled.ir.nodes.find((n) => n.id === id);
+      const rect = value.layout.nodes.find((n) => n.key === `n:${id}`)?.rect;
+      if (!rect) throw new Error("missing layout");
+      const front = cuboid.draw(rect, cuboid.params.parse(node?.render?.params)).safeArea;
+      expect(points[0]?.y).toBeGreaterThan(front.y);
+      expect(points[0]?.y).toBeLessThan(front.y + front.height);
+    }
+  });
+
+  test("fronts that do not overlap keep their front-face middles", async () => {
+    const value = await render(`version: 1
+figure:
+  id: apart
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: { row: { gap: 14mm, align: start, items: [a, b] } }
+nodes:
+  - { id: a, component: cuboid, props: { width: 3mm, height: 6mm, depth: 24mm } }
+  - { id: b, component: cuboid, props: { width: 3mm, height: 6mm, depth: 2mm } }
+edges:
+  - { from: a, to: b }
+`);
+    const a = frontCentre(value, "a");
+    const points = value.layout.edges[0]?.route?.points ?? [];
+    expect(points[0]?.y).toBeCloseTo(a.y, 0);
+  });
+
   test("a thin plate keeps its requested front width and projection", async () => {
     const value = await render(`version: 1
 figure:

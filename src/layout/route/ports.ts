@@ -1456,6 +1456,43 @@ function resolveEndsWith(
       choice.offset = list.length === 1 ? lonelyOffset(choice) : (k + 1) / (list.length + 1);
     if (list.length > 1) for (const choice of list) sharedOut.add(choice);
   }
+  // Neighbouring solids (#575): where the front faces (or a box's side) overlap along the facing
+  // sides, an unshared end on each takes the middle of the overlap, so the edge is one straight
+  // segment inside both; with no overlap the ends keep their front-face middles.
+  const lonely = new Set([...sharing.values()].filter((l) => l.length === 1).flat());
+  const sideSpan = (key: ElementKey, side: Side): { lo: number; hi: number; mid: number } => {
+    const { rect, node } = element(key);
+    const vertical = side === "north" || side === "south";
+    const render = node?.render;
+    const renderer = render && getOutlineRenderer(render.renderer);
+    const drawing = renderer?.draw(rect, renderer.params.parse(render?.params ?? {}));
+    const area = drawing?.portOffsets === undefined ? rect : drawing.safeArea;
+    const [lo, hi] = vertical ? [area.x, area.x + area.width] : [area.y, area.y + area.height];
+    return { lo, hi, mid: (lo + hi) / 2 };
+  };
+  for (const { edge, from, to } of choices) {
+    if (from === undefined || to === undefined || !lonely.has(from) || !lonely.has(to)) continue;
+    if (to.side !== OPPOSITE_SIDE[from.side] || from.inward || to.inward) continue;
+    const [a, b] = [element(edge.from), element(edge.to)];
+    if (!hasPortOffsets(a.node, a.rect) && !hasPortOffsets(b.node, b.rect)) continue;
+    const spanA = sideSpan(edge.from, from.side);
+    const spanB = sideSpan(edge.to, to.side);
+    const lo = Math.max(spanA.lo, spanB.lo);
+    const hi = Math.min(spanA.hi, spanB.hi);
+    if (!(hi - lo >= 2 * STRAIGHT_MARGIN)) continue;
+    // A plain box keeps its own middle when that lies in the overlap.
+    const own = [a, b].flatMap((e, i) =>
+      hasPortOffsets(e.node, e.rect) ? [] : [[spanA, spanB][i]?.mid as number],
+    );
+    const at = own.find((m) => m >= lo && m <= hi) ?? (lo + hi) / 2;
+    const vertical = from.side === "north" || from.side === "south";
+    for (const [choice, e] of [
+      [from, a],
+      [to, b],
+    ] as const)
+      choice.offset =
+        (at - (vertical ? e.rect.x : e.rect.y)) / (vertical ? e.rect.width : e.rect.height);
+  }
 
   // `straight` ends (#179) in line with the other end's port, now that it is
   // known (a shared-out multi-edge end, a spread end, an anchor, a junction's
