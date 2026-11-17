@@ -172,7 +172,7 @@ export function addDirectRoutes(
         y: roundUnits(from.y + (to.y - from.y) * f),
       };
     };
-    const a =
+    const a0 =
       loopAnchors === undefined || typeof loopAnchors === "string"
         ? end(edge.from, source, s, t, edge.fromAnchor)
         : end(
@@ -182,10 +182,20 @@ export function addDirectRoutes(
             center(source),
             loopAnchors.from,
           );
-    const b =
+    const b0 =
       loopAnchors === undefined || typeof loopAnchors === "string"
         ? end(edge.to, target, t, s, edge.toAnchor)
         : end(edge.to, target, anchorPoint(target, loopAnchors.to), center(target), loopAnchors.to);
+    // A block end against a plain end: the block's contact lies on the line from the other end's
+    // actual contact (a face port, an anchor) to the block's centre, so the line passes through it.
+    const a =
+      sourcePart !== undefined && targetPart === undefined && b0 !== undefined && a0 !== undefined
+        ? end(edge.from, source, s, b0, edge.fromAnchor)
+        : a0;
+    const b =
+      targetPart !== undefined && sourcePart === undefined && a0 !== undefined && b0 !== undefined
+        ? end(edge.to, target, t, a0, edge.toAnchor)
+        : b0;
     if (a === undefined || b === undefined)
       return fail("the line does not meet an endpoint outline; choose another anchor");
     if (loop && Math.hypot(b.x - a.x, b.y - a.y) < 2)

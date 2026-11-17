@@ -133,6 +133,50 @@ describe("ordinary edges to cuboid blocks (#584)", () => {
     );
   });
 
+  // The block's contact is aimed from the other end's actual contact, so the drawn line passes
+  // through the block's centre whether that end is automatic, anchored or a face port.
+  for (const [name, edge, face] of [
+    ["face port, block first", "{ from: vout.cell, to: vin, component: arrow }", true],
+    ["face port, block last", "{ from: vin, to: vout.cell, component: arrow }", true],
+    [
+      "anchor, block first",
+      "{ from: vout.cell, to: vin, toAnchor: east, component: arrow }",
+      false,
+    ],
+    [
+      "anchor, block last",
+      "{ from: vin, to: vout.cell, fromAnchor: east, component: arrow }",
+      false,
+    ],
+  ] as const)
+    test(`the line passes through the block's centre (${name})`, async () => {
+      const text = FIGURE(ROW, edge);
+      const value = await render(
+        face ? text.replace("      width: 31.2mm", "      ports: face\n      width: 31.2mm") : text,
+      );
+      expect(nonInfo(value)).toEqual([]);
+      const [a, b] = routePoints(value) as [P, P];
+      const cell = part(value, "vout", "cell");
+      expect(distanceToLine(centre(cell.box), a, b)).toBeLessThan(0.6);
+      const own = edge.startsWith("{ from: vout") ? a : b;
+      expect(distanceToBoundary(own, cell.outline)).toBeLessThan(0.6);
+    });
+
+  test("route: curve draws a cubic that meets the block's silhouette", async () => {
+    const value = await render(
+      FIGURE(ROW, "{ from: vin.kernel, to: vout.cell, component: arrow, route: curve }"),
+    );
+    expect(nonInfo(value)).toEqual([]);
+    const points = routePoints(value);
+    expect(points).toHaveLength(4);
+    expect(distanceToBoundary(points[0] as P, part(value, "vin", "kernel").outline)).toBeLessThan(
+      0.6,
+    );
+    expect(distanceToBoundary(points[3] as P, part(value, "vout", "cell").outline)).toBeLessThan(
+      0.6,
+    );
+  });
+
   test("a block deep inside the volume keeps its centre and silhouette", async () => {
     const value = await render(FIGURE(ROW, "{ from: vin.deep, to: vout.cell, component: arrow }"));
     expect(nonInfo(value)).toEqual([]);
@@ -140,7 +184,7 @@ describe("ordinary edges to cuboid blocks (#584)", () => {
     expect(distanceToBoundary(a as P, part(value, "vin", "deep").outline)).toBeLessThan(0.6);
   });
 
-  test("validation: an unknown block, an anchor on a block, route: curve still draws", () => {
+  test("validation: an unknown block, an anchor on a block, route: curve is accepted", () => {
     expect(codes(FIGURE(ROW, "{ from: vin.nope, to: vout.cell }"))).toContain("ref/unknown-cell");
     const unknown = checkFigure(FIGURE(ROW, "{ from: vin.nope, to: vout.cell }")).state.diagnostics;
     expect(unknown.find((d) => d.code === "ref/unknown-cell")?.message).toContain("Unknown block");

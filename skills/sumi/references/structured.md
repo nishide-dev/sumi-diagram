@@ -1477,9 +1477,11 @@ volume, far ones first.
 A block is named in an edge end as **`<node>.<name>`** (like a tokens cell `<node>.<cell>`). An
 unknown name is `ref/unknown-cell` ("Unknown block", with the cuboid's names in the hint).
 
-- **Ordinary edges** (`arrow`, `line`, with or without `route: curve`) may join a block: the edge
-  is one straight line (as `route: straight`, no obstacle avoidance, no shared trunks) that aims at
-  the block's 3D centre (the middle of its box) and ends on the block's own silhouette. The line
+- **Ordinary edges** (`arrow`, `line`) may join a block: the edge is by default one straight line
+  (as `route: straight`, no obstacle avoidance, no shared trunks; an explicit `route: curve` draws
+  one cubic instead) that aims at the block's 3D centre (the middle of its box) and ends on the
+  block's own silhouette, on the line from the other end's actual contact (a face port or an anchor
+  included) through the centre. The line
   may cross the block's parent cuboid on the way (it is the block's own volume), and `lint
   --geometry` treats the parent as an end, not an obstacle. `ports: face` of the parent applies to
   edges that name the cuboid itself, not to its blocks. `fromAnchor` / `toAnchor` on a block's end
