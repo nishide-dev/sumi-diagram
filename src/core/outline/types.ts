@@ -32,17 +32,15 @@ export interface OutlineLayer {
   readonly inner?: true;
 }
 
-export type OutlineSide = "north" | "south" | "east" | "west";
-
 export interface OutlineDrawing {
   /** Back to front. Bodies are closed, filled polygons; lines are unfilled with round caps/joins. */
   readonly layers: readonly OutlineLayer[];
   /**
-   * Where an edge without an anchor meets each side, as a 0..1 offset along it
-   * (left to right on north/south, top to bottom on east/west); a side not
-   * listed keeps the middle (#575: a cuboid's ports are on its front face).
+   * A solid drawn in projection (#575, a cuboid): its bounding box's middle is its projected
+   * centre, where edges without an anchor aim, so edges between neighbouring solids may be
+   * straightened along the extents of their boxes.
    */
-  readonly portOffsets?: Partial<Record<OutlineSide, number>>;
+  readonly solid?: true;
   /** Ordered enclosing silhouette; equals the body union unless boundaries is supplied. */
   readonly outline: readonly Point[];
   /** Optional body-only boundary for edge contacts; collision still includes the complete silhouette. */

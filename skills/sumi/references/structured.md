@@ -1404,12 +1404,16 @@ wider solid for a long row. The projection is figure-wide, never per node.
   assign (CNN: width = channels, front = spatial size). Put dims once per column of
   consecutive layers (on the middle one) and give a column the room: neighbours closer than
   the text collide (`geometry/label-collision`).
-- **Edges.** Unanchored, an edge meets the left of the front face (its middle), the
-  right where the front's middle-height line leaves the silhouette, the bottom at the
-  front's bottom middle and the top at the back edge's middle. Exception: between two neighbouring solids (or a solid and a box) whose front faces overlap along the facing sides, an edge that is the only one on its side of both ends moves to the middle of that overlap, so it is one straight segment inside both faces; fan-in and fan-out ends, and fronts that do not overlap, keep their positions. The collision outline is
-  the whole silhouette. A written anchor (`south`) is the middle of the box as for any
-  node: write `north:0.85` and the like to leave the top near its right end, so a skip
-  connection clears the width `dims` text.
+- **Edges.** Unanchored, an edge aims at the solid's projected 3D centre (the front
+  face's centre moved by half the depth offset: the middle of its box) and meets the
+  silhouette on the way in: left and right at the box's middle height, top and bottom at its
+  middle x. Between two neighbouring solids (or a solid and a box) an edge that is the only one
+  on its side of both ends is straightened within the overlap of their boxes: equal solids are
+  joined through both centres, unequal bottom-aligned ones at the middle of the overlap; fan-in
+  and fan-out ends keep their positions. A written anchor keeps its usual meaning (a
+  fraction of the box's side, from its corner: `east:0.3`, `south:0.35`): use it for a
+  corner or a skip connection, e.g. `north:0.85` leaves the top near its right end so
+  a skip clears the width `dims` text. The collision outline is the whole silhouette.
 
 ```yaml
 # expect-render: fits

@@ -124,7 +124,7 @@ const cuboid: NodeManifest = {
   kind: "node",
   name: "cuboid",
   description:
-    "A cuboid in oblique projection (a CNN layer, a feature map or a volume): a front, top and side face, the top lighter and the side darker than the tone's fill. Depth runs up and right at figure.projection (default 45 degrees, scale 0.5). The label sits on the front face (leave it empty on a thin plate and use dims); edges leave from the front face's left and bottom, the back edge's top and the silhouette's right. Structured layout only.",
+    "A cuboid in oblique projection (a CNN layer, a feature map or a volume): a front, top and side face, the top lighter and the side darker than the tone's fill. Depth runs up and right at figure.projection (default 45 degrees, scale 0.5). The label sits on the front face (leave it empty on a thin plate and use dims); edges without an anchor aim at the solid's projected 3D centre (the middle of its box) and meet the silhouette on the way in; a written anchor such as east:0.3 keeps its usual meaning. Structured layout only.",
   variants: ["default", "muted", "tinted", "solid"],
   props: z.strictObject({
     width: SizeLength.describe(

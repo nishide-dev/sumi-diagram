@@ -92,14 +92,9 @@ export const cuboid: OutlineRenderer<CuboidParams> = {
         { role: "line", path: { points: outline, closed: true } },
       ],
       outline,
-      // Left: the front's left edge at its middle. Right: the silhouette at the front's
-      // middle height. Top: the back edge's middle. Bottom: the front's bottom middle.
-      portOffsets: {
-        west: (dy + h / 2) / height,
-        east: (dy + h / 2) / height,
-        north: (w / 2 + dx) / width,
-        south: w / 2 / width,
-      },
+      // Edges aim at the projected centre, the middle of the box (the front's centre moved by
+      // (dx/2, -dy/2)), and meet the silhouette on the way in.
+      solid: true,
       safeArea: { x: fx, y: fy, width: w, height: h },
     };
   },
