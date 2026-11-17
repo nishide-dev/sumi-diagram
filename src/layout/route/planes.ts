@@ -101,16 +101,17 @@ export function routeWithPlanes(
       [-basis.u.y / det, basis.u.x / det],
     ] as const;
     // A projected plane (`contents: projected`) has nodes that lie on it: their flat boxes are exact.
-    const projected = plane.contents === "projected";
-    const inflate = (r: Rect): Rect => {
-      if (projected) return r;
+    // Decided per node: an upright node on a projected plane (a bubble, an image, a badge) is not mapped.
+    const lying = new Set(layout.nodes.filter((n) => n.outline !== undefined).map((n) => n.key));
+    const inflate = (r: Rect, key: ElementKey): Rect => {
+      if (lying.has(key)) return r;
       const hw = r.width / 2;
       const hh = r.height / 2;
       const hx = Math.abs(inv[0][0]) * hw + Math.abs(inv[0][1]) * hh;
       const hy = Math.abs(inv[1][0]) * hw + Math.abs(inv[1][1]) * hh;
       return { x: r.x + hw - hx, y: r.y + hh - hy, width: 2 * hx, height: 2 * hy };
     };
-    const inflated = plane.flat.map((n) => ({ key: n.key, rect: inflate(n.rect) }));
+    const inflated = plane.flat.map((n) => ({ key: n.key, rect: inflate(n.rect, n.key) }));
     const grow = Math.max(
       0,
       ...inflated.flatMap(({ rect }) => [
@@ -214,7 +215,7 @@ export function routeWithPlanes(
       }
       // A projected node's flat outline maps to its page outline: the route already ends on it.
       const mappedPoints = flat.points.map(map);
-      const points = projected ? mappedPoints : onOutlines(mappedPoints, placed, ir, layout);
+      const points = onOutlines(mappedPoints, placed, ir, layout, lying);
       reach.push(...points);
       let label = flat.label;
       if (label !== undefined) {
@@ -301,9 +302,11 @@ function onOutlines(
   edge: EdgeLayout,
   ir: FigureIR,
   layout: LayoutIR,
+  lying: ReadonlySet<ElementKey> = new Set(),
 ): Point[] {
   const out = [...points];
   const trim = (end: ElementKey, at: number, next: number): void => {
+    if (lying.has(end)) return;
     const node = ir.nodes.find((n) => n.key === end);
     const rect = layout.nodes.find((n) => n.key === end)?.rect;
     const a = out[at];

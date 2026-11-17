@@ -5,6 +5,7 @@
  * (or with `upright`) draws exactly what it drew before.
  */
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkFigure } from "../core/check";
@@ -18,78 +19,13 @@ import {
 } from "../layout/plane";
 import { lintGeometry } from "../lint";
 import { svgToPdf } from "./pdf";
+import { source } from "./plane-projected.testing";
 import { svgToEditablePptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
 import { renderFigure } from "./render";
 import { attribute, descendants, parseXml } from "./xml";
 
 const ROOT = join(import.meta.dir, "..", "..");
-
-/** Two stacked planes with the same nodes; `contents` is written on both planes (or not at all). */
-function source({
-  contents = "projected",
-  shape = "circle",
-  plane = "floor",
-  inPlane = "route: straight",
-}: {
-  contents?: string;
-  shape?: string;
-  plane?: string;
-  inPlane?: string;
-} = {}): string {
-  const props = `plane: ${plane}${contents === "" ? "" : `, contents: ${contents}`}, padding: 8mm`;
-  const place = (s: string) =>
-    [
-      ["a", 14, 14],
-      ["b", 46, 14],
-      ["c", 78, 14],
-      ["d", 46, 42],
-    ]
-      .map(([n, u, v]) => `          - { item: ${n}${s}, at: [${u}, ${56 - (v as number)}] }`)
-      .join("\n");
-  const nodes = (s: string, tone: string) =>
-    ["a", "b", "c", "d"]
-      .map(
-        (n) =>
-          `  - { id: ${n}${s}, component: ${shape}, label: ${n.toUpperCase()}, tone: ${tone} }`,
-      )
-      .join("\n");
-  return `version: 1
-figure:
-  id: projected
-  theme: sumi
-  profile: paper-double
-  layout:
-    arrange: { stack: { gap: 18mm, align: start, items: [ga, gb] } }
-groups:
-  - id: ga
-    label: (a) Graph A
-    props: { ${props} }
-    arrange:
-      place:
-        unit: 1mm
-        items:
-${place("1")}
-  - id: gb
-    label: (b) Graph B
-    props: { ${props} }
-    arrange:
-      place:
-        unit: 1mm
-        items:
-${place("2")}
-nodes:
-${nodes("1", "blue")}
-${nodes("2", "green")}
-edges:
-  - { from: a1, to: b1, component: arrow, ${inPlane} }
-  - { from: b1, to: c1, component: line, ${inPlane} }
-  - { from: a1, to: d1, component: line, ${inPlane} }
-  - { from: a2, to: d2, component: line, ${inPlane} }
-  - { from: a2, to: a1, component: line, route: straight, variant: dotted }
-  - { from: c2, to: c1, component: line, route: straight, variant: dotted }
-`;
-}
 
 async function render(text: string) {
   const result = await renderFigure(text);
@@ -328,6 +264,48 @@ describe("projected planes: edges meet the projected outlines", () => {
   });
 });
 
+describe("projected planes: an upright node among projected ones", () => {
+  const mixed = () =>
+    source({ inPlane: "" })
+      .replace("  - { id: b1, component: circle,", "  - { id: b1, component: bubble,")
+      .replaceAll(", route: straight, ", ", ")
+      .replace(
+        "  - { from: a2, to: d2, component: line, }",
+        "  - { from: a2, to: d2, component: line }",
+      );
+
+  test("routed edges to and past it end on, and keep out of, its box", async () => {
+    const value = await render(mixed());
+    const upright = value.layout.nodes.find((n) => n.key === "n:b1");
+    expect(upright?.outline).toBeUndefined();
+    expect(value.layout.nodes.find((n) => n.key === "n:a1")?.outline).toBeDefined();
+    const rect = upright?.rect as { x: number; y: number; width: number; height: number };
+    const within = (p: Point, margin: number) =>
+      p.x > rect.x + margin &&
+      p.x < rect.x + rect.width - margin &&
+      p.y > rect.y + margin &&
+      p.y < rect.y + rect.height - margin;
+    const toIt = value.layout.edges.filter((e) => e.from === "n:b1" || e.to === "n:b1");
+    expect(toIt.length).toBeGreaterThan(0);
+    for (const edge of value.layout.edges) {
+      const pts = edge.route?.points ?? [];
+      if (pts.length < 2 || edge.from === "n:a2") continue;
+      const ends = edge.from === "n:b1" || edge.to === "n:b1";
+      for (const [i, p] of pts.entries()) {
+        const isEnd = ends && (i === 0 || i === pts.length - 1);
+        // An end touches the box (within 2 units of its edge); no other point is inside it.
+        if (isEnd && (edge.from === "n:b1") === (i === 0)) {
+          const dx = Math.min(Math.abs(p.x - rect.x), Math.abs(p.x - rect.x - rect.width));
+          const dy = Math.min(Math.abs(p.y - rect.y), Math.abs(p.y - rect.y - rect.height));
+          expect(Math.min(dx, dy)).toBeLessThan(2.5);
+        } else if (edge.from !== "n:b1" && edge.to !== "n:b1") {
+          expect(within(p, 1)).toBe(false);
+        }
+      }
+    }
+  });
+});
+
 describe("projected planes: default output is unchanged", () => {
   test("no contents, contents: upright and the old drawing are the same SVG", async () => {
     const plain = await render(source({ contents: "" }));
@@ -337,6 +315,32 @@ describe("projected planes: default output is unchanged", () => {
     expect(body(upright.svg)).toBe(body(plain.svg));
     expect(plain.svg).not.toContain("sumi-projected");
     expect(plain.layout.nodes.every((n) => n.outline === undefined)).toBe(true);
+  });
+
+  // SHA-256 of the SVG (input hash stripped) that origin/main (before #586) drew for the same
+  // sources: planes without `contents` must keep drawing exactly that.
+  const BASELINE: Record<string, string> = {
+    "circle/floor/route: straight":
+      "9769f82c90565d73efd413066ba20572fc56549893ff49a226319ffa46699062",
+    "circle/floor/route: auto": "a4b94ed1cf0ad39efc63c90b9011ce83c1807a379ae308f6e478e97c118b5b3a",
+    "circle/wall/route: straight":
+      "ada03c3ddb1ca18c97192ae40ad9af7b8ae2573c4905cf439ad10054a7fb3a47",
+    "circle/wall/route: auto": "4c5a4f683a2976854eacb63dca0238f09cb50d0d3c313a71bbfafb0e6c020cea",
+    "box/floor/route: straight": "7a6899f1bee8152a011921214be1ff6b38b4ba4c25331209bd77cce2de423c44",
+    "box/floor/route: auto": "4e447bad83dbd3631677b8c6fdfeda468bbaedcc603446aa6554caed66c629f6",
+    "box/wall/route: straight": "63401f1ec55c9d203eabe15792743ed7d5a4aeffa69d013ac6167a4f707bb980",
+    "box/wall/route: auto": "d94d5a4115618bbfb90499b9abac4cf76a59b3ea4b870290878dc655d54e9f29",
+  };
+  test.each(Object.keys(BASELINE))("%s: the SVG is the one origin/main drew", async (name) => {
+    const [shape, plane, inPlane] = name.split("/") as [string, string, string];
+    for (const contents of ["", "upright"]) {
+      const text = source({ contents, shape, plane, inPlane }).replaceAll(", route: auto", "");
+      const value = await render(text);
+      const hash = createHash("sha256")
+        .update(value.svg.replace(/input-sha256="[^"]*"/, ""))
+        .digest("hex");
+      expect(hash).toBe(BASELINE[name] as string);
+    }
   });
 
   test("a projected plane differs and the upright one keeps its upright circles", async () => {
@@ -489,10 +493,40 @@ describe("projected planes: PDF and editable PPTX", () => {
       const outline = outlineOf(value, "n:a1");
       const points = [...descendants(node as never)].filter((e) => e.name === "a:pt");
       expect(points.length).toBeGreaterThanOrEqual(outline.length);
-      // The arrowhead of a1 → b1 is a freeform of its own, not a native line end.
+      // The arrowhead of a1 → b1 is a freeform of its own whose points are the SVG's flat head.
       const xml = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
       const index = value.compiled.ir.edges.findIndex((e) => e.from === "n:a1" && e.to === "n:b1");
       expect(index).toBeGreaterThanOrEqual(0);
+      const head = value.svg
+        .match(/<polygon points="([^"]*)" class="sumi-plane-head"/)?.[1]
+        ?.split(" ")
+        .map((p) => p.split(",").map(Number)) as number[][];
+      expect(head).toHaveLength(3);
+      const EMU = 6350;
+      const forEdge = shapes.filter((sp) =>
+        [...descendants(sp)].some(
+          (e) => e.name === "p:cNvPr" && attribute(e, "name") === `e:#${index}`,
+        ),
+      );
+      const absolute = forEdge.map((sp) => {
+        const off = [...descendants(sp)].find((e) => e.name === "a:off");
+        return [...descendants(sp)]
+          .filter((e) => e.name === "a:pt")
+          .map((pt) => [
+            (Number(attribute(off as never, "x")) + Number(attribute(pt, "x"))) / EMU,
+            (Number(attribute(off as never, "y")) + Number(attribute(pt, "y"))) / EMU,
+          ]);
+      });
+      const matches = absolute.filter((pts) =>
+        head.every(([hx, hy]) =>
+          pts.some(
+            ([x, y]) =>
+              Math.abs((x as number) - (hx as number)) < 0.1 &&
+              Math.abs((y as number) - (hy as number)) < 0.1,
+          ),
+        ),
+      );
+      expect(matches.length, connectors).toBe(1);
       expect(xml).not.toMatch(/tailEnd type="triangle"/);
     }
   });

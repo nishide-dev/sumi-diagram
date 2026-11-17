@@ -60,7 +60,7 @@ nodes:
       rows: [The, cat, sat, down]
       cellWidth: 30pt
       cellHeight: 34pt
-      gap: 2pt
+      gap: 5pt
       headerGap: 12pt
       classes:
         h: {tone: orange, variant: tinted, pattern: hatch, label: high}
