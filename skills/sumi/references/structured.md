@@ -1485,7 +1485,8 @@ unknown name is `ref/unknown-cell` ("Unknown block", with the cuboid's names in 
   may cross the block's parent cuboid on the way (it is the block's own volume), and `lint
   --geometry` treats the parent as an end, not an obstacle. `ports: face` of the parent applies to
   edges that name the cuboid itself, not to its blocks. `fromAnchor` / `toAnchor` on a block's end
-  is `layout/part-anchor`. A block is not routed round other nodes: keep the way clear, or the lint
+  of an arrow or line is `layout/part-anchor` (on a `zoom` it is the usual `component/anchor-on-zoom`
+  warning). A block is not routed round other nodes: keep the way clear, or the lint
   reports the node it passes through.
 - **`zoom`** between two blocks draws the **receptive field**, four lines from the corners of the
   source block's face toward the target to the corners of the target block's opposite face (a
