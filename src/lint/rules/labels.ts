@@ -91,6 +91,8 @@ export const emptyLabel = defineRule({
         manifest.render?.renderer === "sumi/flow-arrow" ||
         // A state marker (#519) is a dot or a ring and takes no label.
         manifest.render?.renderer === "sumi/state-marker" ||
+        // A cuboid (#575) is a solid; its sizes are named by dims, and a thin plate holds no text.
+        manifest.render?.renderer === "sumi/cuboid" ||
         (manifest.namespace === "sumi" && manifest.name === "separator") ||
         manifest.render?.renderer === "sumi/waveform" ||
         element.element.icon !== undefined ||

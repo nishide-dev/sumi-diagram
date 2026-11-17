@@ -110,6 +110,51 @@ const bubble: NodeManifest = {
   render: { type: "outline", renderer: "sumi/bubble", params: {} },
 };
 
+const CUBOID_DIM = z.string().min(1).optional();
+
+/**
+ * A cuboid in oblique projection (#575): an outline renderer whose footprint
+ * is the whole silhouette. Its `dims` are drawn as label nodes attached to it
+ * (see `figure/cuboid.ts`), so layout, lint and every output treat them as text.
+ */
+const cuboid: NodeManifest = {
+  version: MANIFEST_VERSION,
+  namespace: BUILTIN_NAMESPACE,
+  since: "0.19.0",
+  kind: "node",
+  name: "cuboid",
+  description:
+    "A cuboid in oblique projection (a CNN layer, a feature map or a volume): a front, top and side face, the top lighter and the side darker than the tone's fill. Depth runs up and right at figure.projection (default 45 degrees, scale 0.5). The label sits on the front face (leave it empty on a thin plate and use dims); edges leave from the front face's left and bottom, the back edge's top and the silhouette's right. Structured layout only.",
+  variants: ["default", "muted", "tinted", "solid"],
+  props: z.strictObject({
+    width: SizeLength.describe(
+      'Width of the front face as a length such as "6mm" (rounded to the nearest 0.5pt); a longer label widens it.',
+    ),
+    height: SizeLength.describe(
+      'Height of the front face as a length such as "30mm" (rounded to the nearest 0.5pt); a taller label raises it.',
+    ),
+    depth: SizeLength.describe(
+      'Depth of the solid as a length such as "30mm" before figure.projection scales it (cabinet projection draws it half as long).',
+    ),
+    dims: z
+      .strictObject({
+        width: CUBOID_DIM.describe(
+          "Text above the silhouette, centred over it, for the front face's width (e.g. the channel count).",
+        ),
+        height: CUBOID_DIM.describe("Text below the front face, for its height (e.g. 224)."),
+        depth: CUBOID_DIM.describe("Text at the lower right of the depth edge."),
+      })
+      .optional()
+      .describe(
+        "Dimension texts, always horizontal. Each is a label node with the ID <id>-dim-width, -dim-height or -dim-depth, attached to the cuboid (2.6mm above, 3.4mm below, at its lower right corner), so geometry lint checks it like any text.",
+      ),
+  }),
+  shape: "rectangle",
+  sizing: "auto",
+  engines: ["structured"],
+  render: { type: "outline", renderer: "sumi/cuboid", params: {} },
+};
+
 const separator: NodeManifest = {
   version: MANIFEST_VERSION,
   namespace: BUILTIN_NAMESPACE,
@@ -1332,6 +1377,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   outline("stack", "Three overlapping rectangles, e.g. for a collection of documents or layers."),
   bracket,
   bubble,
+  cuboid,
   separator,
   blockArrow,
   triangleArrow,

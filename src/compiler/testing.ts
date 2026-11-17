@@ -242,8 +242,20 @@ export function structuredPrimitivesFigure(theme: string): string {
   const tokens: string[] = [];
   const separators: string[] = [];
   const flows: string[] = [];
+  const solids: string[] = [];
   for (const m of STRUCTURED_ONLY_MANIFESTS) {
     const id = `${m.namespace}/${m.name}`;
+    if (id === "sumi/cuboid") {
+      // Cuboids (#575) of every variant, with their dimensions (label nodes attached to them).
+      for (const variant of m.variants) {
+        const name = `${m.name}-${variant}`;
+        solids.push(name);
+        nodes.push(
+          `  - { id: ${name}, component: ${m.name}, variant: ${variant}, props: { width: 6mm, height: 6mm, depth: 6mm, dims: { width: "8", depth: "10" } } }`,
+        );
+      }
+      continue;
+    }
     if (id === "sumi/tokens") {
       // A row of cells (#181): labeled, toned, math and a borderless one,
       // with an edge into a cell.
@@ -379,7 +391,7 @@ export function structuredPrimitivesFigure(theme: string): string {
     `          - row: { gap: 8mm, align: center, items: [${zooms.join(", ")}] }`,
     `          - row: { gap: 8mm, align: center, items: [${tokens.join(", ")}] }`,
     `          - row: { gap: 8mm, align: center, items: [${separators.join(", ")}] }`,
-    `          - row: { gap: 3mm, align: center, items: [${flows.join(", ")}] }`,
+    `          - row: { gap: 3mm, align: center, items: [${[...flows, ...solids].join(", ")}] }`,
     `          - row: { gap: 6mm, align: start, items: [${legends.join(", ")}] }`,
     "nodes:",
     ...nodes,

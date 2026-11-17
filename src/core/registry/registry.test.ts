@@ -51,6 +51,7 @@ describe("built-in components", () => {
       ["sumi/stack", "node"],
       ["sumi/bracket", "node"],
       ["sumi/bubble", "node"],
+      ["sumi/cuboid", "node"],
       ["sumi/separator", "node"],
       ["sumi/block-arrow", "node"],
       ["sumi/triangle-arrow", "node"],
@@ -308,7 +309,7 @@ describe("resolve", () => {
         code: "component/unknown",
         severity: "error",
         message: 'Unknown node component "rectangel".',
-        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, separator, block-arrow, triangle-arrow, chevron, initial, final, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
+        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, cuboid, separator, block-arrow, triangle-arrow, chevron, initial, final, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
       },
     ]);
     expect(registry.resolve("arow", "edge").diagnostics[0]?.hint).toBe('Did you mean "arrow"?');
@@ -331,7 +332,7 @@ describe("resolve", () => {
         severity: "error",
         message:
           'Component "arrow" (sumi/arrow) is an edge component, but a node component is required here.',
-        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, separator, block-arrow, triangle-arrow, chevron, initial, final, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
+        hint: "Known node components: box, square, circle, ellipse, diamond, hexagon, parallelogram, cylinder, document, trapezoid, bowtie, stack, bracket, bubble, cuboid, separator, block-arrow, triangle-arrow, chevron, initial, final, label, operator, junction, image, html, waveform, legend, tokens, matrix.",
       },
     ]);
     expect(codes(registry.resolve("container", "node"))).toEqual(["component/wrong-kind"]);

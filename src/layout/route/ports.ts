@@ -1411,6 +1411,19 @@ function resolveEndsWith(
   // A `straight` end (#179) takes part, so the other edges between the pair
   // keep their parallel positions; it is put in line just below.
   const sharing = new Map<string, Choice[]>();
+  const sharingKeys = new Map<Choice, ElementKey>();
+  // An outline may meet an unanchored edge off the middle of a side (a cuboid's front face, #575).
+  const lonelyOffset = (choice: Choice): number => {
+    const key = sharingKeys.get(choice);
+    const render = key === undefined ? undefined : element(key).node?.render;
+    if (key === undefined || render === undefined) return 0.5;
+    const renderer = getOutlineRenderer(render.renderer);
+    return (
+      renderer?.draw(element(key).rect, renderer.params.parse(render.params ?? {})).portOffsets?.[
+        choice.side
+      ] ?? 0.5
+    );
+  };
   for (const { edge, from, to } of choices) {
     const pair = [edge.from, edge.to].sort().join(" ");
     for (const [key, choice] of [
@@ -1421,13 +1434,15 @@ function resolveEndsWith(
       const id = `${pair}|${key}|${choice.side}`;
       const list = sharing.get(id) ?? [];
       list.push(choice);
+      sharingKeys.set(choice, key);
       sharing.set(id, list);
     }
   }
   /** Ends shared out with other ends of the same side and pair (multi-edges). */
   const sharedOut = new Set<Choice>();
   for (const list of sharing.values()) {
-    for (const [k, choice] of list.entries()) choice.offset = (k + 1) / (list.length + 1);
+    for (const [k, choice] of list.entries())
+      choice.offset = list.length === 1 ? lonelyOffset(choice) : (k + 1) / (list.length + 1);
     if (list.length > 1) for (const choice of list) sharedOut.add(choice);
   }
 

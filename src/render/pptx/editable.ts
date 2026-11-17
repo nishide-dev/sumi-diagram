@@ -955,7 +955,17 @@ export function svgToEditablePptx(
       // DrawingML has one line style per shape. Keep the waveform's mitered
       // frame separate from its round-capped/round-joined signal paths.
       const waveform = element.kind === "node" && element.render?.renderer === "sumi/waveform";
-      const bodyPrimitives = waveform ? primitives.slice(0, 1) : primitives;
+      // A cuboid (#575) is its three faces and two inner edges, each its own freeform (one
+      // DrawingML shape has one fill), under the silhouette, which carries the text and ports.
+      const solid =
+        element.kind === "node" &&
+        element.render?.renderer === "sumi/cuboid" &&
+        primitives.length === 6;
+      const bodyPrimitives = solid
+        ? primitives.slice(5)
+        : waveform
+          ? primitives.slice(0, 1)
+          : primitives;
       const signalPrimitives = waveform ? primitives.slice(1) : [];
       const label = geo.labels[0];
       const texts = childElements(group).filter((e) => e.name === "text");
@@ -1079,7 +1089,24 @@ export function svgToEditablePptx(
           : primitives.length
             ? geometry(bodyPrimitives.map(shapePath), box, emu, connectionPoints)
             : '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>';
-      const first = primitives[0];
+      const first = solid ? primitives[5] : primitives[0];
+      const solidXml = solid
+        ? primitives
+            .slice(0, 5)
+            .map((primitive, index) =>
+              shape(
+                next++,
+                `${element.key} ${["top", "side", "front", "edge", "edge"][index]}`,
+                box,
+                geometry([shapePath(primitive)], box, emu),
+                index < 3
+                  ? paint(property(primitive, "fill") ?? "none", element.style.opacity)
+                  : "<a:noFill/>",
+                index < 3 ? "<a:ln><a:noFill/></a:ln>" : line(primitive, element.style),
+              ),
+            )
+            .join("")
+        : "";
       const fill = first
         ? paint(property(first, "fill") ?? element.style.fill, element.style.opacity)
         : "<a:noFill/>";
@@ -1187,7 +1214,8 @@ export function svgToEditablePptx(
       } else body += captionXml;
       objectXml.set(
         element.key,
-        body +
+        solidXml +
+          body +
           (sublabel !== undefined && before !== undefined && !joined && !below
             ? ownBox(sublabel)
             : "") +
