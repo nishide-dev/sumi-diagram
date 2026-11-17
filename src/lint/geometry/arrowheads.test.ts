@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { getFontSet } from "../../core/theme/fonts";
-import { arrowheadStraightRun } from "./arrowheads";
+import { arrowheadStraightRun, paintedHeadLength } from "./arrowheads";
 import { createGeometryContext } from "./context";
 import { arrowheadOnBend } from "./rules";
 import { compile, inspection, lintSpec } from "./testing";
@@ -193,5 +193,25 @@ describe(code, () => {
       }
       expect(arrowheadOnBend.run(context, undefined)).toEqual([]);
     }
+  });
+});
+
+describe("arrowheads flat on a projected plane (#577)", () => {
+  const route = [
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+  ];
+  // A head at the target tip (100, 0), pointing right, `length` long.
+  const head = (length: number) => [
+    { x: 100, y: 0 },
+    { x: 100 - length, y: 6 },
+    { x: 100 - length, y: -6 },
+  ];
+  test("the painted head length is used: shorter, longer, and the nominal one without heads", () => {
+    expect(paintedHeadLength([head(7)], route, false, 12)).toBeCloseTo(7, 6);
+    expect(paintedHeadLength([head(15)], route, false, 12)).toBeCloseTo(15, 6);
+    expect(paintedHeadLength(undefined, route, false, 12)).toBe(12);
+    // The head of the other end is not this end's.
+    expect(paintedHeadLength([head(7)], route, true, 12)).toBe(12);
   });
 });

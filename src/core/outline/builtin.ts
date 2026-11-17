@@ -372,6 +372,7 @@ const polygonParams = z.strictObject({
 const polygonOutline: OutlineRenderer<z.output<typeof polygonParams>> = {
   id: "sumi/polygon",
   version: 1,
+  internal: true,
   params: polygonParams,
   footprint(label, { points }) {
     // The label fits the largest centred box of the footprint's aspect: the footprint is that much bigger.

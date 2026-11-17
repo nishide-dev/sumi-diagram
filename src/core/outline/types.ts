@@ -86,6 +86,8 @@ export interface OutlineDrawing {
 export interface OutlineRenderer<P extends OutlineParams = OutlineParams> {
   readonly id: `${string}/${string}`;
   readonly version: 1;
+  /** Set on a renderer only the layout stage drives (its params are not meant to be written): no component manifest may select it. */
+  readonly internal?: true;
   /**
    * Set when the drawing never holds a label (a bracket, #281; a waveform,
    * whose label is a caption below its frame, #491): its footprint does not

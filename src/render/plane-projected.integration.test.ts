@@ -254,6 +254,15 @@ describe("projected planes: edges meet the projected outlines", () => {
     expect(upright.svg).not.toContain("sumi-plane-head");
   });
 
+  test("the arrowhead lint measures the painted head, not the nominal length", async () => {
+    const text = source({ shape: "box" });
+    const value = await render(text);
+    const heads = value.inspection.elements.flatMap((e) => e.planeHeads ?? []);
+    expect(heads.length).toBeGreaterThan(0);
+    const found = lintGeometry(value, { source: text, file: "heads.sumi.yaml" });
+    expect(found.map((d) => d.code)).not.toContain("geometry/arrowhead-on-bend");
+  });
+
   test("lint --geometry has no error or warning on the projected figure", async () => {
     const text = source({ shape: "box" });
     const value = await render(text);

@@ -28,7 +28,7 @@ import { printedSize } from "../../render/size";
 import { strokePattern } from "../../render/stroke";
 import { arrowheadInset } from "../../render/structured";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
-import { arrowheadStraightRun } from "./arrowheads";
+import { arrowheadStraightRun, paintedHeadLength } from "./arrowheads";
 import { colorOnPanel, muddyColor, translucentOverColor } from "./color-composition";
 import { colorHarmony } from "./color-harmony";
 import { themeColorUse } from "./color-use";
@@ -1256,7 +1256,7 @@ export const arrowheadOnBend = defineGeometryRule({
       if (edge.ir.route === "curve") continue;
       const width = edge.ir.style.strokeWidth.units;
       const structured = isStructured(context);
-      const length = structured ? edgeArrowheadLength(edge.ir.style) : 4 + 3 * width;
+      const nominal = structured ? edgeArrowheadLength(edge.ir.style) : 4 + 3 * width;
       for (const source of [true, false]) {
         if ((source ? edge.ir.sourceArrowhead : edge.ir.targetArrowhead) === undefined) continue;
         const route = source ? edge.route[0] : edge.route.at(-1);
@@ -1267,6 +1267,8 @@ export const arrowheadOnBend = defineGeometryRule({
         // An open chevron (#386) is drawn in that triangle's marker box.
         const head = source ? edge.ir.sourceArrowhead : edge.ir.targetArrowhead;
         if (!structured && head !== "triangle" && head !== "open") continue;
+        // A head drawn flat on a projected plane (#577) is as long as it is painted, not the nominal length.
+        const length = paintedHeadLength(edge.planeHeads, route, source, nominal);
         const run =
           arrowheadStraightRun(
             route,
@@ -1310,11 +1312,12 @@ export const arrowheadCramped = defineGeometryRule({
     for (const edge of context.elements) {
       if (!isDrawnEdge(edge) || edge.ir.kind !== "edge" || edge.route === undefined) continue;
       if (edge.ir.route === "curve") continue;
-      const length = edgeArrowheadLength(edge.ir.style);
+      const nominal = edgeArrowheadLength(edge.ir.style);
       for (const source of [true, false]) {
         if ((source ? edge.ir.sourceArrowhead : edge.ir.targetArrowhead) === undefined) continue;
         const route = source ? edge.route[0] : edge.route.at(-1);
         if (route === undefined) continue;
+        const length = paintedHeadLength(edge.planeHeads, route, source, nominal);
         const run = arrowheadStraightRun(route, edge.drawn ?? [], source);
         const total = route
           .slice(1)
@@ -1327,8 +1330,12 @@ export const arrowheadCramped = defineGeometryRule({
         // after every head, and each end names the whole edge.
         const straight = run >= total - 0.002;
         const heads =
-          (edge.ir.sourceArrowhead === undefined ? 0 : length) +
-          (edge.ir.targetArrowhead === undefined ? 0 : length);
+          (edge.ir.sourceArrowhead === undefined
+            ? 0
+            : paintedHeadLength(edge.planeHeads, edge.route[0] ?? [], true, nominal)) +
+          (edge.ir.targetArrowhead === undefined
+            ? 0
+            : paintedHeadLength(edge.planeHeads, edge.route.at(-1) ?? [], false, nominal));
         const available = straight ? total - heads : run - length;
         // Overlap already has a warning.
         if (!straight && run + GEOMETRY_TOLERANCE_UNITS < length) continue;
@@ -1337,7 +1344,7 @@ export const arrowheadCramped = defineGeometryRule({
         if (stem >= ARROWHEAD_MIN_STEM_UNITS - 0.002) continue;
         findings.push({
           message: straight
-            ? `${capitalize(edge.name)} is a straight line with only ${formatPt(unitsToPt(stem))} visible beyond its arrowhead${heads > length ? "s" : ""} (less than 1pt), so ${heads > length ? "the heads crowd" : "the head crowds"} the line.`
+            ? `${capitalize(edge.name)} is a straight line with only ${formatPt(unitsToPt(stem))} visible beyond its arrowhead${heads > length + 0.01 ? "s" : ""} (less than 1pt), so ${heads > length + 0.01 ? "the heads crowd" : "the head crowds"} the line.`
             : `The ${source ? "source" : "target"} arrowhead of ${edge.name} has only ${formatPt(unitsToPt(stem))} of visible straight stem before a bend (less than 1pt).`,
           path: edge.docPath,
           subject: edge.subject,

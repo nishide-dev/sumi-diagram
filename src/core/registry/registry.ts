@@ -99,7 +99,7 @@ export class Registry {
     }
     if (value.kind === "node" && value.render !== undefined) {
       const renderer = getOutlineRenderer(value.render.renderer);
-      if (renderer === undefined) {
+      if (renderer === undefined || renderer.internal === true) {
         return {
           ok: false,
           diagnostics: [

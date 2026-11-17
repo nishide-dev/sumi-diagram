@@ -55,6 +55,8 @@ export interface GeometryElement {
    * `route` is the logical path.
    */
   drawn?: Point[][];
+  /** Edge: the arrowheads drawn flat on a projected tilted plane (#577), as the points painted. */
+  planeHeads?: Point[][];
 }
 
 /** A set enclosure (#407) as the geometry rules see it: its IR entry, drawn shape and re-measured label. */
@@ -209,6 +211,7 @@ export function createGeometryContext(
           ? [iconAsLabel(element, geometry.bbox)]
           : []),
       ],
+      ...(geometry.planeHeads !== undefined && { planeHeads: geometry.planeHeads }),
       ...(geometry.path !== undefined && {
         route:
           element.kind === "edge" &&

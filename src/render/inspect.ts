@@ -110,6 +110,8 @@ export interface ElementGeometry {
    * its shape and `bbox`.
    */
   outline?: Point[];
+  /** Edge: the points of each arrowhead drawn flat on a projected tilted plane (#577, `.sumi-plane-head`). */
+  planeHeads?: Point[][];
   labels: LabelGeometry[];
   /** Edge: `path.connection` as absolute M/L/C segments. */
   path?: PathSegment[];
@@ -593,6 +595,21 @@ export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
         });
         continue;
       }
+      const heads = children
+        .filter((c) => classList(c).includes("sumi-plane-head"))
+        .map((c) => {
+          const nums = [
+            ...(attribute(c, "points") ?? attribute(c, "d") ?? "").matchAll(
+              /-?\d+(?:\.\d+)?(?:e-?\d+)?/g,
+            ),
+          ].map((m) => Number(m[0]));
+          const pts: Point[] = [];
+          for (let i = 0; i + 1 < nums.length; i += 2)
+            pts.push({ x: nums[i] as number, y: nums[i + 1] as number });
+          return pts;
+        })
+        .filter((pts) => pts.length > 0);
+      if (heads.length > 0) geometry.planeHeads = heads;
       const connection = paths[0] as XmlElement;
       if (attribute(connection, "transform") !== undefined) {
         problems.push("the connection path has a transform");
