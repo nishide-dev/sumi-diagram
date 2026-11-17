@@ -12,8 +12,9 @@
 # Change: the node set and tones (a plane's nodes share one tone); the in-plane edges (leave out
 #   `route: straight` to route them orthogonally in plane coordinates); the number of planes (add a
 #   group to the stack and the correspondences it needs); the projection (`figure.projection`: angle
-#   30 flattens the planes, `depthScale` their depth); `plane: wall` for vertical sheets.
-#   Keep twins at the same (x, y) in every plane, or a correspondence line passes through other nodes.
+#   30 flattens the planes, `depthScale` their depth). Keep twins at the same (x, y) in every plane
+#   so the lines are parallel, then run `lint --geometry`: a line must still clear the nodes it
+#   passes (floors stacked one above the other do here; `plane: wall` does not).
 # Lint: `lint --geometry` 0 errors, 0 warnings; the two `color-on-panel` infos are expected (tinted nodes
 #   on the plane's shaded sumi fill, the look the sumi theme is made for).
 version: 1

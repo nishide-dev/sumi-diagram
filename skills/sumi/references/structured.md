@@ -1472,10 +1472,19 @@ time snapshots, graph matching). The `stacked-planes` base layout is the startin
   a straight line between the mapped nodes, ending on their outlines (`route: curve` is
   drawn on the page, not mapped). An edge without
   `route` is routed orthogonally in plane coordinates and then mapped, so its legs
-  run along the parallelogram's sides; its labels follow.
+  run along the parallelogram's sides; its labels follow. The router sees each node as the
+  flat area an upright node covers (larger than its flat box), so routes keep clear of the
+  nodes on the page; flat spacing between parallel routes is compressed by the projection,
+  so leave room (`geometry/edge-near-edge`, and a route that comes back through its own end
+  is `geometry/edge-through-node`).
 - **Correspondences.** Join nodes of two planes with `route: straight` edges (a `line` in
-  the `dotted` variant, one per twin). Put twins at the same `place` coordinates in each
-  plane so the lines are parallel and clear of other nodes. The line passes **behind the
+  the `dotted` variant, one per twin). Twins at the same `place` coordinates give parallel
+  lines, but parallel is not clear: a line runs from the lower node straight to the upper
+  one on the page and crosses whatever lies between. On stacked **floors** (one above the
+  other) the twins' lines go up the page between the planes and stay clear when the rows
+  line up; on **walls** a line along the depth axis crosses the nodes of the same plane
+  (`geometry/edge-through-node`), so check the projected positions and run `lint --geometry`
+  before relying on a layout. The line passes **behind the
   upper plane** (its fill hides it) and shows **faintly over** the plane, drawn again in a
   lighter shade where it crosses the frame, so the link stays readable. Edges between planes
   without `route: straight` are routed on the page by the router, not recommended.

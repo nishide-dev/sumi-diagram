@@ -382,6 +382,69 @@ nodes:
   });
 });
 
+describe("tilted planes: congested routed edges", () => {
+  const cases: [string, string][] = [
+    [
+      "a crossing pair",
+      "  - { from: b2, to: d2, component: line }\n  - { from: a2, to: e2, component: line }\n",
+    ],
+    [
+      "a column of links",
+      "  - { from: d1, to: a1, component: line }\n  - { from: e1, to: b1, component: line }\n  - { from: f1, to: c1, component: line }\n",
+    ],
+    ["a link beside the grid", "  - { from: c2, to: d2, component: line }\n"],
+  ];
+  for (const [name, extra] of cases) {
+    test(`${name}: routes keep clear of upright nodes, never re-enter their own ends and are not drawn on top of one another`, async () => {
+      const value = await render(source({ inPlane: "", extra }));
+      const warnings = lintGeometry(value).filter((d) => d.severity !== "info");
+      expect(warnings.map((d) => `${d.code}: ${d.message}`)).toEqual([]);
+      const regions = new Map(value.layout.nodes.map((n) => [n.key, n.rect] as const));
+      for (const edge of value.layout.edges) {
+        const plane = value.layout.planes?.find(
+          (pl) =>
+            pl.flat.some((n) => n.key === edge.from) && pl.flat.some((n) => n.key === edge.to),
+        );
+        const points = edge.route?.points;
+        if (!plane || !points || edge.route?.net === undefined) continue;
+        for (const [i, p] of points.slice(1).entries()) {
+          const q = points[i] as Point;
+          for (const [key, rect] of regions) {
+            if (key === edge.from && i === 0) continue;
+            if (key === edge.to && i === points.length - 2) continue;
+            const c = center(rect);
+            // Distance from the node's center to the segment, against the circle's radius.
+            const dx = p.x - q.x;
+            const dy = p.y - q.y;
+            const len2 = dx * dx + dy * dy;
+            const t =
+              len2 === 0
+                ? 0
+                : Math.max(0, Math.min(1, ((c.x - q.x) * dx + (c.y - q.y) * dy) / len2));
+            const d = Math.hypot(q.x + t * dx - c.x, q.y + t * dy - c.y);
+            expect(d, `${edge.key} segment ${i} vs ${key}`).toBeGreaterThanOrEqual(
+              rect.width / 2 - 0.05,
+            );
+          }
+        }
+      }
+    });
+  }
+});
+
+describe("tilted planes: routes the projection squeezes together", () => {
+  test("two long parallel routes that the projection pulls onto one line are reported by the geometry lint", async () => {
+    const value = await render(
+      source({
+        inPlane: "",
+        extra:
+          "  - { from: a2, to: f2, component: line }\n  - { from: c2, to: d2, component: line }\n",
+      }),
+    );
+    expect(lintGeometry(value).map((d) => d.code)).toContain("geometry/edge-near-edge");
+  });
+});
+
 describe("tilted planes: outputs", () => {
   test("PDF and editable PPTX draw the parallelogram frames and the mapped edges", async () => {
     const value = await render(source({ inPlane: "" }));
@@ -405,14 +468,38 @@ describe("tilted planes: outputs", () => {
     expect([...descendants(frame)].some((e) => e.name === "a:prstGeom")).toBe(false);
     const xs = points.map((p) => Number(attribute(p, "x")));
     expect(new Set(xs).size).toBe(4);
-    // A routed edge inside the plane is a freeform with a turn: more than two points.
-    const edge = value.layout.edges.find((e) => e.from === "n:a1" && e.to === "n:b1");
-    const route = edge?.route?.points ?? [];
-    const edgeShape = named(`e:#${value.compiled.ir.edges.findIndex((e) => e.key === edge?.key)}`);
-    expect(edgeShape).toBeDefined();
-    expect([...descendants(edgeShape as never)].filter((e) => e.name === "a:pt").length).toBe(
-      route.length,
+    // A bent in-plane route: its freeform holds exactly the mapped points of the layout.
+    const bent = await render(
+      source({ inPlane: "", extra: "  - { from: b2, to: d2, component: line }\n" }),
     );
+    const bentPptx = svgToEditablePptx(bent.svg, bent.compiled.ir, { connectors: "freeform" });
+    if (!bentPptx.ok) throw new Error(JSON.stringify(bentPptx.diagnostics));
+    const bentSlide = parseXml(
+      new TextDecoder().decode(readPptx(bentPptx.value).get("ppt/slides/slide1.xml")),
+    );
+    if (!bentSlide.ok) throw new Error(bentSlide.message);
+    const edge = bent.layout.edges.find((e) => e.from === "n:b2" && e.to === "n:d2");
+    const route = edge?.route?.points ?? [];
+    expect(route.length).toBeGreaterThan(2);
+    const index = bent.compiled.ir.edges.findIndex((e) => e.key === edge?.key);
+    const edgeShape = [...descendants(bentSlide.root)]
+      .filter((e) => e.name === "p:sp")
+      .find((sp) =>
+        [...descendants(sp)].some(
+          (e) => e.name === "p:cNvPr" && attribute(e, "name") === `e:#${index}`,
+        ),
+      );
+    if (!edgeShape) throw new Error("no edge shape");
+    const off = [...descendants(edgeShape)].find((e) => e.name === "a:off");
+    const pts = [...descendants(edgeShape)].filter((e) => e.name === "a:pt");
+    expect(pts).toHaveLength(route.length);
+    const EMU = 6350;
+    for (const [i, pt] of pts.entries()) {
+      const x = Number(attribute(off as never, "x")) + Number(attribute(pt, "x"));
+      const y = Number(attribute(off as never, "y")) + Number(attribute(pt, "y"));
+      expect(Math.abs(x - (route[i]?.x ?? 0) * EMU)).toBeLessThan(40);
+      expect(Math.abs(y - (route[i]?.y ?? 0) * EMU)).toBeLessThan(40);
+    }
     // Glued connectors render too.
     const glued = svgToEditablePptx(value.svg, value.compiled.ir, { connectors: "glued" });
     expect(glued.ok).toBe(true);

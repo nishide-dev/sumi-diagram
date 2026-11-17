@@ -26,7 +26,7 @@ import type {
   TextLayout,
 } from "../ir";
 import { roundUnits } from "../ir";
-import { mapFlatPoint, type PlaneFrame, pointsBounds } from "../plane";
+import { mapFlatPoint, type PlaneFrame, planeBasis, pointsBounds } from "../plane";
 import { deepFreeze } from "../structured/engine";
 import { isDirectEdge } from "./diagonal";
 import { boundaryEntry, isJunction, nodeRegion } from "./ports";
@@ -99,17 +99,58 @@ export function routeWithPlanes(
     const group = ir.groups.find((g) => g.key === plane.key) as GroupIR;
     const members = new Set(plane.flat.map((n) => n.key));
     // The flat frame, moved to the margin so the router sees an ordinary small figure.
-    const dx = margin - plane.frame.x;
-    const dy = margin - plane.frame.y;
-    const frame = translate(plane.frame, dx, dy);
-    const flatRects = new Map(plane.flat.map((n) => [n.key, translate(n.rect, dx, dy)]));
+    // An upright node on the page covers a larger, sheared area of the flat frame: the router
+    // sees each node as the box around that area, so mapped routes keep clear of the real node.
+    const basis = planeBasis(frameOf(plane).projection);
+    const det = basis.u.x * basis.v.y - basis.u.y * basis.v.x;
+    const inv = [
+      [basis.v.y / det, -basis.v.x / det],
+      [-basis.u.y / det, basis.u.x / det],
+    ] as const;
+    const inflate = (r: Rect): Rect => {
+      const hw = r.width / 2;
+      const hh = r.height / 2;
+      const hx = Math.abs(inv[0][0]) * hw + Math.abs(inv[0][1]) * hh;
+      const hy = Math.abs(inv[1][0]) * hw + Math.abs(inv[1][1]) * hh;
+      return { x: r.x + hw - hx, y: r.y + hh - hy, width: 2 * hx, height: 2 * hy };
+    };
+    const inflated = plane.flat.map((n) => ({ key: n.key, rect: inflate(n.rect) }));
+    const grow = Math.max(
+      0,
+      ...inflated.flatMap(({ rect }) => [
+        plane.frame.x - rect.x,
+        plane.frame.y - rect.y,
+        rect.x + rect.width - (plane.frame.x + plane.frame.width),
+        rect.y + rect.height - (plane.frame.y + plane.frame.height),
+      ]),
+    );
+    const dx = margin + grow - plane.frame.x;
+    const dy = margin + grow - plane.frame.y;
+    const frame = translate(
+      {
+        x: plane.frame.x - grow,
+        y: plane.frame.y - grow,
+        width: plane.frame.width + 2 * grow,
+        height: plane.frame.height + 2 * grow,
+      },
+      dx,
+      dy,
+    );
+    const flatRects = new Map(inflated.map((n) => [n.key, translate(n.rect, dx, dy)]));
+    // Positions to map back are the node centers' translation only: the flat frame moved by (dx, dy).
+    const shift = { dx, dy };
     const pageNodes = new Map(layout.nodes.map((n) => [n.key, n]));
     const nodes: NodeLayout[] = plane.flat.map(({ key }) => {
       const node = pageNodes.get(key) as NodeLayout;
       const rect = flatRects.get(key) as Rect;
       // Labels follow their node: the page position moved to the flat one.
-      const sx = rect.x + rect.width / 2 - (node.rect.x + node.rect.width / 2);
-      const sy = rect.y + rect.height / 2 - (node.rect.y + node.rect.height / 2);
+      const flatRect = translate(
+        (plane.flat.find((f) => f.key === key) as { rect: Rect }).rect,
+        dx,
+        dy,
+      );
+      const sx = flatRect.x + flatRect.width / 2 - (node.rect.x + node.rect.width / 2);
+      const sy = flatRect.y + flatRect.height / 2 - (node.rect.y + node.rect.height / 2);
       return {
         ...node,
         rect,
@@ -122,7 +163,16 @@ export function routeWithPlanes(
       key: plane.key,
       kind: "group",
       rect: frame,
-      content: translate(plane.content, dx, dy),
+      content: translate(
+        {
+          x: plane.content.x - grow,
+          y: plane.content.y - grow,
+          width: plane.content.width + 2 * grow,
+          height: plane.content.height + 2 * grow,
+        },
+        dx,
+        dy,
+      ),
     };
     const flatIR: FigureIR = {
       ...ir,
@@ -146,7 +196,7 @@ export function routeWithPlanes(
     diagnostics.push(...result.diagnostics);
     const frameMap = frameOf(plane);
     const map = (p: Point): Point => {
-      const m = mapFlatPoint(frameMap, { x: p.x - dx, y: p.y - dy });
+      const m = mapFlatPoint(frameMap, { x: p.x - shift.dx, y: p.y - shift.dy });
       return { x: roundUnits(m.x), y: roundUnits(m.y) };
     };
     const offset = nets.length;
@@ -226,11 +276,14 @@ function onOutlines(
     const b = out[next];
     if (node === undefined || rect === undefined || a === undefined || b === undefined) return;
     if (isJunction(node)) return;
-    const t = boundaryEntry(b, a, nodeRegion(node, rect));
-    if (t === undefined || t >= 1) return;
+    // The flat route ends on the flat node's (inflated) box: on the page that is inside or
+    // outside the upright node, so the end leg is cut or extended to the node's outline.
+    const far = { x: b.x + (a.x - b.x) * 8, y: b.y + (a.y - b.y) * 8 };
+    const t = boundaryEntry(b, far, nodeRegion(node, rect));
+    if (t === undefined || t <= 0) return;
     out[at] = {
-      x: roundUnits(b.x + (a.x - b.x) * t),
-      y: roundUnits(b.y + (a.y - b.y) * t),
+      x: roundUnits(b.x + (far.x - b.x) * t),
+      y: roundUnits(b.y + (far.y - b.y) * t),
     };
   };
   if (out.length < 2) return out;

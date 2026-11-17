@@ -45,7 +45,7 @@ import {
 import type { GeometryContext, GeometryElement } from "./context";
 import { deadSpace } from "./dead-space";
 import { sparseFigure, textHeavy } from "./density";
-import { obstaclesCrossedByRoute, type RouteObstacle } from "./edges";
+import { obstaclesCrossedByRoute, type RouteObstacle, segmentCrossesRegion } from "./edges";
 import { groupEmptySpace } from "./empty-space";
 import { microJogLengths } from "./jogs";
 import { inkLines, unionOf } from "./measure";
@@ -1045,6 +1045,41 @@ export const edgeThroughNode = defineGeometryRule({
               : "An edge should go around the nodes it does not connect. In a structured figure, change its anchors (fromAnchor / toAnchor) or leave a free channel between the nodes; in an auto figure, change layout.direction or the grouping.",
           related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
         });
+      }
+      // A route that leaves its own source (or reaches its own target) and then comes back
+      // through it: only the leg that ends on the node may touch it.
+      if (edge.ir.from !== edge.ir.to) {
+        for (const [key, last] of [
+          [edge.ir.from, false],
+          [edge.ir.to, true],
+        ] as const) {
+          const own = obstacles.find((o) => o.key === key);
+          if (own === undefined) continue;
+          // Only for nodes of a tilted plane (#577), where the mapped router can fold back.
+          const owner = context.get(key)?.ir;
+          const parentKey = owner?.kind === "node" ? owner.parent : undefined;
+          const parent = parentKey === undefined ? undefined : context.get(parentKey)?.ir;
+          if (parent?.kind !== "group" || parent.plane === undefined) continue;
+          const reenters = edge.route.some((line) =>
+            line.some((p, i) => {
+              if (i === 0) return false;
+              const endLeg = last ? i === line.length - 1 : i === 1;
+              return (
+                !endLeg &&
+                segmentCrossesRegion(line[i - 1] as Point, p, own.region, GEOMETRY_TOLERANCE_UNITS)
+              );
+            }),
+          );
+          if (!reenters) continue;
+          const node = context.get(key) as GeometryElement;
+          findings.push({
+            message: `${capitalize(edge.name)} runs back through the shape of its own end ${node.name} after leaving it.`,
+            path: edge.docPath,
+            subject: edge.subject,
+            hint: "Give the ends other anchors (fromAnchor / toAnchor) or leave a free channel beside the node; in a tilted plane, space the nodes further apart along the plane's depth.",
+            related: [{ path: node.docPath, message: `${capitalize(node.name)} is defined here.` }],
+          });
+        }
       }
       // A straight line (#369) has no avoidance, so a line that only clips or
       // brushes a neighbour (a cell next to the end, a third circle) is a
