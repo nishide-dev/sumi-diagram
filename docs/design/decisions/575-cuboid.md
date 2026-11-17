@@ -17,4 +17,4 @@
   - 近接した cuboid を重ねる（モックアップの「ブロック間 0.5·dx + 1.2mm」）ことはできない。構造化レイアウトは外接形で隙間を取るので、隣は dx 以上離れる。
   - 上のポートと幅の dims は同じ上辺の近くに来る。スキップ接続は `north:<0.8 など>` で右寄りに出す。
   - 格子・ハイライト・受容野の線（段階 B）と傾けた平面（段階 C）は未実装。`cuboid` の params と `solid`・`shade` はその拡張点になる。
-- **互換性**: 既存の図・作例・再現図・ギャラリーの出力は変わらない（`gallery:check`、PPTX の既存 golden が一致）。追加は `sumi/cuboid` のギャラリー（8 テーマ分の SVG と PPTX golden）と、組み込み部品の一覧に `cuboid` が入ったことによる診断の hint の文面（`tests/fixtures/lint-output/no-cascade.*`）のみ。凡例（`legend`）の見本ノードは、`depth` を持つ部品（cuboid）のとき小さな立方体にする。
+- **互換性**: 既存の図・作例・再現図・ギャラリーの出力は変わらない（`gallery:check`、PPTX の既存 golden が一致）。追加は `sumi/cuboid` のギャラリー（8 テーマ分の SVG と PPTX golden）と、組み込み部品の一覧に `cuboid` が入ったことによる診断の hint の文面（`tests/fixtures/lint-output/no-cascade.*`）のみ。凡例（`legend`）の見本ノードは、`depth` を持つ部品（cuboid）のとき小さな立方体にする。ポートを 3D の中心へ向けた変更（#580）では、`sumi/cuboid` のギャラリーと PPTX / PDF の golden、`cnn-volumes` のレイアウトの画像だけが変わり、ほかの図の出力は変わらない。
