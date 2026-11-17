@@ -1,0 +1,195 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 368" width="180mm" height="368mm">
+<rect width="100%" height="100%" fill="#f8f8ee"/>
+<polygon points="14,86 114,86 133.799,66.201 33.799,66.201" fill="#efeddd" stroke="#4e566b" stroke-width="0.353" stroke-linejoin="round"/>
+<text x="14" y="90.4" font-size="3.175" text-anchor="start" dominant-baseline="central" fill="#30364f" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif" font-weight="bold">(b) Graph B</text>
+<path d="M41.135 80.062 L74.664 72.139" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M65.025 79.292 L50.774 72.909" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M103.99 78.01 L107.809 74.191" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M51.149 71.151 L74.549 71.151" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M73.25 81.05 L96.65 81.05" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="14,46 114,46 133.799,26.201 33.799,26.201" fill="#efeddd" stroke="#4e566b" stroke-width="0.353" stroke-linejoin="round"/>
+<text x="14" y="50.4" font-size="3.175" text-anchor="start" dominant-baseline="central" fill="#30364f" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif" font-weight="bold">(a) Graph A</text>
+<path d="M41.25 41.05 L64.65 41.05" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M73.25 41.05 L96.65 41.05" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M39.99 38.01 L43.809 34.191" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M71.99 38.01 L75.809 34.191" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M83.149 31.151 L106.549 31.151" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M36.95 76.75 L36.95 45.35" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M68.95 76.75 L68.95 45.35" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M100.95 76.75 L100.95 45.35" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M46.849 66.851 L46.849 35.451" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M78.849 66.851 L78.849 35.451" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M110.849 66.851 L110.849 35.451" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<circle cx="46.849" cy="71.151" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="46.849" y="71.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">D</text>
+<circle cx="78.849" cy="71.151" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="78.849" y="71.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">E</text>
+<circle cx="110.849" cy="71.151" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="110.849" y="71.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">F</text>
+<circle cx="36.95" cy="81.05" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="36.95" y="81.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">A</text>
+<circle cx="68.95" cy="81.05" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="68.95" y="81.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">B</text>
+<circle cx="100.95" cy="81.05" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="100.95" y="81.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">C</text>
+<circle cx="46.849" cy="31.151" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="46.849" y="31.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">D</text>
+<circle cx="78.849" cy="31.151" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="78.849" y="31.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">E</text>
+<circle cx="110.849" cy="31.151" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="110.849" y="31.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">F</text>
+<circle cx="36.95" cy="41.05" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="36.95" y="41.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">A</text>
+<circle cx="68.95" cy="41.05" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="68.95" y="41.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">B</text>
+<circle cx="100.95" cy="41.05" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="100.95" y="41.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">C</text>
+<text x="4" y="5" font-size="2.469" text-anchor="start" dominant-baseline="central" fill="#30364f" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif" font-weight="bold">V1 dotted lines drawn over the upper plane</text>
+<polygon points="14,178 114,178 133.799,158.201 33.799,158.201" fill="#efeddd" stroke="#4e566b" stroke-width="0.353" stroke-linejoin="round"/>
+<text x="14" y="182.4" font-size="3.175" text-anchor="start" dominant-baseline="central" fill="#30364f" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif" font-weight="bold">(b) Graph B</text>
+<path d="M41.135 172.062 L74.664 164.139" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M65.025 171.292 L50.774 164.909" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M103.99 170.01 L107.809 166.191" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M51.149 163.151 L74.549 163.151" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M73.25 173.05 L96.65 173.05" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M36.95 168.75 L36.95 137.35" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M68.95 168.75 L68.95 137.35" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M100.95 168.75 L100.95 137.35" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M46.849 158.851 L46.849 127.451" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M78.849 158.851 L78.849 127.451" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M110.849 158.851 L110.849 127.451" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<polygon points="14,138 114,138 133.799,118.201 33.799,118.201" fill="#efeddd" stroke="#4e566b" stroke-width="0.353" stroke-linejoin="round"/>
+<text x="14" y="142.4" font-size="3.175" text-anchor="start" dominant-baseline="central" fill="#30364f" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif" font-weight="bold">(a) Graph A</text>
+<path d="M41.25 133.05 L64.65 133.05" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M73.25 133.05 L96.65 133.05" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M39.99 130.01 L43.809 126.191" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M71.99 130.01 L75.809 126.191" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M83.149 123.151 L106.549 123.151" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="46.849" cy="163.151" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="46.849" y="163.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">D</text>
+<circle cx="78.849" cy="163.151" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="78.849" y="163.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">E</text>
+<circle cx="110.849" cy="163.151" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="110.849" y="163.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">F</text>
+<circle cx="36.95" cy="173.05" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="36.95" y="173.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">A</text>
+<circle cx="68.95" cy="173.05" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="68.95" y="173.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">B</text>
+<circle cx="100.95" cy="173.05" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="100.95" y="173.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">C</text>
+<circle cx="46.849" cy="123.151" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="46.849" y="123.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">D</text>
+<circle cx="78.849" cy="123.151" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="78.849" y="123.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">E</text>
+<circle cx="110.849" cy="123.151" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="110.849" y="123.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">F</text>
+<circle cx="36.95" cy="133.05" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="36.95" y="133.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">A</text>
+<circle cx="68.95" cy="133.05" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="68.95" y="133.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">B</text>
+<circle cx="100.95" cy="133.05" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="100.95" y="133.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">C</text>
+<text x="4" y="97" font-size="2.469" text-anchor="start" dominant-baseline="central" fill="#30364f" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif" font-weight="bold">V2 lines hidden behind the upper plane</text>
+<polygon points="14,270 114,270 133.799,250.201 33.799,250.201" fill="#efeddd" stroke="#4e566b" stroke-width="0.353" stroke-linejoin="round"/>
+<text x="14" y="274.4" font-size="3.175" text-anchor="start" dominant-baseline="central" fill="#30364f" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif" font-weight="bold">(b) Graph B</text>
+<path d="M41.135 264.062 L74.664 256.139" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M65.025 263.292 L50.774 256.909" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M103.99 262.01 L107.809 258.191" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M51.149 255.151 L74.549 255.151" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M73.25 265.05 L96.65 265.05" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M36.95 260.75 L36.95 229.35" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M68.95 260.75 L68.95 229.35" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M100.95 260.75 L100.95 229.35" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M46.849 250.851 L46.849 219.451" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M78.849 250.851 L78.849 219.451" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M110.849 250.851 L110.849 219.451" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<polygon points="14,230 114,230 133.799,210.201 33.799,210.201" fill="#efeddd" stroke="#4e566b" stroke-width="0.353" stroke-linejoin="round"/>
+<text x="14" y="234.4" font-size="3.175" text-anchor="start" dominant-baseline="central" fill="#30364f" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif" font-weight="bold">(a) Graph A</text>
+<path d="M41.25 225.05 L64.65 225.05" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M73.25 225.05 L96.65 225.05" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M39.99 222.01 L43.809 218.191" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M71.99 222.01 L75.809 218.191" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M83.149 215.151 L106.549 215.151" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M36.95 230 L36.95 229.35" fill="none" stroke="#a8aaae" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M68.95 230 L68.95 229.35" fill="none" stroke="#a8aaae" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M100.95 230 L100.95 229.35" fill="none" stroke="#a8aaae" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M46.849 230 L46.849 219.451" fill="none" stroke="#a8aaae" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M78.849 230 L78.849 219.451" fill="none" stroke="#a8aaae" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M110.849 230 L110.849 219.451" fill="none" stroke="#a8aaae" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<circle cx="46.849" cy="255.151" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="46.849" y="255.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">D</text>
+<circle cx="78.849" cy="255.151" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="78.849" y="255.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">E</text>
+<circle cx="110.849" cy="255.151" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="110.849" y="255.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">F</text>
+<circle cx="36.95" cy="265.05" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="36.95" y="265.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">A</text>
+<circle cx="68.95" cy="265.05" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="68.95" y="265.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">B</text>
+<circle cx="100.95" cy="265.05" r="4.3" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="100.95" y="265.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">C</text>
+<circle cx="46.849" cy="215.151" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="46.849" y="215.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">D</text>
+<circle cx="78.849" cy="215.151" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="78.849" y="215.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">E</text>
+<circle cx="110.849" cy="215.151" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="110.849" y="215.251" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">F</text>
+<circle cx="36.95" cy="225.05" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="36.95" y="225.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">A</text>
+<circle cx="68.95" cy="225.05" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="68.95" y="225.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">B</text>
+<circle cx="100.95" cy="225.05" r="4.3" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="100.95" y="225.15" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">C</text>
+<text x="4" y="189" font-size="2.469" text-anchor="start" dominant-baseline="central" fill="#30364f" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif" font-weight="bold">V3 ghost: hidden, faint inside the plane (chosen)</text>
+<polygon points="14,362 114,362 133.799,342.201 33.799,342.201" fill="#efeddd" stroke="#4e566b" stroke-width="0.353" stroke-linejoin="round"/>
+<text x="14" y="366.4" font-size="3.175" text-anchor="start" dominant-baseline="central" fill="#30364f" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif" font-weight="bold">(b) Graph B</text>
+<path d="M40.838 356.132 L74.961 348.069" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M65.747 355.616 L50.052 348.585" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M102.873 355.127 L108.926 349.074" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M51.149 347.151 L74.549 347.151" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M73.25 357.05 L96.65 357.05" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M36.95 354.9 L36.95 319.2" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M68.95 354.9 L68.95 319.2" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M100.95 354.9 L100.95 319.2" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M46.849 345.001 L46.849 309.301" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M78.849 345.001 L78.849 309.301" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M110.849 345.001 L110.849 309.301" fill="none" stroke="#30364f" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<polygon points="14,322 114,322 133.799,302.201 33.799,302.201" fill="#efeddd" stroke="#4e566b" stroke-width="0.353" stroke-linejoin="round"/>
+<text x="14" y="326.4" font-size="3.175" text-anchor="start" dominant-baseline="central" fill="#30364f" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif" font-weight="bold">(a) Graph A</text>
+<path d="M41.25 317.05 L64.65 317.05" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M73.25 317.05 L96.65 317.05" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M38.873 315.127 L44.926 309.074" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M70.873 315.127 L76.926 309.074" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M83.149 307.151 L106.549 307.151" fill="none" stroke="#30364f" stroke-width="0.529" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M36.95 322 L36.95 319.2" fill="none" stroke="#a8aaae" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M68.95 322 L68.95 319.2" fill="none" stroke="#a8aaae" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M100.95 322 L100.95 319.2" fill="none" stroke="#a8aaae" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M46.849 322 L46.849 309.301" fill="none" stroke="#a8aaae" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M78.849 322 L78.849 309.301" fill="none" stroke="#a8aaae" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<path d="M110.849 322 L110.849 309.301" fill="none" stroke="#a8aaae" stroke-width="0.353" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0.1 1.3"/>
+<ellipse cx="46.849" cy="347.151" rx="4.3" ry="2.15" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="46.849" y="342.401" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">D</text>
+<ellipse cx="78.849" cy="347.151" rx="4.3" ry="2.15" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="78.849" y="342.401" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">E</text>
+<ellipse cx="110.849" cy="347.151" rx="4.3" ry="2.15" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="110.849" y="342.401" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">F</text>
+<ellipse cx="36.95" cy="357.05" rx="4.3" ry="2.15" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="36.95" y="352.3" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">A</text>
+<ellipse cx="68.95" cy="357.05" rx="4.3" ry="2.15" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="68.95" y="352.3" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">B</text>
+<ellipse cx="100.95" cy="357.05" rx="4.3" ry="2.15" fill="#dce7d3" stroke="#426344" stroke-width="0.353"/>
+<text x="100.95" y="352.3" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#426344" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">C</text>
+<ellipse cx="46.849" cy="307.151" rx="4.3" ry="2.15" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="46.849" y="302.401" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">D</text>
+<ellipse cx="78.849" cy="307.151" rx="4.3" ry="2.15" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="78.849" y="302.401" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">E</text>
+<ellipse cx="110.849" cy="307.151" rx="4.3" ry="2.15" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="110.849" y="302.401" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">F</text>
+<ellipse cx="36.95" cy="317.05" rx="4.3" ry="2.15" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="36.95" y="312.3" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">A</text>
+<ellipse cx="68.95" cy="317.05" rx="4.3" ry="2.15" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="68.95" y="312.3" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">B</text>
+<ellipse cx="100.95" cy="317.05" rx="4.3" ry="2.15" fill="#d9e4e6" stroke="#3d5d77" stroke-width="0.353"/>
+<text x="100.95" y="312.3" font-size="2.822" text-anchor="middle" dominant-baseline="central" fill="#3d5d77" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">C</text>
+<text x="4" y="281" font-size="2.469" text-anchor="start" dominant-baseline="central" fill="#30364f" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif" font-weight="bold">V3 with flattened ellipse nodes (label above)</text>
+</svg>
