@@ -100,6 +100,10 @@ function solidShape(fx: number, fy: number, w: number, h: number, dx: number, dy
     // The hidden left face, and the side as front-top, back-top, back-bottom, front-bottom.
     leftQuad: [pt(fx, fy), pt(fx + dx, y), pt(fx + dx, y + h), pt(fx, fy + h)],
     sideQuad: [pt(fx + w, fy), pt(fx + w + dx, y), pt(fx + w + dx, y + h), pt(fx + w, fy + h)],
+    // The top face and the bottom one (hidden) with matching corners: front-left, back-left,
+    // back-right, front-right.
+    topQuad: [pt(fx, fy), pt(fx + dx, y), pt(fx + w + dx, y), pt(fx + w, fy)],
+    bottomQuad: [pt(fx, fy + h), pt(fx + dx, y + h), pt(fx + w + dx, y + h), pt(fx + w, fy + h)],
     // Clockwise from the front's bottom left.
     outline: [
       pt(fx, fy + h),
@@ -277,11 +281,14 @@ export const cuboid: OutlineRenderer<CuboidParams> = {
       );
       parts[block.name] = {
         box: part.box,
+        frontPlane: k === 0,
         outline: part.outline,
         faces: {
           front: part.front,
           side: part.sideQuad,
           left: part.leftQuad,
+          top: part.topQuad,
+          bottom: part.bottomQuad,
         },
       };
       // A block at the front plane stands out whole (as a highlight); one behind it shows only

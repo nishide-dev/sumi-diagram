@@ -31,7 +31,7 @@ import {
   straightPlacement,
 } from "./ports";
 import { edgeArrowheadLength } from "./router";
-import { isZoomEdge, zoomLines, zoomSide } from "./zoom";
+import { isZoomEdge, partOf, zoomLines, zoomSide } from "./zoom";
 
 /** Each list names the problems found; all empty is a clean routing. */
 export interface RouteCheckReport {
@@ -228,10 +228,18 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
       report.malformed.push(`${edge.key} is not one ${curve ? "cubic curve" : "straight segment"}`);
       continue;
     }
-    for (const [key, p] of [
-      [edge.from, points[0]],
-      [edge.to, points.at(-1)],
+    const irEdge = ir.edges.find((e) => e.key === edge.key);
+    for (const [key, p, name] of [
+      [edge.from, points[0], irEdge?.fromPart],
+      [edge.to, points.at(-1), irEdge?.toPart],
     ] as const) {
+      // A block of a cuboid (#584): the end lies on the block's own silhouette.
+      const block = partOf(nodeIR.get(key), rects.get(key) as Rect, name);
+      if (block !== undefined) {
+        if (p !== undefined && !onOutline({ kind: "polygon", points: block.outline }, p))
+          report.endpointMisses.push(`${edge.key} ${key} not on outline`);
+        continue;
+      }
       const region = regions.get(key);
       if (
         region !== undefined &&

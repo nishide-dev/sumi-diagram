@@ -735,6 +735,8 @@ function resolveCellRefs(
    * The ID `ref` stands for, `ref` unchanged when it needs nothing, or
    * `undefined` after reporting an error.
    */
+  const isCuboid = (id: string) =>
+    ["cuboid", "sumi/cuboid"].includes(doc.nodes?.find((n) => n?.id === id)?.component ?? "");
   const resolve = (
     ref: string,
     at: DocPath,
@@ -757,14 +759,18 @@ function resolveCellRefs(
         locate,
         "ref/unknown-cell",
         tokens === undefined
-          ? `"${ref}" names a cell, but "${owner}" is not a tokens node.`
+          ? isCuboid(owner)
+            ? `Unknown block "${cell}" of cuboid "${owner}": it has no highlight block with that name.`
+            : `"${ref}" names a cell, but "${owner}" is not a tokens node.`
           : `Unknown cell "${cell}" of tokens "${owner}" in ${subject.kind === "figure" ? "figure.layout.align" : `${subject.kind} ${subject.kind === "edge" ? subject.id : `"${subject.id}"`}`}.`,
         at,
         {
           subject,
           hint:
             tokens === undefined
-              ? `Only the cells of a tokens node are named as <node>.<cell>; name the element itself as "${owner}".`
+              ? isCuboid(owner)
+                ? `Name a block as <cuboid>.<name> with a name from the cuboid's props.highlight${didYouMean(cell, cuboidBlockNames(doc, owner)) === undefined ? "" : `. ${didYouMean(cell, cuboidBlockNames(doc, owner))}`}.`
+                : `Only the cells of a tokens node are named as <node>.<cell>; name the element itself as "${owner}".`
               : `A cell is named by its id, or by its 1-based position when it has none.${didYouMean(cell, tokens.keys()) === undefined ? "" : ` ${didYouMean(cell, tokens.keys())}`}`,
         },
       ),
@@ -784,29 +790,33 @@ function resolveCellRefs(
       invalid.add(key);
       continue;
     }
-    // A block of a cuboid (#576) is no element of the router: only a zoom edge joins it.
-    const direct = ["zoom", "sumi/zoom"].includes(edge.component);
-    const block = [from, to].find(
-      (end) =>
-        refCell(end) !== undefined &&
-        cuboidBlockNames(doc, refOwner(end)).includes(refCell(end) as string),
-    );
-    if (block !== undefined && !direct) {
+    // A block of a cuboid (#576, #584) is no element of the router: its edges are drawn as one
+    // line (or a receptive field for a zoom edge), so an anchor on a block's end has no meaning.
+    for (const [end, anchor, field] of [
+      [edge.from, edge.fromAnchor, "fromAnchor"],
+      [edge.to, edge.toAnchor, "toAnchor"],
+    ] as const) {
+      if (
+        anchor === undefined ||
+        refCell(end) === undefined ||
+        !cuboidBlockNames(doc, refOwner(end)).includes(refCell(end) as string)
+      )
+        continue;
       state.diagnostics.push(
         errorAt(
           locate,
-          "layout/part-needs-direct-route",
-          `"${block}" names a block of a cuboid, which only a zoom edge can join.`,
-          ["edges", index, edge.from === block ? "from" : "to"],
+          "layout/part-anchor",
+          `"${end}" names a block of a cuboid, which an edge meets at its own silhouette: ${field} does not apply.`,
+          ["edges", index, field],
           {
             subject,
-            hint: "Use component: zoom (a receptive field), or name the cuboid itself.",
+            hint: `Remove ${field}; the line aims at the block's centre. To pick a side, name the cuboid itself.`,
           },
         ),
       );
       invalid.add(key);
-      continue;
     }
+    if (invalid.has(key)) continue;
     if (from !== edge.from || to !== edge.to) {
       (doc.edges ?? [])[index] = { ...edge, from, to };
     }
