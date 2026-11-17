@@ -33,6 +33,8 @@ export interface GeometryElement {
   bbox?: Rect;
   /** Convex collision region: renderer collision/hull for custom nodes, otherwise shapeOutline. */
   outline?: Region;
+  /** Set on a node lying on a projected tilted plane (#577): its outline is the mapped shape, not the shape's own. */
+  projected?: true;
   /** Custom renderer safeArea or the ordinary shape's labelArea; set with bbox. */
   labelArea?: Region;
   /** Closed painted boundary polylines, distinct from the convex collision hull. */
@@ -53,6 +55,8 @@ export interface GeometryElement {
    * `route` is the logical path.
    */
   drawn?: Point[][];
+  /** Edge: the arrowheads drawn flat on a projected tilted plane (#577), as the points painted. */
+  planeHeads?: Point[][];
 }
 
 /** A set enclosure (#407) as the geometry rules see it: its IR entry, drawn shape and re-measured label. */
@@ -173,6 +177,10 @@ export function createGeometryContext(
                 points[0] as Point,
               ]),
             };
+      } else if (geometry.outline !== undefined) {
+        // A node lying on a projected tilted plane (#577): the polygon it is drawn as.
+        const outline: Region = { kind: "polygon", points: geometry.outline };
+        regions = { outline, labelArea: outline };
       } else regions = { outline: shapeOutline(shape, bbox), labelArea: labelArea(shape, bbox) };
     }
     elements.push({
@@ -186,6 +194,7 @@ export function createGeometryContext(
         bbox !== undefined && {
           bbox,
           ...regions,
+          ...(geometry.outline !== undefined && { projected: true as const }),
         }),
       strokeInset: element.style.strokeWidth.units / 2,
       ...(element.kind === "node" &&
@@ -202,6 +211,7 @@ export function createGeometryContext(
           ? [iconAsLabel(element, geometry.bbox)]
           : []),
       ],
+      ...(geometry.planeHeads !== undefined && { planeHeads: geometry.planeHeads }),
       ...(geometry.path !== undefined && {
         route:
           element.kind === "edge" &&

@@ -23,6 +23,7 @@ const params: Record<string, OutlineParams[]> = {
     { depth: 40, angle: 30, depthScale: 2 },
     { depth: 8 },
   ],
+  "sumi/polygon": [{}, { points: "[[0.5,0],[1,0.5],[0.5,1],[0,0.5]]" }],
   "sumi/waveform": [{}, { samples: "-1,0,1" }, { samples: "-1,0,1", mode: "line" }],
   "sumi/trapezoid": [
     {},
@@ -65,6 +66,7 @@ test("renderer registry contains only the bundled geometry implementations", () 
     "sumi/flow-arrow",
     "sumi/state-marker",
     "sumi/cuboid",
+    "sumi/polygon",
   ]);
   expect(getOutlineRenderer("trapezoid")).toBeUndefined();
   expect(getOutlineRenderer("other/stack")).toBeUndefined();

@@ -11,7 +11,7 @@
  * plane maps to the same straight line between the mapped nodes), edges
  * between planes, and edges to nodes outside of any plane.
  */
-import type { EdgeIR, FigureIR, GroupIR } from "../../compiler/ir";
+import type { EdgeIR, FigureIR, GroupIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type {
   EdgeLayout,
@@ -19,26 +19,19 @@ import type {
   GroupLayout,
   LayoutIR,
   NodeLayout,
-  PlaneLayout,
   Point,
   Rect,
   RouteNet,
   TextLayout,
 } from "../ir";
 import { roundUnits } from "../ir";
-import { mapFlatPoint, type PlaneFrame, planeBasis, pointsBounds } from "../plane";
+import { mapFlatPoint, planeBasis, planeFrameOf, pointsBounds } from "../plane";
 import { deepFreeze } from "../structured/engine";
 import { isDirectEdge } from "./diagonal";
 import { boundaryEntry, isJunction, nodeRegion } from "./ports";
 import type { RouteOptions, RouteResult } from "./router";
 
 type Route = (ir: FigureIR, layout: LayoutIR, options: RouteOptions) => RouteResult;
-
-const frameOf = (plane: PlaneLayout): PlaneFrame => ({
-  projection: { orientation: plane.orientation, angle: plane.angle, depthScale: plane.depthScale },
-  frame: plane.frame,
-  origin: plane.origin,
-});
 
 const translate = (rect: Rect, dx: number, dy: number): Rect => ({
   ...rect,
@@ -83,7 +76,7 @@ export function routeWithPlanes(
   const { planes, ...page } = layout;
   const planarKeys = new Set([...planar.values()].flatMap((edges) => edges.map((e) => e.key)));
   const main = route(
-    { ...ir, edges: ir.edges.filter((e) => !planarKeys.has(e.key)) },
+    { ...withOutlines(ir, layout), edges: ir.edges.filter((e) => !planarKeys.has(e.key)) },
     { ...page, edges: layout.edges.filter((e) => !planarKeys.has(e.key)) },
     options,
   );
@@ -101,20 +94,24 @@ export function routeWithPlanes(
     // The flat frame, moved to the margin so the router sees an ordinary small figure.
     // An upright node on the page covers a larger, sheared area of the flat frame: the router
     // sees each node as the box around that area, so mapped routes keep clear of the real node.
-    const basis = planeBasis(frameOf(plane).projection);
+    const basis = planeBasis(planeFrameOf(plane).projection);
     const det = basis.u.x * basis.v.y - basis.u.y * basis.v.x;
     const inv = [
       [basis.v.y / det, -basis.v.x / det],
       [-basis.u.y / det, basis.u.x / det],
     ] as const;
-    const inflate = (r: Rect): Rect => {
+    // A projected plane (`contents: projected`) has nodes that lie on it: their flat boxes are exact.
+    // Decided per node: an upright node on a projected plane (a bubble, an image, a badge) is not mapped.
+    const lying = new Set(layout.nodes.filter((n) => n.outline !== undefined).map((n) => n.key));
+    const inflate = (r: Rect, key: ElementKey): Rect => {
+      if (lying.has(key)) return r;
       const hw = r.width / 2;
       const hh = r.height / 2;
       const hx = Math.abs(inv[0][0]) * hw + Math.abs(inv[0][1]) * hh;
       const hy = Math.abs(inv[1][0]) * hw + Math.abs(inv[1][1]) * hh;
       return { x: r.x + hw - hx, y: r.y + hh - hy, width: 2 * hx, height: 2 * hy };
     };
-    const inflated = plane.flat.map((n) => ({ key: n.key, rect: inflate(n.rect) }));
+    const inflated = plane.flat.map((n) => ({ key: n.key, rect: inflate(n.rect, n.key) }));
     const grow = Math.max(
       0,
       ...inflated.flatMap(({ rect }) => [
@@ -151,8 +148,11 @@ export function routeWithPlanes(
       );
       const sx = flatRect.x + flatRect.width / 2 - (node.rect.x + node.rect.width / 2);
       const sy = flatRect.y + flatRect.height / 2 - (node.rect.y + node.rect.height / 2);
+      // The nodes of a matrix's frame (#180) are in the plane's flat layout, whose only group is the plane.
+      const { outline: _outline, ...upright } = node;
       return {
-        ...node,
+        ...upright,
+        parent: plane.key,
         rect,
         ...(node.label !== undefined && { label: translateText(node.label, sx, sy) }),
         ...(node.sublabel !== undefined && { sublabel: translateText(node.sublabel, sx, sy) }),
@@ -177,7 +177,7 @@ export function routeWithPlanes(
     const flatIR: FigureIR = {
       ...ir,
       groups: [groupIR as GroupIR],
-      nodes: ir.nodes.filter((n) => members.has(n.key)),
+      nodes: ir.nodes.filter((n) => members.has(n.key)).map((n) => ({ ...n, parent: plane.key })),
       edges,
     };
     const flatLayout: LayoutIR = {
@@ -194,7 +194,7 @@ export function routeWithPlanes(
     };
     const result = route(flatIR, flatLayout, options);
     diagnostics.push(...result.diagnostics);
-    const frameMap = frameOf(plane);
+    const frameMap = planeFrameOf(plane);
     const map = (p: Point): Point => {
       const m = mapFlatPoint(frameMap, { x: p.x - shift.dx, y: p.y - shift.dy });
       return { x: roundUnits(m.x), y: roundUnits(m.y) };
@@ -213,7 +213,9 @@ export function routeWithPlanes(
         routed.set(placed.key, placed);
         continue;
       }
-      const points = onOutlines(flat.points.map(map), placed, ir, layout);
+      // A projected node's flat outline maps to its page outline: the route already ends on it.
+      const mappedPoints = flat.points.map(map);
+      const points = onOutlines(mappedPoints, placed, ir, layout, lying);
       reach.push(...points);
       let label = flat.label;
       if (label !== undefined) {
@@ -258,6 +260,39 @@ export function routeWithPlanes(
 }
 
 /**
+ * `ir` for the page router: a node lying on a projected plane (#577) is an outline component
+ * whose polygon is the node's mapped outline, so ports, collisions and straight edges meet it.
+ */
+function withOutlines(ir: FigureIR, layout: LayoutIR): FigureIR {
+  const placed = new Map(
+    layout.nodes.filter((n) => n.outline !== undefined).map((n) => [n.key, n]),
+  );
+  if (placed.size === 0) return ir;
+  return {
+    ...ir,
+    nodes: ir.nodes.map((node): NodeIR => {
+      const at = placed.get(node.key);
+      if (at?.outline === undefined) return node;
+      // Fractions of the rectangle (the polygon's bounding box), to 1e-7.
+      const fraction = (value: number, size: number) =>
+        size === 0 ? 0 : Math.round((value / size) * 1e7) / 1e7;
+      const points = at.outline.map((p) => [
+        fraction(p.x - at.rect.x, at.rect.width),
+        fraction(p.y - at.rect.y, at.rect.height),
+      ]);
+      return {
+        ...node,
+        render: {
+          type: "outline",
+          renderer: "sumi/polygon",
+          params: { points: JSON.stringify(points) },
+        },
+      };
+    }),
+  };
+}
+
+/**
  * A mapped route ends where the flat route met the flat node's outline, which is
  * inside the upright node on the page: its first and last points are moved
  * along their legs to the node's outline (a junction's center stays).
@@ -267,9 +302,11 @@ function onOutlines(
   edge: EdgeLayout,
   ir: FigureIR,
   layout: LayoutIR,
+  lying: ReadonlySet<ElementKey> = new Set(),
 ): Point[] {
   const out = [...points];
   const trim = (end: ElementKey, at: number, next: number): void => {
+    if (lying.has(end)) return;
     const node = ir.nodes.find((n) => n.key === end);
     const rect = layout.nodes.find((n) => n.key === end)?.rect;
     const a = out[at];

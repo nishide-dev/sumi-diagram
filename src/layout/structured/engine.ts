@@ -81,13 +81,18 @@ import {
   type TextMetrics,
 } from "../ir";
 import {
+  flatLinear,
+  growToFitLabel,
+  mapFlatPoint,
   mapFlatQuad,
   mapFlatRect,
   type PlaneFrame,
   type PlaneProjection,
   planeExtent,
   pointsBounds,
+  projectedOutline,
 } from "../plane";
+import { projectableShape } from "../plane-nodes";
 import { sampleCubic } from "../route/cubic";
 import { curveLabel, loopLabelEdge, selfLoopAnchors, selfLoopPoints } from "../route/curve";
 import { arrowheadPaddingDeficits, type SidePadding } from "../route/padding";
@@ -280,6 +285,10 @@ class StructuredLayout {
     ElementKey,
     { plane: PlaneFrame; content: Rect; flat: Map<ElementKey, Rect>; title: number }
   >();
+  /** The outline on the page of each node lying on a projected plane (#577) in the pass. */
+  readonly #outlines = new Map<ElementKey, Point[]>();
+  /** The projection of the projected plane (#577, `contents: projected`) each of its nodes is in. */
+  readonly #projected: ReadonlyMap<ElementKey, PlaneProjection>;
   readonly #grids = new Map<ArrangeBoxIR, GridTracks>();
   readonly #boxSizes = new Map<ArrangeBoxIR, Size>();
   readonly #chatFrames = new Map<ArrangeBoxIR, Rect>();
@@ -300,6 +309,7 @@ class StructuredLayout {
       y: units(profile.layout.nodePaddingY.pt),
     };
     this.#nodePaddingX = padding.x;
+    this.#projected = projectedNodes(ir);
     for (const node of ir.nodes) {
       this.#nodes.set(node.key, node);
       const label = measureText(node.label, node.style, measurer);
@@ -323,7 +333,7 @@ class StructuredLayout {
           : (text ?? iconBox(node));
       // A separator contributes no size: siblings determine its span and gap
       // supplies the whitespace on either side. This avoids sizing feedback.
-      const size =
+      let size =
         node.component === SEPARATOR_ID
           ? { width: 0, height: 0 }
           : nodeSize(
@@ -333,6 +343,27 @@ class StructuredLayout {
                 ? { x: padding.x / 2, y: 0 }
                 : padding,
             );
+      // A node lying on a projected plane (#577) keeps its label upright: it grows until the
+      // label fits inside its mapped outline, unless its size is written.
+      const projection = this.#projected.get(node.key);
+      const shape = projectableShape(node);
+      if (
+        projection !== undefined &&
+        shape !== undefined &&
+        box !== undefined &&
+        node.width === undefined &&
+        node.height === undefined
+      ) {
+        size = growToFitLabel(
+          shape,
+          size,
+          node.style.radius.units,
+          flatLinear(projection),
+          box,
+          Math.min(padding.x, padding.y) / 2,
+          node.sizing === "fixed-aspect-1" || shape === "square",
+        );
+      }
       if (node.labelBelow && box !== undefined)
         this.#captions.set(node.key, {
           width: box.width,
@@ -458,6 +489,7 @@ class StructuredLayout {
     this.#rects.clear();
     this.#contents.clear();
     this.#planes.clear();
+    this.#outlines.clear();
     this.#grids.clear();
     // Measurements depend on this pass's struts and any grown group padding.
     this.#boxSizes.clear();
@@ -1204,12 +1236,47 @@ class StructuredLayout {
     this.#rects.set(key, bbox);
     this.#placeContainer(key, group.arrange, content);
     const flatRects = new Map<ElementKey, Rect>();
-    for (const child of group.children) {
-      const node = this.#nodes.get(child);
-      const at = this.#rects.get(child);
-      if (node === undefined || at === undefined) continue;
-      flatRects.set(child, at);
-      this.#rects.set(child, mapFlatRect(frameOf, at));
+    const linear = flatLinear(plane as PlaneProjection);
+    const projected = plane.contents === "projected";
+    const nested: ElementKey[] = [];
+    const visit = (owner: GroupIR): void => {
+      for (const child of owner.children) {
+        const inner = this.#groups.get(child);
+        if (inner !== undefined) {
+          // A matrix's frame (#180): its cells are the plane's nodes, its rectangle the mapped box.
+          nested.push(child);
+          visit(inner);
+          continue;
+        }
+        const node = this.#nodes.get(child);
+        const at = this.#rects.get(child);
+        if (node === undefined || at === undefined) continue;
+        flatRects.set(child, at);
+        const center = mapFlatPoint(frameOf, { x: at.x + at.width / 2, y: at.y + at.height / 2 });
+        const shape = projected ? projectableShape(node) : undefined;
+        if (shape === undefined) {
+          this.#rects.set(child, mapFlatRect(frameOf, at));
+          continue;
+        }
+        const outline = projectedOutline(
+          shape,
+          at.width,
+          at.height,
+          node.style.radius.units,
+          linear,
+          center,
+        ).map((p) => ({ x: roundUnits(p.x), y: roundUnits(p.y) }));
+        this.#outlines.set(child, outline);
+        this.#rects.set(child, pointsBounds(outline));
+      }
+    };
+    visit(group);
+    for (const inner of nested) {
+      const at = this.#rects.get(inner) as Rect;
+      this.#rects.set(inner, pointsBounds(mapFlatQuad(frameOf, at)));
+      const inside = this.#contents.get(inner);
+      if (inside !== undefined)
+        this.#contents.set(inner, pointsBounds(mapFlatQuad(frameOf, inside)));
     }
     this.#contents.set(key, pointsBounds(mapFlatQuad(frameOf, content)));
     this.#planes.set(key, { plane: frameOf, content, flat: flatRects, title });
@@ -1506,21 +1573,23 @@ class StructuredLayout {
       anchor: { x: roundUnits(label.anchor.x + dx), y: roundUnits(label.anchor.y + dy) },
     });
 
+    const shiftPoint = (p: Point): Point => ({ x: roundUnits(p.x + dx), y: roundUnits(p.y + dy) });
     const nodes: NodeLayout[] = this.#ir.nodes.map((node) => {
       const label = labels.get(node.key);
       const sublabel = sublabels.get(node.key);
+      const outline = this.#outlines.get(node.key);
       return {
         key: node.key,
         kind: "node",
         ...(node.parent !== undefined && { parent: node.parent }),
         shape: node.shape,
         rect: shift(this.#rect(node.key)),
+        ...(outline !== undefined && { outline: outline.map(shiftPoint) }),
         placement: node.attach === undefined ? "arrange" : "attach",
         ...(label !== undefined && { label: shiftText(label) }),
         ...(sublabel !== undefined && { sublabel: shiftText(sublabel) }),
       };
     });
-    const shiftPoint = (p: Point): Point => ({ x: roundUnits(p.x + dx), y: roundUnits(p.y + dy) });
     const planes: PlaneLayout[] = [];
     const quads = new Map<ElementKey, GroupLayout["quad"]>();
     for (const group of this.#ir.groups) {
@@ -1534,6 +1603,7 @@ class StructuredLayout {
         orientation: group.plane.orientation,
         angle: group.plane.angle,
         depthScale: group.plane.depthScale,
+        contents: group.plane.contents,
         frame: shift(plane.frame),
         content: shift(content),
         origin: shiftPoint(plane.origin),
@@ -1653,6 +1723,22 @@ class StructuredLayout {
     if (rect === undefined) throw new Error(`internal error: ${key} was not placed`);
     return rect;
   }
+}
+
+/** The projection of the projected tilted plane (#577) that each node inside one is in (matrix cells included). */
+function projectedNodes(ir: FigureIR): Map<ElementKey, PlaneProjection> {
+  const groups = new Map(ir.groups.map((g) => [g.key, g]));
+  const out = new Map<ElementKey, PlaneProjection>();
+  const visit = (group: GroupIR, projection: PlaneProjection): void => {
+    for (const child of group.children) {
+      const inner = groups.get(child);
+      if (inner === undefined) out.set(child, projection);
+      else visit(inner, projection);
+    }
+  };
+  for (const group of ir.groups)
+    if (group.plane?.contents === "projected") visit(group, group.plane as PlaneProjection);
+  return out;
 }
 
 /** Whether a group's label band is at the bottom of the group (#127). */

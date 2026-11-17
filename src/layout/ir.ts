@@ -153,6 +153,11 @@ export interface NodeLayout {
   readonly shape: NodeShape;
   /** The shape's bounding box (stroke not included), like `ElementGeometry.bbox`. */
   readonly rect: Rect;
+  /**
+   * A node lying on a projected tilted plane (#577, `props.contents: projected`): its outline on
+   * the page, a convex polygon whose bounding box is `rect`. Omitted for every other node.
+   */
+  readonly outline?: readonly Point[];
   readonly placement: Placement;
   /** The node's label; omitted when it has none. */
   readonly label?: TextLayout;
@@ -193,13 +198,15 @@ export interface PlaneLayout {
   readonly orientation: "floor" | "wall";
   readonly angle: number;
   readonly depthScale: number;
+  /** `props.contents`: whether the plane's nodes are mapped onto it (`projected`) or stay upright. */
+  readonly contents: "upright" | "projected";
   /** The flat frame, in the coordinates the nodes were laid out in (y down). */
   readonly frame: Rect;
   /** The flat frame's content area (the frame minus padding). */
   readonly content: Rect;
   /** Where the flat frame's bottom left corner (u = 0, v = 0) is on the page. */
   readonly origin: Point;
-  /** The unmapped rectangle of each node directly in the plane, in document order. */
+  /** The unmapped rectangle of each node in the plane (a matrix's cells included), in document order. */
   readonly flat: readonly { readonly key: ElementKey; readonly rect: Rect }[];
 }
 

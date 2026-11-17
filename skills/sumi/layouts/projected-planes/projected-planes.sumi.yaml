@@ -1,0 +1,83 @@
+# Layout: a sequence and its attention map drawn as tilted planes whose contents lie flat on them.
+#
+# Use when: a figure ties a sequence of items to a matrix over them (tokens and their attention
+#   map, two time steps and the transition between them, a feature grid) and the matrix should
+#   read as a sheet seen in perspective, with the objects lying on it, not standing up.
+# Structure: a `stack` of two `container` groups with `props.plane: floor` and `props.contents:
+#   projected`. The upper plane holds a row of boxes joined by arrows, the lower one a `matrix`
+#   (flush: its cells are the plane's nodes). Everything on a projected plane is drawn flat: boxes
+#   are parallelograms, circles ellipses, matrix cells and arrowheads are mapped with the plane.
+#   Labels stay horizontal; a node grows until its label fits inside its mapped shape. Dotted
+#   `route: straight` edges join each item to its column header, hidden by the upper plane
+#   and faint across it. The title sits under the front edge, left-aligned.
+# Change: the items and the matrix (rows of as many cells as items; classes for the cell colours);
+#   `contents: upright` on a plane to keep its shapes standing; the projection (`figure.projection`:
+#   a larger `depthScale` or `angle` makes the planes taller and the shapes less flat, which also
+#   makes room for labels); the plane count. A node with a written `width` / `height` does not grow:
+#   its label must fit by itself.
+# Lint: `lint --geometry` 0 errors, 0 warnings; the two `color-on-panel` infos are expected (tinted nodes
+#   on the plane's shaded sumi fill, the look the sumi theme is made for).
+version: 1
+figure:
+  id: projected-planes
+  theme: sumi
+  profile: paper-double
+  projection: {angle: 45, depthScale: 0.6}
+  layout:
+    arrange:
+      row:
+        gap: 12mm
+        align: start
+        items:
+          - stack: {gap: 8mm, align: start, items: [tokens, attention]}
+          - key
+groups:
+  - id: tokens
+    label: (a) Tokens
+    props: {plane: floor, contents: projected, padding: 7mm}
+    arrange:
+      row:
+        gap: 7mm
+        align: center
+        items: [t1, t2, t3, t4]
+  - id: attention
+    label: (b) Attention map
+    props: {plane: floor, contents: projected, padding: 7mm}
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: map, at: [0, 0]}
+nodes:
+  - {id: t1, component: box, label: The, tone: blue}
+  - {id: t2, component: box, label: cat, tone: blue}
+  - {id: t3, component: box, label: sat, tone: blue}
+  - {id: t4, component: box, label: down, tone: blue}
+  - id: map
+    component: matrix
+    props:
+      columns: [The, cat, sat, down]
+      rows: [The, cat, sat, down]
+      cellWidth: 30pt
+      cellHeight: 34pt
+      gap: 5pt
+      headerGap: 12pt
+      classes:
+        h: {tone: orange, variant: tinted, pattern: hatch, label: high}
+        m: {tone: orange, variant: outlined, label: medium}
+        l: {variant: muted, label: low}
+      cells: [hmll, mhml, lmhm, llmh]
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: column
+      entries:
+        - {class: map.h}
+        - {class: map.m}
+        - {class: map.l}
+        - {edge: {component: arrow}, label: next token}
+edges:
+  - {from: t1, to: t2, component: arrow}
+  - {from: t2, to: t3, component: arrow}
+  - {from: t3, to: t4, component: arrow}

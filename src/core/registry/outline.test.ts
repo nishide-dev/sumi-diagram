@@ -45,6 +45,8 @@ describe("outline manifests", () => {
 
   test("accepts all bundled renderers with omitted params", () => {
     for (const renderer of BUILTIN_OUTLINE_RENDERERS.values()) {
+      // An internal renderer (sumi/polygon) is driven by the layout stage, not by a manifest.
+      if (renderer.internal === true) continue;
       const r = new Registry();
       expect(r.register(manifest({ type: "outline", renderer: renderer.id })).ok).toBe(true);
       expect(buildCatalog(r).components[0]).toHaveProperty(
@@ -55,6 +57,11 @@ describe("outline manifests", () => {
   });
 
   const invalid: [string, ComponentManifest, (string | number)[]][] = [
+    [
+      "internal renderer",
+      manifest({ type: "outline", renderer: "sumi/polygon", params: { points: "invalid" } }),
+      ["render", "renderer"],
+    ],
     [
       "unknown renderer",
       manifest({ type: "outline", renderer: "other/missing" }),

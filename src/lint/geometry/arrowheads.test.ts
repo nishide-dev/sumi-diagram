@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { getFontSet } from "../../core/theme/fonts";
-import { arrowheadStraightRun } from "./arrowheads";
+import { arrowheadStraightRun, paintedHeadLength } from "./arrowheads";
 import { createGeometryContext } from "./context";
 import { arrowheadOnBend } from "./rules";
 import { compile, inspection, lintSpec } from "./testing";
@@ -193,5 +193,53 @@ describe(code, () => {
       }
       expect(arrowheadOnBend.run(context, undefined)).toEqual([]);
     }
+  });
+});
+
+describe("arrowheads flat on a projected plane (#577)", () => {
+  const route = [
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+  ];
+  // A head at the target tip (100, 0), pointing right, `length` long.
+  const head = (length: number) => [
+    { x: 100, y: 0 },
+    { x: 100 - length, y: 6 },
+    { x: 100 - length, y: -6 },
+  ];
+  test("the painted head length is used: shorter, longer, and the nominal one without heads", () => {
+    expect(paintedHeadLength([head(7)], route, false, 12)).toBeCloseTo(7, 6);
+    expect(paintedHeadLength([head(15)], route, false, 12)).toBeCloseTo(15, 6);
+    expect(paintedHeadLength(undefined, route, false, 12)).toBe(12);
+    // The head of the other end is not this end's.
+    expect(paintedHeadLength([head(7)], route, true, 12)).toBe(12);
+  });
+});
+
+describe("arrowhead-on-bend with heads flat on a plane (#577)", () => {
+  // Hand-made inspections (a layout cannot easily put the straight run between the two lengths):
+  // the target tip is at (40, run), the head points down the last leg and reaches `reach` back.
+  const run = (length: number, reach: number | undefined) =>
+    lintSpec(
+      compiled,
+      {
+        elements: {
+          "e:e": {
+            path: [p(0, 0), p(40, 0), p(40, length)],
+            ...(reach !== undefined && {
+              planeHeads: [[p(40, length), p(37, length - reach), p(43, length - reach)]],
+            }),
+          },
+        },
+      },
+      { code },
+    );
+  test("a shortened head fits a run the nominal length would flag", () => {
+    expect(run(5, undefined)).toHaveLength(1);
+    expect(run(5, 4)).toHaveLength(0);
+  });
+  test("an extended head is flagged on a run the nominal length would accept", () => {
+    expect(run(9, undefined)).toHaveLength(0);
+    expect(run(9, 11)).toHaveLength(1);
   });
 });

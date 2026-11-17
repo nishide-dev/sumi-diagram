@@ -1,0 +1,28 @@
+# #577 傾けた平面の中身を平面に貼る `contents: projected` と平面上の `matrix`
+
+- **背景**: [`577-planes.md`](577-planes.md)（PR #581）の平面は、中のノードの中心だけを写し、ノードの形は直立のままにした。重ねた平面の上で円は円のまま立って見え、「平面の上のものも傾いて見えてほしい」という要望に応えていない。また、平面の上に attention map のような `matrix` を置けなかった（#581 の持ち越し）。この記録はその 2 点の実装上の決定。
+- **決定**:
+  - **スキーマ**: `container` の `props.contents: upright | projected`（省略時 `upright`）。`upright` は #581 の挙動そのもので、出力は 1 バイトも変わらない（SVG のメタデータの入力ハッシュだけが、書いたソースによって違う）。`contents` は `props.plane` とともにだけ書ける（`plane` なしは `component/invalid-prop`、値は列挙で検査）。IR は `GroupIR.plane.contents`、Layout IR は `PlaneLayout.contents`。
+  - **何を写すか**（`projected` のとき）: ノードの外形（rectangle・square・circle・oval・diamond・hexagon・parallelogram）、平面内の辺の矢じり、`matrix` のセル（と `hatch` の線）。フラット枠での形に、平面のアフィン写像の線形部（`flatLinear()`）をかけて、写したノード中心のまわりに置く。円と楕円は 64 点の凸多角形、角丸の rectangle は各角 6 分割の多角形にして、辺が写像で曲がる心配をなくす。ノードの外接矩形（`NodeLayout.rect`）はこの多角形の外接矩形で、`NodeLayout.outline` に多角形そのものを持たせる。#581 の「中心だけ写す」実装（`mapFlatRect`）と同じ中心なので、ラベルの中心は変わらない。
+  - **ラベルは直立のまま**: 文字は水平で、写したノードの中心に置く。そのままでは平たい楕円にはラベルが入らないので、**書いた `width` / `height` のないノードは、フラット枠で大きくなる**（`growToFitLabel()`: ラベルの箱に余白（ノード余白の半分）を足した箱が写した外形の中に入るまで、高さだけ・幅だけ・両方のうち面積の小さいものを二分探索し、整数の大きさに切り上げる。fixed-aspect の円・square は両方を同じ比で）。`floor` は高さに `depthScale·sin(angle)`（45 / 0.5 で 0.35）がかかるので、同じラベルの円は「直立の円」より大きくなる。大きさを書いたノードは大きくしない（はみ出しは `geometry/label-overflow` が出す）。確認は `src/render/plane-projected.integration.test.ts`。
+  - **配線**: 平面内の辺（`route` なし）は、これまでどおりフラット枠の小さなレイアウトで配線して写す。`projected` の平面でも、**ノードごと**に写すか直立かを決める（`NodeLayout.outline` を持つノードだけ写す）。写すノードでは、フラットのノードの箱を「直立ノードが覆う範囲」に広げず（`inflate` なし）、経路の端を直立の外形まで延ばす処理（`onOutlines`）もしない。直立のままのノード（bubble・画像・badge つきなど）は従来どおり広げ、端を外形まで延ばす（混在した平面のテストあり）。フラット枠でノードの外形に触れる経路の端は、写すと写した外形に触れる。`route: straight` の辺（平面内、平面どうし）はページ上のルーターが配線する。ルーターには、写した多角形を `sumi/polygon`（新しい内部の outline renderer。点を JSON で持つ）として見せる（`withOutlines()` が各ノードの `render` を差し替えた IR を渡す）ので、ポート、衝突、`diagonal` の直接配線がそのまま写した外形に当たる。ルーターの他の部分は変えていない。
+  - **矢じり**: 平面内の辺（`route: curve` を除く。両端が同じ `projected` の平面のノード）の矢じりは、フラット枠で向き・長さを決めて写す（`drawArrowhead()` に平面を渡す）。先端の位置はルートの端のまま。向きの方向のページ上の長さは `|M d|` 倍に縮むので、線は矢じりの底で止める量（`arrowheadInset`）もその倍で止める（`headForeshortening()`）。円の矢じりは楕円なので多角形で描く。SVG の矢じりには `class="sumi-plane-head"` と `data-foreshorten` を付ける。ルーターが矢じりの分に確保する矩形はページ上の直立の大きさ（長さ・幅とも `arrowheadLength`）のままで、写した矢じりがこの矩形に収まる保証はない。アフィン写像のせん断で、方向によっては縮むどころか延びる。向きによる倍率は写像の線形部の特異値で、最大（作用素ノルム）は σ = √(((1+s²) + √((1+s²)² − 4s²t²)) / 2)（s = `depthScale`、t = floor は sin(angle)、wall は cos(angle)）、最小は det / σ（floor は s·sin(angle)/σ、wall は s·cos(angle)/σ）。既定（45° / 0.5）では σ ≈ 1.07、最小 ≈ 0.33、`depthScale: 2` では σ ≈ 2.14。geometry lint の矢じりの検査（`geometry/arrowhead-on-bend`・`geometry/arrowhead-cramped`）は、名目の長さではなく **SVG に描いた矢じりの多角形が先端から辺の向きに延びる長さ**（inspection の `planeHeads`）で、直線の区間と比べる。縮んだ矢じりは誤検出せず、延びた矢じりは区間が足りなければ検出する。
+  - **`matrix`**: 平面の arrange に node として書ける。`matrix` は枠（`plain` の group）とセル・ヘッダのノードに展開されるので、平面は子孫のノード（入れ子の枠の中も）をたどって写す。枠の rect と content は、フラット rect の写した四隅の外接矩形にする。`layout/plane-nested-group` は、書いた group にだけ出る（展開後の枠は検査の後に作られる）。経路を求める平面ごとの小さなレイアウトでは、行列のセルのノードの親を平面にする。`upright` の平面でもセルは置けるが、縦が圧縮されて重なる（`geometry/node-overlap`）ので、`projected` を使う。見出し（文字だけのノード）は両方で直立で、写した中心に置く。
+  - **直立のままにするノード**: outline component（`bubble`・`cuboid`・`waveform` など）、画像、mark・junction、`badge`・`glyphs`・回した label を持つノード、曲線を持つ shape（cylinder・document・page）、tokens のセル、chat 部品。判定は `projectableShape()`（`src/layout/plane-nodes.ts`）。写した枠の中に置かれ、中心だけ写されるのは #581 のまま。
+  - **lint**: geometry lint は SVG の inspection を測る。写したノードは `polygon.sumi-projected` で描き、inspection がその点列を `ElementGeometry.outline` に持つ。lint の context は、その多角形を outline と label area にする。`geometry/node-overlap` は写したノード（斜めの外接矩形は重なるが形は重ならない）を多角形で比べる。`geometry/aspect-distorted` は写した円を除く。写した外形からラベルがはみ出すと `geometry/label-overflow`。
+  - **PDF / PPTX**: PDF は SVG 経由で変更なし。編集可能 PPTX は、写したノードを自由形状（`custGeom`、平行四辺形と同じ道）で描く。平面内の辺の矢じりは SVG の `sumi-plane-head` を自由形状の図形にし、ネイティブの線端は付けない。線は `data-foreshorten` で縮めた量で止める。ネイティブ線端の三角形（PowerPoint の直立の矢じり）は平面に貼れないため。`glued` のコネクタでも、矢じりのある平面内の辺は自由形状になる（矢じりのない辺はこれまでどおり）。
+  - **ベースレイアウト `projected-planes`**: 箱の列と attention map の `matrix` を、それぞれ `projected` の平面に載せた（`stacked-planes` は直立のまま変えない）。
+- **採らなかった案**:
+  - **`text: projected`（文字も平面に貼る）**: SVG は `transform` で簡単にできるが、geometry lint と inspection は文字の箱を軸平行の線箱で測るため、傾いた文字は測れない。PDF の文字埋め込み・PPTX の文字枠も別の道になる。傾いた文字は読みにくく、図の可読性を落とす。水平の文字を保つ方針（#574 の研究）のとおり採らない。必要なら後で別の issue で扱う。
+  - **ノードの IR にフラットの大きさを持たせる**: フラットの大きさは配置のときにしか決まらず（文字の測定、`stretch`）、IR を書き換える道がない。代わりに Layout IR に多角形を持たせ、ルーターには IR の差し替え（`withOutlines()`）で、lint には SVG の多角形で渡した。ルーターの呼び出し側（`ports.ts` など、ノードの外形を求める箇所）は変えていない。
+  - **外接矩形からフラットの大きさを復元する**: 楕円・菱形では外接矩形が一意に決まらない場合があり（菱形の高さが外接矩形の中に隠れる）、不採用。
+  - **`<g transform>` で SVG のまま写す**: inspection が `g.shape` の `transform` を拒否する契約で、PPTX・lint も多角形の点が要る。多角形で書く。
+  - **ラベルが収まらないとき警告するだけ**: 平らな楕円では既定のままだとほぼ必ず出てしまう。大きさを自動で伸ばす方が、図としてすぐ使える。大きさを書いた場合は従来どおり lint が出す。
+- **既知の制限**:
+  - 平面の中に置けるのは node と `matrix` だけ。書いた group は `layout/plane-nested-group`。
+  - 画像・曲線を持つ shape・outline component は平面に貼らない（直立）。文字は水平のまま。
+  - `projected` の平面では、ノードが大きくなると平面の自然な大きさ（フラット枠）が変わり、`place` で置いた座標が近いと重なることがある。`geometry/node-overlap` で検出できる。
+  - 矢じりはフラット枠で長さを決めるので、方向によって縮み（最小 det/σ 倍）も延び（最大 σ 倍、既定で約 1.07）もする。ルーターが確保する矩形は直立の大きさのままで、延びた分は lint が描いた長さで確かめる。
+  - 平面内の `route: curve` と、平面をまたぐ辺の矢じりは、ページ上の直立のまま。
+  - PPTX の対応線は平面の上に出る（#581 のまま）。
+- **互換性**: `contents` を書かない図、`contents: upright` の図の出力は変わらない（`gallery:check` で SVG の差分なし。変わったのは `container` の props の表、`docs/gallery/index.html`）。内部の outline renderer `sumi/polygon` は `internal` で、manifest からは選べない（`component/invalid-manifest`、テストあり）。params はルーターへ渡す IR の差し替えだけが与える。追加は、ベースレイアウト `projected-planes` の SVG・PNG、`previews.json` の 1 行、Skill の記述。

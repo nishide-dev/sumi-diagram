@@ -355,11 +355,101 @@ const waveform: OutlineRenderer = {
   },
 };
 
+const polygonParams = z.strictObject({
+  /**
+   * The outline as JSON `[[u, v], …]`, each coordinate a fraction of the footprint's width / height
+   * from its top left (internal, set by the router). Default: the footprint itself.
+   */
+  points: z.string().default("[[0,0],[1,0],[1,1],[0,1]]"),
+});
+
+/**
+ * An explicit convex outline (#577): a node lying on a projected tilted plane. The layout knows
+ * its polygon (the flat shape mapped onto the plane); the router reads it through this
+ * renderer, so ports, collisions and straight edges meet the mapped outline. The polygon's
+ * bounding box is the node's rectangle, so the fractions reproduce its points.
+ */
+const polygonOutline: OutlineRenderer<z.output<typeof polygonParams>> = {
+  id: "sumi/polygon",
+  version: 1,
+  internal: true,
+  params: polygonParams,
+  footprint(label, { points }) {
+    // The label fits the largest centred box of the footprint's aspect: the footprint is that much bigger.
+    const unit = { x: 0, y: 0, width: 1, height: 1 };
+    // (a hair's slack for the bisection of the fraction)
+    const fraction = centeredInside(unitPolygon(points), unit).width * (1 - 1e-6);
+    return { width: label.width / fraction, height: label.height / fraction };
+  },
+  draw(rect, { points }) {
+    const outline = (JSON.parse(points) as [number, number][]).map(([u, v]) => ({
+      x: rect.x + u * rect.width,
+      y: rect.y + v * rect.height,
+    }));
+    return { layers: [body(outline)], outline, safeArea: centeredInside(outline, rect) };
+  },
+};
+
+const unitPolygon = (points: string): Point[] =>
+  (JSON.parse(points) as [number, number][]).map(([x, y]) => ({ x, y }));
+
+/** The largest rectangle with the middle and the aspect of `rect` that fits in the convex polygon. */
+function centeredInside(polygon: readonly Point[], rect: Rect): Rect {
+  const cx = rect.x + rect.width / 2;
+  const cy = rect.y + rect.height / 2;
+  const eps = 1e-12 * rect.width * rect.height;
+  const inside = (p: Point): boolean => {
+    let sign = 0;
+    for (const [i, a] of polygon.entries()) {
+      const b = polygon[(i + 1) % polygon.length] as Point;
+      const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+      if (Math.abs(cross) < eps) continue;
+      if (sign === 0) sign = Math.sign(cross);
+      else if (Math.sign(cross) !== sign) return false;
+    }
+    return true;
+  };
+  const at = (f: number): Rect => ({
+    x: cx - (rect.width * f) / 2,
+    y: cy - (rect.height * f) / 2,
+    width: rect.width * f,
+    height: rect.height * f,
+  });
+  const fits = (f: number): boolean => {
+    const r = at(f);
+    return [
+      { x: r.x, y: r.y },
+      { x: r.x + r.width, y: r.y },
+      { x: r.x + r.width, y: r.y + r.height },
+      { x: r.x, y: r.y + r.height },
+    ].every(inside);
+  };
+  if (fits(1)) return rect;
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (fits(mid)) lo = mid;
+    else hi = mid;
+  }
+  // Strictly inside: a hair under the largest fraction found.
+  return at(lo * (1 - 1e-7));
+}
+
 /** Closed set of renderers bundled with Sumi; no external code loading. */
 export const BUILTIN_OUTLINE_RENDERERS: ReadonlyMap<string, OutlineRenderer> = new Map(
-  [trapezoid, stack, bowtie, bracket, waveform, bubble, flowArrow, stateMarker, cuboid].map(
-    (renderer) => [renderer.id, Object.freeze(renderer)],
-  ),
+  [
+    trapezoid,
+    stack,
+    bowtie,
+    bracket,
+    waveform,
+    bubble,
+    flowArrow,
+    stateMarker,
+    cuboid,
+    polygonOutline,
+  ].map((renderer) => [renderer.id, Object.freeze(renderer)]),
 );
 
 export function getOutlineRenderer(id: string): OutlineRenderer | undefined {

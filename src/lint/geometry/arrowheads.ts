@@ -44,3 +44,31 @@ export function arrowheadStraightRun(
   }
   return run;
 }
+
+/**
+ * How far the arrowhead painted at the end of `route` reaches back from its tip along the edge, when it is
+ * drawn flat on a projected tilted plane (#577): the head's points are mapped, so it may be shorter or
+ * longer than the nominal `fallback`. The head whose nearest point is closest to the tip is the end's.
+ */
+export function paintedHeadLength(
+  heads: readonly (readonly Point[])[] | undefined,
+  route: readonly Point[],
+  source: boolean,
+  fallback: number,
+): number {
+  if (heads === undefined || heads.length === 0) return fallback;
+  const points = source ? route : [...route].reverse();
+  const tip = points[0];
+  const next = points.find(
+    (p) => tip !== undefined && Math.hypot(p.x - tip.x, p.y - tip.y) > EPSILON,
+  );
+  if (tip === undefined || next === undefined) return fallback;
+  const norm = Math.hypot(next.x - tip.x, next.y - tip.y);
+  const dx = (next.x - tip.x) / norm;
+  const dy = (next.y - tip.y) / norm;
+  const near = (head: readonly Point[]) =>
+    Math.min(...head.map((p) => Math.hypot(p.x - tip.x, p.y - tip.y)));
+  const head = [...heads].sort((a, b) => near(a) - near(b))[0] as readonly Point[];
+  if (near(head) > fallback * 2) return fallback;
+  return Math.max(...head.map((p) => (p.x - tip.x) * dx + (p.y - tip.y) * dy));
+}

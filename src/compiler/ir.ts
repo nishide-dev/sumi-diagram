@@ -425,6 +425,8 @@ export interface GroupIR extends ObjectIRBase {
     readonly orientation: "floor" | "wall";
     readonly angle: number;
     readonly depthScale: number;
+    /** `props.contents`: whether the nodes' outlines are mapped onto the plane (`projected`) or stay upright. */
+    readonly contents: "upright" | "projected";
   };
   /** `props.padding` in pt (#517): replaces the profile's group padding. */
   readonly paddingPt?: number;
@@ -1128,6 +1130,7 @@ function groupPlane(
       orientation,
       angle: projection?.angle ?? DEFAULT_PROJECTION_ANGLE,
       depthScale: projection?.depthScale ?? DEFAULT_DEPTH_SCALE,
+      contents: props.contents === "projected" ? "projected" : "upright",
     }),
   };
 }

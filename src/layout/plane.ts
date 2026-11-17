@@ -21,6 +21,8 @@
  * parallelogram's bounding box in both orientations.
  */
 import type { Point, Rect } from "../core/geometry";
+import { PARALLELOGRAM_WEDGE_UNITS } from "../lint/geometry/shapes";
+import type { PlaneLayout } from "./ir";
 
 export const PLANE_ORIENTATIONS = ["floor", "wall"] as const;
 export type PlaneOrientation = (typeof PLANE_ORIENTATIONS)[number];
@@ -172,4 +174,243 @@ export function clipSegmentToConvex(
     if (t0 > t1) return undefined;
   }
   return [t0, t1];
+}
+
+/**
+ * What a plane's nodes look like (#577): `upright` keeps every node's shape as
+ * it is (only its center is mapped); `projected` maps the outline too, so the
+ * node lies flat on the plane. Labels stay horizontal in both.
+ */
+export const PLANE_CONTENTS = ["upright", "projected"] as const;
+export type PlaneContents = (typeof PLANE_CONTENTS)[number];
+
+/**
+ * The linear part of the map from the flat frame (y down) to the page: the page
+ * displacement `(a·dx + c·dy, b·dx + d·dy)` of a flat displacement `(dx, dy)`.
+ * Unlike {@link planeBasis} (per unit of u and v, with v up) it takes flat
+ * frame coordinates directly.
+ */
+export interface FlatLinear {
+  readonly a: number;
+  readonly b: number;
+  readonly c: number;
+  readonly d: number;
+}
+
+export function flatLinear(projection: PlaneProjection): FlatLinear {
+  const { u, v } = planeBasis(projection);
+  return { a: u.x, b: u.y, c: -v.x, d: -v.y };
+}
+
+/** A flat displacement mapped by the linear part. */
+export function mapFlatVector(linear: FlatLinear, p: Point): Point {
+  return { x: linear.a * p.x + linear.c * p.y, y: linear.b * p.x + linear.d * p.y };
+}
+
+/** The node shapes whose outline a projected plane maps (a polygon, or an ellipse sampled as one). */
+export const PROJECTABLE_SHAPES = [
+  "rectangle",
+  "square",
+  "circle",
+  "oval",
+  "diamond",
+  "hexagon",
+  "parallelogram",
+] as const;
+export type ProjectableShape = (typeof PROJECTABLE_SHAPES)[number];
+
+export const isProjectableShape = (shape: string): shape is ProjectableShape =>
+  (PROJECTABLE_SHAPES as readonly string[]).includes(shape);
+
+/** Points an ellipse is sampled with (the outline stays a convex polygon the lint and the router read). */
+const ELLIPSE_STEPS = 64;
+/** Segments of each rounded corner of a rectangle. */
+const CORNER_STEPS = 6;
+
+/**
+ * The outline of a flat node of `shape`, `width × height` around (0, 0) (y down), as a
+ * polygon: an ellipse sampled in 64 steps, a rectangle with its rounded corners
+ * (`radius`) sampled in 6 steps, the other shapes as the lint reads them.
+ */
+export function flatShapePolygon(
+  shape: ProjectableShape,
+  width: number,
+  height: number,
+  radius = 0,
+): Point[] {
+  const w = width / 2;
+  const h = height / 2;
+  switch (shape) {
+    case "circle":
+    case "oval":
+      return Array.from({ length: ELLIPSE_STEPS }, (_, i) => {
+        const t = (2 * Math.PI * i) / ELLIPSE_STEPS;
+        return { x: w * Math.cos(t), y: h * Math.sin(t) };
+      });
+    case "rectangle":
+    case "square": {
+      const r = Math.min(radius, w, h);
+      if (r <= 0)
+        return [
+          { x: -w, y: -h },
+          { x: w, y: -h },
+          { x: w, y: h },
+          { x: -w, y: h },
+        ];
+      const corners = [
+        { cx: w - r, cy: -h + r, from: -90 },
+        { cx: w - r, cy: h - r, from: 0 },
+        { cx: -w + r, cy: h - r, from: 90 },
+        { cx: -w + r, cy: -h + r, from: 180 },
+      ];
+      return corners.flatMap(({ cx, cy, from }) =>
+        Array.from({ length: CORNER_STEPS + 1 }, (_, i) => {
+          const t = ((from + (90 * i) / CORNER_STEPS) * Math.PI) / 180;
+          return { x: cx + r * Math.cos(t), y: cy + r * Math.sin(t) };
+        }),
+      );
+    }
+    case "diamond":
+      return [
+        { x: 0, y: -h },
+        { x: w, y: 0 },
+        { x: 0, y: h },
+        { x: -w, y: 0 },
+      ];
+    case "hexagon":
+      return [
+        { x: -w / 2, y: -h },
+        { x: w / 2, y: -h },
+        { x: w, y: 0 },
+        { x: w / 2, y: h },
+        { x: -w / 2, y: h },
+        { x: -w, y: 0 },
+      ];
+    case "parallelogram": {
+      const wedge = Math.min(PARALLELOGRAM_WEDGE_UNITS, width / 2);
+      return [
+        { x: -w + wedge, y: -h },
+        { x: w, y: -h },
+        { x: w - wedge, y: h },
+        { x: -w, y: h },
+      ];
+    }
+  }
+}
+
+/**
+ * The page outline of a node of `shape` lying on a plane: its flat outline mapped by `linear`,
+ * around `center` (the mapped center of the node).
+ */
+export function projectedOutline(
+  shape: ProjectableShape,
+  width: number,
+  height: number,
+  radius: number,
+  linear: FlatLinear,
+  center: Point,
+): Point[] {
+  return flatShapePolygon(shape, width, height, radius).map((p) => {
+    const d = mapFlatVector(linear, p);
+    return { x: center.x + d.x, y: center.y + d.y };
+  });
+}
+
+/** Whether `p` lies inside the convex polygon (either winding), on its boundary included. */
+export function insideConvex(polygon: readonly Point[], p: Point): boolean {
+  let sign = 0;
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i] as Point;
+    const b = polygon[(i + 1) % polygon.length] as Point;
+    const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+    if (Math.abs(cross) < 1e-9) continue;
+    const s = Math.sign(cross);
+    if (sign === 0) sign = s;
+    else if (s !== sign) return false;
+  }
+  return true;
+}
+
+/** Whether a box (a label's) centered on `center` fits inside the convex `polygon`. */
+export function boxFitsPolygon(
+  polygon: readonly Point[],
+  center: Point,
+  width: number,
+  height: number,
+): boolean {
+  return [
+    [-1, -1],
+    [1, -1],
+    [1, 1],
+    [-1, 1],
+  ].every(([sx, sy]) =>
+    insideConvex(polygon, {
+      x: center.x + (sx as number) * (width / 2),
+      y: center.y + (sy as number) * (height / 2),
+    }),
+  );
+}
+
+/**
+ * The flat size a projected node needs so that its upright label (`label`, with `margin` around
+ * it) fits inside its mapped outline: `size` when it fits already; otherwise the smallest
+ * growth, in whole units, of the height alone, the width alone or (a fixed-aspect shape, or when
+ * neither is enough) both.
+ */
+export function growToFitLabel(
+  shape: ProjectableShape,
+  size: { width: number; height: number },
+  radius: number,
+  linear: FlatLinear,
+  label: { width: number; height: number },
+  margin: number,
+  fixedAspect: boolean,
+): { width: number; height: number } {
+  const zero = { x: 0, y: 0 };
+  const lw = label.width + 2 * margin;
+  const lh = label.height + 2 * margin;
+  const fits = (w: number, h: number) =>
+    boxFitsPolygon(projectedOutline(shape, w, h, radius, linear, zero), zero, lw, lh);
+  if (size.width <= 0 || size.height <= 0 || fits(size.width, size.height)) return size;
+  // The smallest whole size (by a doubling then a bisection of the factor) along one direction.
+  const search = (make: (f: number) => { width: number; height: number }) => {
+    let hi = 2;
+    while (hi < 64 && !fits(make(hi).width, make(hi).height)) hi *= 2;
+    if (!fits(make(hi).width, make(hi).height)) return undefined;
+    let lo = hi / 2;
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2;
+      if (fits(make(mid).width, make(mid).height)) hi = mid;
+      else lo = mid;
+    }
+    let out = { width: Math.ceil(make(hi).width), height: Math.ceil(make(hi).height) };
+    // Rounding up whole units may overshoot by one: keep the smaller that still fits.
+    const down = { width: Math.floor(make(hi).width), height: Math.floor(make(hi).height) };
+    if (fits(down.width, down.height)) out = down;
+    return out;
+  };
+  const candidates = [
+    ...(fixedAspect
+      ? []
+      : [
+          search((f) => ({ width: size.width, height: size.height * f })),
+          search((f) => ({ width: size.width * f, height: size.height })),
+        ]),
+    search((f) => ({ width: size.width * f, height: size.height * f })),
+  ].filter((c): c is { width: number; height: number } => c !== undefined);
+  const best = candidates.sort((a, b) => a.width * a.height - b.width * b.height)[0];
+  return best ?? size;
+}
+
+/** The placed plane of the Layout IR as a {@link PlaneFrame}. */
+export function planeFrameOf(plane: PlaneLayout): PlaneFrame {
+  return {
+    projection: {
+      orientation: plane.orientation,
+      angle: plane.angle,
+      depthScale: plane.depthScale,
+    },
+    frame: plane.frame,
+    origin: plane.origin,
+  };
 }

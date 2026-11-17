@@ -84,7 +84,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.12.0 | `separator`, `figure.assets` with `crop` and tokens image cells, operator `size`, grid hints, width-overflow breakdown |
 | 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges (`shape: ellipse` with `angle`: tilted ellipses); node `glyphs`; `legend` samples `icon` / `glyph` / `set`, `flow`, `perRow`, `heading`, `labelAt`; node `iconSize` (and a legend `icon` entry's) sizes an icon without an enclosing shape; a `tone` on an icon-only `label` colours the icon (a legend `icon` entry: `iconTone`); stroke options: `themeOverrides` `lineWidth` / `frameWidth` / `arrowheadScale` / `cornerRadius`, element `lineWidth` / `cornerRadius` / `arrowheadScale`, `dotted` variant; `block-arrow`, `triangle-arrow`, `chevron` flow markers |
 | 0.16.1 | Set `enclose: footprint` includes member glyphs and padding; the default `body` preserves existing outlines. |
-| 0.19.0 | `cuboid`: a solid drawn in oblique projection, with `dims`; `figure.projection` (`angle`, `depthScale`); container `props.plane` (`floor` / `wall`): a tilted plane group; `cuboid` `cells` / `highlight` and `<node>.<name>` zoom ends |
+| 0.19.0 | `cuboid`: a solid drawn in oblique projection, with `dims`; `figure.projection` (`angle`, `depthScale`); container `props.plane` (`floor` / `wall`): a tilted plane group, with `props.contents: projected` laying node outlines, arrowheads and a `matrix` flat on it; `cuboid` `cells` / `highlight` and `<node>.<name>` zoom ends |
 
 ## IDs
 
@@ -405,7 +405,8 @@ their own `properties`, `enum`, `const` and `anyOf`.
 - A `container` group with `props.plane: floor | wall` (structured layout only, since
   0.19.0) is a **tilted plane**: its nodes are arranged flat and mapped by
   `figure.projection`, the frame becomes a parallelogram, and `route: straight` edges
-  between planes make correspondence lines. See [tilted planes](structured.md#tilted-planes).
+  between planes make correspondence lines. `props.contents: projected` draws the plane's
+  node outlines, arrowheads and `matrix` cells flat on it. See [tilted planes](structured.md#tilted-planes).
 - Structured-only components (the catalog marks `"engines": ["structured"]`):
   `legend`, `tokens`, `matrix`, `bracket`, `cuboid`, `separator`, `block-arrow`, `triangle-arrow`, `chevron`, edge `zoom`: see
   [structured](structured.md). Components without `engines` work in both.
