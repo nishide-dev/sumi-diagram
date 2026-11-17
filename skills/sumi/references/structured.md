@@ -1474,14 +1474,31 @@ the volume's top (y = 0) or right (the last x) surface, since the volume's front
 block fully inside draws nothing, but can still be named by a zoom. Blocks are painted over the
 volume, far ones first.
 
-A block is named in an edge end as **`<node>.<name>`** (like a tokens cell `<node>.<cell>`), and only
-a **`zoom`** edge may join one (`layout/part-needs-direct-route` otherwise): between two blocks
-it draws the **receptive field**, four lines from the corners of the source block's right face
-to the corners of the target block's left face (a pyramid), in the edge's tone, dashed. The lines
-are drawn over the source volume and end where they enter the target volume, so the target hides
-their ends behind its cell, whichever volume comes first in the figure or the edge's direction (a
-line from a hidden left face is seen from where it leaves its volume). Between a block and a plain box the zoom keeps its two lines. Blocks need not be in one row:
-the target lies to the right or left of the source (above or below falls back to two lines).
+A block is named in an edge end as **`<node>.<name>`** (like a tokens cell `<node>.<cell>`). An
+unknown name is `ref/unknown-cell` ("Unknown block", with the cuboid's names in the hint).
+
+- **Ordinary edges** (`arrow`, `line`) may join a block: the edge is by default one straight line
+  (as `route: straight`, no obstacle avoidance, no shared trunks; an explicit `route: curve` draws
+  one cubic instead) that aims at the block's 3D centre (the middle of its box) and ends on the
+  block's own silhouette, on the line from the other end's actual contact (a face port or an anchor
+  included) through the centre. The line
+  may cross the block's parent cuboid on the way (it is the block's own volume), and `lint
+  --geometry` treats the parent as an end, not an obstacle. `ports: face` of the parent applies to
+  edges that name the cuboid itself, not to its blocks. `fromAnchor` / `toAnchor` on a block's end
+  of an arrow or line is `layout/part-anchor` (on a `zoom` it is the usual `component/anchor-on-zoom`
+  warning). A block is not routed round other nodes: keep the way clear, or the lint
+  reports the node it passes through.
+- **`zoom`** between two blocks draws the **receptive field**, four lines from the corners of the
+  source block's face toward the target to the corners of the target block's opposite face (a
+  pyramid), in the edge's tone, dashed: target to the right, source's right face to target's
+  left face; to the left, the reverse; **below**, the source's bottom face to the target's top
+  face; **above**, the source's top face to the target's bottom face. Corners correspond (front
+  left to front left, back to back). The lines are drawn over the source volume. Lines from a
+  hidden face (left, bottom) are seen from where they leave their volume, and a line meeting a hidden
+  face ends where it enters the target volume, so the target hides it behind its block; the front
+  corners of the bottom face of a block in the front plane (z = 0) are on the visible surface and
+  keep their line whole. The same in SVG, PDF and PPTX, whichever volume comes first in the figure or the edge's
+  direction. Between a block and a plain box the zoom keeps its two lines.
 
 ```yaml
 # expect-render: fits
@@ -1518,8 +1535,53 @@ edges:
   - {from: input.kernel, to: output.cell, component: zoom, tone: orange}
 ```
 
-Start from the [conv3d layout](../layouts/README.md). Not yet (#584): ordinary edges to a block
-(only zoom), vertical receptive fields, a block grid different from its volume's cells; for tilted sheets see
+A receptive field can also run down a column, and a plain arrow can name a block:
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: conv3d-vertical
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 28mm
+        align: start
+        items:
+          - row: {gap: 8mm, align: start, items: [input, note]}
+          - row: {gap: 8mm, align: start, items: [output, legend]}
+nodes:
+  - id: input
+    component: cuboid
+    tone: blue
+    variant: tinted
+    props:
+      width: 31.2mm
+      height: 31.2mm
+      depth: 31.2mm
+      cells: [6, 6, 6]
+      highlight: [{name: kernel, at: [1, 1, 0], size: [3, 3, 3], tone: orange}]
+  - {id: note, component: label, label: "3 × 3 × 3 kernel", variant: muted}
+  - {id: legend, component: label, label: "one output cell", variant: muted}
+  - id: output
+    component: cuboid
+    tone: blue
+    variant: tinted
+    props:
+      width: 20.8mm
+      height: 20.8mm
+      depth: 20.8mm
+      cells: [4, 4, 4]
+      highlight: [{name: cell, at: [1, 0, 0], tone: orange}]
+edges:
+  - {from: input.kernel, to: output.cell, component: zoom, tone: orange}
+  - {from: note, to: input.kernel, component: arrow, tone: orange}
+```
+
+Start from the [conv3d layout](../layouts/README.md). Not supported: a block grid different from its
+volume's cells, an edge between two blocks of one cuboid; for tilted sheets see
 [tilted planes](#tilted-planes).
 
 ## Tilted planes

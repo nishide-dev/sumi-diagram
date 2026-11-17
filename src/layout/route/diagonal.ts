@@ -29,7 +29,7 @@ import {
   nodeRegion,
   SIDE_DIR,
 } from "./ports";
-import { zoomSide } from "./zoom";
+import { partOf, zoomSide } from "./zoom";
 
 export const isDirectEdge = (edge: Pick<EdgeIR, "route">): boolean => edge.route !== undefined;
 
@@ -89,14 +89,25 @@ export function addDirectRoutes(
       anchor === undefined || anchor === "straight" ? center(r) : anchorPoint(r, anchor);
     const sourceDrawing = drawing(edge.from, source);
     const targetDrawing = drawing(edge.to, target);
+    // A highlighted block of a cuboid (#584): the end aims at the block's 3D centre (its box's
+    // middle) and meets the block's own silhouette, whatever the cuboid's ports.
+    const parts = new Map<ElementKey, NonNullable<ReturnType<typeof partOf>>>();
+    const sourcePart = partOf(nodes.get(edge.from), source, edge.fromPart);
+    const targetPart = partOf(nodes.get(edge.to), target, edge.toPart);
+    if (sourcePart !== undefined) parts.set(edge.from, sourcePart);
+    if (targetPart !== undefined) parts.set(edge.to, targetPart);
     const s =
-      sourceDrawing?.fixedPort === undefined
-        ? rawOf(source, edge.fromAnchor)
-        : anchorPoint(source, sourceDrawing.fixedPort);
+      sourcePart !== undefined
+        ? center(sourcePart.box)
+        : sourceDrawing?.fixedPort === undefined
+          ? rawOf(source, edge.fromAnchor)
+          : anchorPoint(source, sourceDrawing.fixedPort);
     const t =
-      targetDrawing?.fixedPort === undefined
-        ? rawOf(target, edge.toAnchor)
-        : anchorPoint(target, targetDrawing.fixedPort);
+      targetPart !== undefined
+        ? center(targetPart.box)
+        : targetDrawing?.fixedPort === undefined
+          ? rawOf(target, edge.toAnchor)
+          : anchorPoint(target, targetDrawing.fixedPort);
     // Ends on a visible face of their own solid (`ports: face`, #575): the line leaves over that face.
     const faceEnds = new Map<ElementKey, Point>();
     const end = (
@@ -108,6 +119,16 @@ export function addDirectRoutes(
     ): Point | undefined => {
       const node = nodes.get(key);
       if (isJunction(node)) return center(r);
+      const block = key === edge.from ? sourcePart : targetPart;
+      if (block !== undefined) {
+        const c = center(block.box);
+        const f = boundaryEntry(other, c, { kind: "polygon", points: block.outline });
+        if (f === undefined) return undefined;
+        return {
+          x: roundUnits(other.x + (c.x - other.x) * f),
+          y: roundUnits(other.y + (c.y - other.y) * f),
+        };
+      }
       const fixed = drawing(key, r)?.fixedPort;
       if (fixed !== undefined) return anchorPoint(r, fixed);
       // A solid with `ports: face` (#575): an unanchored end toward the right or the top ends at the
@@ -151,7 +172,7 @@ export function addDirectRoutes(
         y: roundUnits(from.y + (to.y - from.y) * f),
       };
     };
-    const a =
+    const a0 =
       loopAnchors === undefined || typeof loopAnchors === "string"
         ? end(edge.from, source, s, t, edge.fromAnchor)
         : end(
@@ -161,10 +182,20 @@ export function addDirectRoutes(
             center(source),
             loopAnchors.from,
           );
-    const b =
+    const b0 =
       loopAnchors === undefined || typeof loopAnchors === "string"
         ? end(edge.to, target, t, s, edge.toAnchor)
         : end(edge.to, target, anchorPoint(target, loopAnchors.to), center(target), loopAnchors.to);
+    // A block end against a plain end: the block's contact lies on the line from the other end's
+    // actual contact (a face port, an anchor) to the block's centre, so the line passes through it.
+    const a =
+      sourcePart !== undefined && targetPart === undefined && b0 !== undefined && a0 !== undefined
+        ? end(edge.from, source, s, b0, edge.fromAnchor)
+        : a0;
+    const b =
+      targetPart !== undefined && sourcePart === undefined && a0 !== undefined && b0 !== undefined
+        ? end(edge.to, target, t, a0, edge.toAnchor)
+        : b0;
     if (a === undefined || b === undefined)
       return fail("the line does not meet an endpoint outline; choose another anchor");
     if (loop && Math.hypot(b.x - a.x, b.y - a.y) < 2)
@@ -198,6 +229,9 @@ export function addDirectRoutes(
     const enters = (key: ElementKey, r: Rect, p: Point, q: Point) => {
       const node = nodes.get(key);
       if (isJunction(node)) return false;
+      // A block's line crosses its own cuboid up to the block: only the block's outline counts.
+      const block = parts.get(key);
+      if (block !== undefined) return crossesPaintedPolygon(p, q, block.outline);
       const painted = drawing(key, r);
       if (painted !== undefined)
         return (painted.boundaries ?? [painted.outline]).some((polygon) =>

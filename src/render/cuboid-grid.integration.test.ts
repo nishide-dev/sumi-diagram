@@ -370,15 +370,17 @@ nodes:
     expect(located?.path).toEqual(["nodes", 0, "props", "highlight", 0, "at"]);
   });
 
-  test("references: an unknown block, a block of another node, and an edge that is not a zoom", () => {
+  test("references: an unknown block, a block of another node, and an anchor on a block", () => {
     expect(codes(conv("sumi", "{ from: vin.nope, to: vout.cell, component: zoom }"))).toContain(
       "ref/unknown-cell",
     );
     expect(codes(conv("sumi", "{ from: vin.cell, to: vout.cell, component: zoom }"))).toContain(
       "ref/unknown-cell",
     );
-    expect(codes(conv("sumi", "{ from: vin.kernel, to: vout.cell }"))).toContain(
-      "layout/part-needs-direct-route",
+    // An ordinary edge may join a block (#584), but not with an anchor on that end.
+    expect(codes(conv("sumi", "{ from: vin.kernel, to: vout.cell }"))).toEqual([]);
+    expect(codes(conv("sumi", "{ from: vin.kernel, to: vout.cell, fromAnchor: east }"))).toContain(
+      "layout/part-anchor",
     );
     expect(codes(conv())).toEqual([]);
     // A zoom may join one block and a plain box too.
