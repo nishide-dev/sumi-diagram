@@ -16,9 +16,33 @@ export interface OutlinePath {
   readonly closed: boolean;
 }
 
+/** Which face of a solid a body layer is (#575): painted without a stroke, as a shade of the node's fill. */
+export type OutlineShade = "front" | "top" | "side";
+
+export interface OutlineLayer {
+  readonly role: "body" | "line";
+  readonly path: OutlinePath;
+  /**
+   * Body only: the layer is a face of a solid. Renderers paint it with no stroke;
+   * `front` takes the node's fill, `top` and `side` the shades the theme derives
+   * from it (params `topFill`, `sideFill`). Lines draw the edges.
+   */
+  readonly shade?: OutlineShade;
+  /** Line only: an inner edge of a solid, thinner and lighter than the silhouette (param `innerStroke`). */
+  readonly inner?: true;
+}
+
+export type OutlineSide = "north" | "south" | "east" | "west";
+
 export interface OutlineDrawing {
   /** Back to front. Bodies are closed, filled polygons; lines are unfilled with round caps/joins. */
-  readonly layers: readonly { readonly role: "body" | "line"; readonly path: OutlinePath }[];
+  readonly layers: readonly OutlineLayer[];
+  /**
+   * Where an edge without an anchor meets each side, as a 0..1 offset along it
+   * (left to right on north/south, top to bottom on east/west); a side not
+   * listed keeps the middle (#575: a cuboid's ports are on its front face).
+   */
+  readonly portOffsets?: Partial<Record<OutlineSide, number>>;
   /** Ordered enclosing silhouette; equals the body union unless boundaries is supplied. */
   readonly outline: readonly Point[];
   /** Optional body-only boundary for edge contacts; collision still includes the complete silhouette. */

@@ -945,6 +945,29 @@ export const FigureMetaSchema = z.strictObject({
     .describe(
       "scale: shrink the whole figure (layout unchanged) to the profile's maximum width if it is wider; text is then checked at its printed size. Omitted means the figure is printed at its natural size.",
     ),
+  projection: z
+    .strictObject({
+      angle: z
+        .number()
+        .min(10)
+        .max(80)
+        .default(45)
+        .describe(
+          "Direction in degrees, counterclockwise from the right, in which depth runs back on the page: 45 (default) is up and right like a layered card's offset, 30 is flatter and wider.",
+        ),
+      depthScale: z
+        .number()
+        .gt(0)
+        .max(2)
+        .default(0.5)
+        .describe(
+          "Length on the page of a depth of 1 (cabinet projection: 0.5, the default, draws a depth of 20mm as 10mm).",
+        ),
+    })
+    .optional()
+    .describe(
+      "Oblique projection of the figure's solids (cuboid): where depth runs on the page. Omitted means angle 45 and depthScale 0.5. No effect on flat components.",
+    ),
   setOverlap: z
     .enum(["mix", "multiply"])
     .optional()

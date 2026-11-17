@@ -113,7 +113,7 @@ export interface ExpandedPaint {
 /** Where an expanded element (see {@link PartialFigure.expanded}) is written. */
 export interface ExpandedOrigin {
   /** What it was expanded from. */
-  from: "caption" | "legend" | "tokens" | "matrix" | "chat";
+  from: "caption" | "legend" | "tokens" | "matrix" | "chat" | "dims";
   /** The field it stands for, e.g. `["groups", 2, "caption"]` or a legend entry. */
   path: DocPath;
   /** Whom diagnostics about it name: the captioned group, or the legend, tokens or matrix node. */

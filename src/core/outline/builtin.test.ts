@@ -15,6 +15,14 @@ const params: Record<string, OutlineParams[]> = {
   "sumi/bubble": ["none", "left", "right", "top", "bottom"].flatMap((tail) =>
     ["start", "center", "end", 0, 999].map((tailAt) => ({ tail, tailAt })),
   ),
+  "sumi/cuboid": [
+    {},
+    { width: 10, height: 20, depth: 30 },
+    { depth: 400, angle: 10 },
+    { depth: 400, angle: 80 },
+    { depth: 40, angle: 30, depthScale: 2 },
+    { depth: 8 },
+  ],
   "sumi/waveform": [{}, { samples: "-1,0,1" }, { samples: "-1,0,1", mode: "line" }],
   "sumi/trapezoid": [
     {},
@@ -56,6 +64,7 @@ test("renderer registry contains only the bundled geometry implementations", () 
     "sumi/bubble",
     "sumi/flow-arrow",
     "sumi/state-marker",
+    "sumi/cuboid",
   ]);
   expect(getOutlineRenderer("trapezoid")).toBeUndefined();
   expect(getOutlineRenderer("other/stack")).toBeUndefined();

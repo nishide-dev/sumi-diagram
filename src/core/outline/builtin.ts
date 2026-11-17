@@ -2,6 +2,7 @@
 import { z } from "zod";
 import type { Point, Rect } from "../geometry";
 import { bubble } from "./bubble";
+import { cuboid } from "./cuboid";
 import { flowArrow } from "./flow-arrow";
 import { stateMarker } from "./state-marker";
 import type { OutlineDrawing, OutlineRenderer } from "./types";
@@ -356,10 +357,9 @@ const waveform: OutlineRenderer = {
 
 /** Closed set of renderers bundled with Sumi; no external code loading. */
 export const BUILTIN_OUTLINE_RENDERERS: ReadonlyMap<string, OutlineRenderer> = new Map(
-  [trapezoid, stack, bowtie, bracket, waveform, bubble, flowArrow, stateMarker].map((renderer) => [
-    renderer.id,
-    Object.freeze(renderer),
-  ]),
+  [trapezoid, stack, bowtie, bracket, waveform, bubble, flowArrow, stateMarker, cuboid].map(
+    (renderer) => [renderer.id, Object.freeze(renderer)],
+  ),
 );
 
 export function getOutlineRenderer(id: string): OutlineRenderer | undefined {
