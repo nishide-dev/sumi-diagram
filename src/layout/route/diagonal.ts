@@ -84,26 +84,17 @@ export function addDirectRoutes(
       if (!renderer) throw new Error(`Unknown outline renderer ${render.renderer}`);
       return renderer.draw(r, renderer.params.parse(render.params ?? {}));
     };
-    // Where an unanchored end aims: the middle of the box, or of a solid's front face (#575).
-    const middle = (key: ElementKey, r: Rect): Point => {
-      const d = drawing(key, r);
-      if (d?.portOffsets === undefined) return center(r);
-      return {
-        x: d.safeArea.x + d.safeArea.width / 2,
-        y: d.safeArea.y + d.safeArea.height / 2,
-      };
-    };
-    const rawOf = (key: ElementKey, r: Rect, anchor: EdgeIR["fromAnchor"]): Point =>
-      anchor === undefined || anchor === "straight" ? middle(key, r) : anchorPoint(r, anchor);
+    const rawOf = (r: Rect, anchor: EdgeIR["fromAnchor"]): Point =>
+      anchor === undefined || anchor === "straight" ? center(r) : anchorPoint(r, anchor);
     const sourceDrawing = drawing(edge.from, source);
     const targetDrawing = drawing(edge.to, target);
     const s =
       sourceDrawing?.fixedPort === undefined
-        ? rawOf(edge.from, source, edge.fromAnchor)
+        ? rawOf(source, edge.fromAnchor)
         : anchorPoint(source, sourceDrawing.fixedPort);
     const t =
       targetDrawing?.fixedPort === undefined
-        ? rawOf(edge.to, target, edge.toAnchor)
+        ? rawOf(target, edge.toAnchor)
         : anchorPoint(target, targetDrawing.fixedPort);
     const end = (
       key: ElementKey,
@@ -119,7 +110,7 @@ export function addDirectRoutes(
       // Explicit anchors are projected radially onto the silhouette. Automatic
       // ends trace the line from the other end towards this shape's centre.
       const from = anchor === undefined || anchor === "straight" ? other : rawPoint;
-      const to = middle(key, r);
+      const to = center(r);
       const entry =
         node === undefined
           ? boundaryEntry(from, to, rectPolygon(r))

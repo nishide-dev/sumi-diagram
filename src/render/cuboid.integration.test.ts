@@ -126,7 +126,7 @@ nodes:
     expect(fh).toBeLessThan(bh);
   });
 
-  test("the silhouette is the collision outline: an edge ends on it, at the front's middle height when unanchored", async () => {
+  test("the silhouette is the collision outline: an edge ends on it, at the projected 3D centre height when unanchored", async () => {
     const same = `version: 1
 figure:
   id: pair
@@ -147,15 +147,17 @@ edges:
     const route = value.layout.edges.find((e) => e.key === edge?.key)?.route?.points;
     if (!a || !b || !route) throw new Error("missing layout");
     const node = value.compiled.ir.nodes.find((n) => n.id === "a");
-    const params = cuboid.params.parse(node?.render?.params);
-    const { dx, dy } = cuboidOffset(params);
+    const { dx, dy } = cuboidOffset(cuboid.params.parse(node?.render?.params));
     const frontHeight = a.height - dy;
-    // The right port: where the front's middle-height line meets the silhouette (the back right edge).
+    const centreY = a.y + dy + frontHeight / 2 - dy / 2;
+    // The projected centre is the front's centre moved by (dx/2, -dy/2): the middle of the box.
+    expect(centreY).toBeCloseTo(a.y + a.height / 2, 9);
+    // The right port: where the line through the centre meets the silhouette (the back right edge).
     expect(route[0]?.x).toBeCloseTo(a.x + a.width, 1);
-    expect(route[0]?.y).toBeCloseTo(a.y + dy + frontHeight / 2, 1);
-    // The left port of the target: its front face's left edge at the middle.
+    expect(route[0]?.y).toBeCloseTo(centreY, 1);
+    // The left port of the target: its front face's left edge, at the same height.
     expect(route.at(-1)?.x).toBeCloseTo(b.x, 1);
-    expect(route.at(-1)?.y).toBeCloseTo(b.y + dy + frontHeight / 2, 1);
+    expect(route.at(-1)?.y).toBeCloseTo(b.y + b.height / 2, 1);
     expect(dx).toBeGreaterThan(0);
   });
 
@@ -172,25 +174,22 @@ nodes:
 edges:
   - { from: a, to: b${route} }
 `;
-  const frontCentre = (value: Awaited<ReturnType<typeof render>>, id: string) => {
+  const centreOf = (value: Awaited<ReturnType<typeof render>>, id: string) => {
     const rect = value.layout.nodes.find((n) => n.key === `n:${id}`)?.rect;
-    const node = value.compiled.ir.nodes.find((n) => n.id === id);
     if (!rect) throw new Error("missing layout");
-    const { dy } = cuboidOffset(cuboid.params.parse(node?.render?.params));
-    return { rect, y: rect.y + dy + (rect.height - dy) / 2 };
+    return { rect, y: rect.y + rect.height / 2 };
   };
 
   for (const route of ["", ", route: straight", ", route: curve"]) {
-    test(`unanchored ends meet the front faces' middle height (route${route || ": default"})`, async () => {
-      // Equal cuboids side by side: both ends at the same, front-middle height.
+    test(`unanchored ends aim at the 3D centres (route${route || ": default"})`, async () => {
+      // Equal cuboids side by side: both ends at the same height, through both projected centres.
       const value = await render(pair(["24mm", "24mm"], route));
       const points = value.layout.edges[0]?.route?.points ?? [];
-      const a = frontCentre(value, "a");
-      const b = frontCentre(value, "b");
+      const a = centreOf(value, "a");
+      const b = centreOf(value, "b");
       expect(points[0]?.y).toBeCloseTo(a.y, 0);
       expect(points.at(-1)?.y).toBeCloseTo(b.y, 0);
-      // The bounding-box middle is a different height.
-      expect(Math.abs(a.y - (a.rect.y + a.rect.height / 2))).toBeGreaterThan(5);
+      expect(points[0]?.y).toBeCloseTo(points.at(-1)?.y ?? Number.NaN, 6);
     });
     test(`unequal neighbours end on their silhouettes (route${route || ": default"})`, async () => {
       const value = await render(pair(["28mm", "16mm"], route));
@@ -208,38 +207,41 @@ edges:
     });
   }
 
-  test("unequal neighbours with overlapping front faces get one horizontal segment inside both", async () => {
+  test("unequal bottom-aligned neighbours get one horizontal segment at the middle of their overlap", async () => {
     const value = await render(pair(["28mm", "16mm"]));
     const points = value.layout.edges[0]?.route?.points ?? [];
     expect(points).toHaveLength(2);
     expect(points[0]?.y).toBeCloseTo(points[1]?.y ?? Number.NaN, 6);
-    for (const id of ["a", "b"]) {
-      const node = value.compiled.ir.nodes.find((n) => n.id === id);
-      const rect = value.layout.nodes.find((n) => n.key === `n:${id}`)?.rect;
-      if (!rect) throw new Error("missing layout");
-      const front = cuboid.draw(rect, cuboid.params.parse(node?.render?.params)).safeArea;
-      expect(points[0]?.y).toBeGreaterThan(front.y);
-      expect(points[0]?.y).toBeLessThan(front.y + front.height);
-    }
+    const a = centreOf(value, "a").rect;
+    const b = centreOf(value, "b").rect;
+    const lo = Math.max(a.y, b.y);
+    const hi = Math.min(a.y + a.height, b.y + b.height);
+    expect(points[0]?.y).toBeCloseTo((lo + hi) / 2, 1);
   });
 
-  test("fronts that do not overlap keep their front-face middles", async () => {
+  test("vertical neighbours: top and bottom ports are at the 3D centre's x", async () => {
     const value = await render(`version: 1
 figure:
-  id: apart
+  id: column
   theme: sumi
   profile: paper-double
   layout:
-    arrange: { row: { gap: 14mm, align: start, items: [a, b] } }
+    arrange: { stack: { gap: 14mm, align: center, items: [a, b] } }
 nodes:
-  - { id: a, component: cuboid, props: { width: 3mm, height: 6mm, depth: 24mm } }
-  - { id: b, component: cuboid, props: { width: 3mm, height: 6mm, depth: 2mm } }
+  - { id: a, component: cuboid, props: { width: 4mm, height: 12mm, depth: 24mm } }
+  - { id: b, component: cuboid, props: { width: 4mm, height: 12mm, depth: 24mm } }
 edges:
   - { from: a, to: b }
 `);
-    const a = frontCentre(value, "a");
     const points = value.layout.edges[0]?.route?.points ?? [];
-    expect(points[0]?.y).toBeCloseTo(a.y, 0);
+    const a = centreOf(value, "a").rect;
+    const b = centreOf(value, "b").rect;
+    expect(points).toHaveLength(2);
+    expect(points[0]?.x).toBeCloseTo(a.x + a.width / 2, 1);
+    expect(points.at(-1)?.x).toBeCloseTo(b.x + b.width / 2, 1);
+    // The bottom of the source meets the silhouette's lower edge; the top of the target its upper edge.
+    expect(points[0]?.y).toBeLessThanOrEqual(a.y + a.height + 0.5);
+    expect(points.at(-1)?.y).toBeGreaterThanOrEqual(b.y - 0.5);
   });
 
   const fan = (mode: string, out = false) => `version: 1
@@ -272,11 +274,11 @@ ${out ? "  - { from: big, to: u }\n  - { from: big, to: v }" : "  - { from: u, t
     });
   }
 
-  test("fan-out from a cuboid keeps one shared source port", async () => {
+  test("fan-out from a cuboid keeps one shared source port at its 3D centre", async () => {
     const value = await render(fan("merge", true));
     const starts = value.layout.edges.map((e) => e.route?.points[0]?.y ?? Number.NaN);
     expect(starts[0]).toBeCloseTo(starts[1] ?? Number.NaN, 6);
-    const big = frontCentre(value, "big");
+    const big = centreOf(value, "big");
     expect(starts[0]).toBeCloseTo(big.y, 0);
   });
 
