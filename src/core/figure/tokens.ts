@@ -739,12 +739,15 @@ function resolveCellRefs(
     ref: string,
     at: DocPath,
     subject: { kind: "edge" | "node" | "figure"; id: string },
+    edgeEnd = false,
   ): string | undefined => {
     const owner = refOwner(ref);
     const cell = refCell(ref);
     const tokens = cells.get(owner);
     // The tokens node itself is the frame group of its cells (#281).
     if (cell === undefined) return ref;
+    // A highlighted block of a cuboid, `<node>.<name>` (#576): kept for the IR, which splits it.
+    if (edgeEnd && tokens === undefined && cuboidBlockNames(doc, owner).includes(cell)) return ref;
     const id = tokens?.get(cell);
     if (id !== undefined) return id;
     // Tokens with an error of their own (not expanded): the reference just depends on them.
@@ -775,9 +778,32 @@ function resolveCellRefs(
     const key = edgeKey(edge.id, index);
     if (invalid.has(key)) continue;
     const subject = { kind: "edge", id: edge.id ?? `edges[${index}]` } as const;
-    const from = resolve(edge.from, ["edges", index, "from"], subject);
-    const to = resolve(edge.to, ["edges", index, "to"], subject);
+    const from = resolve(edge.from, ["edges", index, "from"], subject, true);
+    const to = resolve(edge.to, ["edges", index, "to"], subject, true);
     if (from === undefined || to === undefined) {
+      invalid.add(key);
+      continue;
+    }
+    // A block of a cuboid (#576) is no element of the router: only a zoom edge joins it.
+    const direct = ["zoom", "sumi/zoom"].includes(edge.component);
+    const block = [from, to].find(
+      (end) =>
+        refCell(end) !== undefined &&
+        cuboidBlockNames(doc, refOwner(end)).includes(refCell(end) as string),
+    );
+    if (block !== undefined && !direct) {
+      state.diagnostics.push(
+        errorAt(
+          locate,
+          "layout/part-needs-direct-route",
+          `"${block}" names a block of a cuboid, which only a zoom edge can join.`,
+          ["edges", index, edge.from === block ? "from" : "to"],
+          {
+            subject,
+            hint: "Use component: zoom (a receptive field), or name the cuboid itself.",
+          },
+        ),
+      );
       invalid.add(key);
       continue;
     }
@@ -907,4 +933,18 @@ export function remapTokensPaths(doc: PartialFigure, diagnostics: Diagnostic[]):
       if (related.path !== undefined) related.path = tokensCellPath(doc, related.path);
     }
   }
+}
+
+/** The names of the highlighted blocks of the cuboid node `id` (#576). */
+export function cuboidBlockNames(doc: PartialFigure, id: string): string[] {
+  const node = doc.nodes?.find((n) => n?.id === id);
+  if (node === undefined || !["cuboid", "sumi/cuboid"].includes(node.component)) return [];
+  const highlight = node.props.highlight;
+  return Array.isArray(highlight)
+    ? highlight.flatMap((block) =>
+        typeof block === "object" && block !== null && typeof block.name === "string"
+          ? [block.name]
+          : [],
+      )
+    : [];
 }

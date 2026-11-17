@@ -306,8 +306,12 @@ function nodeShape(node: NodeIR, r: Rect): string {
     return drawing.layers
       .map((layer) => {
         const solid = solidLayerAttributes(node, layer);
-        if (solid !== undefined)
-          return `<path d="${pathData(layer.path.points, layer.path.closed)}"${solid}/>`;
+        if (solid !== undefined) {
+          const d = [layer.path, ...(layer.more ?? [])]
+            .map((path) => pathData(path.points, path.closed))
+            .join(" ");
+          return `<path d="${d}"${solid}/>`;
+        }
         const fill = layer.role === "line" ? "none" : paint(style.fill);
         const signal =
           layer.role === "line" ? ' stroke-linecap="round" stroke-linejoin="round"' : "";
@@ -325,7 +329,14 @@ function nodeShape(node: NodeIR, r: Rect): string {
         // size and close the gap between a final marker's ring and dot.
         if (node.render?.renderer === "sumi/state-marker")
           return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}" stroke="none"/>`;
-        return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}"${strokeAttributes(typeof frameStroke === "string" || signalStroke !== undefined ? { ...style, stroke: signalStroke ?? (frameStroke as string) } : style)}${signal}/>`;
+        // The silhouette of a cuboid with a grid or blocks (#576) is marked for the editable PPTX.
+        const marked =
+          node.render?.renderer === "sumi/cuboid" &&
+          typeof node.render.params?.cells === "string" &&
+          layer.role === "line"
+            ? ' class="sumi-solid-outline"'
+            : "";
+        return `<path d="${pathData(layer.path.points, layer.path.closed)}"${marked} fill="${fill}"${strokeAttributes(typeof frameStroke === "string" || signalStroke !== undefined ? { ...style, stroke: signalStroke ?? (frameStroke as string) } : style)}${signal}/>`;
       })
       .join("");
   }
@@ -1285,10 +1296,25 @@ export function writeStructuredSvg(
     );
     useText(placed.label);
   }
+  // A receptive field (#576, a zoom edge between blocks of cuboids) is painted over its source and
+  // under its target, so that the target's volume hides the ends of its lines behind its cell.
+  const nodeOrder = new Map(layout.nodes.map((n, i) => [n.key, i]));
+  const beneath = new Map<ElementKey, string[]>();
+  const beneathEdges = new Set<ElementKey>();
+  for (const placed of layout.edges) {
+    const edge = edges.get(placed.key);
+    const lines = placed.route?.lines;
+    if (edge === undefined || lines === undefined) continue;
+    if (edge.fromPart === undefined && edge.toPart === undefined) continue;
+    if ((nodeOrder.get(edge.to) ?? 0) <= (nodeOrder.get(edge.from) ?? 0)) continue;
+    beneath.set(edge.to, [...(beneath.get(edge.to) ?? []), zoomGroup(edge, lines)]);
+    beneathEdges.add(placed.key);
+  }
   for (const placed of layout.nodes) {
     const node = nodes.get(placed.key);
     if (node === undefined)
       throw new Error(`internal error: ${placed.key} is not a node of the figure`);
+    body.push(...(beneath.get(placed.key) ?? []));
     const asset =
       hatchMarkup(node, placed.rect) +
       tokenSeparatorMarkup(node, placed.rect) +
@@ -1316,7 +1342,7 @@ export function writeStructuredSvg(
     }
     const lines = placed.route?.lines;
     if (lines !== undefined) {
-      body.push(zoomGroup(edge, lines));
+      if (!beneathEdges.has(placed.key)) body.push(zoomGroup(edge, lines));
       continue;
     }
     body.push(edgeGroup(edge, points, colored(placed.route?.label, edge), painted, canvas));

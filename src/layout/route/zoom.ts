@@ -25,9 +25,11 @@
  * across the gap between them), so it never enters its own ends.
  */
 
-import type { EdgeIR, FigureIR } from "../../compiler/ir";
+import type { EdgeIR, FigureIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic } from "../../core/diagnostics";
+import type { OutlinePart } from "../../core/outline";
+import { getOutlineRenderer } from "../../core/outline";
 import { type LayoutIR, type Point, type Rect, roundUnits } from "../ir";
 import { endpointRects } from "./endpoint-rects";
 import { bottomOf, isJunction, rightOf } from "./ports";
@@ -142,18 +144,46 @@ export function addZoomRoutes(
     if (source === undefined || target === undefined) {
       throw new Error(`internal error: zoom edge ${edge.key} has no ends in the layout`);
     }
-    const side = zoomSide(source, target);
+    // A highlighted block of a cuboid (#576) stands for the box of its silhouette.
+    const sourcePart = partOf(nodes.get(edge.from), source, edge.fromPart);
+    const targetPart = partOf(nodes.get(edge.to), target, edge.toPart);
+    const side = zoomSide(sourcePart?.box ?? source, targetPart?.box ?? target);
     if (side === undefined) {
       diagnostics.push(noSide(ir, edge));
       return e;
     }
-    const lines = zoomLines(source, target, side, {
+    // Between two blocks, a receptive field: four lines from the corners of the source's face
+    // toward the target to the corners of the target's face toward the source.
+    if (
+      sourcePart !== undefined &&
+      targetPart !== undefined &&
+      (side === "right" || side === "left")
+    ) {
+      const [from, to] =
+        side === "right"
+          ? [sourcePart.faces.side, targetPart.faces.left]
+          : [sourcePart.faces.left, targetPart.faces.side];
+      const lines = from.map((p, i) => [p, to[i] as Point] as [Point, Point]);
+      return { ...e, route: { points: [...(lines[0] as [Point, Point])], lines } };
+    }
+    const lines = zoomLines(sourcePart?.box ?? source, targetPart?.box ?? target, side, {
       sourcePoint: isJunction(nodes.get(edge.from)),
       targetPoint: isJunction(nodes.get(edge.to)),
     });
     return { ...e, route: { points: [...lines[0]], lines } };
   });
   return { layout: { ...routed, edges }, diagnostics };
+}
+
+/** The highlighted block `name` of a cuboid node drawn in `rect` (#576), if it is one. */
+function partOf(
+  node: NodeIR | undefined,
+  rect: Rect,
+  name: string | undefined,
+): OutlinePart | undefined {
+  if (name === undefined || node?.render === undefined) return undefined;
+  const renderer = getOutlineRenderer(node.render.renderer);
+  return renderer?.draw(rect, renderer.params.parse(node.render.params ?? {})).parts?.[name];
 }
 
 function noSide(ir: FigureIR, edge: EdgeIR): Diagnostic {

@@ -1453,7 +1453,70 @@ edges:
   - {from: conv, to: pool}
 ```
 
-Solid grids and highlighted blocks are not part of `cuboid` yet; for tilted sheets see
+### Grids, highlighted blocks and receptive fields
+
+For 3D convolutions and tensors, **`props.cells: [nx, ny, nz]`** divides the three visible
+faces into cells with thin pale lines (half the frame's width, the frame mixed toward the canvas).
+Make `width`, `height` and `depth` whole multiples of the cell so the cells stay cubes.
+**`props.highlight`** (needs `cells`) lists sub-blocks drawn as smaller solids inside the
+volume, each with a `name`, a `tone` (required), an `at` (the first cell: x from the left, y from
+the top, z from the front) and a `size` in cells (default one cell, a single cell of the grid):
+
+```yaml
+highlight:
+  - {name: kernel, at: [3, 0, 0], size: [3, 3, 3], tone: orange}
+```
+
+A range past the grid (`at` + `size` over the cells), a repeated name, or a `highlight` without
+`cells` is `component/invalid-prop` at the field. A block keeps its three faces visible at the
+front (z = 0) and the top; further in, the volume's front covers it. Blocks are painted over the volume,
+far ones first.
+
+A block is named in an edge end as **`<node>.<name>`** (like a tokens cell `<node>.<cell>`), and only
+a **`zoom`** edge may join one (`layout/part-needs-direct-route` otherwise): between two blocks
+it draws the **receptive field**, four lines from the corners of the source block's right face
+to the corners of the target block's left face (a pyramid), in the edge's tone, dashed. The lines
+are painted over the source volume and under the target volume, which hides their ends behind its
+cell. Between a block and a plain box the zoom keeps its two lines. Blocks need not be in one row:
+the target lies to the right or left of the source (above or below falls back to two lines).
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: conv3d-fragment
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: {row: {gap: 40mm, align: end, items: [input, output]}}
+nodes:
+  - id: input
+    component: cuboid
+    tone: blue
+    variant: tinted
+    props:
+      width: 31.2mm
+      height: 31.2mm
+      depth: 31.2mm
+      cells: [6, 6, 6]
+      highlight: [{name: kernel, at: [3, 0, 0], size: [3, 3, 3], tone: orange}]
+      dims: {width: "W = 6"}
+  - id: output
+    component: cuboid
+    tone: blue
+    variant: tinted
+    props:
+      width: 20.8mm
+      height: 20.8mm
+      depth: 20.8mm
+      cells: [4, 4, 4]
+      highlight: [{name: cell, at: [0, 0, 0], tone: orange}]
+edges:
+  - {from: input.kernel, to: output.cell, component: zoom, tone: orange}
+```
+
+Start from the [conv3d layout](../layouts/README.md). Not yet: ports on a block for ordinary edges
+(only zoom), grids on a block that differ from its volume's cells; for tilted sheets see
 [tilted planes](#tilted-planes).
 
 ## Tilted planes
