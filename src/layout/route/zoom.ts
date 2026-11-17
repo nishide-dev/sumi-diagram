@@ -153,23 +153,26 @@ export function addZoomRoutes(
       return e;
     }
     // Between two blocks, a receptive field: four lines from the corners of the source's face
-    // toward the target to the corners of the target's face toward the source.
-    if (
-      sourcePart !== undefined &&
-      targetPart !== undefined &&
-      (side === "right" || side === "left")
-    ) {
-      const [from, to] =
-        side === "right"
-          ? [sourcePart.faces.side, targetPart.faces.left]
-          : [sourcePart.faces.left, targetPart.faces.side];
-      // A line starting at a hidden face (the left one) comes from behind its volume: it is seen
-      // from where it leaves the silhouette, whichever volume is drawn first.
-      const hidden = (part: OutlinePart, face: readonly Point[]) => face === part.faces.left;
+    // toward the target to the corners of the target's face toward the source (#576, #584).
+    if (sourcePart !== undefined && targetPart !== undefined) {
+      const faces = {
+        right: [sourcePart.faces.side, targetPart.faces.left],
+        left: [sourcePart.faces.left, targetPart.faces.side],
+        below: [sourcePart.faces.bottom, targetPart.faces.top],
+        above: [sourcePart.faces.top, targetPart.faces.bottom],
+      } as const;
+      const [from, to] = faces[side];
+      // A line starting at a hidden face (the left or the bottom one) comes from behind its
+      // volume: it is seen from where it leaves the silhouette, whichever volume is drawn first.
+      // The front corners of the bottom face of a block in the volume's front plane (corners 0
+      // and 3) lie on the visible surface, so their lines run down it whole (#584).
+      const hidden = (part: OutlinePart, face: readonly Point[], i: number) =>
+        face === part.faces.left ||
+        (face === part.faces.bottom && !(part.frontPlane && (i === 0 || i === 3)));
       const lines = from.map((p, i) => {
         const q = to[i] as Point;
-        const start = hidden(sourcePart, from) ? leaves(sourcePart.volume, p, q) : p;
-        const end = hidden(targetPart, to) ? leaves(targetPart.volume, q, p) : q;
+        const start = hidden(sourcePart, from, i) ? leaves(sourcePart.volume, p, q) : p;
+        const end = hidden(targetPart, to, i) ? leaves(targetPart.volume, q, p) : q;
         return [start, end] as [Point, Point];
       });
       return { ...e, route: { points: [...(lines[0] as [Point, Point])], lines } };
@@ -212,7 +215,7 @@ function leaves(outline: readonly Point[], inside: Point, toward: Point): Point 
 }
 
 /** The highlighted block `name` of a cuboid node drawn in `rect` (#576), if it is one. */
-function partOf(
+export function partOf(
   node: NodeIR | undefined,
   rect: Rect,
   name: string | undefined,

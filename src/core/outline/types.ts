@@ -41,12 +41,17 @@ export interface OutlineLayer {
 /** A named sub-block of a solid (#576): its silhouette, faces and bounding box. */
 export interface OutlinePart {
   readonly box: Rect;
+  /** The block's front face lies in its volume's front plane (z = 0): its front corners are on the visible surface (#584). */
+  readonly frontPlane: boolean;
   readonly outline: readonly Point[];
   /** The three visible faces and the hidden left face, each as 4 corners: front-top, back-top, back-bottom, front-bottom for the left and right (side) faces. */
   readonly faces: {
     readonly front: readonly Point[];
     readonly side: readonly Point[];
     readonly left: readonly Point[];
+    /** The top face (visible) and the bottom face (hidden), 4 corners each in the same order: front-left, back-left, back-right, front-right (#584). */
+    readonly top: readonly Point[];
+    readonly bottom: readonly Point[];
   };
 }
 

@@ -1237,7 +1237,11 @@ function edgeIR(
     ...(e.toAnchor === STRAIGHT_SPAN_ANCHOR && { toSpan: true as const }),
     ...(e.labelAt !== undefined && { labelAt: e.labelAt }),
     ...(e.labelSide !== undefined && { labelSide: e.labelSide }),
-    ...(e.route !== undefined && { route: e.route }),
+    // A line to a block of a cuboid (#584) is one straight segment: the router knows no blocks.
+    ...(e.route !== undefined
+      ? { route: e.route }
+      : (refCell(e.from) !== undefined || refCell(e.to) !== undefined) &&
+        manifest.routing !== "zoom" && { route: "straight" as const }),
     ...(manifest.routing !== undefined && { routing: manifest.routing }),
   });
 }
