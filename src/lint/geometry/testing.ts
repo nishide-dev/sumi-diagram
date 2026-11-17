@@ -60,7 +60,16 @@ export interface InspectionSpec {
   scale?: number;
   /** Per element: bbox / labels / path. Elements left out get no labels and no geometry. */
   elements: Partial<
-    Record<ElementKey, { bbox?: Rect; labels?: LabelGeometry[]; path?: Point[] | PathSegment[] }>
+    Record<
+      ElementKey,
+      {
+        bbox?: Rect;
+        labels?: LabelGeometry[];
+        path?: Point[] | PathSegment[];
+        /** Arrowheads drawn flat on a projected plane (#577). */
+        planeHeads?: Point[][];
+      }
+    >
   >;
   /**
    * What a structured figure paints per edge (#156), as polylines: sets
@@ -89,6 +98,7 @@ export function inspection(compiled: CompiledFigure, spec: InspectionSpec): SvgI
       ...(given.bbox !== undefined && { bbox: given.bbox }),
       labels: given.labels ?? [],
       ...(path !== undefined && { path }),
+      ...(given.planeHeads !== undefined && { planeHeads: given.planeHeads }),
     };
   });
   return {
