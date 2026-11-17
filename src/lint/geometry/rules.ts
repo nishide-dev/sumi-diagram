@@ -720,9 +720,12 @@ export const nodeOverlap = defineGeometryRule({
       for (const b of shapes.slice(i + 1)) {
         if (context.isAncestor(a.key, b.key) || context.isAncestor(b.key, a.key)) continue;
         if (a.bbox === undefined || b.bbox === undefined) continue;
+        // A node lying on a tilted plane (#577) is a polygon: its box overlaps its neighbours' (sheared) boxes.
         const custom =
           (a.ir.kind === "node" && a.ir.render !== undefined) ||
-          (b.ir.kind === "node" && b.ir.render !== undefined);
+          (b.ir.kind === "node" && b.ir.render !== undefined) ||
+          a.projected === true ||
+          b.projected === true;
         if (custom && a.outline && b.outline) {
           if (!regionsOverlap(a.outline, b.outline, GEOMETRY_TOLERANCE_UNITS)) continue;
         } else if (!rectsOverlap(a.bbox, b.bbox, GEOMETRY_TOLERANCE_UNITS)) continue;
@@ -1826,6 +1829,8 @@ export const aspectDistorted = defineGeometryRule({
     for (const element of context.elements) {
       const { ir, bbox } = element;
       if (ir.kind !== "node" || ir.sizing !== "fixed-aspect-1" || bbox === undefined) continue;
+      // A circle lying on a tilted plane (#577) is an ellipse by design.
+      if (element.projected === true) continue;
       if (Math.abs(bbox.width - bbox.height) <= GEOMETRY_TOLERANCE_UNITS) continue;
       findings.push({
         message: `The ${ir.shape} ${element.name} is drawn ${formatSize(context, bbox)}, not with equal width and height.`,

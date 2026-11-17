@@ -82,7 +82,13 @@ import type {
   TextLayout,
   TextRun,
 } from "../layout/ir";
-import { clipSegmentToConvex } from "../layout/plane";
+import {
+  clipSegmentToConvex,
+  mapFlatPoint,
+  type PlaneFrame,
+  planeFrameOf,
+  unmapPoint,
+} from "../layout/plane";
 import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
 import { groupArrowheadStems } from "../layout/route/padding";
 import { edgeArrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
@@ -278,7 +284,7 @@ const pathData = (points: readonly Point[], closed = false): string =>
 const DOCUMENT_EDGE = 0.8586;
 
 /** The drawing elements of a node's shape, whose bounding box is exactly `r`. */
-function nodeShape(node: NodeIR, r: Rect): string {
+function nodeShape(node: NodeIR, r: Rect, outline?: readonly Point[]): string {
   const { style } = node;
   // A cell's painted extent is its box whatever its variant (#421): a stroke in the
   // fill's own colour (a `solid` cell) would only grow it by half a stroke on every side.
@@ -288,6 +294,8 @@ function nodeShape(node: NodeIR, r: Rect): string {
     sameColourStroke ? { ...style, strokeWidth: { ...style.strokeWidth, units: 0 } } : style,
   )}`;
   const { x, y, width: w, height: h } = r;
+  // A node lying on a projected tilted plane (#577): its outline mapped onto the plane, a polygon.
+  if (outline !== undefined) return polygon(outline, ` class="sumi-projected"${paints}`);
   if (node.component === SEPARATOR_ID) {
     return `<path d="${pathData([
       { x, y },
@@ -420,7 +428,7 @@ function tokenSeparatorMarkup(node: NodeIR, r: Rect): string {
  * after its `g.shape`, of segments clipped to the inside of the outline.
  * Empty for any other node, so its bytes do not change.
  */
-function hatchMarkup(node: NodeIR, r: Rect): string {
+function hatchMarkup(node: NodeIR, r: Rect, onPlane?: (p: Point) => Point): string {
   const { style } = node;
   if (style.hatch === undefined || (node.shape !== "rectangle" && node.shape !== "square")) {
     return "";
@@ -428,7 +436,10 @@ function hatchMarkup(node: NodeIR, r: Rect): string {
   const outlined = style.stroke !== "transparent" && style.strokeWidth.units > 0;
   const inset = (outlined ? style.strokeWidth.units / 2 : 0) + HATCH.width / 2;
   const radius = Math.min(style.radius.units, r.width / 2, r.height / 2);
-  const segments = hatchSegments(r, radius, inset);
+  // On a projected plane (#577) `r` is the flat rectangle and the lines are mapped with it.
+  const flat = hatchSegments(r, radius, inset);
+  const segments =
+    onPlane === undefined ? flat : flat.map(([a, b]): [Point, Point] => [onPlane(a), onPlane(b)]);
   if (segments.length === 0) return "";
   const d = segments.map(([a, b]) => `M ${xy(a)} L ${xy(b)}`).join(" ");
   return `<path class="sumi-hatch" d="${d}" fill="none" stroke="${paint(style.hatch)}" stroke-width="${n(HATCH.width)}" stroke-linecap="round"/>`;
@@ -512,19 +523,39 @@ export function drawArrowhead(
   edge: EdgeIR,
   _groups: readonly PaintedGroup[] = [],
   _canvas = CANVAS_FILL,
+  /** The projected plane (#577) the edge lies in: the head is drawn flat on it, then mapped. */
+  plane?: PlaneFrame,
 ): string {
   if (head === "none") return "";
   const { style } = edge;
   const length = edgeArrowheadLength(style);
-  const at = (along: number, across: number): Point => ({
+  let at = (along: number, across: number): Point => ({
     x: tip.x - u.x * along - u.y * across,
     y: tip.y - u.y * along + u.x * across,
   });
+  // A head on a plane is marked, with how much shorter than on the page it is (the editable PPTX
+  // draws it as a shape of its own and stops the line at its base).
+  let planeMark = "";
+  let marks = "";
+  if (plane !== undefined) {
+    const flatTip = unmapPoint(plane, tip);
+    const back = unmapPoint(plane, { x: tip.x - u.x, y: tip.y - u.y });
+    const d = unit(back, flatTip);
+    at = (along, across) =>
+      mapFlatPoint(plane, {
+        x: flatTip.x - d.x * along - d.y * across,
+        y: flatTip.y - d.y * along + d.x * across,
+      });
+    marks = ` data-foreshorten="${n(1 / Math.hypot(flatTip.x - back.x, flatTip.y - back.y))}"`;
+    planeMark = ` class="sumi-plane-head"${marks}`;
+  }
   const color = paint(style.stroke);
   const fill = style.filled ? color : "none";
-  const outline = style.filled
-    ? ` fill="${fill}" stroke="none"`
-    : ` fill="${fill}" stroke="${color}" stroke-width="${n(style.strokeWidth.units)}" stroke-linejoin="miter"`;
+  const outline =
+    planeMark +
+    (style.filled
+      ? ` fill="${fill}" stroke="none"`
+      : ` fill="${fill}" stroke="${color}" stroke-width="${n(style.strokeWidth.units)}" stroke-linejoin="miter"`);
   const half = length / 2;
   switch (head) {
     case "open": {
@@ -532,7 +563,7 @@ export function drawArrowhead(
       const w = style.strokeWidth.units;
       const { vertex, reach } = openArrowhead(length, w);
       const points = [at(vertex + reach, reach), at(vertex, 0), at(vertex + reach, -reach)];
-      return `<path class="sumi-arrowhead" d="${pathData(points)}" fill="none" stroke="${color}" stroke-width="${n(w)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      return `<path class="sumi-arrowhead${plane === undefined ? "" : " sumi-plane-head"}"${marks} d="${pathData(points)}" fill="none" stroke="${color}" stroke-width="${n(w)}" stroke-linecap="round" stroke-linejoin="round"/>`;
     }
     case "triangle":
       return polygon([tip, at(length, half), at(length, -half)], outline);
@@ -546,12 +577,22 @@ export function drawArrowhead(
         outline,
       );
     case "circle": {
+      if (plane !== undefined) {
+        // A circle lying on the plane is an ellipse: drawn as a polygon.
+        const ring = Array.from({ length: 24 }, (_, i) =>
+          at(
+            half + half * Math.cos((2 * Math.PI * i) / 24),
+            half * Math.sin((2 * Math.PI * i) / 24),
+          ),
+        );
+        return polygon(ring, outline);
+      }
       const c = at(half, 0);
       return `<circle cx="${n(c.x)}" cy="${n(c.y)}" r="${n(half)}"${outline}/>`;
     }
     case "cross": {
       const arm = half * 0.7;
-      return `<path d="${pathData([at(half - arm, arm), at(half + arm, -arm)])} ${pathData([at(half - arm, -arm), at(half + arm, arm)])}" fill="none" stroke="${color}" stroke-width="${n(style.strokeWidth.units)}"/>`;
+      return `<path${planeMark} d="${pathData([at(half - arm, arm), at(half + arm, -arm)])} ${pathData([at(half - arm, -arm), at(half + arm, arm)])}" fill="none" stroke="${color}" stroke-width="${n(style.strokeWidth.units)}"/>`;
     }
   }
 }
@@ -582,18 +623,22 @@ function trimEnd(points: readonly Point[], amount: number): Point[] {
  * How much of the wire's end runs under the arrowhead `head` (from its base
  * to its back): a rounded corner must not reach it (#116).
  */
-function underArrowhead(head: Arrowhead, edge: EdgeIR): number {
+function underArrowhead(head: Arrowhead, edge: EdgeIR, scale = 1): number {
   if (head === "none") return 0;
   const length = edgeArrowheadLength(edge.style);
-  return length - arrowheadInset(head, length, edge.style.strokeWidth.units);
+  return (length - arrowheadInset(head, length, edge.style.strokeWidth.units)) * scale;
 }
 
 /** The part of an edge's route its wire strokes: the route minus the arrowheads' insets. */
-function wirePoints(edge: EdgeIR, points: readonly Point[]): Point[] {
+function wirePoints(
+  edge: EdgeIR,
+  points: readonly Point[],
+  scale: { source: number; target: number } = { source: 1, target: 1 },
+): Point[] {
   const width = edge.style.strokeWidth.units;
   const length = edgeArrowheadLength(edge.style);
-  const head = arrowheadInset(edge.targetArrowhead ?? "none", length, width);
-  const tail = arrowheadInset(edge.sourceArrowhead ?? "none", length, width);
+  const head = arrowheadInset(edge.targetArrowhead ?? "none", length, width) * scale.target;
+  const tail = arrowheadInset(edge.sourceArrowhead ?? "none", length, width) * scale.source;
   const trimmed = trimEnd(points, head);
   return trimEnd(trimmed.reverse(), tail).reverse();
 }
@@ -749,6 +794,41 @@ export function paintedEdges(ir: FigureIR, layout: LayoutIR): Map<ElementKey, Pa
   return wires(ir, layout).painted;
 }
 
+/**
+ * The projected tilted plane (#577, `contents: projected`) each edge lies in: an edge between two
+ * nodes of one such plane, routed in the plane or straight, is drawn flat on it (its arrowheads
+ * are mapped with it). Curves and edges between planes stay on the page.
+ */
+function planarEdgeFrames(ir: FigureIR, layout: LayoutIR): Map<ElementKey, PlaneFrame> {
+  const out = new Map<ElementKey, PlaneFrame>();
+  const planeOf = new Map<ElementKey, PlaneFrame>();
+  for (const plane of layout.planes ?? []) {
+    if (plane.contents !== "projected") continue;
+    const frame = planeFrameOf(plane);
+    for (const node of plane.flat) planeOf.set(node.key, frame);
+  }
+  if (planeOf.size === 0) return out;
+  for (const edge of ir.edges) {
+    const frame = planeOf.get(edge.from);
+    if (frame === undefined || frame !== planeOf.get(edge.to) || edge.route === "curve") continue;
+    out.set(edge.key, frame);
+  }
+  return out;
+}
+
+/**
+ * How much shorter than on the page an arrowhead on a plane (#577) is along the edge's last leg:
+ * the page length of one flat unit in the leg's direction. 1 off a plane.
+ */
+function headForeshortening(plane: PlaneFrame | undefined, from: Point, to: Point): number {
+  if (plane === undefined) return 1;
+  const a = unmapPoint(plane, from);
+  const b = unmapPoint(plane, to);
+  const flat = Math.hypot(b.x - a.x, b.y - a.y);
+  const page = Math.hypot(to.x - from.x, to.y - from.y);
+  return flat === 0 || page === 0 ? 1 : page / flat;
+}
+
 function wires(
   ir: FigureIR,
   layout: LayoutIR,
@@ -757,6 +837,17 @@ function wires(
 ): { markup: string[]; painted: Map<ElementKey, PaintedEdge>; deferred: Map<ElementKey, string> } {
   const deferred = new Map<ElementKey, string>();
   const edges = new Map(ir.edges.map((e) => [e.key, e]));
+  const planar = planarEdgeFrames(ir, layout);
+  // The arrowheads on a projected plane (#577) are foreshortened along the leg they end.
+  const headScale = (key: ElementKey, points: readonly Point[]) => {
+    const frame = planar.get(key);
+    const last = points.length - 1;
+    return {
+      source: last < 1 ? 1 : headForeshortening(frame, points[1] as Point, points[0] as Point),
+      target:
+        last < 1 ? 1 : headForeshortening(frame, points[last - 1] as Point, points[last] as Point),
+    };
+  };
   const stems = groupArrowheadStems(ir, layout);
   const nodes = new Map(ir.nodes.map((node) => [node.key, node]));
   const routes = new Map(layout.edges.map((e) => [e.key, e]));
@@ -807,7 +898,11 @@ function wires(
       continue;
     }
     if (edge?.route !== "straight" || placed.route === undefined) continue;
-    const points = wirePoints(edge, placed.route.points);
+    const points = wirePoints(
+      edge,
+      placed.route.points,
+      headScale(placed.key, placed.route.points),
+    );
     const pieces: [Point, Point][] =
       points.length < 2 ? [] : [[points[0] as Point, points[1] as Point]];
     painted.set(placed.key, { pieces, arcs: [] });
@@ -850,7 +945,7 @@ function wires(
       const points = route?.route?.points;
       if (edge === undefined || route === undefined || points === undefined) continue;
       if (route.route?.lines !== undefined) continue;
-      drawn.push({ key, edge, route, wire: wirePoints(edge, points) });
+      drawn.push({ key, edge, route, wire: wirePoints(edge, points, headScale(key, points)) });
     }
     // A hidden junction joins its routes when they all reach its center in one line style.
     const joined = new Set<ElementKey>();
@@ -884,16 +979,19 @@ function wires(
     for (const { key, edge, route, wire } of drawn) {
       const entry = byStyle.get(lineKey(edge.style)) ?? { edge, polylines: [], keys: [] };
       entry.keys.push(key);
+      const scale = headScale(key, routes.get(key)?.route?.points ?? []);
       const keepStart =
-        underArrowhead(edge.sourceArrowhead ?? "none", edge) + (stems.get(key)?.source ?? 0);
+        underArrowhead(edge.sourceArrowhead ?? "none", edge, scale.source) +
+        (stems.get(key)?.source ?? 0);
       const keepEnd =
-        underArrowhead(edge.targetArrowhead ?? "none", edge) + (stems.get(key)?.target ?? 0);
+        underArrowhead(edge.targetArrowhead ?? "none", edge, scale.target) +
+        (stems.get(key)?.target ?? 0);
       // An open chevron's wire runs on under it (#386): its turns are sized
       // as if the wire stopped at the triangle's base.
-      const open = (head: Arrowhead | undefined) =>
-        head === "open" ? underArrowhead(head, edge) : 0;
-      const headStart = open(edge.sourceArrowhead);
-      const headEnd = open(edge.targetArrowhead);
+      const open = (head: Arrowhead | undefined, factor: number) =>
+        head === "open" ? underArrowhead(head, edge, factor) : 0;
+      const headStart = open(edge.sourceArrowhead, scale.source);
+      const headEnd = open(edge.targetArrowhead, scale.target);
       entry.polylines.push({
         points: wire,
         ...(joined.has(route.from) ? { start: route.from } : {}),
@@ -1048,6 +1146,7 @@ function edgeGroup(
   layoutLabel: TextLayout | undefined,
   groups: readonly PaintedGroup[],
   canvas: string,
+  plane?: PlaneFrame,
 ): string {
   const { style } = edge;
   const width = style.strokeWidth.units;
@@ -1062,6 +1161,7 @@ function edgeGroup(
       edge,
       groups,
       canvas,
+      plane,
     ) +
     drawArrowhead(
       edge.sourceArrowhead ?? "none",
@@ -1070,6 +1170,7 @@ function edgeGroup(
       edge,
       groups,
       canvas,
+      plane,
     );
   let labelSvg = "";
   if (layoutLabel !== undefined) {
@@ -1266,6 +1367,13 @@ export function writeStructuredSvg(
   const planeGroups = layout.groups.filter((g) => g.quad !== undefined);
   const crossing = crossPlaneEdges(ir, layout, planeGroups);
   const wireSet = wires(ir, layout, new Set(crossing.edges.keys()));
+  const planarFrames = planarEdgeFrames(ir, layout);
+  // The flat rectangle of each node on a projected plane (#577) and the plane's map, for its hatch.
+  const flatRects = new Map<ElementKey, { rect: Rect; frame: PlaneFrame }>();
+  for (const plane of layout.planes ?? []) {
+    const frame = planeFrameOf(plane);
+    for (const flat of plane.flat) flatRects.set(flat.key, { rect: flat.rect, frame });
+  }
   for (const g of layout.groups) if (g.quad === undefined) drawGroup(g);
   for (const g of planeGroups.sort((a, b) => planeBottom(b) - planeBottom(a))) {
     for (const key of crossing.hiddenBy.get(g.key) ?? [])
@@ -1300,14 +1408,19 @@ export function writeStructuredSvg(
     const node = nodes.get(placed.key);
     if (node === undefined)
       throw new Error(`internal error: ${placed.key} is not a node of the figure`);
+    const flatRect = flatRects.get(placed.key);
+    const hatch =
+      placed.outline !== undefined && flatRect !== undefined
+        ? hatchMarkup(node, flatRect.rect, (p) => mapFlatPoint(flatRect.frame, p))
+        : hatchMarkup(node, placed.rect);
     const asset =
-      hatchMarkup(node, placed.rect) +
+      hatch +
       tokenSeparatorMarkup(node, placed.rect) +
       assetMarkup(node, assets?.nodes.get(node.key), placed.rect);
     body.push(
       objectGroup(
         node,
-        nodeShape(imagePlaceholder(node), placed.rect),
+        nodeShape(imagePlaceholder(node), placed.rect, placed.outline),
         colored(placed.label, node, node.style.fill),
         asset,
         colored(placed.sublabel, node, node.style.fill),
@@ -1330,7 +1443,16 @@ export function writeStructuredSvg(
       body.push(zoomGroup(edge, lines));
       continue;
     }
-    body.push(edgeGroup(edge, points, colored(placed.route?.label, edge), painted, canvas));
+    body.push(
+      edgeGroup(
+        edge,
+        points,
+        colored(placed.route?.label, edge),
+        painted,
+        canvas,
+        planarFrames.get(placed.key),
+      ),
+    );
     useText(placed.route?.label);
   }
   const drawing = body.join("");

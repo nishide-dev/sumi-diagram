@@ -1528,10 +1528,10 @@ A `container` group with **`props.plane: floor`** (or `wall`) is a tilted plane 
 figure's oblique projection (`figure.projection`, the same `angle` and `depthScale` as
 `cuboid`; defaults 45 degrees and 0.5). Use it to put two or three graphs of the
 same nodes above one another and join the twins with lines (multilayer networks,
-time snapshots, graph matching). The `stacked-planes` base layout is the starting point.
+time snapshots, graph matching). The `stacked-planes` base layout is the starting point (upright shapes); `projected-planes` has the shapes lying flat.
 
-- **Layout in plane coordinates.** The plane holds **nodes only** (a group inside it is
-  `layout/plane-nested-group`). Arrange them as in any group (`place`, `row`, `stack`,
+- **Layout in plane coordinates.** The plane holds **nodes and matrices** (a written group
+  inside it is `layout/plane-nested-group`). Arrange them as in any group (`place`, `row`, `stack`,
   `grid`, `attach`): that flat frame, with the group's padding, is the plane. With
   `place`, `x` runs across and `y` toward the viewer (down in the flat frame).
 - **The map.** With `k = depthScale * cos(angle)` and `m = depthScale * sin(angle)`, a point at `u` from
@@ -1542,10 +1542,37 @@ time snapshots, graph matching). The `stacked-planes` base layout is the startin
 
   `(x0, y0)` is the bottom left of the parallelogram's bounding box. A 100 x 56mm floor at
   45 / 0.5 stands about 120mm wide and 20mm high, so stacked planes take the room of their
-  projected height. Only node **centers** are mapped: nodes keep their size and shape
-  (circles stay circles) and labels stay horizontal. The frame is a parallelogram drawn
+  projected height. By default (`contents: upright`) only node **centers** are mapped: nodes
+  keep their size and shape (circles stay circles) and labels stay horizontal; see
+  **Contents** for shapes that lie flat on the plane. The frame is a parallelogram drawn
   as a container (`variant`, `tone`, `lineWidth` and `dim` work); `layers` and `plain` are
   errors, and `labelAt` is ignored: the **title** sits under the front edge, left-aligned.
+- **Contents: `props.contents: projected`** (default `upright`) lays the plane's objects
+  **flat on it**: each node's outline (rectangle, square, circle and oval as an ellipse,
+  diamond, hexagon, parallelogram), the arrowheads of its in-plane edges and the cells of a
+  `matrix` are the flat shapes mapped by the plane's map, so a box becomes a parallelogram
+  and a circle an ellipse. Edges and correspondence lines end on the **mapped outlines**,
+  and `lint --geometry` measures them. **Labels stay horizontal**, centred on the shape, so
+  the shape must be tall enough: a node without a written `width` / `height` **grows** (in
+  the flat frame) until its label fits inside the mapped outline, so plan the room (a
+  floor flattens a node to `depthScale * sin(angle)` of its height: 0.35 at 45 / 0.5, so
+  a larger `depthScale` or `angle` gives labels more room). A node with a written size does
+  not grow: its label overflowing is `geometry/label-overflow`. Rounded corners are kept
+  (sampled); circles are sampled in 64 steps. Shapes with curves or extras stay **upright**
+  (cylinder, document, page, outline components such as `bubble`, `cuboid` and
+  `waveform`, images, nodes with a `badge`, `glyphs` or a turned label); text-only
+  nodes (a matrix's headers) are labels at the mapped centre. `text: projected` (skewed
+  text) is not available: horizontal text keeps figures readable. Mixed planes are fine:
+  `contents` is per plane.
+- **A `matrix` on a plane** (attention or heat map over a sheet): list the matrix in the
+  plane's arrange (`place` at `[0, 0]`, or a `row`) like a node. Its cells are the plane's
+  nodes and its headers are labels. Use **`contents: projected`**: the cells lie on the
+  sheet and the map reads as one. Upright cells are mapped by their centres only, so
+  rows closer together than a cell's height overlap (`geometry/node-overlap`). Size the cells
+  flat: the page height of a row is its flat height times `depthScale * sin(angle)`, and
+  upright headers need about a line of text each: `cellHeight` 30pt+ and a `headerGap` of
+  10pt+ at 45 / 0.5, `cellWidth` as wide as the widest column header. A `hatch` class is
+  mapped too.
 - **Edges inside a plane.** `route: straight` between two nodes of one plane is
   a straight line between the mapped nodes, ending on their outlines (`route: curve` is
   drawn on the page, not mapped). An edge without
@@ -1568,12 +1595,14 @@ time snapshots, graph matching). The `stacked-planes` base layout is the startin
   without `route: straight` are routed on the page by the router, not recommended.
 - **Lint and outputs.** `lint --geometry` measures the transformed shapes: the parallelogram's
   bounding box, mapped nodes and edges (a correspondence through a node is
-  `geometry/edge-through-node`; the group's empty-area and title-overflow rules skip planes).
-  PDF is drawn like the SVG. Editable PPTX draws each frame as a parallelogram freeform and
+  `geometry/edge-through-node`; the group's empty-area and title-overflow rules skip planes;
+  `geometry/aspect-distorted` skips circles lying on a plane).
+  PDF is drawn like the SVG. Editable PPTX draws each frame as a parallelogram freeform,
+  each projected node and each flat arrowhead as a freeform of its mapped points, and
   each routed edge as a freeform of its mapped points, in the usual edge order: the
   correspondence lines are over the planes there, without the faint part.
-- **Not yet.** `matrix` on a plane (a heat map or attention map over a sheet) and groups
-  inside a plane; the flatten-to-ellipse node option of the design.
+- **Not yet.** Groups other than a matrix inside a plane; images and curved shapes lying
+  on a plane; skewed text.
 
 ```yaml
 # expect-render: fits
@@ -1605,6 +1634,50 @@ edges:
   - {from: p2, to: q2, component: line, route: straight}
   - {from: p2, to: p1, component: line, route: straight, variant: dotted}
   - {from: q2, to: q1, component: line, route: straight, variant: dotted}
+```
+
+A plane whose shapes lie flat, holding a row of boxes and an attention matrix (the
+`projected-planes` base layout):
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: flat-contents
+  theme: sumi
+  profile: paper-double
+  projection: {angle: 45, depthScale: 0.6}
+  layout:
+    arrange: {stack: {gap: 8mm, align: start, items: [steps, map]}}
+groups:
+  - id: steps
+    label: (a) Steps
+    props: {plane: floor, contents: projected, padding: 7mm}
+    arrange: {row: {gap: 7mm, align: center, items: [s1, s2, s3]}}
+  - id: map
+    label: (b) Map
+    props: {plane: floor, contents: projected, padding: 7mm}
+    arrange: {place: {unit: 1mm, items: [{item: grid, at: [0, 0]}]}}
+nodes:
+  - {id: s1, component: box, label: One}
+  - {id: s2, component: box, label: Two}
+  - {id: s3, component: box, label: Three}
+  - id: grid
+    component: matrix
+    props:
+      columns: [P, Q, R]
+      rows: [P, Q, R]
+      cellWidth: 30pt
+      cellHeight: 34pt
+      gap: 2pt
+      headerGap: 12pt
+      classes:
+        h: {variant: default, label: high}
+        l: {variant: muted, label: low}
+      cells: [hll, lhl, llh]
+edges:
+  - {from: s1, to: s2, component: arrow}
+  - {from: s2, to: s3, component: arrow}
 ```
 
 ## Brackets

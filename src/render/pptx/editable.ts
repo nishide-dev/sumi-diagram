@@ -1445,7 +1445,13 @@ export function svgToEditablePptx(
       // head (the SVG's cut `d`) and the head's outline has no fill. PowerPoint's native
       // heads are all filled, so are those it has no form for: D2's concave `arrow` (filled
       // even when unfilled), `box` and `cross` (a white-filled plus), drawn from the D2 marker.
+      // The heads of an edge lying on a projected tilted plane (#577) are shapes of the SVG's own:
+      // drawn flat on the plane, they have no native PowerPoint line end.
+      const planeHeads = childElements(group).filter((e) =>
+        classList(e).includes("sumi-plane-head"),
+      );
       const hollowEnds = (["start", "end"] as const).filter((at) => {
+        if (planeHeads.length > 0) return false;
         const type = at === "start" ? element.sourceArrowhead : element.targetArrowhead;
         return (
           ((type === "arrow" || type === "box" || type === "cross") &&
@@ -1461,6 +1467,7 @@ export function svgToEditablePptx(
       // The structured SVG has no markers: it draws `arrow`, `box` and `cross` itself
       // (`drawArrowhead()`), and its wire stops at the head's base (`arrowheadInset()`).
       const structuredEnds = (["start", "end"] as const).filter((at) => {
+        if (planeHeads.length > 0) return false;
         const type = at === "start" ? element.sourceArrowhead : element.targetArrowhead;
         return (
           (type === "arrow" || type === "box" || type === "cross") &&
@@ -1486,7 +1493,39 @@ export function svgToEditablePptx(
         // A route no longer than the head has no line to draw.
         route = trimmed ?? [];
       }
-      const arrows = ends(element, path, [...hollowEnds, ...structuredEnds]);
+      // The line stops at each flat head's base: the head's inset, foreshortened as the head is.
+      for (const head of planeHeads) {
+        const points = [
+          ...(attribute(head, "points") ?? attribute(head, "d") ?? "").matchAll(
+            /-?[\d.]+(?:e-?\d+)?/g,
+          ),
+        ].map((m) => Number(m[0]));
+        const near = (target: Point) =>
+          Math.min(
+            ...points.flatMap((v, i) =>
+              i % 2 === 0 ? [Math.hypot(v - target.x, (points[i + 1] ?? 0) - target.y)] : [],
+            ),
+          );
+        const at = near(first) < near(last) ? "start" : "end";
+        const type = (at === "start" ? element.sourceArrowhead : element.targetArrowhead) ?? "none";
+        const inset =
+          arrowheadInset(
+            type,
+            edgeArrowheadLength(element.style),
+            element.style.strokeWidth.units,
+          ) * Number(attribute(head, "data-foreshorten") ?? 1);
+        if (inset <= 0 || route.length === 0) continue;
+        const trimmed =
+          at === "start"
+            ? trimPathStart(route, inset)
+            : (() => {
+                const back = trimPathStart(reversePath(route), inset);
+                return back && reversePath(back);
+              })();
+        route = trimmed ?? [];
+      }
+      const arrows =
+        planeHeads.length > 0 ? "" : ends(element, path, [...hollowEnds, ...structuredEnds]);
       /**
        * One shape of a head as a freeform of its own, painted as the marker paints it: its
        * fill (none for an open chevron and a hollow head), and its stroke, if the marker has
@@ -1524,33 +1563,34 @@ export function svgToEditablePptx(
         const u = { x: (tip.x - inner.x) / length, y: (tip.y - inner.y) / length };
         const parsed = parseXml(`<g>${drawArrowhead(type, tip, u, element)}</g>`);
         if (!parsed.ok) throw new Error(`Unreadable ${type} arrowhead of edge ${key}`);
-        return childElements(parsed.root).map((source): HeadOutline => {
-          if (source.name === "polygon") {
-            const values = (attribute(source, "points") ?? "")
-              .trim()
-              .split(/[\s,]+/)
-              .map(Number);
-            const points: Point[] = [];
-            for (let i = 0; i + 1 < values.length; i += 2)
-              points.push({ x: values[i] as number, y: values[i + 1] as number });
-            const first = points[0] as Point;
-            return {
-              closed: true,
-              source,
-              strokeScale: 1,
-              segments: [
-                { command: "M", to: first },
-                ...points.slice(1).map((to): PathSegment => ({ command: "L", to })),
-                { command: "L", to: first },
-              ],
-            };
-          }
-          const parsedPath =
-            source.name === "path" ? parsePath(attribute(source, "d") ?? "") : undefined;
-          if (!parsedPath?.ok)
-            throw new Error(`Unsupported ${type} arrowhead shape of edge ${key}`);
-          return { closed: false, source, strokeScale: 1, segments: parsedPath.segments };
-        });
+        return childElements(parsed.root).map((source) => headOutline(source, type));
+      };
+      /** The outline of a head drawn as one SVG element (a polygon, or an open head's path). */
+      const headOutline = (source: XmlElement, type: string): HeadOutline => {
+        if (source.name === "polygon") {
+          const values = (attribute(source, "points") ?? "")
+            .trim()
+            .split(/[\s,]+/)
+            .map(Number);
+          const points: Point[] = [];
+          for (let i = 0; i + 1 < values.length; i += 2)
+            points.push({ x: values[i] as number, y: values[i + 1] as number });
+          const first = points[0] as Point;
+          return {
+            closed: true,
+            source,
+            strokeScale: 1,
+            segments: [
+              { command: "M", to: first },
+              ...points.slice(1).map((to): PathSegment => ({ command: "L", to })),
+              { command: "L", to: first },
+            ],
+          };
+        }
+        const parsedPath =
+          source.name === "path" ? parsePath(attribute(source, "d") ?? "") : undefined;
+        if (!parsedPath?.ok) throw new Error(`Unsupported ${type} arrowhead shape of edge ${key}`);
+        return { closed: false, source, strokeScale: 1, segments: parsedPath.segments };
       };
 
       if (hiddenLine && arrows !== "")
@@ -1578,7 +1618,7 @@ export function svgToEditablePptx(
       // one of its rectangles has a gap to keep.
       const crossesMask = masks.length > 0 && maskedLength(route, masks) > 0.01;
       const splitTransparent = ir.meta.transparentBackground === true && crossesMask;
-      const ownHeads = hollowEnds.length > 0 || structuredEnds.length > 0;
+      const ownHeads = hollowEnds.length > 0 || structuredEnds.length > 0 || planeHeads.length > 0;
       // The connector is glued (and hides its gap under the label with a canvas patch) only
       // when it is emitted as one; a freeform fallback is split at the mask instead.
       const gluedConnector =
@@ -1692,6 +1732,7 @@ export function svgToEditablePptx(
         }
         for (const at of structuredEnds)
           for (const outline of structuredHead(at)) output.push(headShape(outline, next++));
+        for (const head of planeHeads) output.push(headShape(headOutline(head, "flat"), next++));
         for (const at of hollowEnds) {
           const marker = markers.get(
             /^url\(#(.+)\)$/.exec(attribute(path, `marker-${at}`) ?? "")?.[1],

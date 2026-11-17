@@ -340,7 +340,13 @@ const container: GroupManifest = {
       .enum(["floor", "wall"])
       .optional()
       .describe(
-        "Draw the group as a tilted plane in the figure's oblique projection (figure.projection; since 0.19.0, structured layout only). The children are nodes, arranged in the flat frame as usual (stack, row, grid, place) and then mapped: only their centers move (nodes stay upright, labels horizontal), the frame becomes a parallelogram and routed edges inside it are mapped with it. floor: a horizontal sheet, depth running back up and right from the front edge (x = u + v·s·cos(angle), y = -v·s·sin(angle)); wall: a vertical sheet receding to the back like a cuboid's side face (the flat frame's x axis runs into the depth, y up). The title sits under the front edge, left-aligned. Needs nodes only (no nested groups) and does not combine with layers.",
+        "Draw the group as a tilted plane in the figure's oblique projection (figure.projection; since 0.19.0, structured layout only). The children are nodes, arranged in the flat frame as usual (stack, row, grid, place) and then mapped: by default only their centers move (nodes stay upright, labels horizontal; see contents), the frame becomes a parallelogram and routed edges inside it are mapped with it. floor: a horizontal sheet, depth running back up and right from the front edge (x = u + v·s·cos(angle), y = -v·s·sin(angle)); wall: a vertical sheet receding to the back like a cuboid's side face (the flat frame's x axis runs into the depth, y up). The title sits under the front edge, left-aligned. Needs nodes only (no nested groups; a matrix is allowed) and does not combine with layers.",
+      ),
+    contents: z
+      .enum(["upright", "projected"])
+      .optional()
+      .describe(
+        "With props.plane: how the plane's nodes are drawn (since 0.19.0). upright (default): shapes stay upright, only their centers are mapped. projected: the outline of each node (rectangle, square, circle and oval as an ellipse, diamond, hexagon, parallelogram), the arrowheads of the edges inside the plane and the cells of a matrix are mapped by the plane's affine map too, so they lie flat on the plane; edges end on the mapped outlines; labels stay horizontal and a node grows, if need be, until its label fits inside the mapped outline. Other shapes (cylinder, document, page, outline components, images, nodes with a badge or glyph) stay upright.",
       ),
   }),
   shape: "rectangle",

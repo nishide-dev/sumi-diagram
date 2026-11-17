@@ -104,6 +104,12 @@ export interface ElementGeometry {
    * excluded. Undefined for `text`-shaped nodes, which D2 draws without a shape.
    */
   bbox?: Rect;
+  /**
+   * Node: the polygon a node lying on a projected tilted plane (#577) is drawn as (its
+   * `polygon.sumi-projected`), convex. Absent for every other shape, whose outline follows from
+   * its shape and `bbox`.
+   */
+  outline?: Point[];
   labels: LabelGeometry[];
   /** Edge: `path.connection` as absolute M/L/C segments. */
   path?: PathSegment[];
@@ -619,6 +625,11 @@ export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
         // around the group: that shape is not the caption's. Like any `text`
         // node, a caption has no bbox.
         if (!(element.kind === "node" && element.captionOf !== undefined)) geometry.bbox = bbox;
+        const projected = childElements(shape).find(
+          (c) => c.name === "polygon" && classList(c).includes("sumi-projected"),
+        );
+        const outline = projected === undefined ? undefined : projectedOutline(projected);
+        if (outline !== undefined) geometry.outline = outline;
       } else if (!(element.kind === "node" && element.shape === "text")) {
         problems.push("the shape group draws nothing");
       }
@@ -661,6 +672,20 @@ export function inspectSvg(svg: string, ir: FigureIR): Result<SvgInspection> {
     },
     diagnostics: [],
   };
+}
+
+/** The points of a `polygon.sumi-projected` (#577), or `undefined` if unreadable (the bbox pass reports it). */
+function projectedOutline(polygon: XmlElement): Point[] | undefined {
+  const coords = (attribute(polygon, "points") ?? "")
+    .trim()
+    .split(/[ \t\r\n,]+/)
+    .map(parseNumber);
+  if (coords.length < 6 || coords.length % 2 !== 0 || coords.some((c) => c === undefined))
+    return undefined;
+  const points: Point[] = [];
+  for (let i = 0; i < coords.length; i += 2)
+    points.push({ x: coords[i] as number, y: coords[i + 1] as number });
+  return points;
 }
 
 /** The convex region of a set's shape element, or a problem description. */

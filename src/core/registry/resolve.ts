@@ -259,6 +259,22 @@ export function resolveComponents(
         );
       }
     }
+    if (element.kind === "group" && element.props.contents !== undefined) {
+      if (element.props.plane === undefined) {
+        report(
+          [
+            {
+              code: "component/invalid-prop",
+              severity: "error",
+              message:
+                "props.contents says how a tilted plane's nodes are drawn: it needs props.plane.",
+              hint: "Add props.plane: floor (or wall), or remove props.contents.",
+            },
+          ],
+          () => [...element.path, "props", "contents"],
+        );
+      }
+    }
     if (element.kind === "group" && element.props.plane !== undefined) {
       if (engine !== "structured") {
         report(
