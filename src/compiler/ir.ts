@@ -416,6 +416,15 @@ export interface GroupIR extends ObjectIRBase {
   /** The label node expanded from the group's `caption` (#130). */
   readonly caption?: ElementKey;
   readonly layers?: { readonly count: number; readonly offset: StyleLength };
+  /**
+   * `props.plane` (#577): the group is a tilted plane in the figure's oblique
+   * projection (`figure.projection`, defaults filled in). Structured layout only.
+   */
+  readonly plane?: {
+    readonly orientation: "floor" | "wall";
+    readonly angle: number;
+    readonly depthScale: number;
+  };
   /** `props.padding` in pt (#517): replaces the profile's group padding. */
   readonly paddingPt?: number;
 }
@@ -890,6 +899,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       children: freeze(childrenOf.get(g.id) ?? []),
       style: styleOf(state, key, "group"),
       ...groupLayers(componentOf(state, key).props),
+      ...groupPlane(componentOf(state, key).props, figure.projection),
       ...(typeof componentOf(state, key).props.padding === "number" && {
         paddingPt: componentOf(state, key).props.padding as number,
       }),
@@ -1039,6 +1049,21 @@ function cuboidSilhouette(
 function cuboidFaces(fill: string, stroke: string, theme: Theme) {
   const colors = cuboidColors(fill, stroke, cuboidShadeOf(theme));
   return colors && { topFill: colors.top, sideFill: colors.side, innerStroke: colors.inner };
+}
+
+function groupPlane(
+  props: Readonly<Record<string, unknown>>,
+  projection: { angle: number; depthScale: number } | undefined,
+): Pick<GroupIR, "plane"> {
+  const orientation = props.plane;
+  if (orientation !== "floor" && orientation !== "wall") return {};
+  return {
+    plane: freeze({
+      orientation,
+      angle: projection?.angle ?? DEFAULT_PROJECTION_ANGLE,
+      depthScale: projection?.depthScale ?? DEFAULT_DEPTH_SCALE,
+    }),
+  };
 }
 
 function groupLayers(props: Readonly<Record<string, unknown>>): Pick<GroupIR, "layers"> {

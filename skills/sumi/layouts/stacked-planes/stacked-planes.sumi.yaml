@@ -1,0 +1,98 @@
+# Layout: two graphs on the same nodes drawn as tilted planes, one above the other, with dotted lines joining each node to its twin (multilayer networks, snapshots in time, graph matching).
+#
+# Use when: the same set of entities appears in two or three structures (two graphs, two time steps,
+#   two layers of a multiplex network) and the figure is about which node corresponds to which;
+#   the correspondence must read at a glance, so the planes are stacked with the same node positions.
+# Structure: a `row` of a `stack` of two `container` groups with `props.plane: floor` and a legend.
+#   Each plane lists its nodes in a `place` box in plane coordinates (x across, y toward the viewer,
+#   in mm); the same coordinates in both planes put twins straight above one another. In-plane
+#   edges (`component: line`, `route: straight`) become straight lines between the mapped nodes;
+#   correspondences are dotted `route: straight` edges from a lower node to its upper twin, hidden
+#   by the upper plane and faint across it. The title sits under the front edge, left-aligned.
+# Change: the node set and tones (a plane's nodes share one tone); the in-plane edges (leave out
+#   `route: straight` to route them orthogonally in plane coordinates); the number of planes (add a
+#   group to the stack and the correspondences it needs); the projection (`figure.projection`: angle
+#   30 flattens the planes, `depthScale` their depth). Keep twins at the same (x, y) in every plane
+#   so the lines are parallel, then run `lint --geometry`: a line must still clear the nodes it
+#   passes (floors stacked one above the other do here; `plane: wall` does not).
+# Lint: `lint --geometry` 0 errors, 0 warnings; the two `color-on-panel` infos are expected (tinted nodes
+#   on the plane's shaded sumi fill, the look the sumi theme is made for).
+version: 1
+figure:
+  id: stacked-planes
+  theme: sumi
+  profile: paper-double
+  projection: {angle: 45, depthScale: 0.5}
+  layout:
+    arrange:
+      row:
+        gap: 12mm
+        align: start
+        items:
+          - stack: {gap: 18mm, align: start, items: [graph-a, graph-b]}
+          - key
+groups:
+  - id: graph-a
+    label: (a) Graph A
+    props: {plane: floor, padding: 10mm}
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: a1, at: [18, 42]}
+          - {item: b1, at: [50, 42]}
+          - {item: c1, at: [82, 42]}
+          - {item: d1, at: [18, 14]}
+          - {item: e1, at: [50, 14]}
+          - {item: f1, at: [82, 14]}
+  - id: graph-b
+    label: (b) Graph B
+    props: {plane: floor, padding: 10mm}
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: a2, at: [18, 42]}
+          - {item: b2, at: [50, 42]}
+          - {item: c2, at: [82, 42]}
+          - {item: d2, at: [18, 14]}
+          - {item: e2, at: [50, 14]}
+          - {item: f2, at: [82, 14]}
+nodes:
+  - {id: a1, component: circle, label: A, tone: blue, props: {width: 8.6mm}}
+  - {id: b1, component: circle, label: B, tone: blue, props: {width: 8.6mm}}
+  - {id: c1, component: circle, label: C, tone: blue, props: {width: 8.6mm}}
+  - {id: d1, component: circle, label: D, tone: blue, props: {width: 8.6mm}}
+  - {id: e1, component: circle, label: E, tone: blue, props: {width: 8.6mm}}
+  - {id: f1, component: circle, label: F, tone: blue, props: {width: 8.6mm}}
+  - {id: a2, component: circle, label: A, tone: green, props: {width: 8.6mm}}
+  - {id: b2, component: circle, label: B, tone: green, props: {width: 8.6mm}}
+  - {id: c2, component: circle, label: C, tone: green, props: {width: 8.6mm}}
+  - {id: d2, component: circle, label: D, tone: green, props: {width: 8.6mm}}
+  - {id: e2, component: circle, label: E, tone: green, props: {width: 8.6mm}}
+  - {id: f2, component: circle, label: F, tone: green, props: {width: 8.6mm}}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: column
+      entries:
+        - {edge: {component: line, lineWidth: 1.5pt}, label: edge in a graph}
+        - {edge: {component: line, variant: dotted}, label: "same node, other graph"}
+edges:
+  - {from: a1, to: b1, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: b1, to: c1, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: a1, to: d1, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: b1, to: e1, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: e1, to: f1, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: a2, to: e2, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: b2, to: d2, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: c2, to: f2, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: d2, to: e2, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: b2, to: c2, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: a2, to: a1, component: line, route: straight, variant: dotted}
+  - {from: b2, to: b1, component: line, route: straight, variant: dotted}
+  - {from: c2, to: c1, component: line, route: straight, variant: dotted}
+  - {from: d2, to: d1, component: line, route: straight, variant: dotted}
+  - {from: e2, to: e1, component: line, route: straight, variant: dotted}
+  - {from: f2, to: f1, component: line, route: straight, variant: dotted}

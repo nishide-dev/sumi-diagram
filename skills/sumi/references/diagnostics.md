@@ -123,6 +123,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `layout/unknown-attach-target` | `attach.to` names no node or group |
 | `layout/invalid-center-on` | stack/row `centerOn` must name a direct item, with `justify` omitted or `center`; use the whole tokens node ID, not a cell |
 | `layout/group-mismatch` | `group:` disagrees with the tree: delete `group:` or move the ID into that group's `arrange` |
+| `layout/plane-nested-group` | a group sits inside a tilted `plane` group, which holds nodes only: put the nodes in the plane, the group outside ([planes](structured.md#tilted-planes)) |
 | `layout/group-cycle`, `layout/attach-cycle` | a group placed inside itself, or attachments in a loop |
 | `layout/invalid-anchor` | `north`, `east`, `south`, `west`, optionally `:` and 0..1; or `straight` (no side) |
 | `layout/no-route` with a `route: curve` self-loop | anchors on two sides, `straight`, or the same point; or a junction | both anchors on one side with different offsets, or one anchor; no `route` on a junction ([loops](structured.md#loops)) |
