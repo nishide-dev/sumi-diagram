@@ -110,7 +110,17 @@ export function addDirectRoutes(
       // Explicit anchors are projected radially onto the silhouette. Automatic
       // ends trace the line from the other end towards this shape's centre.
       const from = anchor === undefined || anchor === "straight" ? other : rawPoint;
-      const to = center(r);
+      // A written anchor on a solid (#575) keeps projecting toward the front face's centre, as it
+      // did before unanchored ends aimed at the 3D centre.
+      const explicit = anchor !== undefined && anchor !== "straight";
+      const front = explicit ? drawing(key, r) : undefined;
+      const to =
+        front?.solid === true
+          ? {
+              x: front.safeArea.x + front.safeArea.width / 2,
+              y: front.safeArea.y + front.safeArea.height / 2,
+            }
+          : center(r);
       const entry =
         node === undefined
           ? boundaryEntry(from, to, rectPolygon(r))

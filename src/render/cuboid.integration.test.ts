@@ -244,6 +244,105 @@ edges:
     expect(points.at(-1)?.y).toBeGreaterThanOrEqual(b.y - 0.5);
   });
 
+  /** Distance from a point to the boundary of a cuboid's silhouette polygon. */
+  const distanceToSilhouette = (
+    value: Awaited<ReturnType<typeof render>>,
+    id: string,
+    point: { x: number; y: number },
+  ) => {
+    const rect = value.layout.nodes.find((n) => n.key === `n:${id}`)?.rect;
+    const node = value.compiled.ir.nodes.find((n) => n.id === id);
+    if (!rect) throw new Error("missing layout");
+    const { outline } = cuboid.draw(rect, cuboid.params.parse(node?.render?.params));
+    let best = Number.POSITIVE_INFINITY;
+    for (const [i, a] of outline.entries()) {
+      const b = outline[(i + 1) % outline.length] as { x: number; y: number };
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const t = Math.max(
+        0,
+        Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / (dx * dx + dy * dy)),
+      );
+      best = Math.min(best, Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy)));
+    }
+    return best;
+  };
+
+  // A thin plate with a deep projection: the horizontal line through its 3D centre meets the
+  // slanted top-left (west) and lower-right (east) edges, the vertical one the slanted
+  // top-left (north) and lower-right (south) edges.
+  const plates = (axis: "row" | "stack", route: string, anchors = "") => `version: 1
+figure:
+  id: plates
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: { ${axis}: { gap: 16mm, align: ${axis === "row" ? "end" : "start"}, items: [a, b] } }
+nodes:
+  - { id: a, component: cuboid, props: { width: 1.5mm, height: 6mm, depth: 28mm } }
+  - { id: b, component: cuboid, props: { width: 1.5mm, height: 4mm, depth: 28mm } }
+edges:
+  - { from: a, to: b${route}${anchors} }
+`;
+  for (const axis of ["row", "stack"] as const)
+    for (const route of ["", ", route: straight", ", route: curve"]) {
+      test(`ends lie on the silhouette, on its slanted edges for a thin deep plate (${axis}, route${route || ": default"})`, async () => {
+        const value = await render(plates(axis, route));
+        const points = value.layout.edges[0]?.route?.points ?? [];
+        expect(distanceToSilhouette(value, "a", points[0] ?? { x: 1e9, y: 1e9 })).toBeLessThan(0.6);
+        expect(distanceToSilhouette(value, "b", points.at(-1) ?? { x: 1e9, y: 1e9 })).toBeLessThan(
+          0.6,
+        );
+        // The slanted edge, not the vertical or horizontal one: the end is off the box's side.
+        const a = centreOf(value, "a").rect;
+        const b = centreOf(value, "b").rect;
+        const start = points[0];
+        const end = points.at(-1);
+        if (axis === "row") {
+          expect(start?.x).toBeLessThan(a.x + a.width - 1);
+          expect(end?.x).toBeGreaterThan(b.x + 0.3);
+        } else {
+          expect(start?.y).toBeLessThan(a.y + a.height - 1);
+          expect(end?.y).toBeGreaterThan(b.y + 0.3);
+        }
+      });
+    }
+
+  for (const route of ["straight", "curve"]) {
+    test(`unequal centres: a direct route (${route}) ends on both silhouettes`, async () => {
+      const value = await render(pair(["28mm", "10mm"], `, route: ${route}`));
+      const points = value.layout.edges[0]?.route?.points ?? [];
+      expect(distanceToSilhouette(value, "a", points[0] ?? { x: 1e9, y: 1e9 })).toBeLessThan(0.6);
+      expect(distanceToSilhouette(value, "b", points.at(-1) ?? { x: 1e9, y: 1e9 })).toBeLessThan(
+        0.6,
+      );
+    });
+
+    test(`a written anchor keeps projecting toward the front centre (route: ${route})`, async () => {
+      const value = await render(pair(["24mm", "24mm"], `, route: ${route}, fromAnchor: east:0.3`));
+      const points = value.layout.edges[0]?.route?.points ?? [];
+      const a = centreOf(value, "a").rect;
+      const node = value.compiled.ir.nodes.find((n) => n.id === "a");
+      const front = cuboid.draw(a, cuboid.params.parse(node?.render?.params)).safeArea;
+      // The ray runs from the anchor, 30% down the east side, toward the middle of the front face.
+      const anchor = { x: a.x + a.width, y: a.y + 0.3 * a.height };
+      const target = { x: front.x + front.width / 2, y: front.y + front.height / 2 };
+      const start = points[0];
+      if (!start) throw new Error("missing route");
+      const cross =
+        (start.x - anchor.x) * (target.y - anchor.y) - (start.y - anchor.y) * (target.x - anchor.x);
+      expect(Math.abs(cross) / Math.hypot(target.x - anchor.x, target.y - anchor.y)).toBeLessThan(
+        0.6,
+      );
+      expect(distanceToSilhouette(value, "a", start)).toBeLessThan(0.6);
+      // It is not where an unanchored end (aimed at the 3D centre) would leave.
+      const plain = await render(pair(["24mm", "24mm"], `, route: ${route}`));
+      expect(Math.abs((plain.layout.edges[0]?.route?.points[0]?.y ?? 0) - start.y)).toBeGreaterThan(
+        1,
+      );
+    });
+  }
+
   const fan = (mode: string, out = false) => `version: 1
 figure:
   id: fan
