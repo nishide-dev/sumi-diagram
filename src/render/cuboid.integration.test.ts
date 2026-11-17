@@ -399,6 +399,7 @@ edges:
     const a = centreOf(anchored, "a").rect;
     expect(distanceToSilhouette(anchored, "a", start ?? { x: 1e9, y: 1e9 })).toBeLessThan(0.6);
     expect(start?.y).toBeCloseTo(a.y + 0.3 * a.height, 0);
+    expect(Object.values(checkRoutes(anchored.compiled.ir, anchored.layout)).flat()).toEqual([]);
   });
 
   test("ports: face ends slide along their faces so unequal neighbours get one horizontal segment", async () => {
@@ -429,8 +430,8 @@ edges:
     expect(distanceToSilhouette(value, "b", points.at(-1) ?? { x: 1e9, y: 1e9 })).toBeLessThan(0.6);
   });
 
-  test("glued editable PPTX connectors start on the face centroid, not the silhouette", async () => {
-    const value = await render(faces("row", ""));
+  const gluedSite = async (source: string) => {
+    const value = await render(source);
     const pptx = svgToEditablePptx(value.svg, value.compiled.ir, { connectors: "glued" });
     if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
     const slide = parseXml(
@@ -444,24 +445,81 @@ edges:
           ["p:sp", "p:cxnSp"].includes(e.name) &&
           [...descendants(e)].some((n) => n.name === "p:cNvPr" && attribute(n, "name") === name),
       );
-    const xfrm = (name: string) => {
-      const t = [...descendants(named(name) as never)].find((e) => e.name === "a:xfrm");
+    const place = (shape: never) => {
+      const t = [...descendants(shape)].find((e) => e.name === "a:xfrm");
       const [off, ext] = childElements(t as never);
       return {
         x: Number(attribute(off as never, "x")),
+        y: Number(attribute(off as never, "y")),
         cx: Number(attribute(ext as never, "cx")),
+        cy: Number(attribute(ext as never, "cy")),
         flipH: attribute(t as never, "flipH") === "1",
+        flipV: attribute(t as never, "flipV") === "1",
       };
     };
     const [ra, rb] = [centreOf(value, "a").rect, centreOf(value, "b").rect];
-    const [pa, pb] = [xfrm("n:a"), xfrm("n:b")];
+    const [pa, pb] = [place(named("n:a") as never), place(named("n:b") as never)];
     const scale = (pb.x - pa.x) / (rb.x - ra.x);
-    const edge = value.layout.edges[0]?.route?.points ?? [];
-    const connector = xfrm(value.compiled.ir.edges[0]?.key as string);
-    const startX = connector.flipH ? connector.x + connector.cx : connector.x;
-    expect(startX).toBeCloseTo(pa.x + ((edge[0]?.x ?? 0) - ra.x) * scale, -2);
-    // It is inside the silhouette (the face centroid), well left of its right edge.
-    expect(edge[0]?.x).toBeLessThan(ra.x + ra.width - 3);
+    const route = value.layout.edges[0]?.route?.points ?? [];
+    const connector = named(value.compiled.ir.edges[0]?.key as string) as never;
+    const c = place(connector);
+    const start = {
+      x: c.flipH ? c.x + c.cx : c.x,
+      y: c.flipV ? c.y + c.cy : c.y,
+    };
+    // The glued site: the shape the connector starts on, at the index it names.
+    const st = [...descendants(connector)].find((e) => e.name === "a:stCxn");
+    const shape = all.find(
+      (e) =>
+        e.name === "p:sp" &&
+        [...descendants(e)].some(
+          (n) => n.name === "p:cNvPr" && attribute(n, "id") === attribute(st as never, "id"),
+        ),
+    );
+    const sites = [...descendants(shape as never)].filter((e) => e.name === "a:cxn");
+    const pos = childElements(sites[Number(attribute(st as never, "idx"))] as never)[0];
+    const sp = place(shape as never);
+    const site = {
+      x: sp.x + Number(attribute(pos as never, "x")),
+      y: sp.y + Number(attribute(pos as never, "y")),
+    };
+    const expected = {
+      x: pa.x + ((route[0]?.x ?? 0) - ra.x) * scale,
+      y: pa.y + ((route[0]?.y ?? 0) - ra.y) * scale,
+    };
+    return { start, site, expected, route, ra, value };
+  };
+
+  test("glued editable PPTX: the connector's glued site is the route start, on the face", async () => {
+    const { start, site, expected, route, ra } = await gluedSite(faces("row", ""));
+    for (const p of [start, site]) {
+      expect(p.x).toBeCloseTo(expected.x, -2);
+      expect(p.y).toBeCloseTo(expected.y, -2);
+    }
+    expect(route[0]?.x).toBeLessThan(ra.x + ra.width - 3);
+  });
+
+  test("glued editable PPTX: a slid face end is the glued site too", async () => {
+    const { start, site, expected, route, ra } = await gluedSite(`version: 1
+figure:
+  id: slide
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: { row: { gap: 16mm, align: end, items: [a, b] } }
+nodes:
+  - { id: a, component: cuboid, props: { ports: face, width: 6mm, height: 28mm, depth: 20mm } }
+  - { id: b, component: cuboid, props: { ports: face, width: 6mm, height: 12mm, depth: 12mm } }
+edges:
+  - { from: a, to: b }
+`);
+    expect(route).toHaveLength(2);
+    // Not the centroid: the end slid to the overlap's middle.
+    expect(Math.abs((route[0]?.y ?? 0) - (ra.y + ra.height / 2))).toBeGreaterThan(5);
+    for (const p of [start, site]) {
+      expect(p.x).toBeCloseTo(expected.x, -2);
+      expect(p.y).toBeCloseTo(expected.y, -2);
+    }
   });
 
   const placed = (route: string, ports = "face", height = "3mm", at = "[1, 0]") => `version: 1
@@ -492,8 +550,8 @@ figure:
   layout:
     arrange: { stack: { gap: 16mm, align: start, items: [b, a] } }
 nodes:
-  - { id: a, component: cuboid, props: { ports: face, width: 8mm, height: 12mm, depth: 24mm } }
-  - { id: b, component: cuboid, props: { ports: face, width: 24mm, height: 12mm, depth: 10mm } }
+  - { id: a, component: cuboid, props: { ports: face, width: 24mm, height: 12mm, depth: 10mm } }
+  - { id: b, component: cuboid, props: { ports: face, width: 8mm, height: 12mm, depth: 24mm } }
 edges:
   - { from: a, to: b }
 `);
@@ -502,6 +560,8 @@ edges:
     expect(points[0]?.x).toBeCloseTo(points[1]?.x ?? Number.NaN, 6);
     // The start is inside a's top face, below its silhouette's top edge.
     const rect = centreOf(value, "a").rect;
+    // The end moved from the top face's centroid (the box's middle x) to the overlap's middle.
+    expect(Math.abs((points[0]?.x ?? 0) - (rect.x + rect.width / 2))).toBeGreaterThan(3);
     expect(points[0]?.y).toBeGreaterThan(rect.y + 1);
     const node = value.compiled.ir.nodes.find((n) => n.id === "a");
     const { dy } = cuboidOffset(cuboid.params.parse(node?.render?.params));
@@ -527,6 +587,7 @@ edges:
     const { dx } = cuboidOffset(cuboid.params.parse(node?.render?.params));
     // dx is about 1mm: the side face is too narrow to slide along; the end stays at its centroid.
     expect(value.layout.edges[0]?.route?.points[0]?.x).toBeCloseTo(rect.x + rect.width - dx / 2, 0);
+    expect(value.layout.edges[0]?.route?.points[0]?.y).toBeCloseTo(rect.y + rect.height / 2, 0);
   });
 
   test("ports: face with fan-out keeps the shared silhouette contact; written anchors keep their meaning", async () => {
@@ -552,6 +613,53 @@ edges:
       const start = anchored.layout.edges[0]?.route?.points[0] ?? { x: 1e9, y: 1e9 };
       expect(distanceToSilhouette(anchored, "a", start)).toBeLessThan(0.6);
     }
+  });
+
+  test("ports: face fan-out from an east face: merge and spread both share the face centroid", async () => {
+    for (const mode of ["merge", "spread"]) {
+      const value = await render(
+        fan(mode, true).replaceAll("depth: 6mm", "ports: face, depth: 6mm"),
+      );
+      const big = centreOf(value, "big").rect;
+      const bigNode = value.compiled.ir.nodes.find((n) => n.id === "big");
+      const { dx } = cuboidOffset(cuboid.params.parse(bigNode?.render?.params));
+      for (const e of value.layout.edges) {
+        expect(e.route?.points[0]?.x).toBeCloseTo(big.x + big.width - dx / 2, 0);
+        expect(e.route?.points[0]?.y).toBeCloseTo(big.y + big.height / 2, 0);
+      }
+    }
+  });
+
+  test("ports: face fan-in at a north face: merge ends at the top face's centroid, spread on the silhouette", async () => {
+    const column = (mode: string) => `version: 1
+figure:
+  id: fan-north
+  theme: sumi
+  profile: paper-double
+  layout:
+    fanIn: ${mode}
+    arrange: { stack: { gap: 18mm, align: center, items: [{ row: { gap: 10mm, items: [u, v] } }, big] } }
+nodes:
+  - { id: u, component: cuboid, props: { width: 3mm, height: 8mm, depth: 6mm } }
+  - { id: v, component: cuboid, props: { width: 3mm, height: 8mm, depth: 6mm } }
+  - { id: big, component: cuboid, props: { ports: face, width: 40mm, height: 12mm, depth: 6mm } }
+edges:
+  - { from: u, to: big }
+  - { from: v, to: big }
+`;
+    const merged = await render(column("merge"));
+    const big = centreOf(merged, "big").rect;
+    const bigNode = merged.compiled.ir.nodes.find((n) => n.id === "big");
+    const { dy } = cuboidOffset(cuboid.params.parse(bigNode?.render?.params));
+    for (const e of merged.layout.edges) {
+      const end = e.route?.points.at(-1);
+      expect(end?.x).toBeCloseTo(big.x + big.width / 2, 0);
+      expect(end?.y).toBeCloseTo(big.y + dy / 2, 0);
+    }
+    const spread = await render(column("spread"));
+    const ends = spread.layout.edges.map((e) => e.route?.points.at(-1) ?? { x: 1e9, y: 1e9 });
+    expect(Math.abs((ends[0]?.x ?? 0) - (ends[1]?.x ?? 0))).toBeGreaterThan(5);
+    for (const end of ends) expect(distanceToSilhouette(spread, "big", end)).toBeLessThan(0.6);
   });
 
   for (const route of ["straight", "curve"]) {
