@@ -998,6 +998,8 @@ export function svgToEditablePptx(
         element.kind === "node" &&
         element.render !== undefined &&
         (element.render.renderer === "sumi/bubble" ||
+          // A solid's contacts are on its silhouette, or on its visible faces (`ports: face`, #575).
+          element.render.renderer === "sumi/cuboid" ||
           (element.render.renderer === "sumi/bowtie" &&
             typeof element.render.params?.gap === "number" &&
             element.render.params.gap > 0) ||
@@ -1029,7 +1031,22 @@ export function svgToEditablePptx(
         const boundaries = drawing.boundaries ?? [drawing.portOutline ?? drawing.outline];
         // Auto routes retain D2's clearance. A glued site must instead lie on
         // the painted boundary, including at the corner of a split body's lip.
+        const insideFace = (point: Point) =>
+          Object.values(drawing.faces ?? {}).some((polygon) => {
+            let inside = false;
+            for (const [i, a] of polygon.entries()) {
+              const b = polygon[(i + 1) % polygon.length] as Point;
+              if (
+                a.y > point.y !== b.y > point.y &&
+                point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x
+              )
+                inside = !inside;
+            }
+            return inside;
+          });
         for (const [index, point] of connectionPoints.entries()) {
+          // The end of an edge on a visible face of its own solid is the site itself.
+          if (insideFace(point)) continue;
           const neighbour = connectionEnds?.[index]?.neighbour;
           let contact: Point | undefined;
           if (neighbour !== undefined) {

@@ -140,7 +140,7 @@ const cuboid: NodeManifest = {
       .enum(["center", "face"])
       .optional()
       .describe(
-        "Where an edge without an anchor touches the solid: center (default) meets the silhouette on the line through its projected 3D centre; face ends an edge on the east (right) side at the centre of the visible side face and on the north (top) side at the centre of the top face, drawn over the face (west and south faces are hidden: they keep the center contact). Written anchors keep their meaning; face ends are not straightened against neighbours.",
+        "Where an edge without an anchor touches the solid: center (default) meets the silhouette on the line through its projected 3D centre; face ends an edge on the east (right) side at the centre of the visible side face and on the north (top) side at the centre of the top face, drawn over the face (west and south faces are hidden: they keep the center contact). Written anchors keep their meaning; between neighbours a face end slides along its face to the middle of the overlap (if the face holds it with a margin) so edges stay straight.",
       ),
     dims: z
       .strictObject({

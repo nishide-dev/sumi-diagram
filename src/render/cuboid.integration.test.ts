@@ -9,7 +9,7 @@ import { svgToPdf } from "./pdf";
 import { svgToEditablePptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
 import { renderFigure } from "./render";
-import { attribute, descendants, parseXml } from "./xml";
+import { attribute, childElements, descendants, parseXml } from "./xml";
 
 const source = (theme: string, extra = "", dims = '{ width: "64", height: "224²" }') => `version: 1
 figure:
@@ -428,6 +428,138 @@ edges:
     // The target's west face is hidden: its end stays on the silhouette.
     expect(distanceToSilhouette(value, "b", points.at(-1) ?? { x: 1e9, y: 1e9 })).toBeLessThan(0.6);
   });
+
+  test("glued editable PPTX connectors start on the face centroid, not the silhouette", async () => {
+    const value = await render(faces("row", ""));
+    const pptx = svgToEditablePptx(value.svg, value.compiled.ir, { connectors: "glued" });
+    if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+    const slide = parseXml(
+      new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml")),
+    );
+    if (!slide.ok) throw new Error(slide.message);
+    const all = [...descendants(slide.root)];
+    const named = (name: string) =>
+      all.find(
+        (e) =>
+          ["p:sp", "p:cxnSp"].includes(e.name) &&
+          [...descendants(e)].some((n) => n.name === "p:cNvPr" && attribute(n, "name") === name),
+      );
+    const xfrm = (name: string) => {
+      const t = [...descendants(named(name) as never)].find((e) => e.name === "a:xfrm");
+      const [off, ext] = childElements(t as never);
+      return {
+        x: Number(attribute(off as never, "x")),
+        cx: Number(attribute(ext as never, "cx")),
+        flipH: attribute(t as never, "flipH") === "1",
+      };
+    };
+    const [ra, rb] = [centreOf(value, "a").rect, centreOf(value, "b").rect];
+    const [pa, pb] = [xfrm("n:a"), xfrm("n:b")];
+    const scale = (pb.x - pa.x) / (rb.x - ra.x);
+    const edge = value.layout.edges[0]?.route?.points ?? [];
+    const connector = xfrm(value.compiled.ir.edges[0]?.key as string);
+    const startX = connector.flipH ? connector.x + connector.cx : connector.x;
+    expect(startX).toBeCloseTo(pa.x + ((edge[0]?.x ?? 0) - ra.x) * scale, -2);
+    // It is inside the silhouette (the face centroid), well left of its right edge.
+    expect(edge[0]?.x).toBeLessThan(ra.x + ra.width - 3);
+  });
+
+  const placed = (route: string, ports = "face", height = "3mm", at = "[1, 0]") => `version: 1
+figure:
+  id: placed
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      place:
+        unit: 20mm
+        items:
+          - { item: a, at: [0, 0] }
+          - { item: b, at: ${at} }
+nodes:
+  - { id: a, component: cuboid, props: { ports: ${ports}, width: 6mm, height: ${height}, depth: 28mm } }
+  - { id: b, component: box, label: B }
+edges:
+  - { from: a, to: b${route} }
+`;
+
+  test("ports: face north ends slide along the top face so unequal stacked solids get one vertical segment", async () => {
+    const value = await render(`version: 1
+figure:
+  id: slide-north
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: { stack: { gap: 16mm, align: start, items: [b, a] } }
+nodes:
+  - { id: a, component: cuboid, props: { ports: face, width: 8mm, height: 12mm, depth: 24mm } }
+  - { id: b, component: cuboid, props: { ports: face, width: 24mm, height: 12mm, depth: 10mm } }
+edges:
+  - { from: a, to: b }
+`);
+    const points = value.layout.edges[0]?.route?.points ?? [];
+    expect(points).toHaveLength(2);
+    expect(points[0]?.x).toBeCloseTo(points[1]?.x ?? Number.NaN, 6);
+    // The start is inside a's top face, below its silhouette's top edge.
+    const rect = centreOf(value, "a").rect;
+    expect(points[0]?.y).toBeGreaterThan(rect.y + 1);
+    const node = value.compiled.ir.nodes.find((n) => n.id === "a");
+    const { dy } = cuboidOffset(cuboid.params.parse(node?.render?.params));
+    expect(points[0]?.y).toBeLessThan(rect.y + dy);
+  });
+
+  test("ports: face keeps the centroid when the face cannot hold the straightened line with a margin", async () => {
+    const value = await render(`version: 1
+figure:
+  id: thin-face
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: { row: { gap: 16mm, align: end, items: [a, b] } }
+nodes:
+  - { id: a, component: cuboid, props: { ports: face, width: 6mm, height: 28mm, depth: 2mm } }
+  - { id: b, component: cuboid, props: { width: 6mm, height: 12mm, depth: 2mm } }
+edges:
+  - { from: a, to: b }
+`);
+    const rect = centreOf(value, "a").rect;
+    const node = value.compiled.ir.nodes.find((n) => n.id === "a");
+    const { dx } = cuboidOffset(cuboid.params.parse(node?.render?.params));
+    // dx is about 1mm: the side face is too narrow to slide along; the end stays at its centroid.
+    expect(value.layout.edges[0]?.route?.points[0]?.x).toBeCloseTo(rect.x + rect.width - dx / 2, 0);
+  });
+
+  test("ports: face with fan-out keeps the shared silhouette contact; written anchors keep their meaning", async () => {
+    const value = await render(
+      fan("merge", true).replaceAll("depth: 6mm", "ports: face, depth: 6mm"),
+    );
+    const starts = value.layout.edges.map((e) => e.route?.points[0] ?? { x: 1e9, y: 1e9 });
+    expect(starts[0]?.y).toBeCloseTo(starts[1]?.y ?? Number.NaN, 6);
+    // The shared end (one trunk) starts at the face centroid for every edge, never slid.
+    const big = centreOf(value, "big").rect;
+    const bigNode = value.compiled.ir.nodes.find((n) => n.id === "big");
+    const { dx } = cuboidOffset(cuboid.params.parse(bigNode?.render?.params));
+    for (const start of starts) expect(start.x).toBeCloseTo(big.x + big.width - dx / 2, 0);
+    expect(Object.values(checkRoutes(value.compiled.ir, value.layout)).flat()).toEqual([]);
+    const fanIn = await render(fan("merge").replaceAll("depth: 6mm", "ports: face, depth: 6mm"));
+    const ends = fanIn.layout.edges.map((e) => e.route?.points.at(-1)?.y ?? Number.NaN);
+    expect(ends[0]).toBeCloseTo(ends[1] ?? Number.NaN, 6);
+    // A written anchor on a direct route is a silhouette contact, not the face centre.
+    for (const route of ["straight", "curve"]) {
+      const anchored = await render(
+        placed(`, route: ${route}, fromAnchor: east:0.4`, "face", "20mm"),
+      );
+      const start = anchored.layout.edges[0]?.route?.points[0] ?? { x: 1e9, y: 1e9 };
+      expect(distanceToSilhouette(anchored, "a", start)).toBeLessThan(0.6);
+    }
+  });
+
+  for (const route of ["straight", "curve"]) {
+    test(`a ${route} route from a face end that leaves through the silhouette is accepted`, async () => {
+      const fine = await renderFigure(placed(`, route: ${route}`, "face", "3mm", "[1, 0]"));
+      expect(fine.ok).toBe(true);
+    });
+  }
 
   test("ports: face has no lint findings (the stretch over its own face is intended), centre unchanged by default", async () => {
     for (const label of ["", "L"]) {
