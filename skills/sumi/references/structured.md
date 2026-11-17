@@ -45,7 +45,7 @@ with `figure.layout.arrange` is structured, one without it auto**; an
 explicit `engine: auto` wins. Under auto, every structured-only field
 (`arrange`, `align`, `alignGrowth`, `fanIn`, `density`, `attach`, `sublabel`,
 `labelRotation`, `textAlign`, `grow`, `fromAnchor` / `toAnchor`, edge
-`labelAt` / `labelSide` / `route`, and the `legend`, `tokens`, `matrix`, `bracket`,
+`labelAt` / `labelSide` / `route`, and the `legend`, `tokens`, `matrix`, `bracket`, `cuboid`,
 `separator`, `block-arrow`, `triangle-arrow`, `chevron` and `zoom` components) is `layout/structured-only`: remove it or
 make the figure structured. Group `labelAt` and `caption`, icons, images,
 tones, `operator`, `junction`, `dim` and the paper variants work in both.

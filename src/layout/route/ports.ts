@@ -51,6 +51,14 @@ export function anchorPoint(rect: Rect, anchor: Anchor): Point {
   }
 }
 
+/** Whether a node's outline puts its default ports off the middle of its sides (a cuboid, #575). */
+export function hasPortOffsets(node: NodeIR | undefined, rect: Rect): boolean {
+  if (node?.render === undefined) return false;
+  const renderer = getOutlineRenderer(node.render.renderer);
+  const drawing = renderer?.draw(rect, renderer.params.parse(node.render.params ?? {}));
+  return drawing?.portOffsets !== undefined;
+}
+
 /** The shape a node draws, as a convex region (its bounding box for `text`). */
 export function nodeRegion(node: NodeIR, rect: Rect): Region {
   if (node.render !== undefined) {
@@ -1350,6 +1358,9 @@ function resolveEndsWith(
     if (ir.meta.fanIn !== undefined) return undefined;
     if (otherWritten !== undefined || edge.from === edge.to) return undefined;
     if (isJunction(self.node) || isJunction(other.node)) return undefined;
+    // A solid's ports are off its middle (#575): lining the boxes' centres up would miss them.
+    if (hasPortOffsets(self.node, self.rect) || hasPortOffsets(other.node, other.rect))
+      return undefined;
     const at = straightPlacement(self.rect, other.rect);
     if (!("offset" in at)) return undefined;
     const vertical = at.side === "north" || at.side === "south";

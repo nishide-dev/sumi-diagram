@@ -53,8 +53,10 @@ export const cuboid: OutlineRenderer<CuboidParams> = {
   draw({ x, y, width, height }, params): OutlineDrawing {
     const offset = cuboidOffset(params);
     // A very small explicit footprint keeps a front face of positive size.
-    const dx = Math.min(offset.dx, width / 2);
-    const dy = Math.min(offset.dy, height / 2);
+    // The requested projection is drawn whenever the footprint holds it beside a front face
+    // of positive size; only a footprint that is genuinely smaller shares its size.
+    const dx = offset.dx < width ? offset.dx : width / 2;
+    const dy = offset.dy < height ? offset.dy : height / 2;
     const w = width - dx;
     const h = height - dy;
     const fx = x;

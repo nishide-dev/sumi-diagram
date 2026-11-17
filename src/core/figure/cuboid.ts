@@ -10,7 +10,8 @@
  */
 import { type CheckState, nodeKey } from "../check-state";
 import { recordExpanded, reportReservedId, takenIds } from "./expand";
-import { type FigureNode, NodeSchema } from "./schema";
+import { errorAt } from "./report";
+import { type FigureNode, ID_PATTERN, NodeSchema } from "./schema";
 import type { Locator } from "./yaml";
 
 export const CUBOID_IDS: readonly string[] = ["cuboid", "sumi/cuboid"];
@@ -40,6 +41,22 @@ export function expandCuboidDims(state: CheckState, locate: Locator): void {
       if (typeof text !== "string" || text === "") continue;
       const id = cuboidDimId(node.id, axis);
       const path = ["nodes", index, "props", "dims", axis];
+      // The label node's ID is derived: it must be a valid ID itself (at most 64 characters).
+      if (!ID_PATTERN.test(id)) {
+        state.diagnostics.push(
+          errorAt(
+            locate,
+            "schema/invalid-id",
+            `The ${axis} dimension of cuboid "${node.id}" would have the ID "${id}", which is not a valid ID (at most 64 characters).`,
+            path,
+            {
+              subject: { kind: "node", id: node.id },
+              hint: `Shorten the cuboid's ID to at most ${64 - `-dim-${axis}`.length} characters.`,
+            },
+          ),
+        );
+        continue;
+      }
       const owner = taken.get(id);
       if (owner !== undefined) {
         reportReservedId(state, locate, {

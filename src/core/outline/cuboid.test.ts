@@ -91,6 +91,17 @@ describe("sumi/cuboid geometry", () => {
     expect(rect.x + (offsets?.south ?? 0) * rect.width).toBeCloseTo(rect.x + w / 2, 9);
   });
 
+  test("a thin plate draws exactly the requested front and projection when the footprint holds them", () => {
+    const params = parse({ width: 8, height: 100, depth: 120 });
+    const { dx, dy } = cuboidOffset(params);
+    const footprint = cuboid.footprint({ width: 1, height: 1 }, params);
+    const drawing = cuboid.draw({ x: 0, y: 0, ...footprint }, params);
+    expect(drawing.safeArea.width).toBeCloseTo(8, 9);
+    expect(drawing.safeArea.height).toBeCloseTo(100, 9);
+    expect(footprint.width - drawing.safeArea.width).toBeCloseTo(dx, 9);
+    expect(footprint.height - drawing.safeArea.height).toBeCloseTo(dy, 9);
+  });
+
   test("faces keep a positive size for a very small footprint", () => {
     const drawing = cuboid.draw({ x: 0, y: 0, width: 2, height: 2 }, parse({ depth: 400 }));
     const { width, height } = drawing.safeArea;

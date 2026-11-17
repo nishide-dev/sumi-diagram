@@ -146,7 +146,7 @@ const cuboid: NodeManifest = {
       })
       .optional()
       .describe(
-        "Dimension texts, always horizontal. Each is a label node with the ID <id>-dim-width, -dim-height or -dim-depth, attached to the cuboid (2.6mm above, 3.4mm below, at its lower right corner), so geometry lint checks it like any text.",
+        "Dimension texts, always horizontal. Each is a label node with the ID <id>-dim-width, -dim-height or -dim-depth, attached to the cuboid (the box of the text 1.2mm above the silhouette, 2mm below the front face, at its lower right corner; the text itself sits a little farther by its padding), so geometry lint checks it like any text.",
       ),
   }),
   shape: "rectangle",

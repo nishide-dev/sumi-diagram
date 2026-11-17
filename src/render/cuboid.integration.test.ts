@@ -159,6 +159,89 @@ edges:
     expect(dx).toBeGreaterThan(0);
   });
 
+  const pair = (sizes: [string, string], route = "") => `version: 1
+figure:
+  id: pair
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: { row: { gap: 14mm, align: end, items: [a, b] } }
+nodes:
+  - { id: a, component: cuboid, props: { width: 3mm, height: ${sizes[0]}, depth: 24mm } }
+  - { id: b, component: cuboid, props: { width: 3mm, height: ${sizes[1]}, depth: 24mm } }
+edges:
+  - { from: a, to: b${route} }
+`;
+  const frontCentre = (value: Awaited<ReturnType<typeof render>>, id: string) => {
+    const rect = value.layout.nodes.find((n) => n.key === `n:${id}`)?.rect;
+    const node = value.compiled.ir.nodes.find((n) => n.id === id);
+    if (!rect) throw new Error("missing layout");
+    const { dy } = cuboidOffset(cuboid.params.parse(node?.render?.params));
+    return { rect, y: rect.y + dy + (rect.height - dy) / 2 };
+  };
+
+  for (const route of ["", ", route: straight", ", route: curve"]) {
+    test(`unanchored ends meet the front faces' middle height (route${route || ": default"})`, async () => {
+      // Equal cuboids side by side: both ends at the same, front-middle height.
+      const value = await render(pair(["24mm", "24mm"], route));
+      const points = value.layout.edges[0]?.route?.points ?? [];
+      const a = frontCentre(value, "a");
+      const b = frontCentre(value, "b");
+      expect(points[0]?.y).toBeCloseTo(a.y, 0);
+      expect(points.at(-1)?.y).toBeCloseTo(b.y, 0);
+      // The bounding-box middle is a different height.
+      expect(Math.abs(a.y - (a.rect.y + a.rect.height / 2))).toBeGreaterThan(5);
+    });
+    test(`unequal neighbours end on their silhouettes (route${route || ": default"})`, async () => {
+      const value = await render(pair(["28mm", "16mm"], route));
+      const points = value.layout.edges[0]?.route?.points ?? [];
+      const a = value.layout.nodes.find((n) => n.key === "n:a")?.rect;
+      const b = value.layout.nodes.find((n) => n.key === "n:b")?.rect;
+      if (!a || !b) throw new Error("missing layout");
+      expect(points[0]?.x).toBeGreaterThan(a.x);
+      expect(points[0]?.x).toBeLessThanOrEqual(a.x + a.width + 0.5);
+      expect(points.at(-1)?.x).toBeGreaterThanOrEqual(b.x - 0.5);
+      expect(points.at(-1)?.x).toBeLessThan(b.x + b.width);
+      if (route === "") {
+        expect(Object.values(checkRoutes(value.compiled.ir, value.layout)).flat()).toEqual([]);
+      }
+    });
+  }
+
+  test("a thin plate keeps its requested front width and projection", async () => {
+    const value = await render(`version: 1
+figure:
+  id: plate
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: { row: { items: [p] } }
+nodes:
+  - { id: p, component: cuboid, props: { width: 1.5mm, height: 28mm, depth: 28mm } }
+`);
+    const node = value.compiled.ir.nodes.find((n) => n.id === "p");
+    const { dx } = cuboidOffset(cuboid.params.parse(node?.render?.params));
+    const rect = value.layout.nodes.find((n) => n.key === "n:p")?.rect;
+    if (!rect) throw new Error("missing layout");
+    // 1.5mm = 8.5 units of front width, not half the silhouette.
+    expect(dx).toBeGreaterThan(40);
+    const front = cuboid.draw(rect, cuboid.params.parse(node?.render?.params)).safeArea;
+    expect(front.width).toBeLessThan(12);
+    expect(rect.width - front.width).toBeCloseTo(dx, 6);
+  });
+
+  test("a cuboid ID too long for a derived dimension ID is a located error", () => {
+    const id = `c${"x".repeat(58)}`;
+    const checked = checkFigure(`version: 1
+figure: { id: x, theme: sumi, profile: paper-double, layout: { arrange: { row: { items: [${id}] } } } }
+nodes:
+  - { id: ${id}, component: cuboid, props: { width: 3mm, height: 8mm, depth: 8mm, dims: { width: "8" } } }
+`);
+    const found = checked.state.diagnostics.find((d) => d.code === "schema/invalid-id");
+    expect(found?.path).toEqual(["nodes", 0, "props", "dims", "width"]);
+    expect(found?.location).toBeDefined();
+  });
+
   test("PDF and editable PPTX render: faces are freeforms with their own fills", async () => {
     const value = await render(source("sumi-dark"));
     expect(svgToPdf(value.svg).ok).toBe(true);

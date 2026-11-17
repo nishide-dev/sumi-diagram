@@ -11,7 +11,7 @@ A cuboid in oblique projection \(a CNN layer, a feature map or a volume\): a fro
 | <code>width</code> | <code>string</code> | yes | Width of the front face as a length such as &quot;6mm&quot; \(rounded to the nearest 0\.5pt\); a longer label widens it\. |
 | <code>height</code> | <code>string</code> | yes | Height of the front face as a length such as &quot;30mm&quot; \(rounded to the nearest 0\.5pt\); a taller label raises it\. |
 | <code>depth</code> | <code>string</code> | yes | Depth of the solid as a length such as &quot;30mm&quot; before figure\.projection scales it \(cabinet projection draws it half as long\)\. |
-| <code>dims</code> | <code>object</code> | no | Dimension texts, always horizontal\. Each is a label node with the ID &lt;id&gt;\-dim\-width, \-dim\-height or \-dim\-depth, attached to the cuboid \(2\.6mm above, 3\.4mm below, at its lower right corner\), so geometry lint checks it like any text\. |
+| <code>dims</code> | <code>object</code> | no | Dimension texts, always horizontal\. Each is a label node with the ID &lt;id&gt;\-dim\-width, \-dim\-height or \-dim\-depth, attached to the cuboid \(the box of the text 1\.2mm above the silhouette, 2mm below the front face, at its lower right corner; the text itself sits a little farther by its padding\), so geometry lint checks it like any text\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |
