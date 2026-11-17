@@ -14,7 +14,7 @@ Contents: [minimal example](#minimal-example) · [engine rules](#engine-rules) �
 [turned labels](#turned-labels) · [text align](#text-align) · [attach](#attach-side-notes) ·
 [align](#aligning-across-trees) · [tables](#tables) ·
 [edges](#edges-anchors-junctions-and-trunks) · [crossings](#crossings-layoutedge-crossing) ·
-[legends](#legends) · [zoom](#zoom-callouts) · [cuboids](#cuboids) · [brackets](#brackets) ·
+[legends](#legends) · [zoom](#zoom-callouts) · [cuboids](#cuboids) · [tilted planes](#tilted-planes) · [brackets](#brackets) ·
 [tokens](#token-sequences) · [matrices](#matrices) · [spacing](#spacing-that-routes) ·
 [fixing layout codes](diagnostics.md#fixing-layout)
 
@@ -44,7 +44,7 @@ edges:
 with `figure.layout.arrange` is structured, one without it auto**; an
 explicit `engine: auto` wins. Under auto, every structured-only field
 (`arrange`, `align`, `alignGrowth`, `fanIn`, `density`, `attach`, `sublabel`,
-`labelRotation`, `textAlign`, `grow`, `fromAnchor` / `toAnchor`, edge
+`labelRotation`, `textAlign`, `grow`, `fromAnchor` / `toAnchor`, group `props.plane`, edge
 `labelAt` / `labelSide` / `route`, and the `legend`, `tokens`, `matrix`, `bracket`, `cuboid`,
 `separator`, `block-arrow`, `triangle-arrow`, `chevron` and `zoom` components) is `layout/structured-only`: remove it or
 make the figure structured. Group `labelAt` and `caption`, icons, images,
@@ -1441,7 +1441,84 @@ edges:
   - {from: conv, to: pool}
 ```
 
-Solid grids, highlighted blocks and tilted planes are not part of `cuboid` yet.
+Solid grids and highlighted blocks are not part of `cuboid` yet; for tilted sheets see
+[tilted planes](#tilted-planes).
+
+## Tilted planes
+
+A `container` group with **`props.plane: floor`** (or `wall`) is a tilted plane in the
+figure's oblique projection (`figure.projection`, the same `angle` and `depthScale` as
+`cuboid`; defaults 45 degrees and 0.5). Use it to put two or three graphs of the
+same nodes above one another and join the twins with lines (multilayer networks,
+time snapshots, graph matching). The `stacked-planes` base layout is the starting point.
+
+- **Layout in plane coordinates.** The plane holds **nodes only** (a group inside it is
+  `layout/plane-nested-group`). Arrange them as in any group (`place`, `row`, `stack`,
+  `grid`, `attach`): that flat frame, with the group's padding, is the plane. With
+  `place`, `x` runs across and `y` toward the viewer (down in the flat frame).
+- **The map.** With `k = depthScale * cos(angle)` and `m = depthScale * sin(angle)`, a point at `u` from
+  the flat frame's left edge and `v` up from its bottom edge goes to
+  - `floor` (a horizontal sheet, depth running back): `x = x0 + u + v*k`, `y = y0 - v*m`;
+  - `wall` (a vertical sheet receding to the back, like a cuboid's side face; the flat
+    frame's x axis runs into the depth, y up): `x = x0 + u*k`, `y = y0 - u*m - v`.
+
+  `(x0, y0)` is the bottom left of the parallelogram's bounding box. A 100 x 56mm floor at
+  45 / 0.5 stands about 120mm wide and 20mm high, so stacked planes take the room of their
+  projected height. Only node **centers** are mapped: nodes keep their size and shape
+  (circles stay circles) and labels stay horizontal. The frame is a parallelogram drawn
+  as a container (`variant`, `tone`, `lineWidth` and `dim` work); `layers` and `plain` are
+  errors, and `labelAt` is ignored: the **title** sits under the front edge, left-aligned.
+- **Edges inside a plane.** `route: straight` between two nodes of one plane is
+  a straight line between the mapped nodes, ending on their outlines (`route: curve` is
+  drawn on the page, not mapped). An edge without
+  `route` is routed orthogonally in plane coordinates and then mapped, so its legs
+  run along the parallelogram's sides; its labels follow.
+- **Correspondences.** Join nodes of two planes with `route: straight` edges (a `line` in
+  the `dotted` variant, one per twin). Put twins at the same `place` coordinates in each
+  plane so the lines are parallel and clear of other nodes. The line passes **behind the
+  upper plane** (its fill hides it) and shows **faintly over** the plane, drawn again in a
+  lighter shade where it crosses the frame, so the link stays readable. Edges between planes
+  without `route: straight` are routed on the page by the router, not recommended.
+- **Lint and outputs.** `lint --geometry` measures the transformed shapes: the parallelogram's
+  bounding box, mapped nodes and edges (a correspondence through a node is
+  `geometry/edge-through-node`; the group's empty-area and title-overflow rules skip planes).
+  PDF is drawn like the SVG. Editable PPTX draws each frame as a parallelogram freeform and
+  each routed edge as a freeform of its mapped points, in the usual edge order: the
+  correspondence lines are over the planes there, without the faint part.
+- **Not yet.** `matrix` on a plane (a heat map or attention map over a sheet) and groups
+  inside a plane; the flatten-to-ellipse node option of the design.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: two-planes
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: {stack: {gap: 14mm, align: start, items: [upper, lower]}}
+groups:
+  - id: upper
+    label: (a) Before
+    props: {plane: floor, padding: 8mm}
+    arrange:
+      place: {unit: 1mm, items: [{item: p1, at: [0, 0]}, {item: q1, at: [40, 0]}]}
+  - id: lower
+    label: (b) After
+    props: {plane: floor, padding: 8mm}
+    arrange:
+      place: {unit: 1mm, items: [{item: p2, at: [0, 0]}, {item: q2, at: [40, 0]}]}
+nodes:
+  - {id: p1, component: circle, label: P, tone: blue, props: {width: 8mm}}
+  - {id: q1, component: circle, label: Q, tone: blue, props: {width: 8mm}}
+  - {id: p2, component: circle, label: P, tone: green, props: {width: 8mm}}
+  - {id: q2, component: circle, label: Q, tone: green, props: {width: 8mm}}
+edges:
+  - {from: p1, to: q1, component: line, route: straight}
+  - {from: p2, to: q2, component: line, route: straight}
+  - {from: p2, to: p1, component: line, route: straight, variant: dotted}
+  - {from: q2, to: q1, component: line, route: straight, variant: dotted}
+```
 
 ## Brackets
 

@@ -20,6 +20,7 @@
   "pipeline-linear": "cebd8606a6c5de760c5a235f7f1f32135da86862cfb73844b017ff22d6969b1e",
   "residual-skip-stack": "43450cb269f08569b06316215416ef58bae551dd666a799f1697d40c773bf9e1",
   "set-taxonomy": "2d8e520ac8ffc820a75d79eb5cc1f5d0afcc062e4b4070e0c2edb683a233fea6",
+  "stacked-planes": "02efd8350caad159b04b99217ece25b2c7b00cdc246f7d5e6e44c77bd8c9c1fe",
   "state-machine": "757fb3c0f94b2fb417b228c3a98f7235b8afefb64dfda4c5fd55c7840477d676",
   "three-panel-flow": "17c6aaa18dadb12aefb1ab4e12ffc59bbd58ce714de2bab85a6eb986f740242d",
   "timeline-lanes": "2679abff009f5efb71aa54a8acb50f643778f7b63e34c0f930b2c13ae226bd56",
