@@ -99,6 +99,7 @@ import { requestedLabelDiagnostics } from "./label-diagnostics";
 import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
 import { groupArrowheadStems } from "./padding";
 import { separateParallelRuns, separateSameSideRuns } from "./parallel";
+import { routeWithPlanes } from "./planes";
 import {
   bottomOf,
   DIRS,
@@ -201,6 +202,8 @@ export function routeEdges(
   unmoved: LayoutIR,
   options: RouteOptions = {},
 ): RouteResult {
+  // Edges inside tilted planes (#577) are routed in plane coordinates and mapped.
+  if (unmoved.planes !== undefined) return routeWithPlanes(ir, unmoved, options, routeEdges);
   const layout = junctionsOnBus(ir, unmoved);
   // Zoom edges (#176) are not routed: the other edges are routed without
   // them, and their straight lines are added to the result (`zoom.ts`).

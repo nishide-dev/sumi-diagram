@@ -259,6 +259,48 @@ export function resolveComponents(
         );
       }
     }
+    if (element.kind === "group" && element.props.plane !== undefined) {
+      if (engine !== "structured") {
+        report(
+          [
+            {
+              code: "layout/structured-only",
+              severity: "error",
+              message:
+                "A tilted plane (props.plane) is laid out and mapped by the structured layout engine only.",
+              hint: "Set figure.layout.arrange and the group's arrange tree, or remove props.plane.",
+            },
+          ],
+          () => [...element.path, "props", "plane"],
+        );
+      }
+      if (element.props.layers !== undefined) {
+        report(
+          [
+            {
+              code: "component/invalid-prop",
+              severity: "error",
+              message: "A tilted plane cannot have layers: it is a single sheet.",
+              hint: "Remove props.layers, or remove props.plane.",
+            },
+          ],
+          () => [...element.path, "props", "layers"],
+        );
+      }
+      if (element.variant === "plain") {
+        report(
+          [
+            {
+              code: "component/invalid-prop",
+              severity: "error",
+              message: "A tilted plane needs a frame; the plain variant has no frame.",
+              hint: "Use default, muted, filled or dashed, or remove props.plane.",
+            },
+          ],
+          () => [...element.path, "props", "plane"],
+        );
+      }
+    }
     // A component drawn by some engines only (#131, e.g. sumi/legend).
     const wrongEngine =
       engine !== undefined && manifest.engines !== undefined && !manifest.engines.includes(engine);
