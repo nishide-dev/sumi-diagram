@@ -605,6 +605,33 @@ function checkStructured(state: CheckState, locate: Locator): void {
     if (inferred !== undefined) element.value.group = inferred;
   }
 
+  // 5b. A tilted plane (#577) holds nodes: a group inside it would need its own
+  // mapped frame. Reported at the inner group; the plane itself stays valid.
+  const isPlane = (id: string | undefined): boolean => {
+    const entry = id === undefined ? undefined : elements.get(id);
+    if (entry === undefined || entry.kind !== "group") return false;
+    const props = (entry.value as FigureGroup).props;
+    return props?.plane !== undefined;
+  };
+  for (const element of elements.values()) {
+    if (element.kind !== "group" || invalid.has(element.key)) continue;
+    const inner = element.value.group;
+    if (inner === undefined || !isPlane(inner)) continue;
+    push(
+      errorAt(
+        locate,
+        "layout/plane-nested-group",
+        `Group "${element.value.id}" is inside the tilted plane "${inner}", which can hold nodes only.`,
+        placement.get(element.value.id)?.path ?? element.path,
+        {
+          subject: element.subject,
+          hint: `Put the nodes directly in "${inner}", or move the group outside the plane (a plane is a group of nodes with props.plane).`,
+        },
+      ),
+      element.key,
+    );
+  }
+
   // 6. Groups nested inside themselves through arrange trees. A cycle of
   // written `group:` fields is `ref/group-cycle` and its groups are invalid.
   checkArrangeCycles(elements, placement, state, locate, push);

@@ -270,6 +270,12 @@ const container: GroupManifest = {
     layers: LayersSchema.optional().describe(
       "Repeat the frame behind the front card, offset up-right. The footprint includes every card; only the front contains children and a title. Structured layout only; plain is unsupported.",
     ),
+    plane: z
+      .enum(["floor", "wall"])
+      .optional()
+      .describe(
+        "Draw the group as a tilted plane in the figure's oblique projection (figure.projection; since 0.19.0, structured layout only). The children are nodes, arranged in the flat frame as usual (stack, row, grid, place) and then mapped: only their centers move (nodes stay upright, labels horizontal), the frame becomes a parallelogram and routed edges inside it are mapped with it. floor: a horizontal sheet, depth running back up and right from the front edge (x = u + v·s·cos(angle), y = -v·s·sin(angle)); wall: a vertical sheet receding to the back like a cuboid's side face (the flat frame's x axis runs into the depth, y up). The title sits under the front edge, left-aligned. Needs nodes only (no nested groups) and does not combine with layers.",
+      ),
   }),
   shape: "rectangle",
 };

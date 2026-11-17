@@ -47,7 +47,9 @@ export function groupEmptySpace(
     children.length === 0 ||
     group.ir.tokens !== undefined ||
     group.ir.matrix !== undefined ||
-    group.ir.legend !== undefined
+    group.ir.legend !== undefined ||
+    // A tilted plane's (#577) bounding box holds two empty triangles: the occupancy of the box says nothing.
+    (group.ir.kind === "group" && group.ir.plane !== undefined)
   )
     return undefined;
   const childrenBoxes = children.flatMap((e) => [

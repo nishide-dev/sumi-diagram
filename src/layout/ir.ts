@@ -174,6 +174,33 @@ export interface GroupLayout {
   readonly content: Rect;
   /** The group's label, at the top of `rect`; omitted when it has none. */
   readonly label?: TextLayout;
+  /**
+   * A tilted plane's frame (#577): the parallelogram of its four corners
+   * (front left, front right, back right, back left) on the page. `rect` is its
+   * bounding box, and its label sits under it, left-aligned. Omitted for a flat group.
+   */
+  readonly quad?: readonly [Point, Point, Point, Point];
+}
+
+/**
+ * A tilted plane (#577, design #574): the flat frame the group's nodes were
+ * laid out in, and where it is on the page. `nodes` and `edges` are on the page
+ * already (`LayoutIR.nodes` are mapped); `flat` keeps the unmapped rectangles so
+ * edges inside the plane can be routed in plane coordinates and mapped.
+ */
+export interface PlaneLayout {
+  readonly key: ElementKey;
+  readonly orientation: "floor" | "wall";
+  readonly angle: number;
+  readonly depthScale: number;
+  /** The flat frame, in the coordinates the nodes were laid out in (y down). */
+  readonly frame: Rect;
+  /** The flat frame's content area (the frame minus padding). */
+  readonly content: Rect;
+  /** Where the flat frame's bottom left corner (u = 0, v = 0) is on the page. */
+  readonly origin: Point;
+  /** The unmapped rectangle of each node directly in the plane, in document order. */
+  readonly flat: readonly { readonly key: ElementKey; readonly rect: Rect }[];
 }
 
 /** A segment of a set's closed outline path: absolute points, every subpath starts with `M` (#407). */
@@ -295,4 +322,6 @@ export interface LayoutIR {
   readonly nets?: readonly RouteNet[];
   /** Set enclosures (#407) in document order, drawn between the groups and the nodes; omitted when the figure has none. */
   readonly sets?: readonly SetLayout[];
+  /** Tilted planes (#577) in document order; omitted when the figure has none. */
+  readonly planes?: readonly PlaneLayout[];
 }

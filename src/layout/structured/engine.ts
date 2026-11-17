@@ -70,6 +70,7 @@ import {
   type GroupLayout,
   type LayoutIR,
   type NodeLayout,
+  type PlaneLayout,
   type Point,
   type Rect,
   roundRect,
@@ -79,6 +80,14 @@ import {
   type TextLayout,
   type TextMetrics,
 } from "../ir";
+import {
+  mapFlatQuad,
+  mapFlatRect,
+  type PlaneFrame,
+  type PlaneProjection,
+  planeExtent,
+  pointsBounds,
+} from "../plane";
 import { sampleCubic } from "../route/cubic";
 import { curveLabel, loopLabelEdge, selfLoopAnchors, selfLoopPoints } from "../route/curve";
 import { arrowheadPaddingDeficits, type SidePadding } from "../route/padding";
@@ -266,6 +275,11 @@ class StructuredLayout {
   readonly #itemSizes = new Map<ElementKey, Size>();
   readonly #rects = new Map<ElementKey, Rect>();
   readonly #contents = new Map<ElementKey, Rect>();
+  /** The tilted planes (#577) of the pass: the flat frame and the flat rectangles of their nodes. */
+  readonly #planes = new Map<
+    ElementKey,
+    { plane: PlaneFrame; content: Rect; flat: Map<ElementKey, Rect>; title: number }
+  >();
   readonly #grids = new Map<ArrangeBoxIR, GridTracks>();
   readonly #boxSizes = new Map<ArrangeBoxIR, Size>();
   readonly #chatFrames = new Map<ArrangeBoxIR, Rect>();
@@ -443,6 +457,7 @@ class StructuredLayout {
     this.#itemSizes.clear();
     this.#rects.clear();
     this.#contents.clear();
+    this.#planes.clear();
     this.#grids.clear();
     // Measurements depend on this pass's struts and any grown group padding.
     this.#boxSizes.clear();
@@ -683,7 +698,31 @@ class StructuredLayout {
     return this.#struts.crossTrail.get(item) ?? 0;
   }
 
+  /** A tilted plane's flat frame at its natural size: its content plus padding, no title band (#577). */
+  #planeFlatSize(group: GroupIR): Size {
+    const content = this.#containerSize(group.key, group.arrange);
+    const p = this.#padding(group.key);
+    return { width: content.width + p.west + p.east, height: content.height + p.north + p.south };
+  }
+
+  /** The room under a tilted plane's front edge for its title (#577): its line box and the caption gap. */
+  #planeTitleBand(group: GroupIR): number {
+    const label = this.#labels.get(group.key);
+    return label === undefined
+      ? 0
+      : Math.ceil(label.height) + captionGap(group.style.fontSize.units);
+  }
+
   #groupSize(group: GroupIR): Size {
+    if (group.plane !== undefined) {
+      const flat = this.#planeFlatSize(group);
+      const extent = planeExtent(group.plane as PlaneProjection, flat.width, flat.height);
+      const label = this.#labels.get(group.key);
+      return {
+        width: Math.max(Math.ceil(extent.width), label === undefined ? 0 : Math.ceil(label.width)),
+        height: Math.ceil(extent.height) + this.#planeTitleBand(group),
+      };
+    }
     const content = this.#containerSize(group.key, group.arrange);
     const label = this.#labels.get(group.key);
     const p = this.#padding(group.key);
@@ -1135,7 +1174,53 @@ class StructuredLayout {
     this.#placeAttached(container, this.#rects);
   }
 
+  /**
+   * Places a tilted plane (#577): its parallelogram sits left-aligned above its
+   * title band in `footprint`; the content is laid out in the flat frame whose
+   * bottom left corner maps to the parallelogram's, and only then are the
+   * nodes mapped (their centers; the flat rectangles are kept for routing).
+   */
+  #placePlane(group: GroupIR, plane: NonNullable<GroupIR["plane"]>, footprint: Rect): void {
+    const key = group.key;
+    const flat = this.#planeFlatSize(group);
+    const extent = planeExtent(plane as PlaneProjection, flat.width, flat.height);
+    const title = this.#planeTitleBand(group);
+    const bbox: Rect = {
+      x: footprint.x,
+      y: footprint.y + footprint.height - title - extent.height,
+      width: extent.width,
+      height: extent.height,
+    };
+    const origin = { x: bbox.x, y: bbox.y + bbox.height };
+    const frame: Rect = { x: origin.x, y: origin.y - flat.height, ...flat };
+    const p = this.#padding(key);
+    const content: Rect = {
+      x: frame.x + p.west,
+      y: frame.y + p.north,
+      width: frame.width - p.west - p.east,
+      height: frame.height - p.north - p.south,
+    };
+    const frameOf: PlaneFrame = { projection: plane as PlaneProjection, frame, origin };
+    this.#rects.set(key, bbox);
+    this.#placeContainer(key, group.arrange, content);
+    const flatRects = new Map<ElementKey, Rect>();
+    for (const child of group.children) {
+      const node = this.#nodes.get(child);
+      const at = this.#rects.get(child);
+      if (node === undefined || at === undefined) continue;
+      flatRects.set(child, at);
+      this.#rects.set(child, mapFlatRect(frameOf, at));
+    }
+    this.#contents.set(key, pointsBounds(mapFlatQuad(frameOf, content)));
+    this.#planes.set(key, { plane: frameOf, content, flat: flatRects, title });
+  }
+
   #placeElement(key: ElementKey, rect: Rect): void {
+    const planar = this.#groups.get(key);
+    if (planar?.plane !== undefined) {
+      this.#placePlane(planar, planar.plane, rect);
+      return;
+    }
     this.#rects.set(key, rect);
     const group = this.#groups.get(key);
     if (group === undefined) return;
@@ -1347,7 +1432,25 @@ class StructuredLayout {
       const metrics = this.#labels.get(group.key);
       const footprint = this.#rect(group.key);
       const rect = groupFrontRect(group, footprint);
-      if (metrics !== undefined) {
+      if (metrics !== undefined && group.plane !== undefined) {
+        // A tilted plane's title (#577): under the front edge, left-aligned with it.
+        labels.set(
+          group.key,
+          placeText(
+            metrics,
+            {
+              x: footprint.x + metrics.width / 2,
+              y:
+                footprint.y +
+                footprint.height +
+                captionGap(group.style.fontSize.units) +
+                metrics.height / 2,
+            },
+            undefined,
+            "left",
+          ),
+        );
+      } else if (metrics !== undefined) {
         labels.set(
           group.key,
           placeText(metrics, this.#groupLabelCenter(group, rect, metrics, footprint.y)),
@@ -1417,8 +1520,32 @@ class StructuredLayout {
         ...(sublabel !== undefined && { sublabel: shiftText(sublabel) }),
       };
     });
+    const shiftPoint = (p: Point): Point => ({ x: roundUnits(p.x + dx), y: roundUnits(p.y + dy) });
+    const planes: PlaneLayout[] = [];
+    const quads = new Map<ElementKey, GroupLayout["quad"]>();
+    for (const group of this.#ir.groups) {
+      const placed = this.#planes.get(group.key);
+      if (placed === undefined || group.plane === undefined) continue;
+      const { plane, content, flat } = placed;
+      const quad = mapFlatQuad(plane).map(shiftPoint);
+      quads.set(group.key, quad as unknown as GroupLayout["quad"]);
+      planes.push({
+        key: group.key,
+        orientation: group.plane.orientation,
+        angle: group.plane.angle,
+        depthScale: group.plane.depthScale,
+        frame: shift(plane.frame),
+        content: shift(content),
+        origin: shiftPoint(plane.origin),
+        flat: this.#ir.nodes.flatMap((node) => {
+          const rect = flat.get(node.key);
+          return rect === undefined ? [] : [{ key: node.key, rect: shift(rect) }];
+        }),
+      });
+    }
     const groups: GroupLayout[] = groupPreOrder(this.#ir).map((group) => {
       const label = labels.get(group.key);
+      const quad = quads.get(group.key);
       return {
         key: group.key,
         kind: "group",
@@ -1426,6 +1553,7 @@ class StructuredLayout {
         rect: shift(this.#rect(group.key)),
         content: shift(this.#contents.get(group.key) as Rect),
         ...(label !== undefined && { label: shiftText(label) }),
+        ...(quad !== undefined && { quad }),
       };
     });
     const edges: EdgeLayout[] = this.#ir.edges.map((edge) => {
@@ -1441,7 +1569,6 @@ class StructuredLayout {
       };
     });
     const content = shift({ x: minX, y: minY, width: maxX - minX, height: maxY - minY });
-    const shiftPoint = (p: Point): Point => ({ x: roundUnits(p.x + dx), y: roundUnits(p.y + dy) });
     const sets: SetLayout[] = fitted.map(({ set, outline, rect, label }) => {
       const placed: SetOutline =
         outline.kind === "ellipse"
@@ -1489,6 +1616,7 @@ class StructuredLayout {
       nodes,
       edges,
       ...(sets.length > 0 && { sets }),
+      ...(planes.length > 0 && { planes }),
     });
   }
 
