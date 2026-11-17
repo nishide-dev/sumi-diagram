@@ -65,6 +65,7 @@ import { isSpaceRun } from "../core/label/runs";
 import { SEPARATOR_ID } from "../core/registry/builtins";
 import type { Arrowhead } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
+import { mixColors } from "../core/theme/cuboid-shade";
 import type { FontSet } from "../core/theme/fonts";
 import { readableInk } from "../core/theme/node-variants";
 import { figureTheme } from "../core/theme/overrides";
@@ -72,7 +73,16 @@ import { overlapTint } from "../core/theme/set-style";
 import type { CommonStyle } from "../core/theme/style";
 import type { Tone } from "../core/theme/tones";
 import { groupLayerRects } from "../layout/group-layers";
-import type { LayoutIR, Point, Rect, SetLayout, TextLayout, TextRun } from "../layout/ir";
+import type {
+  GroupLayout,
+  LayoutIR,
+  Point,
+  Rect,
+  SetLayout,
+  TextLayout,
+  TextRun,
+} from "../layout/ir";
+import { clipSegmentToConvex } from "../layout/plane";
 import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
 import { groupArrowheadStems } from "../layout/route/padding";
 import { edgeArrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
@@ -731,7 +741,10 @@ export function paintedEdges(ir: FigureIR, layout: LayoutIR): Map<ElementKey, Pa
 function wires(
   ir: FigureIR,
   layout: LayoutIR,
-): { markup: string[]; painted: Map<ElementKey, PaintedEdge> } {
+  /** Straight edges whose paint the caller places itself (#577): returned in `deferred`, not in `markup`. */
+  defer: ReadonlySet<ElementKey> = new Set(),
+): { markup: string[]; painted: Map<ElementKey, PaintedEdge>; deferred: Map<ElementKey, string> } {
+  const deferred = new Map<ElementKey, string>();
   const edges = new Map(ir.edges.map((e) => [e.key, e]));
   const stems = groupArrowheadStems(ir, layout);
   const nodes = new Map(ir.nodes.map((node) => [node.key, node]));
@@ -787,10 +800,11 @@ function wires(
     const pieces: [Point, Point][] =
       points.length < 2 ? [] : [[points[0] as Point, points[1] as Point]];
     painted.set(placed.key, { pieces, arcs: [] });
-    if (pieces.length > 0)
-      out.push(
-        `<path class="sumi-wire" d="${pathData(points)}" fill="none"${strokeAttributes(edge.style)} ${joinsOf(edge.style)}${opacity(edge.style)}/>`,
-      );
+    if (pieces.length > 0) {
+      const markup = `<path class="sumi-wire" d="${pathData(points)}" fill="none"${strokeAttributes(edge.style)} ${joinsOf(edge.style)}${opacity(edge.style)}/>`;
+      if (defer.has(placed.key)) deferred.set(placed.key, markup);
+      else out.push(markup);
+    }
   }
   // Zoom edges (#176): their own two straight lines, under the routed wires.
   for (const placed of layout.edges) {
@@ -933,7 +947,7 @@ function wires(
       );
     }
   }
-  return { markup: out, painted };
+  return { markup: out, painted, deferred };
 }
 
 /** The canvas the structured writer paints under everything (its first `<rect>`). */
@@ -1085,6 +1099,66 @@ const STATIC_CSS = `.shape {
   stroke-linejoin: round;
 }`;
 
+const planeBottom = (g: GroupLayout): number =>
+  Math.max(...((g.quad ?? []) as readonly Point[]).map((p) => p.y));
+
+/**
+ * The straight edges between nodes of two different tilted planes (#577) and,
+ * per plane, the ones it hides (the upper of their two planes: the later one
+ * painted, i.e. the higher on the page).
+ */
+function crossPlaneEdges(
+  ir: FigureIR,
+  layout: LayoutIR,
+  planeGroups: readonly GroupLayout[],
+): { edges: Map<ElementKey, ElementKey>; hiddenBy: Map<ElementKey, ElementKey[]> } {
+  const edges = new Map<ElementKey, ElementKey>();
+  const hiddenBy = new Map<ElementKey, ElementKey[]>();
+  if (planeGroups.length === 0) return { edges, hiddenBy };
+  const planeOf = new Map<ElementKey, ElementKey>();
+  for (const plane of layout.planes ?? [])
+    for (const node of plane.flat) planeOf.set(node.key, plane.key);
+  const order = new Map(
+    [...planeGroups].sort((a, b) => planeBottom(b) - planeBottom(a)).map((g, i) => [g.key, i]),
+  );
+  for (const edge of ir.edges) {
+    if (edge.route !== "straight") continue;
+    const from = planeOf.get(edge.from);
+    const to = planeOf.get(edge.to);
+    if (from === undefined || to === undefined || from === to) continue;
+    const upper = (order.get(from) ?? 0) > (order.get(to) ?? 0) ? from : to;
+    edges.set(edge.key, upper);
+    hiddenBy.set(upper, [...(hiddenBy.get(upper) ?? []), edge.key]);
+  }
+  return { edges, hiddenBy };
+}
+
+/** How much of the ink a correspondence line keeps where it shows through an upper plane (#577). */
+const GHOST_INK = 0.4;
+
+/**
+ * The part of a correspondence line inside the plane that hides it (#577),
+ * drawn again in the edge's line style, faint, over the plane's frame.
+ */
+function ghostMarkup(
+  edge: EdgeIR,
+  points: readonly Point[],
+  quad: readonly Point[],
+  canvas: string,
+): string {
+  const a = points[0] as Point;
+  const b = points[points.length - 1] as Point;
+  const span = clipSegmentToConvex(a, b, quad);
+  if (span === undefined || span[1] - span[0] < 1e-6) return "";
+  const at = (t: number): Point => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  const color =
+    /^#[0-9a-fA-F]{6}$/.test(edge.style.stroke) && /^#[0-9a-fA-F]{6}$/.test(canvas)
+      ? mixColors(edge.style.stroke, canvas, 1 - GHOST_INK)
+      : edge.style.stroke;
+  const joins = `${edge.style.strokeDotted === true ? "" : 'stroke-linecap="round" '}stroke-linejoin="round"`;
+  return `<path class="sumi-plane-ghost" d="${pathData([at(span[0]), at(span[1])])}" fill="none"${strokeAttributes(edge.style, color)} ${joins}${opacity(edge.style)}/>`;
+}
+
 /**
  * Writes the SVG of a structured figure (see the module comment): `ir` and
  * its routed `layout`, labels embedded in subsets of `fonts`. Throws if the
@@ -1161,16 +1235,37 @@ export function writeStructuredSvg(
     }
   };
   const painted: PaintedGroup[] = [];
-  for (const g of layout.groups) {
+  const drawGroup = (g: GroupLayout): void => {
     const group = groups.get(g.key);
     if (group === undefined)
       throw new Error(`internal error: ${g.key} is not a group of the figure`);
     painted.push({ rect: g.rect, fill: group.style.fill, opacity: group.style.opacity });
-    const shape = groupLayerRects(group, g.rect)
-      .map((rect) => nodeShape({ ...asNode(group), shape: "rectangle" }, rect))
-      .join("");
+    const shape =
+      g.quad === undefined
+        ? groupLayerRects(group, g.rect)
+            .map((rect) => nodeShape({ ...asNode(group), shape: "rectangle" }, rect))
+            .join("")
+        : polygon(g.quad, ` fill="${paint(group.style.fill)}"${strokeAttributes(group.style)}`);
     body.push(objectGroup(group, shape, colored(g.label, group)));
     useText(g.label);
+  };
+  // Tilted planes (#577) are painted last, the lowest on the page first: a correspondence line
+  // between two planes is painted after the lower one and before the upper one, which hides it,
+  // and then once more, faint, over the part of it inside the upper plane.
+  const planeGroups = layout.groups.filter((g) => g.quad !== undefined);
+  const crossing = crossPlaneEdges(ir, layout, planeGroups);
+  const wireSet = wires(ir, layout, new Set(crossing.edges.keys()));
+  for (const g of layout.groups) if (g.quad === undefined) drawGroup(g);
+  for (const g of planeGroups.sort((a, b) => planeBottom(b) - planeBottom(a))) {
+    for (const key of crossing.hiddenBy.get(g.key) ?? [])
+      body.push(wireSet.deferred.get(key) ?? "");
+    drawGroup(g);
+    for (const key of crossing.hiddenBy.get(g.key) ?? []) {
+      const edge = edges.get(key);
+      const points = layout.edges.find((e) => e.key === key)?.route?.points;
+      if (edge === undefined || points === undefined) continue;
+      body.push(ghostMarkup(edge, points, g.quad as readonly Point[], canvas));
+    }
   }
   // Set enclosures (#407) are drawn over the groups and under the nodes and edges:
   // the opaque tints first (#440), then each set's outline and label.
@@ -1212,7 +1307,7 @@ export function writeStructuredSvg(
     useText(placed.label);
     useText(placed.sublabel);
   }
-  body.push(...wires(ir, layout).markup);
+  body.push(...wireSet.markup);
   for (const placed of layout.edges) {
     const edge = edges.get(placed.key);
     const points = placed.route?.points;

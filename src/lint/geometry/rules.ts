@@ -565,6 +565,8 @@ export const labelOverflow = defineGeometryRule({
       const { labelArea, bbox } = element;
       // A title above the border (#517) is outside the frame by design.
       if (element.ir.kind === "group" && element.ir.labelAt?.startsWith("above") === true) continue;
+      // A tilted plane's title (#577) is under its front edge, outside the parallelogram, by design.
+      if (element.ir.kind === "group" && element.ir.plane !== undefined) continue;
       if (element.ir.kind === "node" && element.ir.labelBelow && bbox !== undefined) {
         // A caption below its frame (#491): its first line box starts at least
         // captionGap() (0.3 em) below the frame, and the caption is centred under it.
