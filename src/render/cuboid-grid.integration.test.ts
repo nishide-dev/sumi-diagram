@@ -13,7 +13,7 @@ import { inspectPdf } from "./pdf/testing";
 import { svgToEditablePptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
 import { renderFigure } from "./render";
-import { attribute, descendants, parseXml } from "./xml";
+import { attribute, childElements, descendants, parseXml } from "./xml";
 
 const NODE_IN = `  - id: vin
     component: cuboid
@@ -308,6 +308,11 @@ describe("cuboid grids, highlighted blocks and receptive fields", () => {
         y: Number(attribute(e, "y")) + origin.y,
       }));
     expect(points).toHaveLength(8);
+    // Four separate lines, not a connected zigzag: exactly moveTo, lnTo four times, nothing else.
+    const path = [...descendants(edge)].find((e) => e.name === "a:path");
+    expect(childElements(path as never).map((e) => e.name)).toEqual(
+      Array.from({ length: 4 }, () => ["a:moveTo", "a:lnTo"]).flat(),
+    );
     lines.forEach(([a, b], i) => {
       for (const [j, p] of [a, b].entries()) {
         const got = points[2 * i + j] as { x: number; y: number };
