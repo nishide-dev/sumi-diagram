@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 82" width="180mm" height="82mm">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<polygon points="16,28 27.031,16.969 58.231,16.969 47.2,28" fill="#eaf4ff" stroke="none"/>
+<polygon points="47.2,28 58.231,16.969 58.231,48.169 47.2,59.2" fill="#b1cce8" stroke="none"/>
+<polygon points="16,28 47.2,28 47.2,59.2 16,59.2" fill="#d1e7ff" stroke="none"/>
+<path d="M21.2 28 L21.2 59.2 M21.2 28 L32.231 16.969 M26.4 28 L26.4 59.2 M26.4 28 L37.431 16.969 M31.6 28 L31.6 59.2 M31.6 28 L42.631 16.969 M36.8 28 L36.8 59.2 M36.8 28 L47.831 16.969 M42 28 L42 59.2 M42 28 L53.031 16.969 M16 33.2 L47.2 33.2 M47.2 33.2 L58.231 22.169 M16 38.4 L47.2 38.4 M47.2 38.4 L58.231 27.369 M16 43.6 L47.2 43.6 M47.2 43.6 L58.231 32.569 M16 48.8 L47.2 48.8 M47.2 48.8 L58.231 37.769 M16 54 L47.2 54 M47.2 54 L58.231 42.969 M17.838 26.162 L49.038 26.162 M49.038 26.162 L49.038 57.362 M19.677 24.323 L50.877 24.323 M50.877 24.323 L50.877 55.523 M21.515 22.485 L52.715 22.485 M52.715 22.485 L52.715 53.685 M23.354 20.646 L54.554 20.646 M54.554 20.646 L54.554 51.846 M25.192 18.808 L56.392 18.808 M56.392 18.808 L56.392 50.008" fill="none" stroke="#8ea8c1" stroke-width="0.088" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 28 L47.2 28 L47.2 28" fill="none" stroke="#89aacc" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 28 L47.2 28 L58.231 16.969" fill="none" stroke="#89aacc" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M47.2 28 L47.2 59.2" fill="none" stroke="#89aacc" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="16,59.2 16,28 27.031,16.969 58.231,16.969 58.231,48.169 47.2,59.2" fill="none" stroke="#31608e" stroke-width="0.353" stroke-linejoin="round"/>
+<polygon points="31.6,28 37.115,22.485 52.715,22.485 47.2,28" fill="#feefdf" stroke="none"/>
+<polygon points="47.2,28 52.715,22.485 52.715,38.085 47.2,43.6" fill="#edbb94" stroke="none"/>
+<polygon points="31.6,28 47.2,28 47.2,43.6 31.6,43.6" fill="#fcdbb7" stroke="none"/>
+<path d="M36.8 28 L36.8 43.6 M36.8 28 L42.315 22.485 M42 28 L42 43.6 M42 28 L47.515 22.485 M31.6 33.2 L47.2 33.2 M47.2 33.2 L52.715 27.685 M31.6 38.4 L47.2 38.4 M47.2 38.4 L52.715 32.885 M33.438 26.162 L49.038 26.162 M49.038 26.162 L49.038 41.762 M35.277 24.323 L50.877 24.323 M50.877 24.323 L50.877 39.923" fill="none" stroke="#d59277" stroke-width="0.088" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M31.6 28 L47.2 28 L47.2 28" fill="none" stroke="#db9268" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M31.6 28 L47.2 28 L52.715 22.485" fill="none" stroke="#db9268" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M47.2 28 L47.2 43.6" fill="none" stroke="#db9268" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="31.6,43.6 31.6,28 37.115,22.485 52.715,22.485 52.715,38.085 47.2,43.6" fill="none" stroke="#b23907" stroke-width="0.353" stroke-linejoin="round"/>
+<path d="M47.2 28 L100 34.5" fill="none" stroke="#b23907" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1.8 1.2"/>
+<path d="M52.715 22.485 L101.838 32.662" fill="none" stroke="#b23907" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1.8 1.2"/>
+<path d="M52.715 38.085 L101.838 37.862" fill="none" stroke="#b23907" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1.8 1.2"/>
+<path d="M47.2 43.6 L100 39.7" fill="none" stroke="#b23907" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1.8 1.2"/>
+<polygon points="100,34.5 107.354,27.146 128.154,27.146 120.8,34.5" fill="#eaf4ff" stroke="none"/>
+<polygon points="120.8,34.5 128.154,27.146 128.154,47.946 120.8,55.3" fill="#b1cce8" stroke="none"/>
+<polygon points="100,34.5 120.8,34.5 120.8,55.3 100,55.3" fill="#d1e7ff" stroke="none"/>
+<path d="M105.2 34.5 L105.2 55.3 M105.2 34.5 L112.554 27.146 M110.4 34.5 L110.4 55.3 M110.4 34.5 L117.754 27.146 M115.6 34.5 L115.6 55.3 M115.6 34.5 L122.954 27.146 M100 39.7 L120.8 39.7 M120.8 39.7 L128.154 32.346 M100 44.9 L120.8 44.9 M120.8 44.9 L128.154 37.546 M100 50.1 L120.8 50.1 M120.8 50.1 L128.154 42.746 M101.838 32.662 L122.638 32.662 M122.638 32.662 L122.638 53.462 M103.677 30.823 L124.477 30.823 M124.477 30.823 L124.477 51.623 M105.515 28.985 L126.315 28.985 M126.315 28.985 L126.315 49.785" fill="none" stroke="#8ea8c1" stroke-width="0.088" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M100 34.5 L120.8 34.5 L120.8 34.5" fill="none" stroke="#89aacc" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M100 34.5 L120.8 34.5 L128.154 27.146" fill="none" stroke="#89aacc" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M120.8 34.5 L120.8 55.3" fill="none" stroke="#89aacc" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="100,55.3 100,34.5 107.354,27.146 128.154,27.146 128.154,47.946 120.8,55.3" fill="none" stroke="#31608e" stroke-width="0.353" stroke-linejoin="round"/>
+<polygon points="100,34.5 101.838,32.662 107.038,32.662 105.2,34.5" fill="#feefdf" stroke="none"/>
+<polygon points="105.2,34.5 107.038,32.662 107.038,37.862 105.2,39.7" fill="#edbb94" stroke="none"/>
+<polygon points="100,34.5 105.2,34.5 105.2,39.7 100,39.7" fill="#fcdbb7" stroke="none"/>
+<path d="M100 34.5 L105.2 34.5 L105.2 34.5" fill="none" stroke="#db9268" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M100 34.5 L105.2 34.5 L107.038 32.662" fill="none" stroke="#db9268" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M105.2 34.5 L105.2 39.7" fill="none" stroke="#db9268" stroke-width="0.176" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="100,39.7 100,34.5 101.838,32.662 107.038,32.662 107.038,37.862 105.2,39.7" fill="none" stroke="#b23907" stroke-width="0.353" stroke-linejoin="round"/>
+<text x="31.6" y="62.6" font-size="2.469" text-anchor="middle" dominant-baseline="central" fill="#000000" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">W = 6</text>
+<text x="14" y="43.6" font-size="2.469" text-anchor="end" dominant-baseline="central" fill="#000000" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">H = 6</text>
+<text x="54.315" y="55.885" font-size="2.469" text-anchor="start" dominant-baseline="central" fill="#000000" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">D = 6</text>
+<text x="110.4" y="58.7" font-size="2.469" text-anchor="middle" dominant-baseline="central" fill="#000000" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">4 × 4 × 4</text>
+<text x="31.6" y="67.8" font-size="2.469" text-anchor="middle" dominant-baseline="central" fill="#000000" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">input volume</text>
+<text x="110.4" y="63.9" font-size="2.469" text-anchor="middle" dominant-baseline="central" fill="#000000" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">output volume</text>
+<text x="41.4" y="11.769" font-size="2.469" text-anchor="middle" dominant-baseline="central" fill="#000000" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">kernel 3 × 3 × 3</text>
+<path d="M43.4 13.969 L43.4 24.642" fill="none" stroke="#000000" stroke-width="0.141" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="106" y="22.162" font-size="2.469" text-anchor="middle" dominant-baseline="central" fill="#000000" font-family="BIZ UDPGothic, Hiragino Sans, Helvetica Neue, Arial, sans-serif">one output cell</text>
+<path d="M103.2 24.462 L103.2 33.181" fill="none" stroke="#000000" stroke-width="0.141" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
