@@ -2078,7 +2078,7 @@ edges:
 </section>
 <section class="card" id="sumi-zoom">
 <header><h3>sumi/zoom</h3><span class="kind">edge</span></header>
-<p>Two straight lines joining the corners of the source to the matching corners of the target, which shows the source zoomed in (structured layout only; no label, no arrowheads). An end may be a highlighted block of a cuboid, &lt;node&gt;.&lt;name&gt;: between two blocks the zoom draws a receptive field of four lines from the corners of the source block&#39;s right face to those of the target block&#39;s left face, ending where they enter the target&#39;s volume (their ends behind its cell are hidden).</p>
+<p>Two straight lines joining the corners of the source to the matching corners of the target, which shows the source zoomed in (structured layout only; no label, no arrowheads). An end may be a highlighted block of a cuboid, &lt;node&gt;.&lt;name&gt;: between two blocks the zoom draws a receptive field of four lines, from the corners of the source block&#39;s face toward the target (its right face when the target is to the right; to the left, the opposite, hidden left face) to the corners of the target block&#39;s opposite face, drawn over the source and ending where they enter the target&#39;s volume.</p>
 <ul class="chips" aria-label="variants"><li>default</li><li>solid</li><li>muted</li></ul>
 <dl class="meta"><dt>since</dt><dd><code>0.6.0</code></dd><dt>engines</dt><dd><code>[&quot;structured&quot;]</code></dd><dt>direction</dt><dd><code>none</code></dd><dt>routing</dt><dd><code>zoom</code></dd></dl>
 <p class="note">No props.</p>

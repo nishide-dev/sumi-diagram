@@ -9,10 +9,52 @@ import { getTheme } from "../core/theme/builtin";
 import { mixColors } from "../core/theme/cuboid-shade";
 import { lintGeometry } from "../lint";
 import { svgToPdf } from "./pdf";
+import { inspectPdf } from "./pdf/testing";
 import { svgToEditablePptx } from "./pptx";
 import { readPptx } from "./pptx/testing";
 import { renderFigure } from "./render";
 import { attribute, descendants, parseXml } from "./xml";
+
+const NODE_IN = `  - id: vin
+    component: cuboid
+    tone: blue
+    variant: tinted
+    props:
+      width: 31.2mm
+      height: 31.2mm
+      depth: 31.2mm
+      cells: [6, 6, 6]
+      highlight: [{ name: kernel, at: [3, 0, 0], size: [3, 3, 3], tone: orange }]
+      dims: { width: "W = 6" }
+`;
+const NODE_OUT = `  - id: vout
+    component: cuboid
+    tone: blue
+    variant: tinted
+    props:
+      width: 20.8mm
+      height: 20.8mm
+      depth: 20.8mm
+      cells: [4, 4, 4]
+      highlight: [{ name: cell, at: [0, 0, 0], tone: orange }]
+`;
+
+/** The conv3d figure; the nodes are declared in `declared` order and placed in `placed` order. */
+const convOrdered = (
+  declared: "in, out" | "out, in",
+  placed: "vin, vout" | "vout, vin",
+  edge: string,
+) => `version: 1
+figure:
+  id: conv3d
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: { row: { gap: 40mm, align: end, items: [${placed}] } }
+nodes:
+${declared === "in, out" ? NODE_IN + NODE_OUT : NODE_OUT + NODE_IN}edges:
+  - ${edge}
+`;
 
 const conv = (
   theme = "sumi",
@@ -107,60 +149,86 @@ describe("cuboid grids, highlighted blocks and receptive fields", () => {
     expect(kernel?.top).not.toBe(kernel?.fill);
   });
 
-  const inside = (p: { x: number; y: number }, polygon: readonly { x: number; y: number }[]) => {
-    // Strictly inside (more than half a unit from the boundary) a convex polygon.
-    let sign = 0;
+  type P = { x: number; y: number };
+  const distanceToBoundary = (p: P, polygon: readonly P[]) => {
+    let best = Number.POSITIVE_INFINITY;
     for (const [i, a] of polygon.entries()) {
-      const b = polygon[(i + 1) % polygon.length] as { x: number; y: number };
-      const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
-      if (Math.abs(cross) / Math.hypot(b.x - a.x, b.y - a.y) < 0.5) return false;
-      if (sign === 0) sign = Math.sign(cross);
-      else if (Math.sign(cross) !== sign) return false;
+      const b = polygon[(i + 1) % polygon.length] as P;
+      const [dx, dy] = [b.x - a.x, b.y - a.y];
+      const t = Math.max(
+        0,
+        Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)),
+      );
+      best = Math.min(best, Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy)));
     }
-    return true;
+    return best;
   };
+  const distanceToLine = (p: P, a: P, b: P) =>
+    Math.abs((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)) /
+    Math.hypot(b.x - a.x, b.y - a.y);
 
-  // The volume hides what lies behind it whichever is drawn first and whichever way the edge goes:
-  // a line end at a hidden (left) face corner is never inside the silhouette of its own volume.
-  for (const order of ["vin, vout", "vout, vin"])
-    for (const edge of [
-      "{ from: vin.kernel, to: vout.cell, component: zoom }",
-      "{ from: vout.cell, to: vin.kernel, component: zoom }",
-    ]) {
-      test(`the receptive field's hidden ends are occluded (order ${order}; ${edge.slice(2, 30)})`, async () => {
-        const value = await render(
-          conv("sumi", edge).replace("items: [vin, vout]", `items: [${order}]`),
-        );
-        const lines = value.layout.edges[0]?.route?.lines ?? [];
-        expect(lines).toHaveLength(4);
-        const partsOf = (id: string) => {
-          const node = value.compiled.ir.nodes.find((n) => n.id === id);
-          return cuboid.draw(
-            value.layout.nodes.find((n) => n.key === `n:${id}`)?.rect as never,
-            cuboid.params.parse(node?.render?.params),
-          );
-        };
-        const drawn = { vin: partsOf("vin"), vout: partsOf("vout") };
-        const hiddenCorners = (id: "vin" | "vout", name: string) =>
-          drawn[id].parts?.[name]?.faces.left ?? [];
-        const targetEndsInside = lines
-          .flatMap((line) => line)
-          .filter((p) => {
-            // A point of a hidden left face (of the kernel or the cell) that is not the line's own
-            // truncation must not be inside its volume: it would be painted over it.
-            return (
-              (hiddenCorners("vin", "kernel").some(
-                (q) => Math.hypot(q.x - p.x, q.y - p.y) < 0.01,
-              ) &&
-                inside(p, drawn.vin.outline)) ||
-              (hiddenCorners("vout", "cell").some((q) => Math.hypot(q.x - p.x, q.y - p.y) < 0.01) &&
-                inside(p, drawn.vout.outline))
-            );
+  // The volume hides what lies behind it whichever is declared or placed first and whichever way
+  // the edge goes: a line end at a hidden (left) face corner is seen from where its line meets the
+  // volume's silhouette, along the line it would have had.
+  for (const declared of ["in, out", "out, in"] as const)
+    for (const placed of ["vin, vout", "vout, vin"] as const)
+      for (const edge of [
+        "{ from: vin.kernel, to: vout.cell, component: zoom }",
+        "{ from: vout.cell, to: vin.kernel, component: zoom }",
+      ]) {
+        test(`hidden ends sit on the silhouette along their lines (declared ${declared}; placed ${placed}; ${edge.slice(2, 30)})`, async () => {
+          const value = await render(convOrdered(declared, placed, edge));
+          const lines = value.layout.edges[0]?.route?.lines ?? [];
+          expect(lines).toHaveLength(4);
+          const volume = (id: string) => {
+            const node = value.compiled.ir.nodes.find((n) => n.id === id);
+            const rect = value.layout.nodes.find((n) => n.key === `n:${id}`)?.rect as {
+              x: number;
+              y: number;
+              width: number;
+              height: number;
+            };
+            return { drawing: cuboid.draw(rect, cuboid.params.parse(node?.render?.params)), rect };
+          };
+          const ends = {
+            vin: { ...volume("vin"), part: "kernel" },
+            vout: { ...volume("vout"), part: "cell" },
+          };
+          const [fromId, toId] = edge.includes("from: vin")
+            ? (["vin", "vout"] as const)
+            : (["vout", "vin"] as const);
+          const [src, dst] = [ends[fromId], ends[toId]];
+          const sp = src.drawing.parts?.[src.part];
+          const dp = dst.drawing.parts?.[dst.part];
+          if (!sp || !dp) throw new Error("missing parts");
+          const right = dst.rect.x > src.rect.x;
+          const [srcFace, dstFace] = right
+            ? [sp.faces.side, dp.faces.left]
+            : [sp.faces.left, dp.faces.side];
+          lines.forEach(([a, b], i) => {
+            const [from, to] = [srcFace[i] as P, dstFace[i] as P];
+            for (const [end, original, volumeOutline, hidden] of [
+              [a, from, src.drawing.outline, !right],
+              [b, to, dst.drawing.outline, right],
+            ] as const) {
+              // On the line it would have had, between its corners.
+              expect(distanceToLine(end, from, to)).toBeLessThan(0.6);
+              const near = Math.hypot(end.x - original.x, end.y - original.y);
+              if (!hidden) {
+                // A visible face's corner is kept as it is.
+                expect(near).toBeLessThan(0.01);
+              } else if (near > 0.01) {
+                // A hidden corner behind its volume: trimmed to the silhouette.
+                expect(distanceToBoundary(end, volumeOutline)).toBeLessThan(0.6);
+              } else {
+                // Kept only if it was already on or outside the silhouette.
+                expect(distanceToBoundary(original, volumeOutline)).toBeLessThan(0.6);
+              }
+            }
           });
-        expect(targetEndsInside).toEqual([]);
-        expect(lintGeometry(value).filter((d) => d.severity !== "info")).toEqual([]);
-      });
-    }
+          expect(lintGeometry(value).filter((d) => d.severity !== "info")).toEqual([]);
+        });
+      }
 
   test("a cuboid without cells draws exactly as the pinned gallery sample", async () => {
     // The gallery's sumi-cuboid.sumi.svg is pinned by gallery:check and the PDF / PPTX goldens.
@@ -174,21 +242,83 @@ describe("cuboid grids, highlighted blocks and receptive fields", () => {
     expect(outcome.svg).not.toContain("sumi-solid-outline");
   });
 
-  test("PDF and editable PPTX follow the SVG: the blocks are freeforms over the cuboid's outline", async () => {
+  test("PDF and editable PPTX follow the SVG: the four trimmed receptive-field lines and the block shapes", async () => {
     const value = await render(conv());
-    expect(svgToPdf(value.svg).ok).toBe(true);
+    const lines = value.layout.edges[0]?.route?.lines ?? [];
+    expect(lines).toHaveLength(4);
+
+    // PDF: the dashed stroke holds four two-point subpaths at the layout's lines (pt, y up).
+    const pdf = svgToPdf(value.svg);
+    if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+    const inspected = inspectPdf(pdf.value);
+    const [pageW, pageH] = [
+      inspected.pages[0]?.mediaBox[2] ?? 0,
+      inspected.pages[0]?.mediaBox[3] ?? 0,
+    ];
+    const k = pageW / value.layout.canvas.width;
+    const wanted: [number, number][][] = lines.map(([a, b]) => [
+      [a.x * k, pageH - a.y * k],
+      [b.x * k, pageH - b.y * k],
+    ]);
+    const dashed = inspected.strokes.filter((st) => st.dash.length > 0 && st.subpaths.length === 4);
+    expect(dashed).toHaveLength(1);
+    dashed[0]?.subpaths.forEach((sub, i) => {
+      expect(sub).toHaveLength(2);
+      for (const j of [0, 1]) {
+        const want = (wanted[i] as [number, number][])[j] as [number, number];
+        const got = sub[j] as [number, number];
+        expect(got[0]).toBeCloseTo(want[0], 1);
+        expect(got[1]).toBeCloseTo(want[1], 1);
+      }
+    });
+
+    // Editable PPTX: the edge's freeform has the same four lines (EMU, from the shapes' scale).
     const pptx = svgToEditablePptx(value.svg, value.compiled.ir, { connectors: "freeform" });
     if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
     const slide = parseXml(
       new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml")),
     );
     if (!slide.ok) throw new Error(slide.message);
-    const names = [...descendants(slide.root)]
-      .filter((e) => e.name === "p:cNvPr")
-      .map((e) => attribute(e, "name"));
+    const all = [...descendants(slide.root)];
+    const shapeNamed = (name: string) =>
+      all.find(
+        (e) =>
+          e.name === "p:sp" &&
+          [...descendants(e)].some((n) => n.name === "p:cNvPr" && attribute(n, "name") === name),
+      ) as never;
+    const offOf = (shape: never) => {
+      const off = [...descendants(shape)].find((e) => e.name === "a:off");
+      return { x: Number(attribute(off as never, "x")), y: Number(attribute(off as never, "y")) };
+    };
+    const [ra, rb] = ["vin", "vout"].map(
+      (id) =>
+        value.layout.nodes.find((n) => n.key === `n:${id}`)?.rect as never as {
+          x: number;
+          y: number;
+        },
+    ) as [{ x: number; y: number }, { x: number; y: number }];
+    const [pa, pb] = [offOf(shapeNamed("n:vin")), offOf(shapeNamed("n:vout"))];
+    const scale = (pb.x - pa.x) / (rb.x - ra.x);
+    const edge = shapeNamed("e:#0");
+    const origin = offOf(edge);
+    const points = [...descendants(edge)]
+      .filter((e) => e.name === "a:pt")
+      .map((e) => ({
+        x: Number(attribute(e, "x")) + origin.x,
+        y: Number(attribute(e, "y")) + origin.y,
+      }));
+    expect(points).toHaveLength(8);
+    lines.forEach(([a, b], i) => {
+      for (const [j, p] of [a, b].entries()) {
+        const got = points[2 * i + j] as { x: number; y: number };
+        expect(Math.abs(got.x - (pa.x + (p.x - ra.x) * scale))).toBeLessThan(3000);
+        expect(Math.abs(got.y - (pa.y + (p.y - ra.y) * scale))).toBeLessThan(3000);
+      }
+    });
+
+    // The cuboid's shapes: the outline between its grid and faces and its kernel.
+    const names = all.filter((e) => e.name === "p:cNvPr").map((e) => attribute(e, "name"));
     const own = names.filter((n) => n?.startsWith("n:vin")) as string[];
-    // The outline shape (named after the node) is neither first nor last: the grid and faces come
-    // before it, the kernel's faces and frame after it.
     const at = own.indexOf("n:vin");
     expect(at).toBeGreaterThan(3);
     expect(at).toBeLessThan(own.indexOf("n:vin-dim-width"));

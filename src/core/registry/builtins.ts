@@ -1431,7 +1431,7 @@ const zoom: EdgeManifest = {
   kind: "edge",
   name: "zoom",
   description:
-    "Two straight lines joining the corners of the source to the matching corners of the target, which shows the source zoomed in (structured layout only; no label, no arrowheads). An end may be a highlighted block of a cuboid, <node>.<name>: between two blocks the zoom draws a receptive field of four lines from the corners of the source block's right face to those of the target block's left face, ending where they enter the target's volume (their ends behind its cell are hidden).",
+    "Two straight lines joining the corners of the source to the matching corners of the target, which shows the source zoomed in (structured layout only; no label, no arrowheads). An end may be a highlighted block of a cuboid, <node>.<name>: between two blocks the zoom draws a receptive field of four lines, from the corners of the source block's face toward the target (its right face when the target is to the right; to the left, the opposite, hidden left face) to the corners of the target block's opposite face, drawn over the source and ending where they enter the target's volume.",
   variants: ["default", "solid", "muted"],
   props: noProps,
   direction: "none",
