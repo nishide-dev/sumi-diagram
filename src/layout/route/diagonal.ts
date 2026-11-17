@@ -19,6 +19,7 @@ import {
 } from "./curve";
 import { straightLabel } from "./direct-label";
 import { endpointRects } from "./endpoint-rects";
+import { leaveFace } from "./face-exit";
 import {
   anchorPoint,
   boundaryEntry,
@@ -96,6 +97,8 @@ export function addDirectRoutes(
       targetDrawing?.fixedPort === undefined
         ? rawOf(target, edge.toAnchor)
         : anchorPoint(target, targetDrawing.fixedPort);
+    // Ends on a visible face of their own solid (`ports: face`, #575): the line leaves over that face.
+    const faceEnds = new Map<ElementKey, Point>();
     const end = (
       key: ElementKey,
       r: Rect,
@@ -107,6 +110,22 @@ export function addDirectRoutes(
       if (isJunction(node)) return center(r);
       const fixed = drawing(key, r)?.fixedPort;
       if (fixed !== undefined) return anchorPoint(r, fixed);
+      // A solid with `ports: face` (#575): an unanchored end toward the right or the top ends at the
+      // centre of that visible face.
+      if (anchor === undefined || anchor === "straight") {
+        const faces = drawing(key, r)?.faceContacts;
+        if (faces !== undefined) {
+          const c = center(r);
+          const [dx, dy] = [other.x - c.x, other.y - c.y];
+          const side =
+            Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "east" : "west") : dy < 0 ? "north" : "south";
+          const contact = faces[side];
+          if (contact !== undefined) {
+            faceEnds.set(key, { x: roundUnits(contact.x), y: roundUnits(contact.y) });
+            return { x: roundUnits(contact.x), y: roundUnits(contact.y) };
+          }
+        }
+      }
       // Explicit anchors are projected radially onto the silhouette. Automatic
       // ends trace the line from the other end towards this shape's centre.
       const from = anchor === undefined || anchor === "straight" ? other : rawPoint;
@@ -166,6 +185,15 @@ export function addDirectRoutes(
       (edge.targetArrowhead === undefined ? 0 : head);
     if (!loop && length <= Math.max(0.001, needed))
       return fail("there is no room for the line and its arrowheads");
+    // A line from a face end (`ports: face`, #575) runs over its own face first: that stretch is
+    // intended when it leaves the solid through the silhouette (not across the front or the other
+    // face). Returns the points from where it leaves, or undefined when it does not leave that way.
+    const afterFace = (key: ElementKey, r: Rect, points: Point[]): Point[] | undefined => {
+      const at = faceEnds.get(key);
+      const painted = drawing(key, r);
+      if (at === undefined || painted?.faces === undefined) return points;
+      return leaveFace(Object.values(painted.faces), painted.outline, at, points);
+    };
     // A side explicitly facing away would make the line pass through its end.
     const enters = (key: ElementKey, r: Rect, p: Point, q: Point) => {
       const node = nodes.get(key);
@@ -182,11 +210,17 @@ export function addDirectRoutes(
         0.01,
       );
     };
-    if (
-      edge.route === "straight" &&
-      (enters(edge.from, source, a, b) || enters(edge.to, target, b, a))
-    )
-      return fail("an anchor faces into its endpoint");
+    if (edge.route === "straight") {
+      const fromPoints = afterFace(edge.from, source, [a, b]);
+      const toPoints = afterFace(edge.to, target, [b, a]);
+      if (
+        fromPoints === undefined ||
+        toPoints === undefined ||
+        enters(edge.from, source, fromPoints[0] as Point, fromPoints[1] as Point) ||
+        enters(edge.to, target, toPoints[0] as Point, toPoints[1] as Point)
+      )
+        return fail("an anchor faces into its endpoint");
+    }
     if (edge.route === "curve") {
       const loopSide =
         loopAnchors === undefined || typeof loopAnchors === "string"
@@ -197,11 +231,15 @@ export function addDirectRoutes(
           ? curvePoints(edge, a, b, ir, rects, tangents)
           : selfLoopPoints(edge, a, b, loopSide);
       const samples = sampleCubic(points);
+      const fromSamples = afterFace(edge.from, source, samples);
+      const toSamples = afterFace(edge.to, target, [...samples].reverse());
       if (
-        samples.slice(1).some((q, i) => {
-          const p = samples[i] as Point;
-          return enters(edge.from, source, p, q) || enters(edge.to, target, p, q);
-        })
+        fromSamples === undefined ||
+        toSamples === undefined ||
+        fromSamples
+          .slice(1)
+          .some((q, i) => enters(edge.from, source, fromSamples[i] as Point, q)) ||
+        toSamples.slice(1).some((q, i) => enters(edge.to, target, toSamples[i] as Point, q))
       )
         return fail("the curve re-enters an endpoint; choose another anchor");
       return {

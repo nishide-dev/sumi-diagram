@@ -41,6 +41,14 @@ export interface OutlineDrawing {
    * straightened along the extents of their boxes.
    */
   readonly solid?: true;
+  /** The visible faces a `faceContacts` end may slide along (parallelograms), with `faceContacts`. */
+  /**
+   * Where an edge without an anchor ends on a visible face of a solid instead of the silhouette
+   * (#575, cuboid `ports: face`): the centroid of that face, inside the silhouette, on the same
+   * line as the side's default port. The stretch over the node's own face is drawn on top of it.
+   */
+  readonly faces?: Partial<Record<"north" | "east", readonly Point[]>>;
+  readonly faceContacts?: Partial<Record<"north" | "south" | "east" | "west", Point>>;
   /** Ordered enclosing silhouette; equals the body union unless boundaries is supplied. */
   readonly outline: readonly Point[];
   /** Optional body-only boundary for edge contacts; collision still includes the complete silhouette. */

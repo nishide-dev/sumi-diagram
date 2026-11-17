@@ -811,6 +811,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                   width: (component.props.width as number) * 2,
                   height: (component.props.height as number) * 2,
                   depth: (component.props.depth as number) * 2,
+                  ...(typeof component.props.ports === "string" && {
+                    ports: component.props.ports,
+                  }),
                   ...(figure.projection !== undefined && {
                     angle: figure.projection.angle,
                     depthScale: figure.projection.depthScale,
@@ -1036,6 +1039,7 @@ function cuboidSilhouette(
 ): { width: ReturnType<typeof lengthOf>; height: ReturnType<typeof lengthOf> } {
   const { dx, dy } = cuboidOffset({
     depth: (props.depth as number) * 2,
+    ports: "center",
     angle: projection?.angle ?? DEFAULT_PROJECTION_ANGLE,
     depthScale: projection?.depthScale ?? DEFAULT_DEPTH_SCALE,
   });

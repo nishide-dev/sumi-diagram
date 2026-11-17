@@ -1414,6 +1414,14 @@ wider solid for a long row. The projection is figure-wide, never per node.
   fraction of the box's side, from its corner: `east:0.3`, `south:0.35`): use it for a
   corner or a skip connection, e.g. `north:0.85` leaves the top near its right end so
   a skip clears the width `dims` text. The collision outline is the whole silhouette.
+  **`props.ports: face`** (opt-in; default `center`, the behaviour above) ends an unanchored
+  edge on the *visible* faces instead: on the right at the centre of the side face, on the top
+  at the centre of the top face, with the stretch over the solid's own face drawn on top of it
+  (geometry lint expects it). The left and bottom faces are hidden in this projection and keep
+  the `center` contact. Written anchors keep their meaning. Between neighbours a face end slides
+  along its face to the middle of the overlap (the midpoint of the face on that line, if it keeps
+  a margin inside the face), so edges between unequal solids stay straight; `route: straight` /
+  `curve` end at the face centres.
 
 ```yaml
 # expect-render: fits

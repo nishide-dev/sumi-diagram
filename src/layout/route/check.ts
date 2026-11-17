@@ -12,12 +12,14 @@
 import type { FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Region } from "../../core/geometry";
+import type { OutlineDrawing } from "../../core/outline";
 import { getOutlineRenderer } from "../../core/outline";
 import { obstaclesCrossedByRoute, type RouteObstacle } from "../../lint/geometry/edges";
 import { rectPolygon, segmentCrossesRect } from "../../lint/geometry/shapes";
 import type { EdgeLayout, LayoutIR, Point, Rect } from "../ir";
 import { sampleCubic } from "./cubic";
 import { endpointRects, makeInside } from "./endpoint-rects";
+import { insidePolygon } from "./face-exit";
 import {
   anchorPoint,
   DIRS,
@@ -159,6 +161,8 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
   const regions = new Map<ElementKey, Region>();
   const painted = new Map<ElementKey, readonly Region[]>();
   const rects = new Map<ElementKey, Rect>();
+  // The visible faces of solids with `ports: face` (#575): an end may be on one of them.
+  const faces = new Map<ElementKey, NonNullable<OutlineDrawing["faces"]>>();
   for (const node of layout.nodes) {
     const n = nodeIR.get(node.key);
     if (n === undefined) throw new Error(`internal error: ${node.key} is not in the IR`);
@@ -167,6 +171,7 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
       const renderer = getOutlineRenderer(n.render.renderer);
       const drawing = renderer?.draw(node.rect, renderer.params.parse(n.render.params ?? {}));
       if (drawing) {
+        if (drawing.faces !== undefined) faces.set(node.key, drawing.faces);
         painted.set(
           node.key,
           (drawing.boundaries ?? [drawing.portOutline ?? drawing.outline]).map((points) => ({
@@ -391,7 +396,17 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
         miss("no side");
         continue;
       }
-      if (!(painted.get(key) ?? [regions.get(key) as Region]).some((r) => onOutline(r, end)))
+      if (
+        !(painted.get(key) ?? [regions.get(key) as Region]).some((r) => onOutline(r, end)) &&
+        // Only an unanchored end on the visible face of its own side (east: the side face; north:
+        // the top face) may be inside the solid.
+        !(
+          anchor === undefined &&
+          (side === "east" || side === "north") &&
+          faces.get(key)?.[side] !== undefined &&
+          insidePolygon(end, faces.get(key)?.[side] as readonly Point[])
+        )
+      )
         miss(`${end.x},${end.y} not on the outline`);
       const vertical = SIDE_DIR[side] % 2 === 1;
       if (vertical ? Math.abs(end.x - next.x) > EPS : Math.abs(end.y - next.y) > EPS) {
