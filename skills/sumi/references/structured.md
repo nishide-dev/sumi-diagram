@@ -1418,9 +1418,10 @@ wider solid for a long row. The projection is figure-wide, never per node.
   edge on the *visible* faces instead: on the right at the centre of the side face, on the top
   at the centre of the top face, with the stretch over the solid's own face drawn on top of it
   (geometry lint expects it). The left and bottom faces are hidden in this projection and keep
-  the `center` contact. Written anchors keep their meaning, and face ends are not straightened
-  against neighbours (they stay at the face centre), so edges between unequal solids may jog;
-  `route: straight` / `curve` end at the same points.
+  the `center` contact. Written anchors keep their meaning. Between neighbours a face end slides
+  along its face to the middle of the overlap (the midpoint of the face on that line, if it keeps
+  a margin inside the face), so edges between unequal solids stay straight; `route: straight` /
+  `curve` end at the face centres.
 
 ```yaml
 # expect-render: fits

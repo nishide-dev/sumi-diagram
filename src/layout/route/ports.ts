@@ -60,10 +60,39 @@ export function isSolid(node: NodeIR | undefined, rect: Rect): boolean {
 }
 
 /** Where an unanchored edge ends on a visible face of a solid (cuboid `ports: face`, #575), if it does. */
-export function faceContactOf(node: NodeIR | undefined, rect: Rect, side: Side): Point | undefined {
+export function faceContactOf(
+  node: NodeIR | undefined,
+  rect: Rect,
+  side: Side,
+  at?: number,
+): Point | undefined {
   if (node?.render === undefined) return undefined;
   const renderer = getOutlineRenderer(node.render.renderer);
-  return renderer?.draw(rect, renderer.params.parse(node.render.params ?? {})).faceContacts?.[side];
+  const drawing = renderer?.draw(rect, renderer.params.parse(node.render.params ?? {}));
+  const centroid = drawing?.faceContacts?.[side];
+  if (at === undefined || centroid === undefined) return centroid;
+  // Slid along the face: the midpoint of the face on the line through `at` (y for the side face,
+  // x for the top face), when it keeps a margin inside the face; else no contact.
+  const polygon = drawing?.faces?.[side as "north" | "east"];
+  if (polygon === undefined) return undefined;
+  const horizontal = side === "east";
+  const along = (p: Point) => (horizontal ? p.y : p.x);
+  const across = (p: Point) => (horizontal ? p.x : p.y);
+  const lo = Math.min(...polygon.map(along));
+  const hi = Math.max(...polygon.map(along));
+  if (at < lo + STRAIGHT_MARGIN || at > hi - STRAIGHT_MARGIN) return undefined;
+  const hits: number[] = [];
+  for (const [i, p] of polygon.entries()) {
+    const q = polygon[(i + 1) % polygon.length] as Point;
+    const [a, b] = [along(p), along(q)];
+    if (a === b || at < Math.min(a, b) || at > Math.max(a, b)) continue;
+    hits.push(across(p) + ((across(q) - across(p)) * (at - a)) / (b - a));
+  }
+  if (hits.length < 2) return undefined;
+  const [from, to] = [Math.min(...hits), Math.max(...hits)];
+  if (to - from < 4) return undefined;
+  const mid = (from + to) / 2;
+  return horizontal ? { x: mid, y: at } : { x: at, y: mid };
 }
 
 /** The shape a node draws, as a convex region (its bounding box for `text`). */
@@ -1461,6 +1490,7 @@ function resolveEndsWith(
     ] as const)
       if (choice !== undefined)
         users.set(`${key}|${choice.side}`, (users.get(`${key}|${choice.side}`) ?? 0) + 1);
+  const slid = new Set<Choice>();
   const sideSpan = (key: ElementKey, side: Side): { lo: number; hi: number; mid: number } => {
     const { rect } = element(key);
     const vertical = side === "north" || side === "south";
@@ -1474,12 +1504,6 @@ function resolveEndsWith(
       continue;
     const [a, b] = [element(edge.from), element(edge.to)];
     if (!isSolid(a.node, a.rect) && !isSolid(b.node, b.rect)) continue;
-    // Face ends stay at the centre of their face: they are not straightened against neighbours.
-    if (
-      faceContactOf(a.node, a.rect, from.side) !== undefined ||
-      faceContactOf(b.node, b.rect, to.side) !== undefined
-    )
-      continue;
     const spanA = sideSpan(edge.from, from.side);
     const spanB = sideSpan(edge.to, to.side);
     const lo = Math.max(spanA.lo, spanB.lo);
@@ -1491,12 +1515,25 @@ function resolveEndsWith(
     );
     const at = own.find((m) => m >= lo && m <= hi) ?? (lo + hi) / 2;
     const vertical = from.side === "north" || from.side === "south";
-    for (const [choice, e] of [
+    // A face end slides along its face to that line, if the face holds it with a margin;
+    // else the pair keeps the centroid and its default ports.
+    const faced = [
       [from, a],
       [to, b],
-    ] as const)
+    ] as const;
+    if (
+      faced.some(
+        ([c, e]) =>
+          faceContactOf(e.node, e.rect, c.side) !== undefined &&
+          faceContactOf(e.node, e.rect, c.side, at) === undefined,
+      )
+    )
+      continue;
+    for (const [choice, e] of faced) {
+      if (faceContactOf(e.node, e.rect, choice.side) !== undefined) slid.add(choice);
       choice.offset =
         (at - (vertical ? e.rect.x : e.rect.y)) / (vertical ? e.rect.width : e.rect.height);
+    }
   }
 
   // `straight` ends (#179) in line with the other end's port, now that it is
@@ -1631,16 +1668,18 @@ function resolveEndsWith(
     }
     // A solid with `ports: face` (#575): an unanchored end on its top or side face goes in to the
     // centre of that face, on the line of its default port; a moved end keeps the silhouette.
-    const contact = choice.anchored ? undefined : faceContactOf(self.node, self.rect, choice.side);
-    if (
-      contact !== undefined &&
-      Math.abs(
-        choice.side === "north" || choice.side === "south"
-          ? port.x - contact.x
-          : port.y - contact.y,
-      ) < 0.5
-    )
-      outline = { x: roundUnits(contact.x), y: roundUnits(contact.y) };
+    const centroid = choice.anchored ? undefined : faceContactOf(self.node, self.rect, choice.side);
+    if (centroid !== undefined) {
+      const vertical = choice.side === "north" || choice.side === "south";
+      const centred = Math.abs(vertical ? port.x - centroid.x : port.y - centroid.y) < 0.5;
+      // An end the straightening pass moved slides along its face; a shared end keeps the silhouette.
+      const contact = centred
+        ? centroid
+        : slid.has(choice)
+          ? faceContactOf(self.node, self.rect, choice.side, vertical ? port.x : port.y)
+          : undefined;
+      if (contact !== undefined) outline = { x: roundUnits(contact.x), y: roundUnits(contact.y) };
+    }
     return {
       key,
       junction: false,

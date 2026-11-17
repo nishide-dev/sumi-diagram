@@ -100,6 +100,7 @@ export const cuboid: OutlineRenderer<CuboidParams> = {
       // Opt-in (`ports: face`): the top and the side face are visible, so an edge on them ends at
       // the centroid of the face (the other two faces are hidden and keep the silhouette contact).
       ...(params.ports === "face" && {
+        faces: { north: top, east: side },
         faceContacts: {
           north: pt(fx + w / 2 + dx / 2, y + dy / 2),
           east: pt(fx + w + dx / 2, y + (dy + h) / 2),

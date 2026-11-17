@@ -391,7 +391,7 @@ edges:
     });
   }
 
-  test("ports: face keeps written anchors and is not straightened against unequal neighbours", async () => {
+  test("ports: face keeps written anchors", async () => {
     const anchored = await render(
       faces("row", ", fromAnchor: east:0.3").replace("ports: face", "ports: face"),
     );
@@ -399,6 +399,34 @@ edges:
     const a = centreOf(anchored, "a").rect;
     expect(distanceToSilhouette(anchored, "a", start ?? { x: 1e9, y: 1e9 })).toBeLessThan(0.6);
     expect(start?.y).toBeCloseTo(a.y + 0.3 * a.height, 0);
+  });
+
+  test("ports: face ends slide along their faces so unequal neighbours get one horizontal segment", async () => {
+    const value = await render(`version: 1
+figure:
+  id: slide
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: { row: { gap: 16mm, align: end, items: [a, b] } }
+nodes:
+  - { id: a, component: cuboid, props: { ports: face, width: 6mm, height: 28mm, depth: 20mm } }
+  - { id: b, component: cuboid, props: { ports: face, width: 6mm, height: 12mm, depth: 12mm } }
+edges:
+  - { from: a, to: b }
+`);
+    const points = value.layout.edges[0]?.route?.points ?? [];
+    expect(points).toHaveLength(2);
+    expect(points[0]?.y).toBeCloseTo(points[1]?.y ?? Number.NaN, 6);
+    // The start is inside a's side face: right of its front's right edge, left of the silhouette.
+    const rect = centreOf(value, "a").rect;
+    const node = value.compiled.ir.nodes.find((n) => n.id === "a");
+    const { dx } = cuboidOffset(cuboid.params.parse(node?.render?.params));
+    const frontRight = rect.x + rect.width - dx;
+    expect(points[0]?.x).toBeGreaterThan(frontRight + 1);
+    expect(points[0]?.x).toBeLessThan(rect.x + rect.width - 1);
+    // The target's west face is hidden: its end stays on the silhouette.
+    expect(distanceToSilhouette(value, "b", points.at(-1) ?? { x: 1e9, y: 1e9 })).toBeLessThan(0.6);
   });
 
   test("ports: face has no lint findings (the stretch over its own face is intended), centre unchanged by default", async () => {
