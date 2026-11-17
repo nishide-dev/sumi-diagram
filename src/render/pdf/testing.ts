@@ -331,6 +331,12 @@ export interface PdfGlyph {
   font: string;
 }
 
+/** A stroked path (#576): its subpaths in page space (pt, y up) and the dash pattern in force. */
+export interface PdfStroke {
+  subpaths: [number, number][][];
+  dash: number[];
+}
+
 export interface PdfInspection {
   version: string;
   info: Record<string, string>;
@@ -340,6 +346,8 @@ export interface PdfInspection {
   images: number;
   /** Glyphs of the first page in drawing order. */
   glyphs: PdfGlyph[];
+  /** Every stroked path of the page's content (curves are reduced to their end points). */
+  strokes: PdfStroke[];
 }
 
 const nameOf = (v: PdfValue | undefined): string | undefined =>
@@ -504,6 +512,7 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
   };
 
   const glyphs: PdfGlyph[] = [];
+  const strokes: PdfStroke[] = [];
   const run = (
     content: Uint8Array,
     resources: PdfDict,
@@ -514,8 +523,11 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
     if (depth > 16) throw new Error("form XObjects nested too deeply");
     const parser = new Parser(latin1.decode(content));
     const operands: PdfValue[] = [];
-    const stack: { ctm: Matrix; color: readonly number[] }[] = [];
+    const stack: { ctm: Matrix; color: readonly number[]; dash: number[] }[] = [];
     let color = initialColor;
+    // The path being built (page space) and the dash pattern in force.
+    let path: [number, number][][] = [];
+    let dash: number[] = [];
     let ctm = start;
     let tm: Matrix = IDENTITY;
     let tlm: Matrix = IDENTITY;
@@ -551,10 +563,51 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
       const nums = operands.map(Number) as Matrix;
       switch (v.value) {
         case "q":
-          stack.push({ ctm, color });
+          stack.push({ ctm, color, dash });
           break;
         case "Q":
-          ({ ctm, color } = stack.pop() ?? { ctm: IDENTITY, color: initialColor });
+          ({ ctm, color, dash } = stack.pop() ?? { ctm: IDENTITY, color: initialColor, dash: [] });
+          break;
+        case "d":
+          dash = ((operands[0] as PdfValue[] | undefined) ?? []).map(Number);
+          break;
+        case "m":
+          path.push([apply(ctm, nums[0], nums[1])]);
+          break;
+        case "l":
+        case "c":
+        case "v":
+        case "y":
+          // A curve is reduced to its end point.
+          path.at(-1)?.push(apply(ctm, nums.at(-2) as number, nums.at(-1) as number));
+          break;
+        case "re": {
+          const [x, y, w, h] = nums;
+          path.push(
+            [
+              [x, y],
+              [x + w, y],
+              [x + w, y + h],
+              [x, y + h],
+              [x, y],
+            ].map(([a, b]) => apply(ctm, a as number, b as number)),
+          );
+          break;
+        }
+        case "S":
+        case "s":
+        case "B":
+        case "B*":
+        case "b":
+        case "b*":
+          strokes.push({ subpaths: path, dash });
+          path = [];
+          break;
+        case "f":
+        case "F":
+        case "f*":
+        case "n":
+          path = [];
           break;
         case "rg":
         case "sc":
@@ -624,7 +677,7 @@ export function inspectPdf(bytes: Uint8Array): PdfInspection {
       if (obj?.stream) run(obj.stream, resources, IDENTITY, 0);
     }
   }
-  return { version: pdf.version, info, pages, fonts, images, glyphs };
+  return { version: pdf.version, info, pages, fonts, images, glyphs, strokes };
 }
 
 export interface PdfTextLine {

@@ -47,6 +47,7 @@ import type {
   SetLabelPosition,
   SetShape,
 } from "../core/figure/schema";
+import { refCell, refOwner } from "../core/figure/schema";
 import { nodeOrder } from "../core/figure/tokens";
 import {
   cuboidOffset,
@@ -69,7 +70,7 @@ import {
   type ResolvedComponent,
 } from "../core/registry/manifest";
 import { getTheme } from "../core/theme/builtin";
-import { cuboidColors, cuboidShadeOf } from "../core/theme/cuboid-shade";
+import { cuboidColors, cuboidShadeOf, mixColors } from "../core/theme/cuboid-shade";
 import { dimmedElements } from "../core/theme/dim";
 import type { FontSetId } from "../core/theme/fonts";
 import { contrastRatio, pageTextContrast } from "../core/theme/node-variants";
@@ -439,6 +440,9 @@ export interface EdgeIR extends ElementIRBase {
   readonly index: number;
   readonly from: ElementKey;
   readonly to: ElementKey;
+  /** The highlighted block of a cuboid the end names, `<node>.<name>` (#576). */
+  readonly fromPart?: string;
+  readonly toPart?: string;
   readonly direction: EdgeDirection;
   /** Arrowhead at the source end; set exactly when `direction` is `backward` or `both`. */
   readonly sourceArrowhead?: Arrowhead;
@@ -819,6 +823,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
                     depthScale: figure.projection.depthScale,
                   }),
                   ...cuboidFaces(style.fill, style.stroke, theme),
+                  ...cuboidGrid(component.props, style, theme, component.id),
                 }),
                 ...(component.manifest.render.renderer === "sumi/trapezoid" &&
                   typeof component.props.narrow === "string" &&
@@ -1055,6 +1060,63 @@ function cuboidFaces(fill: string, stroke: string, theme: Theme) {
   return colors && { topFill: colors.top, sideFill: colors.side, innerStroke: colors.inner };
 }
 
+/** Grid lines are the frame mixed 45% toward the canvas (#576). */
+const GRID_MIX = 0.45;
+
+/**
+ * The grid and highlighted blocks of a cuboid (#576) as renderer params: `cells`, the grid
+ * color, and the blocks with colors resolved from their tones (always the `tinted` variant: a
+ * pale fill in the tone's frame).
+ */
+function cuboidGrid(
+  props: Readonly<Record<string, unknown>>,
+  style: { fill: string; stroke: string },
+  theme: Theme,
+  componentId: ComponentId,
+) {
+  const cells = props.cells as [number, number, number] | undefined;
+  if (cells === undefined) return {};
+  const shade = cuboidShadeOf(theme);
+  const gridOf = (line: string) =>
+    /^#[0-9a-fA-F]{6}$/.test(line) ? mixColors(line, theme.canvas, GRID_MIX) : line;
+  const highlight = (props.highlight ?? []) as {
+    name: string;
+    at: number[];
+    size?: number[];
+    tone: Tone;
+  }[];
+  const blocks = highlight.flatMap((block) => {
+    const { tone } = block;
+    const { fill, stroke } = resolveStyle(theme, {
+      kind: "node",
+      id: componentId,
+      variant: "tinted",
+      tone,
+    }).style;
+    const colors = cuboidColors(fill, stroke, shade);
+    return colors === undefined
+      ? []
+      : [
+          {
+            name: block.name,
+            at: block.at,
+            size: block.size ?? [1, 1, 1],
+            fill,
+            top: colors.top,
+            side: colors.side,
+            line: stroke,
+            inner: colors.inner,
+            grid: gridOf(stroke),
+          },
+        ];
+  });
+  return {
+    cells: cells.join(","),
+    ...(/^#[0-9a-fA-F]{6}$/.test(style.stroke) && { gridStroke: gridOf(style.stroke) }),
+    ...(blocks.length > 0 && { blocks: JSON.stringify(blocks) }),
+  };
+}
+
 function groupPlane(
   props: Readonly<Record<string, unknown>>,
   projection: { angle: number; depthScale: number } | undefined,
@@ -1157,8 +1219,11 @@ function edgeIR(
     component: component.id,
     variant: component.variant,
     ...legend,
-    from: endpointKey(e.from),
-    to: endpointKey(e.to),
+    from: endpointKey(refOwner(e.from)),
+    to: endpointKey(refOwner(e.to)),
+    // A block of a cuboid, `<node>.<name>` (#576).
+    ...(refCell(e.from) !== undefined && { fromPart: refCell(e.from) as string }),
+    ...(refCell(e.to) !== undefined && { toPart: refCell(e.to) as string }),
     direction,
     ...(source && { sourceArrowhead: shape(manifest.tail) }),
     ...(target && { targetArrowhead: shape(manifest.head) }),

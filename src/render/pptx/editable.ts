@@ -957,12 +957,19 @@ export function svgToEditablePptx(
       const waveform = element.kind === "node" && element.render?.renderer === "sumi/waveform";
       // A cuboid (#575) is its three faces and two inner edges, each its own freeform (one
       // DrawingML shape has one fill), under the silhouette, which carries the text and ports.
-      const solid =
-        element.kind === "node" &&
-        element.render?.renderer === "sumi/cuboid" &&
-        primitives.length === 6;
+      const isCuboid = element.kind === "node" && element.render?.renderer === "sumi/cuboid";
+      // The silhouette of the cuboid itself: marked when it has a grid or blocks (#576); else the
+      // sixth path. What comes before it is under the label, what follows (the blocks) over it.
+      const outlineAt = !isCuboid
+        ? -1
+        : primitives.findIndex((p) => classList(p).includes("sumi-solid-outline")) >= 0
+          ? primitives.findIndex((p) => classList(p).includes("sumi-solid-outline"))
+          : primitives.length === 6
+            ? 5
+            : -1;
+      const solid = outlineAt >= 0;
       const bodyPrimitives = solid
-        ? primitives.slice(5)
+        ? primitives.slice(outlineAt, outlineAt + 1)
         : waveform
           ? primitives.slice(0, 1)
           : primitives;
@@ -1106,22 +1113,26 @@ export function svgToEditablePptx(
           : primitives.length
             ? geometry(bodyPrimitives.map(shapePath), box, emu, connectionPoints)
             : '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>';
-      const first = solid ? primitives[5] : primitives[0];
-      const solidXml = solid
+      const first = solid ? primitives[outlineAt] : primitives[0];
+      // One freeform per path: a face has its fill and no line, a line its stroke and no fill.
+      const solidPart = (primitive: XmlElement, index: number) => {
+        const filled = (property(primitive, "stroke") ?? "none") === "none";
+        return shape(
+          next++,
+          `${element.key} ${filled ? (["top", "side", "front"][index % 3] ?? "face") : "edge"}`,
+          box,
+          geometry([shapePath(primitive)], box, emu),
+          filled
+            ? paint(property(primitive, "fill") ?? "none", element.style.opacity)
+            : "<a:noFill/>",
+          filled ? "<a:ln><a:noFill/></a:ln>" : line(primitive, element.style),
+        );
+      };
+      const solidXml = solid ? primitives.slice(0, outlineAt).map(solidPart).join("") : "";
+      const blocksXml = solid
         ? primitives
-            .slice(0, 5)
-            .map((primitive, index) =>
-              shape(
-                next++,
-                `${element.key} ${["top", "side", "front", "edge", "edge"][index]}`,
-                box,
-                geometry([shapePath(primitive)], box, emu),
-                index < 3
-                  ? paint(property(primitive, "fill") ?? "none", element.style.opacity)
-                  : "<a:noFill/>",
-                index < 3 ? "<a:ln><a:noFill/></a:ln>" : line(primitive, element.style),
-              ),
-            )
+            .slice(outlineAt + 1)
+            .map((primitive, index) => solidPart(primitive, index))
             .join("")
         : "";
       const fill = first
@@ -1233,6 +1244,7 @@ export function svgToEditablePptx(
         element.key,
         solidXml +
           body +
+          blocksXml +
           (sublabel !== undefined && before !== undefined && !joined && !below
             ? ownBox(sublabel)
             : "") +

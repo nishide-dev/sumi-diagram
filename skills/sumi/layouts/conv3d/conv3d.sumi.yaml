@@ -1,0 +1,58 @@
+# Layout: an input volume with its kernel highlighted, joined by a receptive field of four dashed lines to one cell of the output volume (a 3D convolution).
+#
+# Use when: a convolution, pooling or any local operation on a tensor needs its receptive field
+#   shown on volumes; two volumes side by side (`paper-double`).
+# Structure: a `row` of two `cuboid`s with a cell grid (`cells`), cut into cubes by thin lines;
+#   the kernel and the output cell are `highlight`s (cell ranges, a warm tone); a `zoom` edge from
+#   `<input>.<kernel>` to `<output>.<cell>` draws the four corner lines (the kernel's right face
+#   to the cell's left face), painted over the input and under the output, which hides their ends;
+#   `dims` write the sizes; a muted `label` names the highlight.
+# Change: the grid (`cells`) and the sizes (width, height and depth in whole multiples of the cell,
+#   here 5.2mm, so the cells stay cubes); the kernel's `at` (first cell: x from the left, y from the
+#   top, z from the front) and `size`; the output cell's `at`; the texts. A kernel at the front
+#   (z = 0) and the top keeps its three faces visible; further back, the volume hides its front.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: conv3d
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 6mm
+        align: start
+        items:
+          - row:
+              gap: 44mm
+              align: end
+              items: [volume-in, volume-out]
+          - key
+nodes:
+  - id: volume-in
+    component: cuboid
+    tone: blue
+    variant: tinted
+    props:
+      width: 31.2mm
+      height: 31.2mm
+      depth: 31.2mm
+      cells: [6, 6, 6]
+      highlight:
+        - {name: kernel, at: [3, 0, 0], size: [3, 3, 3], tone: orange}
+      dims: {width: "W = 6", height: "input volume"}
+  - id: volume-out
+    component: cuboid
+    tone: blue
+    variant: tinted
+    props:
+      width: 20.8mm
+      height: 20.8mm
+      depth: 20.8mm
+      cells: [4, 4, 4]
+      highlight:
+        - {name: cell, at: [0, 0, 0], tone: orange}
+      dims: {width: "4 × 4 × 4", height: "output volume"}
+  - {id: key, component: label, label: "kernel 3 × 3 × 3 → one output cell", variant: muted}
+edges:
+  - {from: volume-in.kernel, to: volume-out.cell, component: zoom, tone: orange}

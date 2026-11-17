@@ -62,6 +62,7 @@ profile is the usual `figure.theme` / `figure.profile` edit (a slide needs
 | [client-service-data](client-service-data/client-service-data.sumi.yaml) | Clients, entry, services, data stores as four columns | System overviews, backends, serving stacks | [PNG](client-service-data/client-service-data.png) |
 | [microservices-bus](microservices-bus/microservices-bus.sumi.yaml) | Producers above and consumers below one shared bus (one column) | Event bus, message queue, pub/sub | [PNG](microservices-bus/microservices-bus.png) |
 | [cnn-volumes](cnn-volumes/cnn-volumes.sumi.yaml) | A row of cuboids (convolution, pooling, fully connected) with channel and size texts and a legend | A network drawn as volumes whose sizes matter (VGG-style CNN, feature maps) | [PNG](cnn-volumes/cnn-volumes.png) |
+| [conv3d](conv3d/conv3d.sumi.yaml) | An input volume with its kernel highlighted, four dashed receptive-field lines to one cell of the output volume | A 3D convolution or local operation on a tensor, with its receptive field | [PNG](conv3d/conv3d.png) |
 | [stacked-planes](stacked-planes/stacked-planes.sumi.yaml) | Two graphs on the same nodes as tilted planes, one above the other, dotted lines joining each node to its twin | The same entities in two structures (multilayer networks, time snapshots, graph matching) | [PNG](stacked-planes/stacked-planes.png) |
 
 ## Maintaining (in the repository)

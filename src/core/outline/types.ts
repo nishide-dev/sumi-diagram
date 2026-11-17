@@ -30,6 +30,24 @@ export interface OutlineLayer {
   readonly shade?: OutlineShade;
   /** Line only: an inner edge of a solid, thinner and lighter than the silhouette (param `innerStroke`). */
   readonly inner?: true;
+  /** Line only: a grid line of a solid's cells (#576), thinner and paler than the inner edges. */
+  readonly grid?: true;
+  /** More open lines painted with the same attributes as `path` (the many lines of a grid). */
+  readonly more?: readonly OutlinePath[];
+  /** The index of the highlighted sub-block (param `blocks`) this layer belongs to, if any (#576). */
+  readonly block?: number;
+}
+
+/** A named sub-block of a solid (#576): its silhouette, faces and bounding box. */
+export interface OutlinePart {
+  readonly box: Rect;
+  readonly outline: readonly Point[];
+  /** The three visible faces and the hidden left face, each as 4 corners: front-top, back-top, back-bottom, front-bottom for the left and right (side) faces. */
+  readonly faces: {
+    readonly front: readonly Point[];
+    readonly side: readonly Point[];
+    readonly left: readonly Point[];
+  };
 }
 
 export interface OutlineDrawing {
@@ -41,6 +59,8 @@ export interface OutlineDrawing {
    * straightened along the extents of their boxes.
    */
   readonly solid?: true;
+  /** Named sub-blocks of a solid (#576): the targets of references `<node>.<name>`. */
+  readonly parts?: Readonly<Record<string, OutlinePart>>;
   /** The visible faces a `faceContacts` end may slide along (parallelograms), with `faceContacts`. */
   /**
    * Where an edge without an anchor ends on a visible face of a solid instead of the silhouette

@@ -306,8 +306,12 @@ function nodeShape(node: NodeIR, r: Rect): string {
     return drawing.layers
       .map((layer) => {
         const solid = solidLayerAttributes(node, layer);
-        if (solid !== undefined)
-          return `<path d="${pathData(layer.path.points, layer.path.closed)}"${solid}/>`;
+        if (solid !== undefined) {
+          const d = [layer.path, ...(layer.more ?? [])]
+            .map((path) => pathData(path.points, path.closed))
+            .join(" ");
+          return `<path d="${d}"${solid}/>`;
+        }
         const fill = layer.role === "line" ? "none" : paint(style.fill);
         const signal =
           layer.role === "line" ? ' stroke-linecap="round" stroke-linejoin="round"' : "";
@@ -325,7 +329,14 @@ function nodeShape(node: NodeIR, r: Rect): string {
         // size and close the gap between a final marker's ring and dot.
         if (node.render?.renderer === "sumi/state-marker")
           return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}" stroke="none"/>`;
-        return `<path d="${pathData(layer.path.points, layer.path.closed)}" fill="${fill}"${strokeAttributes(typeof frameStroke === "string" || signalStroke !== undefined ? { ...style, stroke: signalStroke ?? (frameStroke as string) } : style)}${signal}/>`;
+        // The silhouette of a cuboid with a grid or blocks (#576) is marked for the editable PPTX.
+        const marked =
+          node.render?.renderer === "sumi/cuboid" &&
+          typeof node.render.params?.cells === "string" &&
+          layer.role === "line"
+            ? ' class="sumi-solid-outline"'
+            : "";
+        return `<path d="${pathData(layer.path.points, layer.path.closed)}"${marked} fill="${fill}"${strokeAttributes(typeof frameStroke === "string" || signalStroke !== undefined ? { ...style, stroke: signalStroke ?? (frameStroke as string) } : style)}${signal}/>`;
       })
       .join("");
   }
