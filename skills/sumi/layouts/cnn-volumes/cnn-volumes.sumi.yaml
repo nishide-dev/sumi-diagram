@@ -1,0 +1,73 @@
+# Layout: a left-to-right row of cuboids that shrink in height and grow in thickness, with their sizes written on them and a legend underneath (a VGG-style CNN).
+#
+# Use when: a network is drawn as volumes (convolution blocks, pooling, fully connected layers,
+#   feature maps) and the sizes (channels, spatial resolution) are part of the message; one wide
+#   row, the figure fills a double column (`paper-double`).
+# Structure: one `row` (`align: end`, so every front face stands on one line) of `cuboid` nodes
+#   (`tinted`; blue = convolution, orange = pooling, green = fully connected, gray = input);
+#   thickness (`width`) = channels, front height and `depth` = spatial size; consecutive
+#   convolutions of one block sit in a nested row with a small gap and carry `dims` once, on
+#   the middle one (`width`: channels above, `height`: resolution below); a `legend` row
+#   explains the colours. Edges leave the right of one front face and enter the left of the next.
+# Change: the number of blocks (copy a block row and keep the heights shrinking); the sizes
+#   (`width` for channels, `height` and `depth` together for the resolution); the `dims`
+#   texts; the projection (`figure.projection`: angle 30 makes a flatter, wider solid,
+#   `depthScale` the depth). Leave a label empty on a thin plate and use `dims`; a skip
+#   connection leaves a top port written as `north:0.85` so it clears the width text.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: cnn-volumes
+  theme: sumi
+  profile: paper-double
+  projection: {angle: 45, depthScale: 0.5}
+  layout:
+    arrange:
+      stack:
+        gap: 12mm
+        align: start
+        items:
+          - row:
+              gap: 4.5mm
+              align: end
+              items:
+                - input
+                - row: {gap: 1mm, align: end, items: [a1, a2]}
+                - pool-a
+                - row: {gap: 1mm, align: end, items: [b1, b2]}
+                - pool-b
+                - row: {gap: 1mm, align: end, items: [c1, c2]}
+                - pool-c
+                - row: {gap: 6mm, align: end, items: [fc1, fc2]}
+          - key
+nodes:
+  - {id: input, component: cuboid, tone: gray, variant: tinted, props: {width: 1.5mm, height: 28mm, depth: 28mm, dims: {width: "3", height: "224²"}}}
+  - {id: a1, component: cuboid, tone: blue, variant: tinted, props: {width: 4mm, height: 28mm, depth: 28mm}}
+  - {id: a2, component: cuboid, tone: blue, variant: tinted, props: {width: 4mm, height: 28mm, depth: 28mm, dims: {width: "64"}}}
+  - {id: pool-a, component: cuboid, tone: orange, variant: tinted, props: {width: 4mm, height: 20mm, depth: 20mm}}
+  - {id: b1, component: cuboid, tone: blue, variant: tinted, props: {width: 6mm, height: 20mm, depth: 20mm}}
+  - {id: b2, component: cuboid, tone: blue, variant: tinted, props: {width: 6mm, height: 20mm, depth: 20mm, dims: {width: "128", height: "112²"}}}
+  - {id: pool-b, component: cuboid, tone: orange, variant: tinted, props: {width: 4mm, height: 14mm, depth: 14mm}}
+  - {id: c1, component: cuboid, tone: blue, variant: tinted, props: {width: 8mm, height: 14mm, depth: 14mm}}
+  - {id: c2, component: cuboid, tone: blue, variant: tinted, props: {width: 8mm, height: 14mm, depth: 14mm, dims: {width: "256", height: "56²"}}}
+  - {id: pool-c, component: cuboid, tone: orange, variant: tinted, props: {width: 4mm, height: 10mm, depth: 10mm}}
+  - {id: fc1, component: cuboid, tone: green, variant: tinted, props: {width: 2mm, height: 28mm, depth: 2mm, dims: {width: "4096"}}}
+  - {id: fc2, component: cuboid, tone: green, variant: tinted, props: {width: 2mm, height: 28mm, depth: 2mm, dims: {width: "1000"}}}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {component: cuboid, variant: tinted, tone: gray}, label: input}
+        - {node: {component: cuboid, variant: tinted, tone: blue}, label: convolution + ReLU}
+        - {node: {component: cuboid, variant: tinted, tone: orange}, label: max pooling}
+        - {node: {component: cuboid, variant: tinted, tone: green}, label: fully connected}
+edges:
+  - {from: input, to: a1}
+  - {from: a2, to: pool-a}
+  - {from: pool-a, to: b1}
+  - {from: b2, to: pool-b}
+  - {from: pool-b, to: c1}
+  - {from: c2, to: pool-c}
+  - {from: pool-c, to: fc1}

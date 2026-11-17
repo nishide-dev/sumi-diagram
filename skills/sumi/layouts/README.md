@@ -61,6 +61,7 @@ profile is the usual `figure.theme` / `figure.profile` edit (a slide needs
 | [nested-containers](nested-containers/nested-containers.sumi.yaml) | System frame holding subsystem frames, external actors outside | What lives inside what and what crosses the boundaries | [PNG](nested-containers/nested-containers.png) |
 | [client-service-data](client-service-data/client-service-data.sumi.yaml) | Clients, entry, services, data stores as four columns | System overviews, backends, serving stacks | [PNG](client-service-data/client-service-data.png) |
 | [microservices-bus](microservices-bus/microservices-bus.sumi.yaml) | Producers above and consumers below one shared bus (one column) | Event bus, message queue, pub/sub | [PNG](microservices-bus/microservices-bus.png) |
+| [cnn-volumes](cnn-volumes/cnn-volumes.sumi.yaml) | A row of cuboids (convolution, pooling, fully connected) with channel and size texts and a legend | A network drawn as volumes whose sizes matter (VGG-style CNN, feature maps) | [PNG](cnn-volumes/cnn-volumes.png) |
 
 ## Maintaining (in the repository)
 

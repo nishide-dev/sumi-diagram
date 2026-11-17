@@ -14,7 +14,7 @@ Contents: [minimal example](#minimal-example) · [engine rules](#engine-rules) �
 [turned labels](#turned-labels) · [text align](#text-align) · [attach](#attach-side-notes) ·
 [align](#aligning-across-trees) · [tables](#tables) ·
 [edges](#edges-anchors-junctions-and-trunks) · [crossings](#crossings-layoutedge-crossing) ·
-[legends](#legends) · [zoom](#zoom-callouts) · [brackets](#brackets) ·
+[legends](#legends) · [zoom](#zoom-callouts) · [cuboids](#cuboids) · [brackets](#brackets) ·
 [tokens](#token-sequences) · [matrices](#matrices) · [spacing](#spacing-that-routes) ·
 [fixing layout codes](diagnostics.md#fixing-layout)
 
@@ -1376,6 +1376,72 @@ larger gap decides): place the target beside, above or below the source (overlap
 are `layout/no-route`). It is not routed: other lines may cross it, it is left out of
 `layout/edge-crossing`, and a node in its way is `geometry/zoom-crosses-node` (warning):
 move the node, or the source or view.
+
+## Cuboids
+
+A **`cuboid`** draws a solid in oblique projection (CNN layers, feature maps,
+volumes): a front face, a top and a side. Set `props.width` and `height` (the
+front face) and `depth`. Depth runs back up and right: **`figure.projection`**
+(`angle`, default 45 degrees, 10 to 80; `depthScale`, default 0.5, up to 2) sets
+where. 45 / 0.5 matches the up-right offset of group `layers`; 30 gives a flatter,
+wider solid for a long row. The projection is figure-wide, never per node.
+
+- **Footprint.** The node's box is the whole silhouette: the front face plus the
+  offset `dx = depthScale * depth * cos(angle)` to the right and
+  `dy = depthScale * depth * sin(angle)` upward. Place and gap it like any node; an
+  `align: end` row keeps the fronts' bottoms on one line. Draw order is document order:
+  list left to right so a right neighbour's front covers the left one's side.
+- **Colour.** `tone` with variant `tinted` (a pale fill with a toned frame) matches
+  published CNN figures; `default`, `muted` and `solid` work too. The top is lighter
+  and the side darker than the front, derived from the fill by the theme (sumi-dark
+  lights the top and darkens the side toward the canvas). The frame is the
+  silhouette; the three inner edges are thinner and lighter. Corners are never rounded.
+- **Label and `dims`.** A `label` sits on the front face and widens it. A thin plate holds
+  no text: leave the label empty and give **`props.dims`**: `width` above the
+  silhouette, `height` below the front face, `depth` at the lower right. Each is a label
+  node (`<id>-dim-width`, `-dim-height`, `-dim-depth`) attached to the cuboid, always
+  horizontal, so `lint --geometry` sees overflow and collisions. The axes are yours to
+  assign (CNN: width = channels, front = spatial size). Put dims once per column of
+  consecutive layers (on the middle one) and give a column the room: neighbours closer than
+  the text collide (`geometry/label-collision`).
+- **Edges.** Unanchored, an edge meets the left of the front face (its middle), the
+  right where the front's middle-height line leaves the silhouette, the bottom at the
+  front's bottom middle and the top at the back edge's middle. The collision outline is
+  the whole silhouette. A written anchor (`south`) is the middle of the box as for any
+  node: write `north:0.85` and the like to leave the top near its right end, so a skip
+  connection clears the width `dims` text.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: cnn-fragment
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: {row: {gap: 8mm, align: end, items: [x, conv, pool]}}
+nodes:
+  - id: x
+    component: cuboid
+    tone: gray
+    variant: tinted
+    props: {width: 1.5mm, height: 24mm, depth: 24mm, dims: {width: "3", height: "224²"}}
+  - id: conv
+    component: cuboid
+    tone: blue
+    variant: tinted
+    props: {width: 5mm, height: 24mm, depth: 24mm, dims: {width: "64"}}
+  - id: pool
+    component: cuboid
+    tone: orange
+    variant: tinted
+    props: {width: 5mm, height: 16mm, depth: 16mm}
+edges:
+  - {from: x, to: conv}
+  - {from: conv, to: pool}
+```
+
+Solid grids, highlighted blocks and tilted planes are not part of `cuboid` yet.
 
 ## Brackets
 
