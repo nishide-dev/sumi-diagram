@@ -343,6 +343,76 @@ edges:
     });
   }
 
+  const faces = (axis: "row" | "stack", route: string, ports = "face", label = "") => `version: 1
+figure:
+  id: faces
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: { ${axis}: { gap: 16mm, align: ${axis === "row" ? "end" : "center"}, items: [${axis === "row" ? "a, b" : "b, a"}] } }
+nodes:
+  - { id: a, component: cuboid, label: "${label}", props: { ports: ${ports}, width: 6mm, height: 20mm, depth: 20mm } }
+  - { id: b, component: cuboid, label: "${label}", props: { ports: ${ports}, width: 6mm, height: 20mm, depth: 20mm } }
+edges:
+  - { from: a, to: b${route} }
+`;
+  for (const route of ["", ", route: straight", ", route: curve"]) {
+    test(`ports: face ends an east edge at the side face's centroid (route${route || ": default"})`, async () => {
+      const value = await render(faces("row", route));
+      const points = value.layout.edges[0]?.route?.points ?? [];
+      const a = centreOf(value, "a").rect;
+      const node = value.compiled.ir.nodes.find((n) => n.id === "a");
+      const { dx, dy } = cuboidOffset(cuboid.params.parse(node?.render?.params));
+      // The side face's centroid: the front's right edge moved by half the depth offset, at the box's middle height.
+      expect(points[0]?.x).toBeCloseTo(a.x + a.width - dx / 2, 0);
+      expect(points[0]?.y).toBeCloseTo(a.y + a.height / 2, 0);
+      expect(dy).toBeGreaterThan(0);
+      // The target's west face is hidden: it keeps the silhouette contact.
+      const b = centreOf(value, "b").rect;
+      expect(distanceToSilhouette(value, "b", points.at(-1) ?? { x: 1e9, y: 1e9 })).toBeLessThan(
+        0.6,
+      );
+      expect(points.at(-1)?.x).toBeCloseTo(b.x, 0);
+    });
+
+    test(`ports: face ends a north edge at the top face's centroid; south keeps the silhouette (route${route || ": default"})`, async () => {
+      const value = await render(faces("stack", route));
+      const points = value.layout.edges[0]?.route?.points ?? [];
+      const a = centreOf(value, "a").rect;
+      const node = value.compiled.ir.nodes.find((n) => n.id === "a");
+      const { dy } = cuboidOffset(cuboid.params.parse(node?.render?.params));
+      // a is below b: its edge leaves its top face, at the middle x and half the depth offset down.
+      expect(points[0]?.x).toBeCloseTo(a.x + a.width / 2, 0);
+      expect(points[0]?.y).toBeCloseTo(a.y + dy / 2, 0);
+      // b's south end is on the silhouette's lower edge.
+      expect(distanceToSilhouette(value, "b", points.at(-1) ?? { x: 1e9, y: 1e9 })).toBeLessThan(
+        0.6,
+      );
+    });
+  }
+
+  test("ports: face keeps written anchors and is not straightened against unequal neighbours", async () => {
+    const anchored = await render(
+      faces("row", ", fromAnchor: east:0.3").replace("ports: face", "ports: face"),
+    );
+    const start = anchored.layout.edges[0]?.route?.points[0];
+    const a = centreOf(anchored, "a").rect;
+    expect(distanceToSilhouette(anchored, "a", start ?? { x: 1e9, y: 1e9 })).toBeLessThan(0.6);
+    expect(start?.y).toBeCloseTo(a.y + 0.3 * a.height, 0);
+  });
+
+  test("ports: face has no lint findings (the stretch over its own face is intended), centre unchanged by default", async () => {
+    for (const label of ["", "L"]) {
+      const value = await render(faces("row", "", "face", label));
+      expect(lintGeometry(value).filter((d) => d.severity !== "info")).toEqual([]);
+    }
+    const plain = await render(faces("row", "", "center"));
+    const dflt = await render(faces("row", "", "center").replace("ports: center, ", ""));
+    expect(dflt.layout.edges[0]?.route).toEqual(plain.layout.edges[0]?.route);
+    const a = centreOf(plain, "a").rect;
+    expect(plain.layout.edges[0]?.route?.points[0]?.x).toBeCloseTo(a.x + a.width, 0);
+  });
+
   const fan = (mode: string, out = false) => `version: 1
 figure:
   id: fan

@@ -21,6 +21,8 @@ export const cuboidParams = z.strictObject({
   depth: z.number().positive().default(16),
   angle: z.number().min(10).max(80).default(DEFAULT_PROJECTION_ANGLE),
   depthScale: z.number().positive().max(2).default(DEFAULT_DEPTH_SCALE),
+  /** Where edges without an anchor touch: the 3D centre's silhouette contact, or the visible faces' centres. */
+  ports: z.enum(["center", "face"]).default("center"),
   /** Face colors derived from the node's fill by the theme (internal). */
   topFill: color.optional(),
   sideFill: color.optional(),
@@ -95,6 +97,14 @@ export const cuboid: OutlineRenderer<CuboidParams> = {
       // Edges aim at the projected centre, the middle of the box (the front's centre moved by
       // (dx/2, -dy/2)), and meet the silhouette on the way in.
       solid: true,
+      // Opt-in (`ports: face`): the top and the side face are visible, so an edge on them ends at
+      // the centroid of the face (the other two faces are hidden and keep the silhouette contact).
+      ...(params.ports === "face" && {
+        faceContacts: {
+          north: pt(fx + w / 2 + dx / 2, y + dy / 2),
+          east: pt(fx + w + dx / 2, y + (dy + h) / 2),
+        },
+      }),
       safeArea: { x: fx, y: fy, width: w, height: h },
     };
   },

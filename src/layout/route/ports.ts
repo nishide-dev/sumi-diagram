@@ -59,6 +59,13 @@ export function isSolid(node: NodeIR | undefined, rect: Rect): boolean {
   return drawing?.solid === true;
 }
 
+/** Where an unanchored edge ends on a visible face of a solid (cuboid `ports: face`, #575), if it does. */
+export function faceContactOf(node: NodeIR | undefined, rect: Rect, side: Side): Point | undefined {
+  if (node?.render === undefined) return undefined;
+  const renderer = getOutlineRenderer(node.render.renderer);
+  return renderer?.draw(rect, renderer.params.parse(node.render.params ?? {})).faceContacts?.[side];
+}
+
 /** The shape a node draws, as a convex region (its bounding box for `text`). */
 export function nodeRegion(node: NodeIR, rect: Rect): Region {
   if (node.render !== undefined) {
@@ -1467,6 +1474,12 @@ function resolveEndsWith(
       continue;
     const [a, b] = [element(edge.from), element(edge.to)];
     if (!isSolid(a.node, a.rect) && !isSolid(b.node, b.rect)) continue;
+    // Face ends stay at the centre of their face: they are not straightened against neighbours.
+    if (
+      faceContactOf(a.node, a.rect, from.side) !== undefined ||
+      faceContactOf(b.node, b.rect, to.side) !== undefined
+    )
+      continue;
     const spanA = sideSpan(edge.from, from.side);
     const spanB = sideSpan(edge.to, to.side);
     const lo = Math.max(spanA.lo, spanB.lo);
@@ -1616,6 +1629,18 @@ function resolveEndsWith(
         };
       }
     }
+    // A solid with `ports: face` (#575): an unanchored end on its top or side face goes in to the
+    // centre of that face, on the line of its default port; a moved end keeps the silhouette.
+    const contact = choice.anchored ? undefined : faceContactOf(self.node, self.rect, choice.side);
+    if (
+      contact !== undefined &&
+      Math.abs(
+        choice.side === "north" || choice.side === "south"
+          ? port.x - contact.x
+          : port.y - contact.y,
+      ) < 0.5
+    )
+      outline = { x: roundUnits(contact.x), y: roundUnits(contact.y) };
     return {
       key,
       junction: false,

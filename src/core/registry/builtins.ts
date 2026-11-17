@@ -136,6 +136,12 @@ const cuboid: NodeManifest = {
     depth: SizeLength.describe(
       'Depth of the solid as a length such as "30mm" before figure.projection scales it (cabinet projection draws it half as long).',
     ),
+    ports: z
+      .enum(["center", "face"])
+      .optional()
+      .describe(
+        "Where an edge without an anchor touches the solid: center (default) meets the silhouette on the line through its projected 3D centre; face ends an edge on the east (right) side at the centre of the visible side face and on the north (top) side at the centre of the top face, drawn over the face (west and south faces are hidden: they keep the center contact). Written anchors keep their meaning; face ends are not straightened against neighbours.",
+      ),
     dims: z
       .strictObject({
         width: CUBOID_DIM.describe(

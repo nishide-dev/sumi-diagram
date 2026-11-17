@@ -96,6 +96,8 @@ export function addDirectRoutes(
       targetDrawing?.fixedPort === undefined
         ? rawOf(target, edge.toAnchor)
         : anchorPoint(target, targetDrawing.fixedPort);
+    // Ends on a visible face of their own solid (`ports: face`, #575): the line leaves over that face.
+    const faceEnds = new Set<ElementKey>();
     const end = (
       key: ElementKey,
       r: Rect,
@@ -107,6 +109,22 @@ export function addDirectRoutes(
       if (isJunction(node)) return center(r);
       const fixed = drawing(key, r)?.fixedPort;
       if (fixed !== undefined) return anchorPoint(r, fixed);
+      // A solid with `ports: face` (#575): an unanchored end toward the right or the top ends at the
+      // centre of that visible face.
+      if (anchor === undefined || anchor === "straight") {
+        const faces = drawing(key, r)?.faceContacts;
+        if (faces !== undefined) {
+          const c = center(r);
+          const [dx, dy] = [other.x - c.x, other.y - c.y];
+          const side =
+            Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "east" : "west") : dy < 0 ? "north" : "south";
+          const contact = faces[side];
+          if (contact !== undefined) {
+            faceEnds.add(key);
+            return { x: roundUnits(contact.x), y: roundUnits(contact.y) };
+          }
+        }
+      }
       // Explicit anchors are projected radially onto the silhouette. Automatic
       // ends trace the line from the other end towards this shape's centre.
       const from = anchor === undefined || anchor === "straight" ? other : rawPoint;
@@ -169,7 +187,7 @@ export function addDirectRoutes(
     // A side explicitly facing away would make the line pass through its end.
     const enters = (key: ElementKey, r: Rect, p: Point, q: Point) => {
       const node = nodes.get(key);
-      if (isJunction(node)) return false;
+      if (isJunction(node) || faceEnds.has(key)) return false;
       const painted = drawing(key, r);
       if (painted !== undefined)
         return (painted.boundaries ?? [painted.outline]).some((polygon) =>
