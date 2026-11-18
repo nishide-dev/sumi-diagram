@@ -6,11 +6,13 @@ export function sampleSource(
   theme: string,
   profile: string,
   palette?: string,
+  canvas?: string,
 ): string {
   const doc = parseDocument(source);
   if (doc.errors.length) throw new Error(`Invalid sample YAML: ${doc.errors.join(", ")}`);
   doc.setIn(["figure", "theme"], theme);
   doc.setIn(["figure", "profile"], profile);
   if (palette !== undefined) doc.setIn(["figure", "themeOverrides", "palette"], palette);
+  if (canvas !== undefined) doc.setIn(["figure", "themeOverrides", "canvas"], canvas);
   return doc.toString();
 }

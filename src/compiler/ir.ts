@@ -74,7 +74,7 @@ import { cuboidColors, cuboidShadeOf, mixColors } from "../core/theme/cuboid-sha
 import { dimmedElements } from "../core/theme/dim";
 import type { FontSetId } from "../core/theme/fonts";
 import { contrastRatio, pageTextContrast } from "../core/theme/node-variants";
-import { figureTheme } from "../core/theme/overrides";
+import { canvasTheme, figureTheme } from "../core/theme/overrides";
 import { resolveStyle } from "../core/theme/resolve";
 import type { Theme, ThemeArrowhead } from "../core/theme/schema";
 import { resolveSetStyle, type SetStyle } from "../core/theme/set-style";
@@ -579,7 +579,8 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   }
   const { doc } = state;
   const figure = doc.figure;
-  const theme = figure && getTheme(figure.theme);
+  const builtin = figure && getTheme(figure.theme);
+  const theme = builtin && canvasTheme(builtin, figure.themeOverrides);
   const profile = figure && getProfile(figure.profile);
   if (!figure || !theme || !profile || !doc.groups || !doc.nodes || !doc.edges) {
     throw new Error("internal error: incomplete figure without error diagnostics");

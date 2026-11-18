@@ -40,6 +40,11 @@
           "description": "Figure-wide refinements of the selected built-in theme. Omitted fields preserve the theme.",
           "type": "object",
           "properties": {
+            "canvas": {
+              "description": "Exact #RRGGBB canvas (page) color replacing the theme's: sumi is white by default and `#f8f8ee` brings back its former cream. Colors derived from the canvas (palette variants, cuboid faces, set overlaps, dimming) and the contrast lints follow it. figure.background: transparent still leaves the outer background unpainted.",
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
             "palette": {
               "description": "Built-in color palette (sumi catalog --section palettes): recolors text, frames, lines, panels, filled and tinted nodes, the gray tone and emphasis of the theme. Other tones, sizes and fonts stay the theme's; tones, groupFill and groupStroke below refine it.",
               "type": "string",

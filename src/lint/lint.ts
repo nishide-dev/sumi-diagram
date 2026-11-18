@@ -9,6 +9,7 @@ import { clampCaptionPaths } from "../core/figure/caption";
 import type { FigureCheck } from "../core/figure/check";
 import { remapTokensPaths } from "../core/figure/tokens";
 import { getTheme } from "../core/theme/builtin";
+import { canvasTheme } from "../core/theme/overrides";
 import { type LintConfig, type ResolvedLintConfig, resolveLintConfig } from "./config";
 import { type AnyLintRule, createLintContext, isStructuralRule, toDiagnostic } from "./rule";
 
@@ -55,7 +56,11 @@ export interface LintOptions extends CheckOptions {
 export function runLintRules(check: FigureCheck, config: ResolvedLintConfig): Diagnostic[] {
   const { state, locate } = check;
   const themeId = state.doc.figure?.theme;
-  const context = createLintContext(state, themeId === undefined ? undefined : getTheme(themeId));
+  const builtin = themeId === undefined ? undefined : getTheme(themeId);
+  const context = createLintContext(
+    state,
+    builtin && canvasTheme(builtin, state.doc.figure?.themeOverrides),
+  );
   const diagnostics = config.rules.flatMap(({ rule, severity, options }) =>
     !isStructuralRule(rule)
       ? []

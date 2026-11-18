@@ -344,12 +344,16 @@ describe("projected planes: default output is unchanged", () => {
   test.each(Object.keys(BASELINE))("%s: the SVG is the one origin/main drew", async (name) => {
     const [shape, plane, inPlane] = name.split("/") as [string, string, string];
     for (const contents of ["", "upright"]) {
-      const text = source({ contents, shape, plane, inPlane }).replaceAll(", route: auto", "");
+      // origin/main drew `sumi` on its cream canvas (white since #595), which the override restores.
+      const text = source({ contents, shape, plane, inPlane })
+        .replaceAll(", route: auto", "")
+        .replace("  profile:", '  themeOverrides: { canvas: "#f8f8ee" }\n  profile:');
       const value = await render(text);
       const hash = createHash("sha256")
         .update(
           value.svg
             .replace(/input-sha256="[^"]*"/, "")
+            .replace(/ canvas="[^"]*"/, "")
             .replace(/(sumi-version|backend-version)="[^"]*"/g, '$1="0.18.2"'),
         )
         .digest("hex");

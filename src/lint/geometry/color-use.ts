@@ -21,6 +21,7 @@
 
 import { getTheme } from "../../core/theme/builtin";
 import { deltaE, toOklch } from "../../core/theme/color-math";
+import { canvasTheme } from "../../core/theme/overrides";
 import { resolveStyle } from "../../core/theme/resolve";
 import type { Theme, ThemeColorUse } from "../../core/theme/schema";
 import { defineGeometryRule, type LintFinding } from "../rule";
@@ -250,7 +251,8 @@ export const themeColorUse = defineGeometryRule({
   fixable: false,
   run(context) {
     const { ir } = context;
-    const theme = getTheme(ir.meta.themeId);
+    const builtin = getTheme(ir.meta.themeId);
+    const theme = builtin && canvasTheme(builtin, ir.meta.themeOverrides);
     const guidance = theme?.colorUse;
     if (guidance === undefined) return [];
     return colorUseFindings(ir.meta.themeId, ir.meta.id, context.elements, guidance, theme);

@@ -225,7 +225,9 @@ nodes:
       if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
       return result.value.svg;
     };
-    const plain = await svgOf(fixture);
+    // The golden is from before the white `sumi` canvas (#595): the override restores the cream.
+    const cream = '  themeOverrides: { canvas: "#f8f8ee" }\n';
+    const plain = await svgOf(fixture.replace("  profile:", `${cream}  profile:`));
     // The metadata carries the Sumi version, which changes at every release.
     const drawing = plain.replace(/<metadata>[\s\S]*?<\/metadata>/, "");
     expect(new Bun.CryptoHasher("sha256").update(drawing).digest("hex")).toBe(golden.sha256);
@@ -233,7 +235,10 @@ nodes:
     const strip = (svg: string) =>
       svg.replace(/<metadata>[\s\S]*?<\/metadata>/, "").replace(/sumi-\d+/g, "sumi-x");
     const one = await svgOf(
-      fixture.replace("  profile:", "  themeOverrides: { textScale: 1 }\n  profile:"),
+      fixture.replace(
+        "  profile:",
+        '  themeOverrides: { canvas: "#f8f8ee", textScale: 1 }\n  profile:',
+      ),
     );
     expect(strip(one)).toBe(strip(plain));
   });

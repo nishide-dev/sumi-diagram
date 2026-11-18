@@ -10,7 +10,7 @@
 | <code>color</code> | General\-purpose theme with color: pastel tone fills, blue accent for emphasis | <code>sumi/biz\-ud\-gothic</code> |
 | <code>paper</code> | Color ML\-paper style: pastel tones, rounded corners, 1pt frames and 0\.5pt edges, white panels with a thin light gray frame \(gray only when asked: the filled variant, groupFill\), Inter for Latin text | <code>sumi/inter\-biz\-ud\-gothic</code> |
 | <code>llama</code> | After Meta's Llama 4 MoE figure: slate lines with open arrowheads, gray\-framed white blocks, dark slate solid blocks, blue accent emphasis, borderless pale panels, Inter for Latin text | <code>sumi/inter\-biz\-ud\-gothic</code> |
-| <code>sumi</code> | Warm cream canvas with navy ink and sand accents | <code>sumi/inter\-biz\-ud\-gothic</code> |
+| <code>sumi</code> | White canvas with navy ink and sand accents \(themeOverrides\.canvas brings back the cream \#f8f8ee\) | <code>sumi/inter\-biz\-ud\-gothic</code> |
 | <code>sumi\-dark</code> | Navy canvas with cream ink and sand accents | <code>sumi/inter\-biz\-ud\-gothic</code> |
 
 ## The structured Transformer under every theme

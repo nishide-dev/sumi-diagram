@@ -1,7 +1,7 @@
 import { getOutlineRenderer } from "../../core/outline";
 import { type CuboidParams, cuboidBlocks } from "../../core/outline/cuboid";
-import { getTheme } from "../../core/theme/builtin";
 import { contrastRatio } from "../../core/theme/node-variants";
+import { figureCanvas } from "../../core/theme/overrides";
 import type { Point } from "../../render/geometry";
 import { defineGeometryRule, type LintFinding } from "../rule";
 import { covers, normalized, over, type PaintItem, paintItemsOf, surfaceAt } from "./composite";
@@ -81,7 +81,8 @@ export const strokeContrast = defineGeometryRule({
   run(context) {
     const items = withFaceShades(context, paintItemsOf(context));
     const order = new Map(context.elements.map((element, index) => [element.key, index]));
-    const canvas = getTheme(context.ir.meta.themeId)?.canvas ?? "#ffffff";
+    const canvas =
+      figureCanvas(context.ir.meta.themeId, context.ir.meta.themeOverrides) ?? "#ffffff";
     const findings: LintFinding[] = [];
     // Dimming (#175) makes an element pale on purpose.
     const dimmed = new Set(context.ir.dimmed ?? []);
