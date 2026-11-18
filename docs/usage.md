@@ -38,6 +38,22 @@ Installer options: `SUMI_VERSION` accepts a version with or without `v`; otherwi
 
 For mirrors and offline installation, `SUMI_LATEST_URL` overrides the latest-release API endpoint with an HTTP(S) URL, curl's `file://` URL, or an absolute local JSON file path containing `tag_name`. Reinstalling the same version stages a fresh copy inside the installation home, then replaces that version's directory.
 
+## Updating
+
+`sumi update` resolves the latest release (the same `SUMI_LATEST_URL` and `SUMI_DOWNLOAD_BASE` overrides as the installer; only the GitHub release API and the release assets are contacted), downloads the tarball for this platform, verifies it against `SHA256SUMS`, unpacks it next to the current release in `SUMI_HOME`, runs the new `sumi --version`, and only then renames the new directory into place and switches the `SUMI_BIN_DIR/sumi` symlink with one atomic rename. A failed or interrupted update (network, checksum mismatch, bad archive) leaves the installed version working. The previous release directory is removed after the switch. If Sumi is already the requested version, nothing happens.
+
+| Command | Behavior |
+| --- | --- |
+| `sumi update` | Update to the latest release |
+| `sumi update --check` | Report only. Exit 0: up to date; 1: an update is available; 2: the check failed |
+| `sumi update --version <x>` | Install that version (a leading `v` is optional). Older versions are allowed, so this also downgrades |
+
+`sumi update` only handles installs that match what `install.sh` creates (`<SUMI_HOME>/sumi-<version>-<target>/bin/sumi`, found from the running executable with symlinks resolved; `SUMI_HOME`, if set, must be that directory). Otherwise it exits 2, prints the installer command and changes nothing. If the `sumi` link in `SUMI_BIN_DIR` does not point at the running release, the new release is installed but the link and the old release are left alone.
+
+**Notices.** `sumi doctor` (and no other command) looks at the latest release at most once a day, with a 2 second timeout, and caches the result in `$XDG_CACHE_HOME/sumi/update-check.json` (default `~/.cache/sumi`). A newer release adds one line: `Sumi X is available (you have Y): run `sumi update``. Offline or failing checks print nothing and are retried after an hour. The check is skipped when `CI` is set, with `SUMI_NO_UPDATE_CHECK=1` or `sumi doctor --no-update-check`, and when running from a source checkout. `--json` adds an `update` object when a check ran.
+
+**Skill version.** `skills/sumi/SKILL.md` carries the release version in `metadata.version`, and the Skill's first step runs `sumi doctor --skill-version <that version>`. If the Skill is older than the CLI doctor suggests `npx skills update sumi`; if the CLI is older, `sumi update`. `--json` adds a `skill` object.
+
 ## CLI commands
 
 Use `sumi --help` and `sumi <command> --help`. For source development, use `bun src/cli/index.ts <command>` or `bun link`; see [Contributing](../CONTRIBUTING.md).
@@ -60,7 +76,8 @@ sumi catalog --json --section themes --section profiles
 | `render <file>` | Compile and render SVG/PDF/PPTX; run geometry lint by default. `-o, --out`, `--format svg\|pdf\|pptx`, `--pptx-mode picture\|editable` (editable is experimental), `--pptx-connectors freeform\|glued` (editable only), `--emit-d2`, `--theme`, `--profile`, `--no-geometry`, `--json`. Only SVG supports `-o -` (stdout). |
 | `lint <files...>` | Validate schema, references, components, assets, themes/profiles, and structural rules without drawing. `--geometry` also renders in memory and checks geometry without writing files. `--json`, `--config <lint.json>`, repeated `--rule <id>=<level>` (including `geometry/*`), `--max-warnings <n>` across all input files. See [lint rules](lint-rules.md). |
 | `fmt <files...>` | Format YAML without changing meaning; preserve comments, quotes, and key order. Invalid YAML is not rewritten. `--check` lists unformatted files without writing; `--stdout` prints YAML; `--canonical-order` sorts known keys into schema order. Flow collections print without inner padding (`{a: 1}`, `[a, b]`); a flow `grid` `items` with several rows prints one grid row per line (`columns` cells, counting `span`). |
-| `doctor` | Check Sumi/runtime versions, D2, bundled font hashes and geometry metrics. `--json`. |
+| `doctor` | Check Sumi/runtime versions, D2, bundled font hashes and geometry metrics. `--json`; `--no-update-check`; `--skill-version <x>` (see [Updating](#updating)). |
+| `update` | Replace the install with the latest release (or `--version <x>`). `--check` only reports. See [Updating](#updating). |
 | `catalog` | List components, themes, profiles, icon sets, placement targets and set enclosures. `--json`; repeated `--section components\|themes\|profiles\|icons\|targets\|sets`; `--kind node\|group\|edge` (without a section, returns only components); `--icons <words>` searches bundled icons, `--icons ""` lists all icon names. |
 
 `--background canvas|transparent` overrides `figure.background` (default `canvas`) for SVG, PDF and both PPTX modes, including `--json`. Transparent removes only the outer canvas; label backgrounds and node fills remain. Contrast and lint still assume the theme canvas. `sumi lint --geometry` accepts the same flag; its findings do not change, since lint always measures against the theme canvas.
@@ -85,8 +102,8 @@ Auto layout uses D2/ELK and `figure.layout.direction`. Structured layout uses Su
 | Code | Meaning |
 | --- | --- |
 | 0 | Success; warnings and info are allowed |
-| 1 | Diagnostics contain errors (including geometry errors, with output retained); warnings exceed `--max-warnings`; fmt check finds unformatted files or input is invalid YAML; required doctor checks fail |
-| 2 | Usage/internal error: invalid flags/config, unreadable/unwritable files, unknown theme/profile, exceptions |
+| 1 | Diagnostics contain errors (including geometry errors, with output retained); warnings exceed `--max-warnings`; fmt check finds unformatted files or input is invalid YAML; required doctor checks fail; `update --check` finds an update |
+| 2 | Usage/internal error: invalid flags/config, unreadable/unwritable files, unknown theme/profile, exceptions; a refused or failed `update` |
 
 Color is terminal-only; `--no-color` or `NO_COLOR=1` disables it, `FORCE_COLOR=1` forces it. Usage errors are one line without a stack trace; set `SUMI_DEBUG=1` for internal-error stacks. If a downstream reader closes a pipe (EPIPE), remaining output is silently discarded and the command retains its own exit status. Rendering and file formatting still finish.
 
@@ -199,7 +216,7 @@ Missing explicit option/environment paths fail rather than falling back. Set `SU
 
 ## Agent Skill
 
-Install with `npx skills add nishide-dev/sumi-diagram --skill sumi` and choose the coding agents to install it for ([skills](https://github.com/vercel-labs/skills) supports many harnesses); add `-a <agent> -y` (for example `-a claude-code -y`) to skip the prompt. The Skill does not include the CLI: install Sumi, put it on PATH and run doctor first.
+Install with `npx skills add nishide-dev/sumi-diagram --skill sumi` and choose the coding agents to install it for ([skills](https://github.com/vercel-labs/skills) supports many harnesses); add `-a <agent> -y` (for example `-a claude-code -y`) to skip the prompt. The Skill does not include the CLI: install Sumi, put it on PATH and run doctor first. Keep it current with `npx skills update sumi`; its first step (`sumi doctor --skill-version <x>`) tells you when the Skill or the CLI is behind.
 
 The [workflow](../skills/sumi/SKILL.md) clarifies content/output profile, checks doctor and catalog, writes YAML, formats/lints and fixes diagnostic paths/hints, renders with geometry checks, visually inspects a PNG preview, and reports files, dimensions, remaining warnings and assumptions. It asks when facts or output choices are missing or fixes stall.
 

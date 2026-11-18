@@ -1,6 +1,8 @@
 ---
 name: sumi
 description: Build, check and render diagrams as code with the Sumi CLI (*.sumi.yaml → SVG). Use when the user asks to make, draw, fix or render a diagram, figure, flowchart, pipeline, decision flow, block or architecture diagram "with Sumi", "as code", or as a *.sumi.yaml file, including Japanese requests such as 図・ダイアグラム・フローチャート・構成図・アーキテクチャ図・処理の流れ図を作って／描いて／Sumi で. Discovers components with `sumi catalog`, writes the YAML, then runs fmt → lint → render and inspects the SVG.
+metadata:
+  version: "0.19.0"
 ---
 
 # Sumi: diagrams as code
@@ -70,12 +72,14 @@ Ask once, briefly, for what is missing. If told to go ahead, assume `paper-singl
 ### 2. Check the environment (once per session)
 
 ```sh
-sumi doctor
+sumi doctor --skill-version 0.19.0   # the `metadata.version` in this file's frontmatter
 ```
 
 Exit 0 and `Ready to render.` means D2, fonts and geometry lint are in place. If a
 check fails, relay its `hint` and stop (a lone `d2` failure does not block structured
 figures): reinstall the tarball, `bun run d2:install`, or set `SUMI_D2_PATH` (v0.9.0).
+Relay an update or version-mismatch line in one sentence and carry on; never run the
+update yourself (`sumi update` for the CLI, `npx skills update sumi` for the Skill).
 
 ### 3. Discover components, themes and profiles
 

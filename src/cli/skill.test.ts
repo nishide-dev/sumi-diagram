@@ -30,6 +30,7 @@ import { fileURLToPath } from "node:url";
 import { inflateSync } from "node:zlib";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
+import pkg from "../../package.json";
 import { checkD2Version, findD2Binary } from "../backends/d2/binary";
 import { buildFullCatalog } from "../core/catalog";
 import { BUILTIN_OUTLINE_RENDERERS } from "../core/outline";
@@ -182,13 +183,19 @@ describe("skill metadata", () => {
   test("SKILL.md has name and description frontmatter", () => {
     expect(frontmatter).not.toBeNull();
     const meta = parseYaml(frontmatter?.[1] ?? "") as Record<string, unknown>;
-    expect(Object.keys(meta).sort()).toEqual(["description", "name"]);
+    expect(Object.keys(meta).sort()).toEqual(["description", "metadata", "name"]);
     expect(meta.name).toBe("sumi");
     expect(typeof meta.description).toBe("string");
     const description = meta.description as string;
     expect(description.length).toBeGreaterThan(100);
     expect(description.length).toBeLessThanOrEqual(1024);
     expect(description).not.toMatch(/[<>]/);
+  });
+
+  test("SKILL.md carries the CLI's version, and its first step passes it to doctor (#597)", () => {
+    const meta = parseYaml(frontmatter?.[1] ?? "") as { metadata?: { version?: unknown } };
+    expect(meta.metadata?.version).toBe(pkg.version);
+    expect(text).toContain(`sumi doctor --skill-version ${pkg.version}`);
   });
 
   test("SKILL.md body stays short (details belong in references/)", () => {

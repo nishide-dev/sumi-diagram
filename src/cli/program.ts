@@ -7,6 +7,7 @@ import { doctorCommand } from "./commands/doctor";
 import { fmtCommand } from "./commands/fmt";
 import { lintCommand, parseMaxWarnings } from "./commands/lint";
 import { renderCommand } from "./commands/render";
+import { updateCommand } from "./commands/update";
 import { type CliContext, colorEnabled, EXIT, type ExitCode, guardStream, UsageError } from "./io";
 
 const collect = (value: string, previous: string[] = []) => [...previous, value];
@@ -36,7 +37,8 @@ export function createProgram(
       `
 Output: results go to stdout; diagnostics of render/fmt, errors and logs go to stderr.
 Exit codes: 0 success, 1 problems found (errors, too many warnings, unformatted
-files, failed doctor checks), 2 usage or internal error. SUMI_DEBUG=1 prints
+files, failed doctor checks; update --check: an update is available), 2 usage or
+internal error (for update: a failed or refused update). SUMI_DEBUG=1 prints
 stack traces for internal errors. If the reader of the output exits early
 (e.g. | head), the rest is discarded and the exit code is the command's own.`,
     );
@@ -121,8 +123,45 @@ stack traces for internal errors. If the reader of the output exits early
     .command("doctor")
     .description("check the environment: D2, bundled fonts, runtime")
     .option("--json", "print a JSON report")
+    .option(
+      "--no-update-check",
+      "do not look for a newer release (also: SUMI_NO_UPDATE_CHECK=1, or CI set)",
+    )
+    .option(
+      "--skill-version <version>",
+      "the installed Skill's version: say which of the Skill and the CLI is older",
+    )
     .action(async (options, command: Command) => {
       setExitCode(await doctorCommand({ ...options, color: colorFor(command, "stdout") }, context));
+    });
+
+  program
+    .command("update")
+    .description("update Sumi to the latest release (installs made by install.sh)")
+    .option("--check", "only report: exit 0 if up to date, 1 if an update is available")
+    // The program's own `--version` would swallow this flag; `execute()` renames it (see hoistUpdateVersion).
+    .addOption(new Option("--target-version <version>").hideHelp())
+    .addHelpText(
+      "after",
+      `
+Options (continued):
+  --version <version>  install this version instead of the latest (may be older)
+
+Exit codes: 0 updated or already current (--check: up to date), 1 --check found an
+update, 2 the update was refused or failed (the installed version is left as it was).`,
+    )
+    .action(async (options, command: Command) => {
+      const { targetVersion, ...rest } = options;
+      setExitCode(
+        await updateCommand(
+          {
+            ...rest,
+            ...(targetVersion !== undefined && { version: targetVersion }),
+            color: colorFor(command, "stderr"),
+          },
+          context,
+        ),
+      );
     });
 
   program
@@ -178,6 +217,7 @@ export async function run(
     cwd: context.cwd ?? process.cwd(),
     env: context.env ?? process.env,
     ...(context.hooks !== undefined && { hooks: context.hooks }),
+    ...(context.update !== undefined && { update: context.update }),
   };
   let exitCode = await execute(argv, full);
   // Write errors arrive asynchronously: wait for every write to complete.
@@ -197,13 +237,32 @@ export async function run(
   return streams.stderr.failure === undefined ? exitCode : EXIT.usage;
 }
 
+/**
+ * `sumi update --version <x>`: commander hands every `--version` to the
+ * program's own version flag, even after a subcommand. Renames it for the
+ * `update` command's `--target-version` option.
+ */
+export function hoistUpdateVersion(argv: readonly string[]): string[] {
+  const at = argv.findIndex((arg) => !arg.startsWith("-"));
+  if (at < 0 || argv[at] !== "update") return [...argv];
+  return argv.map((arg, i) =>
+    i <= at
+      ? arg
+      : arg === "--version"
+        ? "--target-version"
+        : arg.startsWith("--version=")
+          ? `--target-version=${arg.slice("--version=".length)}`
+          : arg,
+  );
+}
+
 async function execute(argv: readonly string[], full: CliContext): Promise<ExitCode> {
   let exitCode: ExitCode = EXIT.ok;
   const program = createProgram(full, (code) => {
     exitCode = code;
   });
   try {
-    await program.parseAsync([...argv], { from: "user" });
+    await program.parseAsync(hoistUpdateVersion(argv), { from: "user" });
     return exitCode;
   } catch (error) {
     if (error instanceof CommanderError) {

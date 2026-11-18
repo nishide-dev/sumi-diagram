@@ -80,7 +80,7 @@ curl -fsSL https://raw.githubusercontent.com/nishide-dev/sumi-diagram/main/insta
   SUMI_VERSION=0.19.0 SUMI_HOME="$HOME/.local/share/sumi" SUMI_BIN_DIR="$HOME/.local/bin" sh
 ```
 
-**更新:** 同じインストーラーを再実行します。旧版のディレクトリは残るので、不要になったら削除できます。既定のパスでの**アンインストール**:
+**更新:** `sumi update` を実行します（SHA-256 を検証し、原子的に差し替えます。`sumi update --check` は確認のみ、`sumi update --version <版>` は版の指定で、古い版も指せます）。対象は `install.sh` で入れた配置だけで、それ以外は同じインストーラーを再実行します。`sumi doctor` は新しい版があれば 1 日 1 回まで知らせます（CI、`SUMI_NO_UPDATE_CHECK=1`、`--no-update-check` では確認せず、オフラインでも何も出しません）。Skill の更新は `npx skills update sumi` で、`sumi doctor --skill-version <版>` が CLI と Skill のどちらが古いかを示します。既定のパスでの**アンインストール**:
 
 ```sh
 rm "$HOME/.local/bin/sumi"

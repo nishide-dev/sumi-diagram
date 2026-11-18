@@ -292,7 +292,7 @@ Skill の正は [`skills/sumi/`](skills/sumi/SKILL.md) です（`npx skills add 
 
 配布物は GitHub Release の tarball（ターゲットごとに `sumi` の単一バイナリ・D2 v0.9.0・同梱フォント・ライセンス・チェックサム）です。構成と判断は [設計 §6.8](docs/design/phase1.md) を参照してください。npm には公開しません。
 
-1. **バージョンを上げる PR を出す**: `package.json` の `version` を上げ（バイナリの `sumi --version` と SVG のメタデータはこの値です）、リリースノート `docs/releases/v<version>.md`（日本語。利用者向けの変更点・互換性・既知の制約）を追加する。PR タイトルは `build: release v<version>` とする。
+1. **バージョンを上げる PR を出す**: `package.json` の `version` を上げ（バイナリの `sumi --version` と SVG のメタデータはこの値です）、`skills/sumi/SKILL.md` の frontmatter `metadata.version` と、手順 2 の `sumi doctor --skill-version <版>` の版も同じ値にし（`src/cli/skill.test.ts` が一致を検査します。`sumi update` と `sumi doctor` の更新通知・Skill の版の照合が使います）、リリースノート `docs/releases/v<version>.md`（日本語。利用者向けの変更点・互換性・既知の制約）を追加する。PR タイトルは `build: release v<version>` とする。
    README のインストール例の `version=` を更新する必要はありません。製品 README はインストーラーで最新版を解決し、tarball の README は `scripts/release/README.dist.md` のプレースホルダーからビルド時に生成します。
 2. **手元で確認する（任意）**: 現在のプラットフォームの tarball を作り、smoke test を通す。
    ```sh
