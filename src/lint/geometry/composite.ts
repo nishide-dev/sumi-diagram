@@ -32,6 +32,8 @@ export interface PaintItem {
   readonly ink: string;
   /** The `tone` a node or group sets, if any (#548): its name says whether it is a hue when a pale tone's chroma is too low to. */
   readonly tone?: string;
+  /** One face of a node painted in a single opacity group with its other faces (a cuboid, #587): the topmost covers, then the group's opacity applies once. */
+  readonly faces?: true;
   readonly region: Region;
   readonly bbox: Rect;
   readonly docPath: DocPath;
@@ -207,10 +209,25 @@ export const covers = (item: PaintItem, p: Point): boolean =>
 
 /** Composite the painted fills covering a point in drawing order. */
 export function surfaceAt(items: readonly PaintItem[], point: Point, canvas = WHITE): string {
-  return items.reduce(
-    (color, item) => (covers(item, point) ? over(item.color, item.alpha, color) : color),
-    canvas,
-  );
+  let color = canvas;
+  for (let i = 0; i < items.length; ) {
+    const item = items[i] as PaintItem;
+    if (item.faces !== true) {
+      if (covers(item, point)) color = over(item.color, item.alpha, color);
+      i++;
+      continue;
+    }
+    // The faces of one node: the topmost covering one, under the node's opacity once.
+    let top: PaintItem | undefined;
+    let j = i;
+    while (j < items.length && items[j]?.faces === true && items[j]?.key === item.key) {
+      if (covers(items[j] as PaintItem, point)) top = items[j];
+      j++;
+    }
+    if (top !== undefined) color = over(top.color, top.alpha, color);
+    i = j;
+  }
+  return color;
 }
 
 /** Every item with the samples at which it shows. */

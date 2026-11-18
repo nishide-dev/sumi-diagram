@@ -41,7 +41,16 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
       c
     );
   };
-  const titles = placed.groups.flatMap((g) => (g.label === undefined ? [] : [g.label.box]));
+  // Group titles and the captions below frames (#491), which routes keep clear of.
+  const below = new Set(ir.nodes.filter((n) => n.labelBelow).map((n) => n.key));
+  const titles = [
+    ...placed.groups.flatMap((g) => (g.label === undefined ? [] : [g.label.box])),
+    ...placed.nodes.flatMap((n) =>
+      below.has(n.key)
+        ? [n.label?.box, n.sublabel?.box].filter((box): box is Rect => box !== undefined)
+        : [],
+    ),
+  ];
   const clear = (edge: EdgeIR): boolean => {
     const [a, b] = [rects.get(edge.from), rects.get(edge.to)];
     if (a === undefined || b === undefined) return true;
@@ -109,14 +118,55 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
     const left = a.x - farLeft + (b.x - farLeft);
     return right <= left ? ["east", "west"] : ["west", "east"];
   };
-  // Each edge in turn: the straight line if the router accepts it, else a detour the router
-  // accepts, else ordinary routing with the 3D-centre ports (a route nobody wrote never errors).
-  let figure = ir;
+  // The faceDirect edges in a deterministic order (the shorter span first, then document order),
+  // each against the routes accepted before it: the straight line if the router accepts it and it
+  // meets none of them, else a detour that does the same (the shorter side first), else ordinary
+  // routing with the 3D-centre ports (a route nobody wrote never errors).
   const resolved = new Map<EdgeIR["key"], EdgeIR>();
-  for (const edge of ir.edges) {
-    if (edge.faceDirect !== true) continue;
+  const span = (e: EdgeIR) => {
+    const [a, b] = [rects.get(e.from), rects.get(e.to)];
+    return a === undefined || b === undefined
+      ? 0
+      : Math.hypot(centre(a).x - centre(b).x, centre(a).y - centre(b).y);
+  };
+  const accepted: { from: EdgeIR["from"]; to: EdgeIR["to"]; points: readonly Point[] }[] = [];
+  const meets = (edge: EdgeIR, points: readonly Point[]): boolean =>
+    accepted.some((other) => {
+      for (const [key, p] of [
+        [edge.from, points[0]],
+        [edge.to, points.at(-1)],
+      ] as const)
+        for (const [k, q] of [
+          [other.from, other.points[0]],
+          [other.to, other.points.at(-1)],
+        ] as const)
+          if (
+            key === k &&
+            p !== undefined &&
+            q !== undefined &&
+            Math.hypot(p.x - q.x, p.y - q.y) < 3
+          )
+            return true;
+      for (let i = 0; i + 1 < points.length; i++)
+        for (let j = 0; j + 1 < other.points.length; j++)
+          if (
+            segmentsTouch(
+              points[i] as Point,
+              points[i + 1] as Point,
+              other.points[j] as Point,
+              other.points[j + 1] as Point,
+            )
+          )
+            return true;
+      return false;
+    });
+  const order = ir.edges
+    .filter((e) => e.faceDirect === true)
+    .sort((x, y) => span(x) - span(y) || x.index - y.index);
+  for (const edge of order) {
     // Only this edge is tried, against the placed nodes as static obstacles (not the whole figure).
-    const fits = (candidate: EdgeIR): boolean => {
+    // Its points when the router draws it and it meets no accepted route.
+    const fits = (candidate: EdgeIR): readonly Point[] | undefined => {
       const solo: FigureIR = {
         ...ir,
         edges: [candidate],
@@ -131,24 +181,59 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
         candidate.route === "straight"
           ? addDirectRoutes(solo, layout, layout)
           : routeEdges(solo, layout, { hintTrials: false });
-      return !result.diagnostics.some((d) => about(d, edge));
+      if (result.diagnostics.some((d) => about(d, edge))) return undefined;
+      const points = result.layout.edges.find((e) => e.key === edge.key)?.route?.points;
+      return points === undefined || meets(edge, points) ? undefined : points;
     };
+    let chosen: EdgeIR | undefined;
+    let points: readonly Point[] | undefined;
     const straight: EdgeIR = { ...edge, route: "straight" };
-    let chosen: EdgeIR | undefined = clear(edge) && fits(straight) ? straight : undefined;
+    if (clear(edge)) {
+      points = fits(straight);
+      if (points !== undefined) chosen = straight;
+    }
     if (chosen === undefined)
       for (const side of detours(edge)) {
         const candidate: EdgeIR = { ...edge, faceSides: { from: side, to: side } };
-        if (fits(candidate)) {
+        points = fits(candidate);
+        if (points !== undefined) {
           chosen = candidate;
           break;
         }
       }
+    if (chosen !== undefined && points !== undefined)
+      accepted.push({ from: edge.from, to: edge.to, points });
     resolved.set(edge.key, chosen ?? { ...edge, centerPorts: true });
   }
-  figure = {
-    ...figure,
-    edges: figure.edges.map((e) => resolved.get(e.key) ?? e),
-    elements: readonlyMap([...figure.elements].map(([k, v]) => [k, resolved.get(k) ?? v] as const)),
+  return {
+    ...ir,
+    edges: ir.edges.map((e) => resolved.get(e.key) ?? e),
+    elements: readonlyMap([...ir.elements].map(([k, v]) => [k, resolved.get(k) ?? v] as const)),
   };
-  return figure;
+}
+
+/** Whether two segments cross, touch or overlap. */
+function segmentsTouch(a: Point, b: Point, c: Point, d: Point): boolean {
+  const cross = (o: Point, p: Point, q: Point) =>
+    (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
+  const eps = 1e-6;
+  const [d1, d2, d3, d4] = [cross(c, d, a), cross(c, d, b), cross(a, b, c), cross(a, b, d)];
+  if (
+    ((d1 > eps && d2 < -eps) || (d1 < -eps && d2 > eps)) &&
+    ((d3 > eps && d4 < -eps) || (d3 < -eps && d4 > eps))
+  )
+    return true;
+  const within = (p: Point, q: Point, r: Point) =>
+    Math.min(p.x, q.x) - 0.5 <= r.x &&
+    r.x <= Math.max(p.x, q.x) + 0.5 &&
+    Math.min(p.y, q.y) - 0.5 <= r.y &&
+    r.y <= Math.max(p.y, q.y) + 0.5;
+  const near = (o: Point, p: Point, q: Point) =>
+    Math.abs(cross(o, p, q)) / Math.max(Math.hypot(p.x - o.x, p.y - o.y), 1e-9) < 0.5;
+  return (
+    (near(c, d, a) && within(c, d, a)) ||
+    (near(c, d, b) && within(c, d, b)) ||
+    (near(a, b, c) && within(a, b, c)) ||
+    (near(a, b, d) && within(a, b, d))
+  );
 }

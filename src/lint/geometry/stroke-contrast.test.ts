@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import type { ElementIR } from "../../compiler/ir";
+import { surfaceAt } from "./composite";
 import { compile, lintSpec } from "./testing";
 
 const source = `version: 1
@@ -332,4 +333,38 @@ edges: [{ id: e, from: a, to: b, tone: yellow }]
   expect(plain).toBeDefined();
   expect(blocked).toBeDefined();
   expect(blocked).not.toBe(plain);
+});
+
+test("the faces of one translucent node are composited as one opacity group (#587)", () => {
+  const item = (color: string, x: number, width: number) => ({
+    key: "n:a",
+    kind: "node" as const,
+    faces: true as const,
+    name: "n",
+    color,
+    alpha: 0.5,
+    ink: color,
+    region: {
+      kind: "polygon" as const,
+      points: [
+        { x, y: 0 },
+        { x: x + width, y: 0 },
+        { x: x + width, y: 10 },
+        { x, y: 10 },
+      ],
+    },
+    bbox: { x, y: 0, width, height: 10 },
+    docPath: [],
+    subject: { kind: "node" as const, id: "a" },
+  });
+  // The parent face and a block over it: the block's colour once at half opacity over the canvas.
+  const seen = surfaceAt(
+    [item("#000000", 0, 10), item("#ffffff", 2, 4)] as never,
+    { x: 3, y: 5 },
+    "#ffffff",
+  );
+  expect(seen).toBe("#ffffff");
+  expect(
+    surfaceAt([item("#000000", 0, 10), item("#000000", 2, 4)] as never, { x: 3, y: 5 }, "#ffffff"),
+  ).toBe("#808080");
 });

@@ -51,6 +51,7 @@ function withFaceShades(context: GeometryContext, items: readonly PaintItem[]): 
       return [
         {
           ...item,
+          faces: true as const,
           color,
           region: { kind: "polygon", points },
           bbox: { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y },

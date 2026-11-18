@@ -979,6 +979,69 @@ ${ids
     expect(face).toBeLessThan(3 * centre + 1000);
   });
 
+  const rowOf = (ids: string[], edges: [string, string][]) => `version: 1
+figure: { id: nest, theme: sumi, profile: paper-double, layout: { arrange: { row: { gap: 8mm, align: center, items: [${ids.join(", ")}] } } } }
+nodes:
+${ids.map((id) => `  - { id: ${id}, component: cuboid, props: { width: 6mm, height: 16mm, depth: 10mm } }`).join("\n")}
+edges:
+${edges.map(([a, b]) => `  - { from: ${a}, to: ${b} }`).join("\n")}
+`;
+  const cleanRender = async (text: string) => {
+    const result = await renderFigure(text);
+    expect(result.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+    if (!result.ok || !("layout" in result.value)) throw new Error("render failed");
+    expect(lintGeometry(result.value).filter((d) => d.severity !== "info")).toEqual([]);
+    return result.value;
+  };
+
+  test("two overlapping skips (a to c, b to d) take different detours and do not cross", async () => {
+    const value = await cleanRender(
+      rowOf(
+        ["a", "b", "c", "d"],
+        [
+          ["a", "b"],
+          ["b", "c"],
+          ["c", "d"],
+          ["a", "c"],
+          ["b", "d"],
+        ],
+      ),
+    );
+    const [ac, bd] = [value.layout.edges[3], value.layout.edges[4]];
+    expect(ac?.route?.points.length).toBe(4);
+    expect(bd?.route?.points.length).toBe(4);
+    expect(overlaps(ac?.route?.points ?? [], bd?.route?.points ?? [])).toBe(false);
+    // One goes over the row, the other under it.
+    const ys = [ac, bd].map((e) => e?.route?.points[1]?.y ?? 0).sort((x, y) => x - y);
+    const [top, bottom] = ["a", "b", "c", "d"].map((id) => centreOf(value, id).rect);
+    expect(ys[0]).toBeLessThan(top?.y ?? 0);
+    expect(ys[1]).toBeGreaterThan((bottom?.y ?? 0) + (bottom?.height ?? 0));
+  });
+
+  test("U-Net-like nested skips over a row of six render clean", async () => {
+    const chain: [string, string][] = ["a", "b", "c", "d", "e"].map((id, i) => [
+      id,
+      "bcdef"[i] as string,
+    ]);
+    await cleanRender(
+      rowOf(["a", "b", "c", "d", "e", "f"], [...chain, ["a", "f"], ["b", "e"], ["c", "d"]]),
+    );
+  });
+
+  test("a straight line does not run through a caption below a frame (waveform)", async () => {
+    const value = await cleanRender(`version: 1
+figure: { id: cap, theme: sumi, profile: paper-double, layout: { arrange: { row: { gap: 10mm, align: start, items: [a, w, c] } } } }
+nodes:
+  - { id: a, component: cuboid, props: { width: 6mm, height: 8mm, depth: 8mm } }
+  - { id: w, component: waveform, label: caption text, props: { samples: [0, 1, -1, 0], width: 14mm, height: 3mm } }
+  - { id: c, component: cuboid, props: { width: 6mm, height: 8mm, depth: 8mm } }
+edges:
+  - { from: a, to: c }
+`);
+    expect(value.compiled.ir.edges[0]?.route).toBeUndefined();
+    expect(value.layout.edges[0]?.route?.points.length).toBeGreaterThan(2);
+  });
+
   test("a block end (<node>.<name>) is drawn straight as before and never takes face routing", async () => {
     const value = await render(`version: 1
 figure: { id: blk, theme: sumi, profile: paper-double, layout: { arrange: { row: { gap: 14mm, align: center, items: [a, b] } } } }
