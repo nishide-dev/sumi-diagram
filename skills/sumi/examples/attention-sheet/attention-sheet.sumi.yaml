@@ -11,7 +11,7 @@ version: 1
 figure:
   id: attention-sheet
   title: Causal attention on tilted planes
-  theme: sumi
+  theme: llama
   profile: paper-double
   projection: {angle: 45, depthScale: 0.6}
   layout:

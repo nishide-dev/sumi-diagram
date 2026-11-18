@@ -12,7 +12,7 @@ version: 1
 figure:
   id: multilayer-network
   title: Multilayer network with correspondences
-  theme: sumi
+  theme: llama
   profile: paper-double
   projection: {angle: 45, depthScale: 0.45}
   layout:
@@ -69,21 +69,21 @@ groups:
 nodes:
   - {id: a1, component: circle, label: A, tone: blue, props: {width: 8mm}}
   - {id: b1, component: circle, label: B, tone: blue, props: {width: 8mm}}
-  - {id: c1, component: circle, label: C, tone: orange, variant: emphasis, props: {width: 8mm}}
+  - {id: c1, component: circle, label: C, tone: orange, props: {width: 8mm}}
   - {id: d1, component: circle, label: D, tone: blue, props: {width: 8mm}}
   - {id: e1, component: circle, label: E, tone: blue, props: {width: 8mm}}
   - {id: f1, component: circle, label: F, tone: blue, props: {width: 8mm}}
   - {id: g1, component: circle, label: G, tone: blue, props: {width: 8mm}}
   - {id: a2, component: circle, label: A, tone: blue, props: {width: 8mm}}
   - {id: b2, component: circle, label: B, tone: blue, props: {width: 8mm}}
-  - {id: c2, component: circle, label: C, tone: orange, variant: emphasis, props: {width: 8mm}}
+  - {id: c2, component: circle, label: C, tone: orange, props: {width: 8mm}}
   - {id: d2, component: circle, label: D, tone: blue, props: {width: 8mm}}
   - {id: e2, component: circle, label: E, tone: blue, props: {width: 8mm}}
   - {id: f2, component: circle, label: F, tone: blue, props: {width: 8mm}}
   - {id: g2, component: circle, label: G, tone: blue, props: {width: 8mm}}
   - {id: a3, component: circle, label: A, tone: blue, props: {width: 8mm}}
   - {id: b3, component: circle, label: B, tone: blue, props: {width: 8mm}}
-  - {id: c3, component: circle, label: C, tone: orange, variant: emphasis, props: {width: 8mm}}
+  - {id: c3, component: circle, label: C, tone: orange, props: {width: 8mm}}
   - {id: d3, component: circle, label: D, tone: blue, props: {width: 8mm}}
   - {id: e3, component: circle, label: E, tone: blue, props: {width: 8mm}}
   - {id: f3, component: circle, label: F, tone: blue, props: {width: 8mm}}

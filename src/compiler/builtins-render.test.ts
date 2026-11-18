@@ -339,9 +339,8 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               ["info", "geometry/group-empty-area"],
             ]);
           } else if (example === "examples/multilayer-network/multilayer-network.sumi.yaml") {
-            // Tinted nodes on the sumi plane fill are the look the theme is made for; one
-            // correspondence line passes 0.33mm from a plane title.
-            expect(stderr).toContain("0 errors, 0 warnings, 4 infos");
+            // Tinted nodes on each plane's light fill, the look the planes are made for.
+            expect(stderr).toContain("0 errors, 0 warnings, 3 infos");
             expect(
               [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
                 ([, severity, code]) => [severity, code],
@@ -350,7 +349,6 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               ["info", "geometry/color-on-panel"],
               ["info", "geometry/color-on-panel"],
               ["info", "geometry/color-on-panel"],
-              ["info", "geometry/edge-touches-label"],
             ]);
           } else if (example === "examples/attention-sheet/attention-sheet.sumi.yaml") {
             expect(stderr).toContain("0 errors, 0 warnings, 3 infos");
