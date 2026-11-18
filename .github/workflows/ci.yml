@@ -281,7 +281,8 @@ jobs:
   pdf-latex:
     name: PDF LaTeX inclusion
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # Installing TeX from the Ubuntu mirror usually takes 1-2 minutes but has taken 15 (#601).
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
