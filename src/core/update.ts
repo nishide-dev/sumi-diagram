@@ -18,6 +18,7 @@
  * same `SUMI_LATEST_URL` / `SUMI_DOWNLOAD_BASE` overrides as `install.sh`.
  */
 
+import { randomBytes } from "node:crypto";
 import { realpathSync } from "node:fs";
 import {
   lstat,
@@ -212,6 +213,17 @@ async function markerBinDir(home: string): Promise<string | undefined> {
   }
 }
 
+/** The directories that may hold a `sumi` link: SUMI_BIN_DIR, the marker's, `~/.local/bin`. */
+async function knownBinDirs(env: Env, home: string): Promise<string[]> {
+  return [
+    envValue(env, ENV.binDir),
+    await markerBinDir(home),
+    join(envValue(env, "HOME") ?? homedir(), ".local", "bin"),
+  ]
+    .filter((d): d is string => d !== undefined)
+    .map((d) => resolve(d));
+}
+
 /** True if `link` is a symlink that resolves to `real`. */
 async function linksTo(link: string, real: string): Promise<boolean> {
   try {
@@ -283,14 +295,8 @@ export async function detectInstall(options: {
   }
   // A manually extracted tarball has the same shape; require evidence that install.sh
   // made this install: a `sumi` symlink resolving to the running release.
-  const candidates = [
-    envValue(env, ENV.binDir),
-    await markerBinDir(home),
-    join(envValue(env, "HOME") ?? homedir(), ".local", "bin"),
-  ];
-  for (const dir of candidates) {
-    if (dir === undefined) continue;
-    const link = join(resolve(dir), "sumi");
+  for (const dir of await knownBinDirs(env, home)) {
+    const link = join(dir, "sumi");
     if (await linksTo(link, real)) {
       return { ok: true, layout: { home, prefix, version, target, link } };
     }
@@ -347,6 +353,8 @@ export type UpdateOutcome =
       to: string;
       direction: "upgrade" | "downgrade";
       path: string;
+      /** The previous release was not deleted because another known `sumi` link uses it. */
+      keptOld?: string;
     };
 
 const STAGING_PREFIX = ".sumi-update.";
@@ -437,31 +445,35 @@ function processAlive(pid: number): boolean {
   }
 }
 
-/** Takes `<home>/.sumi-lock` (O_EXCL); a lock from a dead process or older than ten minutes is stale. */
+/**
+ * Takes `<home>/.sumi-lock` (O_EXCL). An existing lock is never taken over:
+ * the update refuses, and says whether the lock looks stale so the user can
+ * remove it. The returned release only deletes the lock if it is still ours.
+ */
 async function acquireLock(home: string, now: number): Promise<() => Promise<void>> {
   const path = join(home, LOCK_FILE);
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const handle = await open(path, "wx");
-      await handle.writeFile(`${process.pid} ${now}\n`);
-      await handle.close();
-      return () => rm(path, { force: true });
-    } catch (error) {
-      if ((error as { code?: string }).code !== "EEXIST") throw error;
-    }
-    const text = (await readFile(path, "utf8").catch(() => "")).trim();
-    const [pid, since] = text.split(" ").map(Number);
-    // A lock being written is empty for a moment: only an old, unreadable one is stale.
-    const unreadable = pid === undefined || since === undefined || Number.isNaN(pid + since);
-    const age = Date.now() - ((await stat(path).catch(() => undefined))?.mtimeMs ?? 0);
-    const stale = unreadable ? age > 10_000 : !processAlive(pid) || now - since > LOCK_STALE_MS;
-    if (!stale) break;
-    await rm(path, { force: true });
+  const token = `${process.pid} ${now} ${randomBytes(8).toString("hex")}\n`;
+  try {
+    const handle = await open(path, "wx");
+    await handle.writeFile(token);
+    await handle.close();
+    return async () => {
+      if ((await readFile(path, "utf8").catch(() => undefined)) === token) {
+        await rm(path, { force: true });
+      }
+    };
+  } catch (error) {
+    if ((error as { code?: string }).code !== "EEXIST") throw error;
   }
+  const [pid, since] = (await readFile(path, "utf8").catch(() => "")).trim().split(" ").map(Number);
+  const known = pid !== undefined && since !== undefined && !Number.isNaN(pid + since);
+  const stale = known && (!processAlive(pid) || now - since > LOCK_STALE_MS);
   throw new UpdateError(
     "locked",
     "Another sumi update is already running.",
-    `Wait for it to finish; if none is running, remove ${path}.`,
+    stale
+      ? `The lock looks stale (its process is gone or it is over ten minutes old). If no update is running, remove ${path} and try again.`
+      : `Wait for it to finish; if none is running, remove ${path}.`,
   );
 }
 
@@ -517,6 +529,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateOutcome> 
   await removeStaleStaging(home, now());
   let work: string | undefined;
   let placed: string | undefined;
+  let aside: string | undefined;
   try {
     work = await mkdtemp(join(home, STAGING_PREFIX));
     log(`Downloading ${archive}`);
@@ -563,30 +576,18 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateOutcome> 
     // Commit: put the directory in place, then switch the link atomically.
     const dest = join(home, name);
     if (dest === layout.prefix) {
-      throw new UpdateError("same-directory", `${dest} is the running release.`);
+      throw new UpdateError(
+        "destination-exists",
+        `Sumi ${wanted} is already installed at ${dest}; nothing was changed.`,
+      );
     }
     if (await lstat(dest).catch(() => undefined)) {
-      // Never delete an existing directory (it may be in use): reuse it if it is this release.
-      let same = false;
-      try {
-        await checkStagedTree(dest);
-        same =
-          normalizeVersion(await (u.runVersion ?? defaultRunVersion)(join(dest, "bin", "sumi"))) ===
-          wanted;
-      } catch {
-        // not a usable release
-      }
-      if (!same) {
-        throw new UpdateError(
-          "destination-exists",
-          `${dest} already exists and is not a working Sumi ${wanted}; nothing was changed.`,
-          "Remove that directory (if no other Sumi uses it) and run sumi update again.",
-        );
-      }
-    } else {
-      await rename(staged, dest);
-      placed = dest;
+      // A leftover directory of that version: set it aside, delete it only after the switch.
+      aside = join(home, `.sumi-old.${randomBytes(6).toString("hex")}`);
+      await rename(dest, aside);
     }
+    await rename(staged, dest);
+    placed = dest;
     await u.beforeSwitch?.();
     if (!(await linksTo(layout.link, join(layout.prefix, "bin", "sumi")))) {
       throw new UpdateError(
@@ -603,18 +604,32 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateOutcome> 
       await rm(tmpLink, { force: true });
       throw error;
     }
-    // The old release is no longer referenced by the link: drop it.
-    await rm(layout.prefix, { recursive: true, force: true }).catch(() => {});
     placed = undefined;
+    if (aside !== undefined) await rm(aside, { recursive: true, force: true }).catch(() => {});
+    aside = undefined;
+    // Drop the old release unless another known `sumi` link still points into it
+    // (links outside SUMI_BIN_DIR, the marker's directory and ~/.local/bin are not scanned).
+    let keptOld: string | undefined;
+    for (const dir of await knownBinDirs(env, home)) {
+      const other = join(dir, "sumi");
+      const resolved = await realpath(other).catch(() => undefined);
+      if (resolved !== undefined && resolved.startsWith(`${layout.prefix}/`))
+        keptOld = layout.prefix;
+    }
+    if (keptOld === undefined) {
+      await rm(layout.prefix, { recursive: true, force: true }).catch(() => {});
+    }
     return {
       status: "updated",
       from: current,
       to: wanted,
       direction,
       path: join(dest, "bin", "sumi"),
+      ...(keptOld !== undefined && { keptOld }),
     };
   } catch (error) {
     if (placed !== undefined) await rm(placed, { recursive: true, force: true }).catch(() => {});
+    if (aside !== undefined) await rename(aside, join(home, name)).catch(() => {});
     if (error instanceof UpdateError) throw error;
     const reason = error instanceof Error ? error.message : String(error);
     throw new UpdateError(
@@ -643,9 +658,10 @@ export interface UpdateCache {
 
 /** Cache file: `$XDG_CACHE_HOME/sumi` or `~/.cache/sumi`. */
 export function cacheFile(env: Env): string | undefined {
+  const home = envValue(env, "HOME");
   const root =
-    env.XDG_CACHE_HOME ?? (env.HOME !== undefined ? join(env.HOME, ".cache") : undefined);
-  return root === undefined || root === "" ? undefined : join(root, "sumi", "update-check.json");
+    envValue(env, "XDG_CACHE_HOME") ?? (home !== undefined ? join(home, ".cache") : undefined);
+  return root === undefined ? undefined : join(root, "sumi", "update-check.json");
 }
 
 async function readCache(path: string): Promise<UpdateCache> {

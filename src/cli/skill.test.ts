@@ -197,7 +197,9 @@ describe("skill metadata", () => {
     expect(meta.metadata?.version).toBe(pkg.version);
     expect(text).toContain(`sumi doctor --skill-version ${pkg.version}`);
     // Older CLIs reject the option: the Skill tells the agent how to fall back (#597).
-    expect(text).toContain("rejects `--skill-version` as an unknown option");
+    expect(text).toContain(
+      "rejects `--skill-version` as an unknown option it predates `sumi update`",
+    );
     expect(text).toContain("install.sh");
   });
 

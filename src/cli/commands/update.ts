@@ -48,6 +48,11 @@ export async function updateCommand(
         return EXIT.failed;
       case "updated":
         say(`Sumi ${outcome.to} is installed (${outcome.path}).`);
+        if (outcome.keptOld !== undefined) {
+          say(
+            `The previous release was kept at ${outcome.keptOld} because another sumi link uses it.`,
+          );
+        }
         say("Run `sumi doctor` to check the installation.");
         return EXIT.ok;
     }

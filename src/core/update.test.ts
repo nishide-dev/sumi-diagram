@@ -392,31 +392,70 @@ describe("sumi update", () => {
     expect(await dirs(home)).toEqual([".sumi-update.live", archiveName("0.20.0", TARGET)]);
   });
 
-  test("never deletes an existing destination: a working one is reused, a broken one refused", async () => {
+  test("a leftover directory of the new version is replaced by the verified release", async () => {
     const exe = await makeInstall("0.19.0");
     await makeRelease("0.20.0");
-    // A leftover 0.20.0 directory that works: reused, link switched.
     const leftover = join(home, archiveName("0.20.0", TARGET), "bin");
     await mkdir(leftover, { recursive: true });
-    await writeFile(join(leftover, "sumi"), "#!/bin/sh\necho 0.20.0\n");
+    await writeFile(join(leftover, "sumi"), "#!/bin/sh\necho 0.20.0\necho tampered >&2\n");
     await chmod(join(leftover, "sumi"), 0o755);
-    await writeFile(join(leftover, "keep"), "mine");
     await runUpdate({ env, update: update({}, exe) });
-    expect(await readFile(join(leftover, "keep"), "utf8")).toBe("mine");
-    expect((await runCommand([join(bin, "sumi")])).stdout.trim()).toBe("0.20.0");
+    const run = await runCommand([join(bin, "sumi")]);
+    expect(run.stdout.trim()).toBe("0.20.0");
+    expect(run.stderr).toBe("");
+    expect(await dirs(home)).toEqual([archiveName("0.20.0", TARGET)]);
   });
 
-  test("a broken destination directory is refused and left alone", async () => {
+  test("a failed switch restores the leftover directory it set aside", async () => {
     const exe = await makeInstall("0.19.0");
     await makeRelease("0.20.0");
-    const broken = join(home, archiveName("0.20.0", TARGET));
-    await mkdir(broken, { recursive: true });
-    await writeFile(join(broken, "precious"), "data");
-    await expect(runUpdate({ env, update: update({}, exe) })).rejects.toMatchObject({
-      diagnostic: { code: "update/destination-exists" },
+    const leftover = join(home, archiveName("0.20.0", TARGET));
+    await mkdir(leftover, { recursive: true });
+    await writeFile(join(leftover, "precious"), "data");
+    const failing = update(
+      {
+        beforeSwitch: () => {
+          throw new Error("interrupted");
+        },
+      },
+      exe,
+    );
+    await expect(runUpdate({ env, update: failing })).rejects.toMatchObject({
+      diagnostic: { code: "update/failed" },
     });
-    expect(await readFile(join(broken, "precious"), "utf8")).toBe("data");
-    expect((await runCommand([join(bin, "sumi")])).stdout.trim()).toBe("0.19.0");
+    expect(await readFile(join(leftover, "precious"), "utf8")).toBe("data");
+    expect(await dirs(home)).toEqual([
+      archiveName("0.19.0", TARGET),
+      archiveName("0.20.0", TARGET),
+    ]);
+  });
+
+  test("asking for the running version is a no-op", async () => {
+    const exe = await makeInstall("0.19.0");
+    await makeRelease("0.19.0");
+    await expect(
+      runUpdate({ env, version: "0.19.0", update: update({}, exe) }),
+    ).resolves.toMatchObject({ status: "up-to-date" });
+  });
+
+  test("another bin directory linking to the old release keeps it", async () => {
+    const exe = await makeInstall("0.19.0");
+    await makeRelease("0.20.0");
+    const other = join(root, "bin2");
+    await mkdir(other);
+    await symlink(exe, join(other, "sumi"));
+    await writeFile(join(home, ".sumi-install"), `bin=${other}\n`);
+    const outcome = await runUpdate({ env, update: update({}, exe) });
+    expect(outcome).toMatchObject({
+      status: "updated",
+      keptOld: join(await realHome(), archiveName("0.19.0", TARGET)),
+    });
+    expect(await dirs(home)).toEqual([
+      ".sumi-install",
+      archiveName("0.19.0", TARGET),
+      archiveName("0.20.0", TARGET),
+    ]);
+    expect((await runCommand([join(other, "sumi")])).stdout.trim()).toBe("0.19.0");
   });
 
   test("archives with links are rejected before extraction", async () => {
@@ -476,16 +515,35 @@ describe("sumi update", () => {
     expect(await dirs(home)).toEqual([archiveName("0.20.0", TARGET)]);
   });
 
-  test("a stale lock (dead process) is taken over", async () => {
+  test("an existing lock is never taken over; a stale-looking one is named in the hint", async () => {
     const exe = await makeInstall("0.19.0");
     await makeRelease("0.20.0");
-    await writeFile(join(home, ".sumi-lock"), `999999999 ${Date.now()}\n`);
-    await runUpdate({ env, update: update({}, exe) });
-    expect(await dirs(home)).toEqual([archiveName("0.20.0", TARGET)]);
-    await writeFile(join(home, ".sumi-lock"), `${process.pid} ${Date.now()}\n`);
-    await expect(
-      runUpdate({ env, version: "0.19.0", update: update({}, join(bin, "sumi")) }),
-    ).rejects.toMatchObject({ diagnostic: { code: "update/locked" } });
+    await writeFile(join(home, ".sumi-lock"), `999999999 ${Date.now()} x\n`);
+    const error = await runUpdate({ env, update: update({}, exe) }).catch((e) => e);
+    expect(error.diagnostic.code).toBe("update/locked");
+    expect(error.diagnostic.hint).toContain("looks stale");
+    expect(error.diagnostic.hint).toContain(join(home, ".sumi-lock"));
+    await writeFile(join(home, ".sumi-lock"), `${process.pid} ${Date.now()} x\n`);
+    const live = await runUpdate({ env, update: update({}, exe) }).catch((e) => e);
+    expect(live.diagnostic.hint).not.toContain("looks stale");
+    expect(await readFile(join(home, ".sumi-lock"), "utf8")).toContain(`${process.pid}`);
+    expect(await dirs(home)).toEqual([".sumi-lock", archiveName("0.19.0", TARGET)]);
+  });
+
+  test("the lock is only removed if it is still ours", async () => {
+    const exe = await makeInstall("0.19.0");
+    await makeRelease("0.20.0");
+    const stolen = update(
+      {
+        beforeSwitch: async () => {
+          await rm(join(home, ".sumi-lock"));
+          await writeFile(join(home, ".sumi-lock"), "1 1 someone-else\n");
+        },
+      },
+      exe,
+    );
+    await runUpdate({ env, update: stolen });
+    expect(await readFile(join(home, ".sumi-lock"), "utf8")).toBe("1 1 someone-else\n");
   });
 
   test("a non-install.sh layout is refused with the install command and nothing is touched", async () => {
@@ -610,6 +668,7 @@ describe("update notice", () => {
     expect(updateCheckDisabled({ CI: "false" })).toBe(false);
     expect(updateCheckDisabled({ SUMI_NO_UPDATE_CHECK: "0" })).toBe(false);
     expect(cacheFile({})).toBeUndefined();
+    expect(cacheFile({ XDG_CACHE_HOME: "", HOME: "/h" })).toBe("/h/.cache/sumi/update-check.json");
     expect(cacheFile({ HOME: "/h" })).toBe("/h/.cache/sumi/update-check.json");
   });
 
