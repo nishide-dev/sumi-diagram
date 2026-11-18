@@ -34,8 +34,8 @@ different theme defaults and requires identical painted colors.
 | [`llama4-moe/`](llama4-moe/llama4-moe.sumi.yaml) | `llama` / `paper-double` | Meta AI (2025), the Llama 4 mixture-of-experts figure: the `llama` theme (dark solid blocks, borderless muted panels, a white muted inner panel, a filled router, an emphasis shared expert, 1pt lines and open chevron arrowheads), alternating Attention/FFN with a dashed `zoom` into the expanded MoE panel, a ⊕ operator, and hidden-junction forks that share one bus even with a short `···` label among the experts (156.28mm × 107.77mm) |
 | [`chat/`](chat/chat.sumi.yaml) | `llama` / `paper-single` | a generic Japanese conversation using `bubble` nodes and the `chat` arrangement: a 今日 divider, timestamps, read receipts, an initial in a circle, consecutive messages and automatic wrapping; white incoming bubbles and pale green outgoing ones (83.96mm × 59.09mm) |
 | [`llm-dialogue/`](llm-dialogue/llm-dialogue.sumi.yaml) | `llama` / `paper-single` | an original illustrative user–assistant math dialogue: `chat` with avatars on both sides (bundled user/robot icons), explicit speaker notes, a multi-line answer with inline math and a follow-up question (83.96mm × 61.56mm) |
-| [`multilayer-network/`](multilayer-network/multilayer-network.sumi.yaml) | `sumi` / `paper-double` | a multilayer network: three tilted planes (`props.plane: floor`) with the same seven nodes at the same coordinates (`place`), straight links inside a layer, dotted `route: straight` correspondences between adjacent layers and one orange node followed through all of them (167mm × 96mm) |
-| [`attention-sheet/`](attention-sheet/attention-sheet.sumi.yaml) | `sumi` / `paper-double` | a token sequence and its causal attention map lying flat on two planes (`contents: projected`): boxes as parallelograms, mapped arrowheads, a `matrix` of strong / medium / weak / masked cells and its legend (177mm × 68mm) |
+| [`multilayer-network/`](multilayer-network/multilayer-network.sumi.yaml) | `llama` / `paper-double` | a multilayer network: three tilted planes (`props.plane: floor`) with the same seven nodes at the same coordinates (`place`), straight links inside a layer, dotted `route: straight` correspondences between adjacent layers and one orange node followed through all of them (167mm × 96mm) |
+| [`attention-sheet/`](attention-sheet/attention-sheet.sumi.yaml) | `llama` / `paper-double` | a token sequence and its causal attention map lying flat on two planes (`contents: projected`): boxes as parallelograms, mapped arrowheads, a `matrix` of strong / medium / weak / masked cells and its legend (177mm × 68mm) |
 
 `pipeline` and `decision-flow` use `direction: down`: four or more nodes in a
 row to the right are already wider than `paper-single` (88mm).
@@ -93,8 +93,8 @@ geometry lint):
 | `llada` | 4 warnings: `geometry/dash-hidden` ×4 (the original figure's short dashed remask arrows) |
 | `chat` | none |
 | `llm-dialogue` | none |
-| `multilayer-network` | 4: `geometry/color-on-panel` ×3 (the blue nodes on each sumi plane's tinted fill, the look the theme is made for); `geometry/edge-touches-label` ×1 (one correspondence line passes 0.33mm from a plane title) |
-| `attention-sheet` | 3: `geometry/sparse-figure` ×1 (the two planes are wide and flat); `geometry/color-on-panel` ×2 (the tokens and the attention cells on the sumi plane fill) |
+| `multilayer-network` | 3: `geometry/color-on-panel` ×3 (the blue nodes on each plane's light fill) |
+| `attention-sheet` | 3: `geometry/sparse-figure` ×1 (the two planes are wide and flat); `geometry/color-on-panel` ×2 (the tokens and the attention cells on the plane fill) |
 
 `llada` is a density benchmark: the reference's cells, arrows and frames sit at its own
 pixel coordinates (`place` unit 0.3113pt = 1 reference px, scaled to 180mm), the cell colours
