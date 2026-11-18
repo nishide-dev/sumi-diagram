@@ -59,6 +59,12 @@ export function isSolid(node: NodeIR | undefined, rect: Rect): boolean {
   return drawing?.solid === true;
 }
 
+function cuboidDrawing(node: NodeIR | undefined, rect: Rect) {
+  if (node?.render === undefined) return undefined;
+  const renderer = getOutlineRenderer(node.render.renderer);
+  return renderer?.draw(rect, renderer.params.parse(node.render.params ?? {}));
+}
+
 /** Where an unanchored edge ends on a visible face of a solid (cuboid `ports: face`, #575), if it does. */
 export function faceContactOf(
   node: NodeIR | undefined,
@@ -250,6 +256,8 @@ interface Choice {
   inward: boolean;
   anchored: boolean;
   straight?: boolean;
+  /** The port is on a cuboid's face centroid line (#587): never moved, and the end reaches the centroid. */
+  face?: boolean;
 }
 
 /**
@@ -1287,6 +1295,21 @@ function resolveEndsWith(
         return { ...port, inward: false, anchored: true, fixed: true };
       }
     }
+    // A blocked face-port cuboid edge (#587): the end is the top or bottom face's centroid.
+    const faceSide = edge.faceSides?.[isSource ? "from" : "to"];
+    if (faceSide !== undefined) {
+      const drawing = render === undefined ? undefined : cuboidDrawing(self.node, self.rect);
+      const centroid =
+        faceSide === "north" ? drawing?.faceContacts?.north : drawing?.hiddenFaceContacts?.south;
+      if (centroid !== undefined)
+        return {
+          side: faceSide,
+          offset: (centroid.x - self.rect.x) / self.rect.width,
+          inward: false,
+          anchored: true,
+          face: true,
+        };
+    }
     // A group connected to an element inside it: the route runs inside the group.
     const inward = self.node === undefined && inside(other, self);
     // `straight` (#179): in line with the other end on the facing side; where
@@ -1668,7 +1691,10 @@ function resolveEndsWith(
     }
     // A solid with `ports: face` (#575): an unanchored end on its top or side face goes in to the
     // centre of that face, on the line of its default port; a moved end keeps the silhouette.
-    const centroid = choice.anchored ? undefined : faceContactOf(self.node, self.rect, choice.side);
+    const centroid =
+      choice.anchored && choice.face !== true
+        ? undefined
+        : faceContactOf(self.node, self.rect, choice.side);
     if (centroid !== undefined) {
       const vertical = choice.side === "north" || choice.side === "south";
       const centred = Math.abs(vertical ? port.x - centroid.x : port.y - centroid.y) < 0.5;

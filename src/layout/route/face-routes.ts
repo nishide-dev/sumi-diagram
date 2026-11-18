@@ -58,9 +58,35 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
     }
     return !titles.some((box) => segmentCrossesRegion(p, q, rectPolygon(box), 0.01));
   };
-  const edges = ir.edges.map((e) =>
-    e.faceDirect === true && clear(e) ? ({ ...e, route: "straight" } as EdgeIR) : e,
-  );
+  // A blocked edge detours over the top faces, or under the bottom ones when that is shorter:
+  // the lift needed to clear the nodes between the ends, counted from both ends.
+  const detour = (edge: EdgeIR): "north" | "south" => {
+    const [a, b] = [rects.get(edge.from), rects.get(edge.to)];
+    if (a === undefined || b === undefined) return "north";
+    const [left, right] = [Math.min(a.x, b.x), Math.max(a.x + a.width, b.x + b.width)];
+    const between = placed.nodes.filter(
+      (n) =>
+        n.key !== edge.from &&
+        n.key !== edge.to &&
+        n.rect.x < right &&
+        n.rect.x + n.rect.width > left,
+    );
+    const top = Math.min(a.y, b.y, ...between.map((n) => n.rect.y));
+    const bottom = Math.max(
+      a.y + a.height,
+      b.y + b.height,
+      ...between.map((n) => n.rect.y + n.rect.height),
+    );
+    const over = a.y - top + (b.y - top);
+    const under = bottom - (a.y + a.height) + (bottom - (b.y + b.height));
+    return over <= under ? "north" : "south";
+  };
+  const edges = ir.edges.map((e): EdgeIR => {
+    if (e.faceDirect !== true) return e;
+    if (clear(e)) return { ...e, route: "straight" };
+    const side = detour(e);
+    return { ...e, faceSides: { from: side, to: side } };
+  });
   const byKey = new Map(edges.map((e) => [e.key, e]));
   return {
     ...ir,

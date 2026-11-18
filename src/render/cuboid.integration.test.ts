@@ -843,17 +843,75 @@ edges:
   - { from: a, to: c }
 `;
 
-  test("a skip edge over an intermediate cuboid is routed around it; neighbours keep the straight face-to-face line", async () => {
+  /** Whether any segment of a polyline shares more than a point with a segment of another. */
+  const overlaps = (p: readonly Pt[], q: readonly Pt[]) => {
+    for (let i = 0; i + 1 < p.length; i++)
+      for (let j = 0; j + 1 < q.length; j++) {
+        const [a, b, c, d] = [p[i] as Pt, p[i + 1] as Pt, q[j] as Pt, q[j + 1] as Pt];
+        const horizontal = Math.abs(a.y - b.y) < 0.01 && Math.abs(c.y - d.y) < 0.01;
+        const vertical = Math.abs(a.x - b.x) < 0.01 && Math.abs(c.x - d.x) < 0.01;
+        if (horizontal && Math.abs(a.y - c.y) < 0.5) {
+          const lo = Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x));
+          const hi = Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x));
+          if (hi - lo > 0.5) return true;
+        }
+        if (vertical && Math.abs(a.x - c.x) < 0.5) {
+          const lo = Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y));
+          const hi = Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y));
+          if (hi - lo > 0.5) return true;
+        }
+      }
+    return false;
+  };
+
+  test("a skip edge goes over the intermediate cuboid from top face centre to top face centre; neighbours keep the straight line", async () => {
     const value = await render(skip());
     const [ab, bc, ac] = value.layout.edges;
-    const routes = value.compiled.ir.edges.map((e) => e.route);
-    expect(routes).toEqual(["straight", "straight", undefined]);
+    expect(value.compiled.ir.edges.map((e) => e.route)).toEqual([
+      "straight",
+      "straight",
+      undefined,
+    ]);
     expect(ab?.route?.points).toHaveLength(2);
     expect(bc?.route?.points).toHaveLength(2);
-    // The skip is orthogonal, leaves the straight neighbours alone and passes no node.
-    expect((ac?.route?.points.length ?? 0) > 2).toBe(true);
+    const points = ac?.route?.points ?? [];
+    expect(points).toHaveLength(4);
+    const first = contact(value, "a", "faceContacts", "north");
+    const last = contact(value, "c", "faceContacts", "north");
+    expect(points[0]?.x).toBeCloseTo(first.x, 1);
+    expect(points[0]?.y).toBeCloseTo(first.y, 1);
+    expect(points.at(-1)?.x).toBeCloseTo(last.x, 1);
+    expect(points.at(-1)?.y).toBeCloseTo(last.y, 1);
+    // Straight up, across above the nodes, straight down.
+    const rects = ["a", "b", "c"].map((id) => centreOf(value, id).rect);
+    const top = Math.min(...rects.map((r) => r.y));
+    expect(points[1]?.y).toBeLessThan(top);
+    expect(points[1]?.x).toBeCloseTo(points[0]?.x ?? Number.NaN, 1);
+    expect(points[2]?.x).toBeCloseTo(points[3]?.x ?? Number.NaN, 1);
+    for (const other of [ab, bc]) expect(overlaps(points, other?.route?.points ?? [])).toBe(false);
     expect(lintGeometry(value).filter((d) => d.severity !== "info")).toEqual([]);
     expect(lintGeometry(value).map((d) => d.code)).not.toContain("geometry/edge-through-node");
+    expect(Object.values(checkRoutes(value.compiled.ir, value.layout)).flat()).toEqual([]);
+  });
+
+  test("a skip edge goes under the bottom faces when above is the longer way", async () => {
+    // b's width text sits above it, so the lift above is longer than the way under.
+    const value = await render(
+      skip().replace(
+        "{ id: b, component: cuboid, props: {",
+        '{ id: b, component: cuboid, props: { dims: { width: "128" },',
+      ),
+    );
+    const ac = value.layout.edges[2]?.route?.points ?? [];
+    const rects = ["a", "b", "c"].map((id) => centreOf(value, id).rect);
+    const bottom = Math.max(...rects.map((r) => r.y + r.height));
+    expect(ac).toHaveLength(4);
+    expect(ac[1]?.y).toBeGreaterThan(bottom);
+    // The hidden bottom faces are aimed at: the ends are on the silhouettes.
+    expect(distanceToSilhouette(value, "a", ac[0] as Pt)).toBeLessThan(0.6);
+    expect(distanceToSilhouette(value, "c", ac.at(-1) as Pt)).toBeLessThan(0.6);
+    expect(ac[0]?.x).toBeCloseTo(contact(value, "a", "hiddenFaceContacts", "south").x, 0);
+    expect(lintGeometry(value).filter((d) => d.severity !== "info")).toEqual([]);
     expect(Object.values(checkRoutes(value.compiled.ir, value.layout)).flat()).toEqual([]);
   });
 
