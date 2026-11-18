@@ -989,6 +989,7 @@ ${edges.map(([a, b]) => `  - { from: ${a}, to: ${b} }`).join("\n")}
   const cleanRender = async (text: string) => {
     const result = await renderFigure(text);
     expect(result.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+    expect(result.diagnostics.map((d) => d.code)).not.toContain("layout/edge-crossing");
     if (!result.ok || !("layout" in result.value)) throw new Error("render failed");
     expect(lintGeometry(result.value).filter((d) => d.severity !== "info")).toEqual([]);
     return result.value;
@@ -1018,14 +1019,107 @@ ${edges.map(([a, b]) => `  - { from: ${a}, to: ${b} }`).join("\n")}
     expect(ys[1]).toBeGreaterThan((bottom?.y ?? 0) + (bottom?.height ?? 0));
   });
 
-  test("U-Net-like nested skips over a row of six render clean", async () => {
+  /** Whether two polylines cross, touch, overlap, or end at the same point of a node. */
+  const clash = (p: readonly Pt[], q: readonly Pt[]) => {
+    const cross = (o: Pt, a: Pt, b: Pt) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    for (let i = 0; i + 1 < p.length; i++)
+      for (let j = 0; j + 1 < q.length; j++) {
+        const [a, b, c, d] = [p[i] as Pt, p[i + 1] as Pt, q[j] as Pt, q[j + 1] as Pt];
+        const [d1, d2, d3, d4] = [cross(c, d, a), cross(c, d, b), cross(a, b, c), cross(a, b, d)];
+        if (d1 * d2 < 0 && d3 * d4 < 0) return true;
+      }
+    if (overlaps(p, q)) return true;
+    return [p[0], p.at(-1)].some((x) =>
+      [q[0], q.at(-1)].some((y) => x && y && Math.hypot(x.x - y.x, x.y - y.y) < 2),
+    );
+  };
+
+  test("U-Net-like nested skips over a row of six render clean and do not cross, overlap or share ports", async () => {
     const chain: [string, string][] = ["a", "b", "c", "d", "e"].map((id, i) => [
       id,
       "bcdef"[i] as string,
     ]);
-    await cleanRender(
-      rowOf(["a", "b", "c", "d", "e", "f"], [...chain, ["a", "f"], ["b", "e"], ["c", "d"]]),
+    const value = await cleanRender(
+      rowOf(["a", "b", "c", "d", "e", "f"], [...chain, ["a", "f"], ["b", "e"]]),
     );
+    const skips = value.layout.edges.slice(5).map((e) => e.route?.points ?? []);
+    expect(skips).toHaveLength(2);
+    expect(clash(skips[0] ?? [], skips[1] ?? [])).toBe(false);
+  });
+
+  test("a→c, b→d, c→e on a row of 8: the fallback edge is kept clear of by the later ones", async () => {
+    const ids = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    const chain = ids.slice(1).map((id, i): [string, string] => [ids[i] as string, id]);
+    const value = await cleanRender(rowOf(ids, [...chain, ["a", "c"], ["b", "d"], ["c", "e"]]));
+    const skips = value.layout.edges.slice(7).map((e) => e.route?.points ?? []);
+    for (let i = 0; i < skips.length; i++)
+      for (let j = i + 1; j < skips.length; j++)
+        expect(clash(skips[i] ?? [], skips[j] ?? [])).toBe(false);
+  });
+
+  test("pairs of overlapping skips of span 2 and 3 on a row of 8 never cross or fail", async () => {
+    const ids = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    const chain = ids.slice(1).map((id, i): [string, string] => [ids[i] as string, id]);
+    const combos: [number, number][][] = [
+      [
+        [0, 2],
+        [1, 3],
+      ],
+      [
+        [0, 3],
+        [1, 4],
+      ],
+      [
+        [0, 2],
+        [2, 4],
+      ],
+      [
+        [1, 4],
+        [2, 5],
+      ],
+      [
+        [0, 3],
+        [2, 5],
+      ],
+      [
+        [3, 5],
+        [4, 6],
+      ],
+      [
+        [0, 2],
+        [1, 3],
+        [2, 4],
+      ],
+      [
+        [1, 3],
+        [2, 5],
+        [4, 6],
+      ],
+      [
+        [0, 3],
+        [1, 3],
+        [2, 5],
+      ],
+      [
+        [0, 2],
+        [0, 3],
+        [1, 4],
+      ],
+      [
+        [2, 4],
+        [3, 6],
+        [4, 7],
+      ],
+      [
+        [0, 3],
+        [3, 6],
+        [5, 7],
+      ],
+    ];
+    for (const combo of combos) {
+      const extra = combo.map(([a, b]): [string, string] => [ids[a] as string, ids[b] as string]);
+      await cleanRender(rowOf(ids, [...chain, ...extra]));
+    }
   });
 
   test("a straight line does not run through a caption below a frame (waveform)", async () => {

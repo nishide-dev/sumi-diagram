@@ -10,6 +10,7 @@ import { getOutlineRenderer } from "../../core/outline";
 import { segmentCrossesRegion } from "../../lint/geometry/edges";
 import { rectPolygon } from "../../lint/geometry/shapes";
 import type { LayoutIR, Point, Rect } from "../ir";
+import { findCrossings } from "./crossings";
 import { addDirectRoutes } from "./diagonal";
 import { endpointRects } from "./endpoint-rects";
 import { nodeRegion } from "./ports";
@@ -166,7 +167,7 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
   for (const edge of order) {
     // Only this edge is tried, against the placed nodes as static obstacles (not the whole figure).
     // Its points when the router draws it and it meets no accepted route.
-    const fits = (candidate: EdgeIR): readonly Point[] | undefined => {
+    const fits = (candidate: EdgeIR, avoid = true): readonly Point[] | undefined => {
       const solo: FigureIR = {
         ...ir,
         edges: [candidate],
@@ -183,7 +184,7 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
           : routeEdges(solo, layout, { hintTrials: false });
       if (result.diagnostics.some((d) => about(d, edge))) return undefined;
       const points = result.layout.edges.find((e) => e.key === edge.key)?.route?.points;
-      return points === undefined || meets(edge, points) ? undefined : points;
+      return points === undefined || (avoid && meets(edge, points)) ? undefined : points;
     };
     let chosen: EdgeIR | undefined;
     let points: readonly Point[] | undefined;
@@ -201,15 +202,40 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
           break;
         }
       }
-    if (chosen !== undefined && points !== undefined)
-      accepted.push({ from: edge.from, to: edge.to, points });
-    resolved.set(edge.key, chosen ?? { ...edge, centerPorts: true });
+    if (chosen === undefined) {
+      // The ordinary route with the 3D-centre ports is accepted as it is, and later edges keep
+      // clear of it like of any other.
+      chosen = { ...edge, centerPorts: true };
+      points = fits(chosen, false);
+    }
+    if (points !== undefined) accepted.push({ from: edge.from, to: edge.to, points });
+    resolved.set(edge.key, chosen);
   }
-  return {
+  const build = (): FigureIR => ({
     ...ir,
     edges: ir.edges.map((e) => resolved.get(e.key) ?? e),
     elements: readonlyMap([...ir.elements].map(([k, v]) => [k, resolved.get(k) ?? v] as const)),
-  };
+  });
+  // The figure is routed once as a whole (only when some edge detours or falls back): where a
+  // detour crosses another edge there, it is dropped to ordinary routing with the 3D-centre ports.
+  for (let round = 0; round < 3; round++) {
+    if (![...resolved.values()].some((e) => e.faceSides !== undefined || e.centerPorts === true))
+      break;
+    const figure = build();
+    const crossings = findCrossings(routeEdges(figure, placed, { hintTrials: false }).layout);
+    const demote = new Set(
+      crossings
+        .flatMap((c) => [...c.edges, ...c.others])
+        .filter((key) => resolved.get(key)?.faceSides !== undefined),
+    );
+    if (demote.size === 0) break;
+    for (const key of demote) {
+      const e = resolved.get(key) as EdgeIR;
+      const { faceSides: _dropped, ...rest } = e;
+      resolved.set(key, { ...rest, centerPorts: true });
+    }
+  }
+  return build();
 }
 
 /** Whether two segments cross, touch or overlap. */
