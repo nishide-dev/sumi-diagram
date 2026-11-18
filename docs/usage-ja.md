@@ -93,7 +93,7 @@ sumi doctor
 | `sumi update --check` | 確認のみ。終了コード 0: 最新、1: 更新あり、2: 確認に失敗 |
 | `sumi update --version <版>` | その版を入れる（先頭の `v` は任意）。古い版も指定でき、ダウングレードにも使える |
 
-対象は `install.sh` が作る配置（`<SUMI_HOME>/sumi-<版>-<target>/bin/sumi`。実行中のファイルからシンボリックリンクを解決して判定し、`SUMI_HOME` を設定している場合はそのディレクトリと一致が必要）だけです。それ以外は終了コード 2 でインストーラーのコマンドを表示し、何も変更しません。`SUMI_BIN_DIR` の `sumi` リンクが実行中の版を指していない場合は、新しい版を入れますがリンクと旧版には触れません。
+対象は `install.sh` が作る配置（`<SUMI_HOME>/sumi-<版>-<target>/bin/sumi`。実行中のファイルからシンボリックリンクを解決して判定し、`SUMI_HOME` を設定している場合はそのディレクトリと一致が必要）だけです。それ以外は終了コード 2 でインストーラーのコマンドを表示し、何も変更しません。`install.sh` で入れた証拠は、実行中の版に解決される `sumi` シンボリックリンク（`SUMI_BIN_DIR`、`<SUMI_HOME>/.sumi-install` に記録されたディレクトリ、`~/.local/bin` のいずれか）です。手動で展開した tarball は対象外です。既存の版ディレクトリは削除せず（同じ版なら再利用し、そうでなければ拒否）、リンクを含むアーカイブは拒否し、ロックファイル（`<SUMI_HOME>/.sumi-lock`）で同時実行の 2 つ目を拒否します。
 
 **更新の通知:** `sumi doctor`（ほかのコマンドは何も出しません）は、最新リリースを 1 日 1 回まで（タイムアウト 2 秒）確認し、結果を `$XDG_CACHE_HOME/sumi/update-check.json`（既定は `~/.cache/sumi`）に保存します。新しい版があれば「`Sumi X is available (you have Y): run `sumi update``」を 1 行出します。オフラインなどで確認に失敗しても何も出さず、1 時間後に再試行します。`CI` が設定されているとき、`SUMI_NO_UPDATE_CHECK=1`、`sumi doctor --no-update-check`、ソースからの実行では確認しません。`--json` では確認した場合に `update` が加わります。
 

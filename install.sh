@@ -103,6 +103,8 @@ rm -rf "${home:?}/$name"
 mv "$stage" "$home/$name" || fail 'Could not move the staged release into place.'
 stage=
 ln -sf "$home/$name/bin/sumi" "$bin/sumi"
+# `sumi update` only touches installs it can tie back to this script.
+printf 'bin=%s\n' "$bin" > "$home/.sumi-install"
 "$bin/sumi" doctor || fail "sumi doctor failed. Check the diagnostics above ($bin/sumi)."
 printf 'Installed %s\n' "$bin/sumi"
 case ":${PATH:-}:" in

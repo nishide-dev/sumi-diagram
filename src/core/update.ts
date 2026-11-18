@@ -23,6 +23,7 @@ import {
   lstat,
   mkdir,
   mkdtemp,
+  open,
   readdir,
   readFile,
   realpath,
@@ -154,7 +155,7 @@ export async function resolveLatestVersion(
   f: FetchLike = fetch,
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<string> {
-  const url = env[ENV.latestUrl] ?? DEFAULT_LATEST_URL;
+  const url = envValue(env, ENV.latestUrl) ?? DEFAULT_LATEST_URL;
   const bytes = await fetchBytes(url, f, timeoutMs, "the latest release information");
   let tag: unknown;
   try {
@@ -182,17 +183,42 @@ export interface InstallLayout {
   prefix: string;
   version: string;
   target: string;
-  /** `<SUMI_BIN_DIR>/sumi` and whether it is a symlink to the running executable. */
+  /** The `sumi` symlink that resolves to the running executable. */
   link: string;
-  linked: boolean;
 }
 
 export type LayoutResult = { ok: true; layout: InstallLayout } | { ok: false; reason: string };
 
 const PREFIX_NAME = /^sumi-(.+)-(darwin|linux)-(x64|arm64)$/;
 
-function binDirOf(env: Env): string {
-  return resolve(env[ENV.binDir] ?? join(env.HOME ?? homedir(), ".local", "bin"));
+/** An environment variable, with an empty value treated as unset (install.sh's `${VAR:-…}`). */
+const envValue = (env: Env, name: string): string | undefined => {
+  const value = env[name];
+  return value === undefined || value === "" ? undefined : value;
+};
+
+/** `<home>/.sumi-install`: written by install.sh, records the directory holding the `sumi` link. */
+export const INSTALL_MARKER = ".sumi-install";
+
+async function markerBinDir(home: string): Promise<string | undefined> {
+  try {
+    const line = (await readFile(join(home, INSTALL_MARKER), "utf8"))
+      .split("\n")
+      .find((l) => l.startsWith("bin="));
+    const dir = line?.slice(4).trim();
+    return dir !== undefined && isAbsolute(dir) ? dir : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** True if `link` is a symlink that resolves to `real`. */
+async function linksTo(link: string, real: string): Promise<boolean> {
+  try {
+    return (await lstat(link)).isSymbolicLink() && (await realpath(link)) === real;
+  } catch {
+    return false;
+  }
 }
 
 /** Recognizes an `install.sh` layout from the running executable. */
@@ -240,8 +266,8 @@ export async function detectInstall(options: {
     };
   }
   const home = dirname(prefix);
-  const configured = env[ENV.home];
-  if (configured !== undefined && configured !== "") {
+  const configured = envValue(env, ENV.home);
+  if (configured !== undefined) {
     let configuredReal: string;
     try {
       configuredReal = realpathSync(resolve(configured));
@@ -255,14 +281,24 @@ export async function detectInstall(options: {
       };
     }
   }
-  const link = join(binDirOf(env), "sumi");
-  let linked = false;
-  try {
-    linked = (await lstat(link)).isSymbolicLink() && (await realpath(link)) === real;
-  } catch {
-    // no link: reported by the caller
+  // A manually extracted tarball has the same shape; require evidence that install.sh
+  // made this install: a `sumi` symlink resolving to the running release.
+  const candidates = [
+    envValue(env, ENV.binDir),
+    await markerBinDir(home),
+    join(envValue(env, "HOME") ?? homedir(), ".local", "bin"),
+  ];
+  for (const dir of candidates) {
+    if (dir === undefined) continue;
+    const link = join(resolve(dir), "sumi");
+    if (await linksTo(link, real)) {
+      return { ok: true, layout: { home, prefix, version, target, link } };
+    }
   }
-  return { ok: true, layout: { home, prefix, version, target, link, linked } };
+  return {
+    ok: false,
+    reason: `No sumi symlink (${ENV.binDir}, ${INSTALL_MARKER} or ~/.local/bin) points at ${real}, so this does not look like an install.sh install.`,
+  };
 }
 
 // ---------------------------------------------------------------- checksums
@@ -311,7 +347,6 @@ export type UpdateOutcome =
       to: string;
       direction: "upgrade" | "downgrade";
       path: string;
-      linked: boolean;
     };
 
 const STAGING_PREFIX = ".sumi-update.";
@@ -344,7 +379,11 @@ async function defaultRunVersion(binary: string): Promise<string> {
   return result.stdout;
 }
 
-/** Lists the archive and rejects entries that could escape the extraction directory. */
+/**
+ * Lists the archive and rejects entries that could escape the extraction
+ * directory, and every entry that is not a regular file or a directory
+ * (symlinks and hard links could point anywhere).
+ */
 async function checkArchiveEntries(archive: string, name: string): Promise<void> {
   const listed = await runCommand(["tar", "-tzf", archive], { timeoutMs: 120_000 });
   if (listed.exitCode !== 0) {
@@ -356,6 +395,74 @@ async function checkArchiveEntries(archive: string, name: string): Promise<void>
       throw new UpdateError("bad-archive", `The archive contains an unexpected entry: ${entry}`);
     }
   }
+  const verbose = await runCommand(["tar", "-tvzf", archive], { timeoutMs: 120_000 });
+  for (const line of verbose.stdout.split("\n").filter((l) => l !== "")) {
+    if (line[0] !== "-" && line[0] !== "d") {
+      throw new UpdateError(
+        "bad-archive",
+        `The archive contains a link or special file: ${line.trim()}`,
+      );
+    }
+  }
+}
+
+/** After extraction: no symlinks anywhere, and `bin/sumi` is a regular file inside the stage. */
+async function checkStagedTree(staged: string): Promise<void> {
+  const walk = async (dir: string): Promise<void> => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) await walk(path);
+      else if (!entry.isFile()) {
+        throw new UpdateError("bad-archive", `The extracted release contains a non-file: ${path}`);
+      }
+    }
+  };
+  await walk(staged);
+  const binary = join(staged, "bin", "sumi");
+  const info = await lstat(binary).catch(() => undefined);
+  if (!info?.isFile()) {
+    throw new UpdateError("bad-archive", "The archive lacks a regular bin/sumi file.");
+  }
+}
+
+const LOCK_FILE = ".sumi-lock";
+const LOCK_STALE_MS = 10 * 60 * 1000;
+
+function processAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as { code?: string }).code === "EPERM";
+  }
+}
+
+/** Takes `<home>/.sumi-lock` (O_EXCL); a lock from a dead process or older than ten minutes is stale. */
+async function acquireLock(home: string, now: number): Promise<() => Promise<void>> {
+  const path = join(home, LOCK_FILE);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const handle = await open(path, "wx");
+      await handle.writeFile(`${process.pid} ${now}\n`);
+      await handle.close();
+      return () => rm(path, { force: true });
+    } catch (error) {
+      if ((error as { code?: string }).code !== "EEXIST") throw error;
+    }
+    const text = (await readFile(path, "utf8").catch(() => "")).trim();
+    const [pid, since] = text.split(" ").map(Number);
+    // A lock being written is empty for a moment: only an old, unreadable one is stale.
+    const unreadable = pid === undefined || since === undefined || Number.isNaN(pid + since);
+    const age = Date.now() - ((await stat(path).catch(() => undefined))?.mtimeMs ?? 0);
+    const stale = unreadable ? age > 10_000 : !processAlive(pid) || now - since > LOCK_STALE_MS;
+    if (!stale) break;
+    await rm(path, { force: true });
+  }
+  throw new UpdateError(
+    "locked",
+    "Another sumi update is already running.",
+    `Wait for it to finish; if none is running, remove ${path}.`,
+  );
 }
 
 export async function runUpdate(options: UpdateOptions): Promise<UpdateOutcome> {
@@ -399,12 +506,14 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateOutcome> 
   const name = archiveName(wanted, target);
   const archive = `${name}.tar.gz`;
   const base = (
-    env[ENV.downloadBase] ?? `https://github.com/${RELEASE_REPO}/releases/download/v${wanted}`
+    envValue(env, ENV.downloadBase) ??
+    `https://github.com/${RELEASE_REPO}/releases/download/v${wanted}`
   ).replace(/\/+$/, "");
   log(
     `${direction === "downgrade" ? "Downgrading" : "Updating"} Sumi ${current} -> ${wanted} (${target})`,
   );
 
+  const unlock = await acquireLock(home, now());
   await removeStaleStaging(home, now());
   let work: string | undefined;
   let placed: string | undefined;
@@ -436,9 +545,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateOutcome> 
     }
     const staged = join(extracted, name);
     const binary = join(staged, "bin", "sumi");
-    if (!(await stat(binary).catch(() => undefined))?.isFile()) {
-      throw new UpdateError("bad-archive", `The archive lacks ${name}/bin/sumi.`);
-    }
+    await checkStagedTree(staged);
     // The new release must run on this machine before anything is replaced.
     try {
       const out = (await (u.runVersion ?? defaultRunVersion)(binary)).trim();
@@ -458,23 +565,46 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateOutcome> 
     if (dest === layout.prefix) {
       throw new UpdateError("same-directory", `${dest} is the running release.`);
     }
-    await rm(dest, { recursive: true, force: true });
-    await rename(staged, dest);
-    placed = dest;
-    await u.beforeSwitch?.();
-    if (layout.linked) {
-      const tmpLink = join(dirname(layout.link), `.sumi.update.${process.pid}`);
-      await rm(tmpLink, { force: true });
-      await symlink(join(dest, "bin", "sumi"), tmpLink);
+    if (await lstat(dest).catch(() => undefined)) {
+      // Never delete an existing directory (it may be in use): reuse it if it is this release.
+      let same = false;
       try {
-        await rename(tmpLink, layout.link);
-      } catch (error) {
-        await rm(tmpLink, { force: true });
-        throw error;
+        await checkStagedTree(dest);
+        same =
+          normalizeVersion(await (u.runVersion ?? defaultRunVersion)(join(dest, "bin", "sumi"))) ===
+          wanted;
+      } catch {
+        // not a usable release
       }
-      // The old release is no longer referenced by the link: drop it.
-      await rm(layout.prefix, { recursive: true, force: true }).catch(() => {});
+      if (!same) {
+        throw new UpdateError(
+          "destination-exists",
+          `${dest} already exists and is not a working Sumi ${wanted}; nothing was changed.`,
+          "Remove that directory (if no other Sumi uses it) and run sumi update again.",
+        );
+      }
+    } else {
+      await rename(staged, dest);
+      placed = dest;
     }
+    await u.beforeSwitch?.();
+    if (!(await linksTo(layout.link, join(layout.prefix, "bin", "sumi")))) {
+      throw new UpdateError(
+        "link-changed",
+        `${layout.link} no longer points at the running release; nothing was changed.`,
+      );
+    }
+    const tmpLink = join(dirname(layout.link), `.sumi.update.${process.pid}`);
+    await rm(tmpLink, { force: true });
+    await symlink(join(dest, "bin", "sumi"), tmpLink);
+    try {
+      await rename(tmpLink, layout.link);
+    } catch (error) {
+      await rm(tmpLink, { force: true });
+      throw error;
+    }
+    // The old release is no longer referenced by the link: drop it.
+    await rm(layout.prefix, { recursive: true, force: true }).catch(() => {});
     placed = undefined;
     return {
       status: "updated",
@@ -482,7 +612,6 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateOutcome> 
       to: wanted,
       direction,
       path: join(dest, "bin", "sumi"),
-      linked: layout.linked,
     };
   } catch (error) {
     if (placed !== undefined) await rm(placed, { recursive: true, force: true }).catch(() => {});
@@ -494,6 +623,7 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateOutcome> 
     );
   } finally {
     if (work !== undefined) await rm(work, { recursive: true, force: true }).catch(() => {});
+    await unlock();
   }
 }
 

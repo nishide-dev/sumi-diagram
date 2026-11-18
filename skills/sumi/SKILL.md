@@ -75,11 +75,8 @@ Ask once, briefly, for what is missing. If told to go ahead, assume `paper-singl
 sumi doctor --skill-version 0.19.0   # the `metadata.version` in this file's frontmatter
 ```
 
-Exit 0 and `Ready to render.` means D2, fonts and geometry lint are in place. If a
-check fails, relay its `hint` and stop (a lone `d2` failure does not block structured
-figures): reinstall the tarball, `bun run d2:install`, or set `SUMI_D2_PATH` (v0.9.0).
-Relay an update or version-mismatch line in one sentence and carry on; never run the
-update yourself (`sumi update` for the CLI, `npx skills update sumi` for the Skill).
+Exit 0 and `Ready to render.` means D2, fonts and geometry lint are in place. If a check fails, relay its `hint` and stop (a lone `d2` failure does not block structured figures): reinstall the tarball, `bun run d2:install`, or set `SUMI_D2_PATH` (v0.9.0).
+Relay an update or version-mismatch line in one sentence and carry on; never run the update yourself (`sumi update` for the CLI, `npx skills update sumi` for the Skill). If the CLI rejects `--skill-version` as an unknown option it predates it: run `sumi doctor` and `sumi --version` instead, treat a CLI older than this Skill's version as outdated, and tell the user to reinstall with `install.sh` (older CLIs lack `sumi update`).
 
 ### 3. Discover components, themes and profiles
 

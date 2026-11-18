@@ -196,6 +196,9 @@ describe("skill metadata", () => {
     const meta = parseYaml(frontmatter?.[1] ?? "") as { metadata?: { version?: unknown } };
     expect(meta.metadata?.version).toBe(pkg.version);
     expect(text).toContain(`sumi doctor --skill-version ${pkg.version}`);
+    // Older CLIs reject the option: the Skill tells the agent how to fall back (#597).
+    expect(text).toContain("rejects `--skill-version` as an unknown option");
+    expect(text).toContain("install.sh");
   });
 
   test("SKILL.md body stays short (details belong in references/)", () => {

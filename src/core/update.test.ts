@@ -164,7 +164,7 @@ describe("install layout detection", () => {
     const found = await detectInstall({ env, execPath: join(bin, "sumi"), mode: "compiled" });
     expect(found.ok).toBe(true);
     if (!found.ok) return;
-    expect(found.layout).toMatchObject({ version: "0.19.0", target: TARGET, linked: true });
+    expect(found.layout).toMatchObject({ version: "0.19.0", target: TARGET });
     expect(found.layout.prefix).toBe(join(await realHome(), archiveName("0.19.0", TARGET)));
   });
 
@@ -198,11 +198,32 @@ describe("install layout detection", () => {
     expect(arch).toMatchObject({ ok: false });
   });
 
-  test("a bin link that does not point at the running release is reported as unlinked", async () => {
+  test("a manually extracted release (no sumi symlink to it) is refused", async () => {
     const exe = await makeInstall("0.19.0");
     await rm(join(bin, "sumi"));
     const found = await detectInstall({ env, execPath: exe, mode: "compiled" });
-    expect(found.ok && found.layout.linked).toBe(false);
+    expect(found.ok).toBe(false);
+    await symlink(join(root, "elsewhere"), join(bin, "sumi"));
+    expect((await detectInstall({ env, execPath: exe, mode: "compiled" })).ok).toBe(false);
+  });
+
+  test("the install marker names the bin directory when SUMI_BIN_DIR is not set", async () => {
+    const exe = await makeInstall("0.19.0");
+    const bare = { ...env, SUMI_BIN_DIR: "" };
+    expect((await detectInstall({ env: bare, execPath: exe, mode: "compiled" })).ok).toBe(false);
+    await writeFile(join(home, ".sumi-install"), `bin=${bin}\n`);
+    const found = await detectInstall({ env: bare, execPath: exe, mode: "compiled" });
+    expect(found.ok).toBe(true);
+  });
+
+  test("an empty SUMI_HOME is treated as unset", async () => {
+    const exe = await makeInstall("0.19.0");
+    const found = await detectInstall({
+      env: { ...env, SUMI_HOME: "" },
+      execPath: exe,
+      mode: "compiled",
+    });
+    expect(found.ok).toBe(true);
   });
 });
 
@@ -226,7 +247,6 @@ describe("sumi update", () => {
       from: "0.19.0",
       to: "0.20.0",
       direction: "upgrade",
-      linked: true,
     });
     expect(await dirs(home)).toEqual([archiveName("0.20.0", TARGET)]);
     const target = await readlink(join(bin, "sumi"));
@@ -372,17 +392,100 @@ describe("sumi update", () => {
     expect(await dirs(home)).toEqual([".sumi-update.live", archiveName("0.20.0", TARGET)]);
   });
 
-  test("without a bin link the new release is installed but nothing is pruned or relinked", async () => {
+  test("never deletes an existing destination: a working one is reused, a broken one refused", async () => {
     const exe = await makeInstall("0.19.0");
-    await rm(join(bin, "sumi"));
     await makeRelease("0.20.0");
-    const outcome = await runUpdate({ env, update: update({}, exe) });
-    expect(outcome).toMatchObject({ status: "updated", linked: false });
-    expect(await dirs(home)).toEqual([
-      archiveName("0.19.0", TARGET),
-      archiveName("0.20.0", TARGET),
+    // A leftover 0.20.0 directory that works: reused, link switched.
+    const leftover = join(home, archiveName("0.20.0", TARGET), "bin");
+    await mkdir(leftover, { recursive: true });
+    await writeFile(join(leftover, "sumi"), "#!/bin/sh\necho 0.20.0\n");
+    await chmod(join(leftover, "sumi"), 0o755);
+    await writeFile(join(leftover, "keep"), "mine");
+    await runUpdate({ env, update: update({}, exe) });
+    expect(await readFile(join(leftover, "keep"), "utf8")).toBe("mine");
+    expect((await runCommand([join(bin, "sumi")])).stdout.trim()).toBe("0.20.0");
+  });
+
+  test("a broken destination directory is refused and left alone", async () => {
+    const exe = await makeInstall("0.19.0");
+    await makeRelease("0.20.0");
+    const broken = join(home, archiveName("0.20.0", TARGET));
+    await mkdir(broken, { recursive: true });
+    await writeFile(join(broken, "precious"), "data");
+    await expect(runUpdate({ env, update: update({}, exe) })).rejects.toMatchObject({
+      diagnostic: { code: "update/destination-exists" },
+    });
+    expect(await readFile(join(broken, "precious"), "utf8")).toBe("data");
+    expect((await runCommand([join(bin, "sumi")])).stdout.trim()).toBe("0.19.0");
+  });
+
+  test("archives with links are rejected before extraction", async () => {
+    const exe = await makeInstall("0.19.0");
+    const name = archiveName("0.20.0", TARGET);
+    for (const kind of ["bin-to-sh", "outside", "hardlink"]) {
+      const stage = await mkdtemp(join(root, "evil-"));
+      await mkdir(join(stage, name, "bin"), { recursive: true });
+      if (kind === "bin-to-sh") await symlink("/bin/sh", join(stage, name, "bin", "sumi"));
+      else {
+        await writeFile(join(stage, name, "bin", "sumi"), "#!/bin/sh\necho 0.20.0\n");
+        await chmod(join(stage, name, "bin", "sumi"), 0o755);
+        if (kind === "outside") await symlink("/etc", join(stage, name, "link"));
+        else await runCommand(["ln", join(stage, name, "bin", "sumi"), join(stage, name, "hard")]);
+      }
+      const tarball = join(server, `${name}.tar.gz`);
+      expect((await runCommand(["tar", "-czf", tarball, "-C", stage, name])).exitCode).toBe(0);
+      const sum = new Bun.CryptoHasher("sha256").update(await readFile(tarball)).digest("hex");
+      await writeFile(join(server, "SHA256SUMS"), `${sum}  ${name}.tar.gz\n`);
+      await expect(runUpdate({ env, update: update({}, exe) })).rejects.toMatchObject({
+        diagnostic: { code: "update/bad-archive" },
+      });
+      expect(await dirs(home)).toEqual([archiveName("0.19.0", TARGET)]);
+    }
+  });
+
+  test("a link that moved before the switch aborts the update", async () => {
+    const exe = await makeInstall("0.19.0");
+    await makeRelease("0.20.0");
+    const moved = update(
+      {
+        beforeSwitch: async () => {
+          await rm(join(bin, "sumi"));
+          await symlink(join(root, "other"), join(bin, "sumi"));
+        },
+      },
+      exe,
+    );
+    await expect(runUpdate({ env, update: moved })).rejects.toMatchObject({
+      diagnostic: { code: "update/link-changed" },
+    });
+    expect(await readlink(join(bin, "sumi"))).toBe(join(root, "other"));
+    expect(await dirs(home)).toEqual([archiveName("0.19.0", TARGET)]);
+  });
+
+  test("two concurrent updates: one runs, the other is refused cleanly", async () => {
+    const exe = await makeInstall("0.19.0");
+    await makeRelease("0.20.0");
+    const results = await Promise.allSettled([
+      runUpdate({ env, update: update({}, exe) }),
+      runUpdate({ env, update: update({}, exe) }),
     ]);
-    await expect(lstat(join(bin, "sumi"))).rejects.toThrow();
+    expect(results.map((r) => r.status).sort()).toEqual(["fulfilled", "rejected"]);
+    const rejected = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+    expect(rejected.reason.diagnostic.code).toBe("update/locked");
+    expect((await runCommand([join(bin, "sumi")])).stdout.trim()).toBe("0.20.0");
+    expect(await dirs(home)).toEqual([archiveName("0.20.0", TARGET)]);
+  });
+
+  test("a stale lock (dead process) is taken over", async () => {
+    const exe = await makeInstall("0.19.0");
+    await makeRelease("0.20.0");
+    await writeFile(join(home, ".sumi-lock"), `999999999 ${Date.now()}\n`);
+    await runUpdate({ env, update: update({}, exe) });
+    expect(await dirs(home)).toEqual([archiveName("0.20.0", TARGET)]);
+    await writeFile(join(home, ".sumi-lock"), `${process.pid} ${Date.now()}\n`);
+    await expect(
+      runUpdate({ env, version: "0.19.0", update: update({}, join(bin, "sumi")) }),
+    ).rejects.toMatchObject({ diagnostic: { code: "update/locked" } });
   });
 
   test("a non-install.sh layout is refused with the install command and nothing is touched", async () => {

@@ -48,11 +48,6 @@ export async function updateCommand(
         return EXIT.failed;
       case "updated":
         say(`Sumi ${outcome.to} is installed (${outcome.path}).`);
-        if (!outcome.linked) {
-          say(
-            "The sumi link in SUMI_BIN_DIR was not pointing at the old install, so it was not changed; run the path above, or relink it.",
-          );
-        }
         say("Run `sumi doctor` to check the installation.");
         return EXIT.ok;
     }
