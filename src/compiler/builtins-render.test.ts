@@ -338,6 +338,31 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/group-empty-area"],
             ]);
+          } else if (example === "examples/multilayer-network/multilayer-network.sumi.yaml") {
+            // Tinted nodes on the sumi plane fill are the look the theme is made for; one
+            // correspondence line passes 0.33mm from a plane title.
+            expect(stderr).toContain("0 errors, 0 warnings, 4 infos");
+            expect(
+              [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
+                ([, severity, code]) => [severity, code],
+              ),
+            ).toEqual([
+              ["info", "geometry/color-on-panel"],
+              ["info", "geometry/color-on-panel"],
+              ["info", "geometry/color-on-panel"],
+              ["info", "geometry/edge-touches-label"],
+            ]);
+          } else if (example === "examples/attention-sheet/attention-sheet.sumi.yaml") {
+            expect(stderr).toContain("0 errors, 0 warnings, 3 infos");
+            expect(
+              [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
+                ([, severity, code]) => [severity, code],
+              ),
+            ).toEqual([
+              ["info", "geometry/sparse-figure"],
+              ["info", "geometry/color-on-panel"],
+              ["info", "geometry/color-on-panel"],
+            ]);
           } else expect(stderr).toBe("");
           const svg = await Bun.file(output).text();
           const committed = example.replace(/\.sumi\.yaml$/, ".svg");

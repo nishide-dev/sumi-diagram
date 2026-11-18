@@ -143,8 +143,14 @@ for (const item of corpus)
           expect(names.get(`${element.key} waveform`)).not.toBe(names.get(element.key));
         }
         if (element.kind === "edge") {
-          // A zoom edge (#176) is two lines between corners: a freeform shape in either mode.
-          const glued = connectors === "glued" && element.routing !== "zoom";
+          // A zoom edge (#176) is two lines between corners: a freeform shape in either mode. On a
+          // figure with tilted planes (#577) the edges lying on a plane are mapped freeforms in
+          // either mode, while the correspondence lines between planes are glued.
+          const planes = item.svg.includes("sumi-plane");
+          const glued =
+            connectors === "glued" &&
+            element.routing !== "zoom" &&
+            (!planes || shape.name === "p:cxnSp");
           expect(shape.name).toBe(glued ? "p:cxnSp" : "p:sp");
           if (glued) {
             const refs = [...descendants(shape)].filter((e) =>

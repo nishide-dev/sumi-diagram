@@ -1,4 +1,6 @@
 {
+  "examples/attention-sheet/attention-sheet.freeform": "92b6c6f957ebde31d6f8ffb7b87e10da91f9b61d28273af94743593eb732e5c1",
+  "examples/attention-sheet/attention-sheet.glued": "670e4d82b112e13ab459aae4baeb52f38d8937d636dc8c4cee43bd5218d6fd50",
   "examples/chat/chat.freeform": "71dd29b3654e1acff153644e8ac82856fa5f66397349bb64d3c86a45ef7aa79c",
   "examples/chat/chat.glued": "a671cc652af28ef2b4c6248662fc822b32a906136bed3a4035830a72ac29516a",
   "examples/decision-flow/decision-flow.freeform": "81a927f169a822743915430cf6d1ba4d7f86317c9c3df35a689e725ebe2d1521",
@@ -9,6 +11,8 @@
   "examples/grouped/grouped.glued": "3b9b03027db0bd8b51e01e4bb4777e14edf5f4c96a73b373b39c774cd1ccb2fa",
   "examples/llama4-moe/llama4-moe.freeform": "df74dc15644fe839bd11c4faa77820b60c43ae2a1bd4b1afe7a4bce59a8f6f8d",
   "examples/llama4-moe/llama4-moe.glued": "7c1716283e9b81eca87fa6887625b7b53ab8739a63d2ca966e231d9e4cc189a5",
+  "examples/multilayer-network/multilayer-network.freeform": "02ff22808144a9c45da1b458b75d20412a215c1f596694348ff1ab32ca6871f7",
+  "examples/multilayer-network/multilayer-network.glued": "da0472b936e9c2ac1a303365c12fbace542fb6aa5a64abe2adca635fde123b88",
   "examples/pipeline/pipeline.freeform": "98c5902ab7ad46cd081b19b2f82ae7368803f10f4b5edc93162053d3d792ef21",
   "examples/pipeline/pipeline.glued": "70c57df2c277a047662300b657879ba6d29d7bdb47029dca0b8bbb6024849217",
   "examples/system-architecture/system-architecture.freeform": "a1a87e6d430a99bba897a7e878eeddba705d6339978373e1e7d4fdb759c026b9",
