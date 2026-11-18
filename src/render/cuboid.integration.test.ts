@@ -1154,6 +1154,22 @@ edges:
     expect(value.layout.edges[0]?.route?.points.length).toBeGreaterThan(2);
   });
 
+  test("an automatic face line does not cross a routed edge either (2x2 grid, a to d and an anchored b to c)", async () => {
+    const value = await cleanRender(`version: 1
+figure: { id: grid, theme: sumi, profile: paper-double, layout: { arrange: { grid: { columns: 2, rowGap: 12mm, columnGap: 12mm, items: [a, b, c, d] } } } }
+nodes:
+  - { id: a, component: cuboid, props: { width: 6mm, height: 12mm, depth: 8mm } }
+  - { id: b, component: cuboid, props: { width: 6mm, height: 12mm, depth: 8mm } }
+  - { id: c, component: cuboid, props: { width: 6mm, height: 12mm, depth: 8mm } }
+  - { id: d, component: cuboid, props: { width: 6mm, height: 12mm, depth: 8mm } }
+edges:
+  - { from: a, to: d }
+  - { from: b, to: c, fromAnchor: west:0.5 }
+`);
+    const [ad, bc] = value.layout.edges.map((e) => e.route?.points ?? []);
+    expect(clash(ad ?? [], bc ?? [])).toBe(false);
+  });
+
   test("a block end (<node>.<name>) is drawn straight as before and never takes face routing", async () => {
     const value = await render(`version: 1
 figure: { id: blk, theme: sumi, profile: paper-double, layout: { arrange: { row: { gap: 14mm, align: center, items: [a, b] } } } }

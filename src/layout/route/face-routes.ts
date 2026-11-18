@@ -10,19 +10,21 @@ import { getOutlineRenderer } from "../../core/outline";
 import { segmentCrossesRegion } from "../../lint/geometry/edges";
 import { rectPolygon } from "../../lint/geometry/shapes";
 import type { LayoutIR, Point, Rect } from "../ir";
-import { findCrossings } from "./crossings";
 import { addDirectRoutes } from "./diagonal";
 import { endpointRects } from "./endpoint-rects";
 import { nodeRegion } from "./ports";
-import { routeEdges } from "./router";
+import { type RouteResult, routeEdges } from "./router";
 
 /** Clearance, in units, kept between the line and other nodes. */
 const CLEARANCE = 2;
 
 const centre = (r: Rect): Point => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
 
-export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
-  if (!ir.edges.some((e) => e.faceDirect === true)) return ir;
+export function resolveFaceRoutes(
+  ir: FigureIR,
+  placed: LayoutIR,
+): { ir: FigureIR; routed?: RouteResult } {
+  if (!ir.edges.some((e) => e.faceDirect === true)) return { ir };
   const rects = endpointRects(ir, placed);
   const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
   const aim = (key: EdgeIR["from"], other: Point): Point => {
@@ -222,42 +224,34 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
     edges: ir.edges.map((e) => resolved.get(e.key) ?? e),
     elements: readonlyMap([...ir.elements].map(([k, v]) => [k, resolved.get(k) ?? v] as const)),
   });
-  // The figure is routed once as a whole (only when some edge detours or falls back): where a
-  // detour crosses another edge there, it is dropped to ordinary routing with the 3D-centre ports.
+  // The figure is routed as a whole, as it will be drawn: an automatic line (straight or a
+  // detour) that crosses or overlaps any other route is dropped to ordinary routing with the
+  // 3D-centre ports, and the figure is routed again (at most 3 rounds, and only after a conflict).
+  const automatic = (e: EdgeIR) =>
+    resolved.has(e.key) && (e.route === "straight" || e.faceSides !== undefined);
+  let figure = build();
+  let routed = routeEdges(figure, placed);
   for (let round = 0; round < 3; round++) {
-    if (![...resolved.values()].some((e) => e.faceSides !== undefined || e.centerPorts === true))
-      break;
-    const figure = build();
-    const routed = routeEdges(figure, placed, { hintTrials: false }).layout;
-    const crossings = findCrossings(routed);
-    const demote = new Set(
-      crossings
-        .flatMap((c) => [...c.edges, ...c.others])
-        .filter((key) => resolved.get(key)?.faceSides !== undefined),
-    );
-    // An automatic straight line meeting any other route (a written straight one included).
-    for (const [key, e] of resolved) {
-      if (e.route !== "straight") continue;
-      const mine = routed.edges.find((x) => x.key === key)?.route?.points ?? [];
-      const hit = routed.edges.some(
+    const points = new Map(routed.layout.edges.map((e) => [e.key, e.route?.points ?? []]));
+    const mine = figure.edges.filter(automatic);
+    const demote = mine.filter((e) =>
+      figure.edges.some(
         (other) =>
-          other.key !== key && other.route !== undefined && meetsPoints(mine, other.route.points),
-      );
-      if (hit) {
-        const { route: _route, ...rest } = e;
-        resolved.set(key, { ...rest, centerPorts: true });
-        demote.add(key);
-      }
+          other.key !== e.key &&
+          // Two automatic lines: the later one gives way.
+          (!automatic(other) || other.index < e.index) &&
+          meetsPoints(points.get(e.key) ?? [], points.get(other.key) ?? []),
+      ),
+    );
+    if (demote.length === 0) break;
+    for (const e of demote) {
+      const { faceSides: _sides, route: _route, ...rest } = resolved.get(e.key) as EdgeIR;
+      resolved.set(e.key, { ...rest, centerPorts: true });
     }
-    if (demote.size === 0) break;
-    for (const key of demote) {
-      const e = resolved.get(key) as EdgeIR;
-      if (e.faceSides === undefined) continue;
-      const { faceSides: _dropped, ...rest } = e;
-      resolved.set(key, { ...rest, centerPorts: true });
-    }
+    figure = build();
+    routed = routeEdges(figure, placed);
   }
-  return build();
+  return { ir: figure, routed };
 }
 
 /** Whether two polylines cross, touch or overlap. */

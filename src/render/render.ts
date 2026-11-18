@@ -303,11 +303,12 @@ function renderStructured(
     throw new Error(`internal error: unknown font set ${compiled.fontSet.id}`);
   const placed = placeStructured(compiled.ir);
   // Face-port cuboid edges that clear the other nodes become straight lines (#587).
-  const ir = resolveFaceRoutes(compiled.ir, placed.layout);
+  const faced = resolveFaceRoutes(compiled.ir, placed.layout);
+  const ir = faced.ir;
   compiled = { ...compiled, ir };
   diagnostics.push(...placed.diagnostics);
   diagnostics.push(...setOverlapDiagnostics(ir, placed.layout));
-  const routed = routeEdges(ir, placed.layout);
+  const routed = faced.routed ?? routeEdges(ir, placed.layout);
   diagnostics.push(...routed.diagnostics);
   if (hasErrors(routed.diagnostics)) return fail();
   const layout = routed.layout;
