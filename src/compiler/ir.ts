@@ -922,8 +922,30 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
   });
 
   const edges: EdgeIR[] = [];
+  const faceSolids = faceSolidKeys(nodes, groups);
+  const nodeKeys = new Set(nodes.map((n) => n.key));
+  const pairCount = new Map<string, number>();
+  for (const e of doc.edges) {
+    if (e === undefined) continue;
+    const pair = [endpointKey(refOwner(e.from)), endpointKey(refOwner(e.to))].sort().join("|");
+    pairCount.set(pair, (pairCount.get(pair) ?? 0) + 1);
+  }
   for (const [index, e] of doc.edges.entries()) {
     if (e === undefined) continue;
+    const ends = [endpointKey(refOwner(e.from)), endpointKey(refOwner(e.to))];
+    // Between face-port cuboids and others (#587): drawn as one straight segment from face centre
+    // to face centre unless a route, an anchor, a block, fan-in/out or a sibling edge asks for more.
+    const faceDirect =
+      figure.layout.fanIn === undefined &&
+      e.route === undefined &&
+      e.fromAnchor === undefined &&
+      e.toAnchor === undefined &&
+      refCell(e.from) === undefined &&
+      refCell(e.to) === undefined &&
+      ends[0] !== ends[1] &&
+      ends.some((k) => faceSolids.has(k)) &&
+      ends.every((k) => nodeKeys.has(k)) &&
+      pairCount.get([...ends].sort().join("|")) === 1;
     edges.push(
       edgeIR(
         state,
@@ -932,6 +954,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         endpointKey,
         legendPartOf(doc, edgeKey(e.id, index)),
         theme.arrowhead,
+        faceDirect,
       ),
     );
     mapSource(edgeKey(e.id, index), ["edges", index]);
@@ -1200,6 +1223,7 @@ function edgeIR(
   endpointKey: (id: string) => ElementKey,
   legend: { legend?: LegendPartIR },
   standard: ThemeArrowhead = "triangle",
+  faceDirect = false,
 ): EdgeIR {
   const key = edgeKey(e.id, index);
   const component = componentOf(state, key);
@@ -1240,10 +1264,35 @@ function edgeIR(
     // A line to a block of a cuboid (#584) is one straight segment: the router knows no blocks.
     ...(e.route !== undefined
       ? { route: e.route }
-      : (refCell(e.from) !== undefined || refCell(e.to) !== undefined) &&
-        manifest.routing !== "zoom" && { route: "straight" as const }),
+      : ((refCell(e.from) !== undefined || refCell(e.to) !== undefined) &&
+            manifest.routing !== "zoom") ||
+          (faceDirect && manifest.routing === undefined)
+        ? { route: "straight" as const }
+        : {}),
     ...(manifest.routing !== undefined && { routing: manifest.routing }),
   });
+}
+
+/**
+ * The cuboids whose unanchored edge ends go to the centre of a face (#587, `ports: face`, the
+ * default): edges between them and other nodes are straight lines. Those in a tilted plane keep
+ * the plane's own routing.
+ */
+function faceSolidKeys(
+  nodes: readonly NodeIR[],
+  groups: readonly GroupIR[],
+): ReadonlySet<ElementKey> {
+  const planes = new Set(groups.filter((g) => g.plane !== undefined).map((g) => g.key));
+  return new Set(
+    nodes
+      .filter(
+        (n) =>
+          n.render?.renderer === "sumi/cuboid" &&
+          n.render.params?.ports !== "center" &&
+          (n.parent === undefined || !planes.has(n.parent)),
+      )
+      .map((n) => n.key),
+  );
 }
 
 function anchorIR<F extends "fromAnchor" | "toAnchor">(

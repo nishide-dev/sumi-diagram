@@ -245,7 +245,9 @@ export function checkRoutes(ir: FigureIR, layout: LayoutIR): RouteCheckReport {
         region !== undefined &&
         p !== undefined &&
         !isJunction(nodeIR.get(key)) &&
-        !(painted.get(key) ?? [region]).some((body) => onOutline(body, p))
+        !(painted.get(key) ?? [region]).some((body) => onOutline(body, p)) &&
+        // An end on a visible face of its own solid (face ports, #587) is the face's centre.
+        !Object.values(faces.get(key) ?? {}).some((face) => insidePolygon(p, face))
       )
         report.endpointMisses.push(`${edge.key} ${key} not on outline`);
     }

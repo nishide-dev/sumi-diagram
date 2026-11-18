@@ -3,12 +3,12 @@
 # Use when: a network is drawn as volumes (convolution blocks, pooling, fully connected layers,
 #   feature maps) and the sizes (channels, spatial resolution) are part of the message; one wide
 #   row, the figure fills a double column (`paper-double`).
-# Structure: one `row` (`align: end`, so every front face stands on one line) of `cuboid` nodes
+# Structure: one `row` (`align: center`, so the edges between neighbours run horizontally through the centres of their faces) of `cuboid` nodes
 #   (`tinted`; blue = convolution, orange = pooling, green = fully connected, gray = input);
 #   thickness (`width`) = channels, front height and `depth` = spatial size; consecutive
 #   convolutions of one block sit in a nested row with a small gap and carry `dims` once, on
 #   the middle one (`width`: channels above, `height`: resolution below); a `legend` row
-#   explains the colours. Edges leave the 3D centre of one block and enter the next, straightened where the blocks overlap (`props.ports: face` on a block would end its edges on the centre of its side or top face instead).
+#   explains the colours. Edges are straight lines from the centre of the side face one block leaves to the centre of the face the next one enters (the hidden left face is aimed at and the line stops at the silhouette); with `align: center` they are horizontal (`props.ports: center` on a block would aim at its projected 3D centre instead).
 # Change: the number of blocks (copy a block row and keep the heights shrinking); the sizes
 #   (`width` for channels, `height` and `depth` together for the resolution); the `dims`
 #   texts; the projection (`figure.projection`: angle 30 makes a flatter, wider solid,
@@ -29,16 +29,16 @@ figure:
         items:
           - row:
               gap: 4.5mm
-              align: end
+              align: center
               items:
                 - input
-                - row: {gap: 1mm, align: end, items: [a1, a2]}
+                - row: {gap: 1mm, align: center, items: [a1, a2]}
                 - pool-a
-                - row: {gap: 1mm, align: end, items: [b1, b2]}
+                - row: {gap: 1mm, align: center, items: [b1, b2]}
                 - pool-b
-                - row: {gap: 1mm, align: end, items: [c1, c2]}
+                - row: {gap: 1mm, align: center, items: [c1, c2]}
                 - pool-c
-                - row: {gap: 6mm, align: end, items: [fc1, fc2]}
+                - row: {gap: 6mm, align: center, items: [fc1, fc2]}
           - key
 nodes:
   - {id: input, component: cuboid, tone: gray, variant: tinted, props: {width: 1.5mm, height: 28mm, depth: 28mm, dims: {width: "3", height: "224²"}}}

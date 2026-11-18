@@ -1,9 +1,47 @@
+import { getOutlineRenderer } from "../../core/outline";
 import { getTheme } from "../../core/theme/builtin";
 import { contrastRatio } from "../../core/theme/node-variants";
 import type { Point } from "../../render/geometry";
 import { defineGeometryRule, type LintFinding } from "../rule";
-import { covers, normalized, over, paintItemsOf, surfaceAt } from "./composite";
+import { covers, normalized, over, type PaintItem, paintItemsOf, surfaceAt } from "./composite";
+import type { GeometryContext } from "./context";
 import type { Region } from "./shapes";
+
+/**
+ * The paint items with the shaded top and side faces of a solid (a cuboid, #587) after the
+ * node's own fill: an edge may start on a visible face, over its shade rather than the front's fill.
+ */
+function withFaceShades(context: GeometryContext, items: readonly PaintItem[]): PaintItem[] {
+  const nodes = new Map(context.elements.map((e) => [e.key, e]));
+  return items.flatMap((item) => {
+    const element = item.key === undefined ? undefined : nodes.get(item.key);
+    const render = element?.ir.kind === "node" ? element.ir.render : undefined;
+    const renderer = render === undefined ? undefined : getOutlineRenderer(render.renderer);
+    if (renderer === undefined || render === undefined || element?.bbox === undefined)
+      return [item];
+    if (item.kind !== "node" || render.renderer !== "sumi/cuboid") return [item];
+    const drawing = renderer.draw(element.bbox, renderer.params.parse(render.params ?? {}));
+    const faces = drawing.layers.flatMap((layer): PaintItem[] => {
+      const params = (render.params ?? {}) as { topFill?: string; sideFill?: string };
+      const color = normalized(layer.shade === "top" ? params.topFill : params.sideFill);
+      if (layer.role !== "body" || layer.block !== undefined || color === undefined) return [];
+      if (layer.shade !== "top" && layer.shade !== "side") return [];
+      const points = layer.path.points;
+      const xs = points.map((p) => p.x);
+      const ys = points.map((p) => p.y);
+      const [x, y] = [Math.min(...xs), Math.min(...ys)];
+      return [
+        {
+          ...item,
+          color,
+          region: { kind: "polygon", points },
+          bbox: { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y },
+        },
+      ];
+    });
+    return [item, ...faces];
+  });
+}
 
 function boundary(region: Region): Point[] {
   const points =
@@ -22,7 +60,7 @@ export const strokeContrast = defineGeometryRule({
   defaultSeverity: "info",
   fixable: false,
   run(context) {
-    const items = paintItemsOf(context);
+    const items = withFaceShades(context, paintItemsOf(context));
     const order = new Map(context.elements.map((element, index) => [element.key, index]));
     const canvas = getTheme(context.ir.meta.themeId)?.canvas ?? "#ffffff";
     const findings: LintFinding[] = [];

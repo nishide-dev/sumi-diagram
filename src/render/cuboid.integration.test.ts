@@ -27,6 +27,10 @@ edges:
   - { from: b, to: c }
 `;
 
+/** The same figure with `ports: center` on every cuboid (the behaviour before face ports, #587). */
+const center = (text: string) =>
+  text.replace(/component: cuboid, (label: "[^"]*", )?props: \{ /g, (m) => `${m}ports: center, `);
+
 async function render(text: string) {
   const result = await renderFigure(text);
   if (!result.ok || !("layout" in result.value)) throw new Error(JSON.stringify(result));
@@ -140,7 +144,7 @@ nodes:
 edges:
   - { from: a, to: b }
 `;
-    const value = await render(same);
+    const value = await render(center(same));
     const edge = value.compiled.ir.edges[0];
     const a = value.layout.nodes.find((n) => n.key === "n:a")?.rect;
     const b = value.layout.nodes.find((n) => n.key === "n:b")?.rect;
@@ -208,7 +212,7 @@ edges:
   }
 
   test("unequal bottom-aligned neighbours get one horizontal segment at the middle of their overlap", async () => {
-    const value = await render(pair(["28mm", "16mm"]));
+    const value = await render(center(pair(["28mm", "16mm"])));
     const points = value.layout.edges[0]?.route?.points ?? [];
     expect(points).toHaveLength(2);
     expect(points[0]?.y).toBeCloseTo(points[1]?.y ?? Number.NaN, 6);
@@ -287,7 +291,7 @@ edges:
   for (const axis of ["row", "stack"] as const)
     for (const route of ["", ", route: straight", ", route: curve"]) {
       test(`ends lie on the silhouette, on its slanted edges for a thin deep plate (${axis}, route${route || ": default"})`, async () => {
-        const value = await render(plates(axis, route));
+        const value = await render(center(plates(axis, route)));
         const points = value.layout.edges[0]?.route?.points ?? [];
         expect(distanceToSilhouette(value, "a", points[0] ?? { x: 1e9, y: 1e9 })).toBeLessThan(0.6);
         expect(distanceToSilhouette(value, "b", points.at(-1) ?? { x: 1e9, y: 1e9 })).toBeLessThan(
@@ -310,7 +314,7 @@ edges:
 
   for (const route of ["straight", "curve"]) {
     test(`unequal centres: a direct route (${route}) ends on both silhouettes`, async () => {
-      const value = await render(pair(["28mm", "10mm"], `, route: ${route}`));
+      const value = await render(center(pair(["28mm", "10mm"], `, route: ${route}`)));
       const points = value.layout.edges[0]?.route?.points ?? [];
       expect(distanceToSilhouette(value, "a", points[0] ?? { x: 1e9, y: 1e9 })).toBeLessThan(0.6);
       expect(distanceToSilhouette(value, "b", points.at(-1) ?? { x: 1e9, y: 1e9 })).toBeLessThan(
@@ -402,13 +406,14 @@ edges:
     expect(Object.values(checkRoutes(anchored.compiled.ir, anchored.layout)).flat()).toEqual([]);
   });
 
-  test("ports: face ends slide along their faces so unequal neighbours get one horizontal segment", async () => {
+  test("ports: face ends of a routed edge (fanIn written) slide along their faces so unequal neighbours get one horizontal segment", async () => {
     const value = await render(`version: 1
 figure:
   id: slide
   theme: sumi
   profile: paper-double
   layout:
+    fanIn: merge
     arrange: { row: { gap: 16mm, align: end, items: [a, b] } }
 nodes:
   - { id: a, component: cuboid, props: { ports: face, width: 6mm, height: 28mm, depth: 20mm } }
@@ -499,13 +504,14 @@ edges:
     expect(route[0]?.x).toBeLessThan(ra.x + ra.width - 3);
   });
 
-  test("glued editable PPTX: a slid face end is the glued site too", async () => {
+  test("glued editable PPTX: a slid face end of a routed edge is the glued site too", async () => {
     const { start, site, expected, route, ra } = await gluedSite(`version: 1
 figure:
   id: slide
   theme: sumi
   profile: paper-double
   layout:
+    fanIn: merge
     arrange: { row: { gap: 16mm, align: end, items: [a, b] } }
 nodes:
   - { id: a, component: cuboid, props: { ports: face, width: 6mm, height: 28mm, depth: 20mm } }
@@ -541,13 +547,14 @@ edges:
   - { from: a, to: b${route} }
 `;
 
-  test("ports: face north ends slide along the top face so unequal stacked solids get one vertical segment", async () => {
+  test("ports: face north ends of a routed edge (fanIn written) slide along the top face so unequal stacked solids get one vertical segment", async () => {
     const value = await render(`version: 1
 figure:
   id: slide-north
   theme: sumi
   profile: paper-double
   layout:
+    fanIn: merge
     arrange: { stack: { gap: 16mm, align: start, items: [b, a] } }
 nodes:
   - { id: a, component: cuboid, props: { ports: face, width: 24mm, height: 12mm, depth: 10mm } }
@@ -575,6 +582,7 @@ figure:
   theme: sumi
   profile: paper-double
   layout:
+    fanIn: merge
     arrange: { row: { gap: 16mm, align: end, items: [a, b] } }
 nodes:
   - { id: a, component: cuboid, props: { ports: face, width: 6mm, height: 28mm, depth: 2mm } }
@@ -669,16 +677,167 @@ edges:
     });
   }
 
-  test("ports: face has no lint findings (the stretch over its own face is intended), centre unchanged by default", async () => {
+  test("face ports are the default: no lint findings (the stretch over its own face is intended), centre selectable", async () => {
     for (const label of ["", "L"]) {
       const value = await render(faces("row", "", "face", label));
       expect(lintGeometry(value).filter((d) => d.severity !== "info")).toEqual([]);
+      expect(Object.values(checkRoutes(value.compiled.ir, value.layout)).flat()).toEqual([]);
     }
+    const face = await render(faces("row", "", "face"));
+    const dflt = await render(faces("row", "", "face").replaceAll("ports: face, ", ""));
+    expect(dflt.layout.edges[0]?.route).toEqual(face.layout.edges[0]?.route);
     const plain = await render(faces("row", "", "center"));
-    const dflt = await render(faces("row", "", "center").replace("ports: center, ", ""));
-    expect(dflt.layout.edges[0]?.route).toEqual(plain.layout.edges[0]?.route);
     const a = centreOf(plain, "a").rect;
     expect(plain.layout.edges[0]?.route?.points[0]?.x).toBeCloseTo(a.x + a.width, 0);
+    expect(plain.svg).not.toBe(face.svg);
+  });
+
+  type Pt = { x: number; y: number };
+  /** The drawing of a placed cuboid: where its face centres are. */
+  const drawingOf = (value: Awaited<ReturnType<typeof render>>, id: string) => {
+    const rect = value.layout.nodes.find((n) => n.key === `n:${id}`)?.rect;
+    const node = value.compiled.ir.nodes.find((n) => n.id === id);
+    if (!rect) throw new Error("missing layout");
+    return cuboid.draw(rect, cuboid.params.parse(node?.render?.params));
+  };
+  const contact = (
+    value: Awaited<ReturnType<typeof render>>,
+    id: string,
+    kind: "faceContacts" | "hiddenFaceContacts",
+    side: string,
+  ): Pt => {
+    const found = (drawingOf(value, id)[kind] as Record<string, Pt> | undefined)?.[side];
+    if (!found) throw new Error(`missing ${kind}.${side}`);
+    return found;
+  };
+  const endsOf = (value: Awaited<ReturnType<typeof render>>): [Pt, Pt] => {
+    const points = value.layout.edges[0]?.route?.points;
+    if (points?.length !== 2) throw new Error("not one segment");
+    return [points[0] as Pt, points[1] as Pt];
+  };
+  /** Distance from a point to the infinite line through two points. */
+  const offLine = (p: Pt, a: Pt, b: Pt) =>
+    Math.abs((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)) /
+    Math.hypot(b.x - a.x, b.y - a.y);
+
+  const unequal = (axis: "row" | "stack", align: string, route = "") => `version: 1
+figure:
+  id: unequal
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: { ${axis}: { gap: 16mm, align: ${align}, items: [a, b] } }
+nodes:
+  - { id: a, component: cuboid, props: { width: 6mm, height: 28mm, depth: 20mm } }
+  - { id: b, component: cuboid, props: { width: 10mm, height: 12mm, depth: 12mm } }
+edges:
+  - { from: a, to: b${route} }
+`;
+
+  for (const route of ["", ", route: straight"]) {
+    test(`default face ports: a row edge runs from the source's side face centre through the target's left face centre (route${route || ": default"})`, async () => {
+      const value = await render(unequal("row", "end", route));
+      expect(value.compiled.ir.edges[0]?.route).toBe("straight");
+      const points = value.layout.edges[0]?.route?.points ?? [];
+      expect(points).toHaveLength(2);
+      const [start, end] = points as [Pt, Pt];
+      // The exit is the centroid of the visible side face, inside the silhouette.
+      const from = contact(value, "a", "faceContacts", "east");
+      expect(start.x).toBeCloseTo(from.x, 1);
+      expect(start.y).toBeCloseTo(from.y, 1);
+      // The target's left face is hidden: the line is aimed at its centre and stops at the silhouette.
+      const to = contact(value, "b", "hiddenFaceContacts", "west");
+      expect(offLine(to, start, end)).toBeLessThan(0.1);
+      expect(distanceToSilhouette(value, "b", end)).toBeLessThan(0.6);
+      expect(end.x).toBeLessThan(to.x);
+      // Unequal heights with align: end: the line is slanted, as asked (no sliding).
+      expect(Math.abs(start.y - end.y)).toBeGreaterThan(2);
+      expect(lintGeometry(value).filter((d) => d.severity !== "info")).toEqual([]);
+      expect(Object.values(checkRoutes(value.compiled.ir, value.layout)).flat()).toEqual([]);
+    });
+  }
+
+  test("default face ports: align: center makes a row's edge horizontal through both face centres", async () => {
+    const value = await render(unequal("row", "center"));
+    const [start, end] = endsOf(value);
+    expect(start.y).toBeCloseTo(end.y, 1);
+    expect(start.y).toBeCloseTo(contact(value, "b", "hiddenFaceContacts", "west").y, 1);
+  });
+
+  test("default face ports: a column edge leaves the lower solid's top face centre and aims at the upper one's hidden bottom face", async () => {
+    const value = await render(unequal("stack", "start").replace("[a, b]", "[b, a]"));
+    const [start, end] = endsOf(value);
+    // a is below b: it leaves its visible top face centre; b's bottom face is hidden.
+    const from = contact(value, "a", "faceContacts", "north");
+    expect(start.x).toBeCloseTo(from.x, 1);
+    expect(start.y).toBeCloseTo(from.y, 1);
+    const to = contact(value, "b", "hiddenFaceContacts", "south");
+    expect(offLine(to, start, end)).toBeLessThan(0.1);
+    expect(distanceToSilhouette(value, "b", end)).toBeLessThan(0.6);
+    expect(lintGeometry(value).filter((d) => d.severity !== "info")).toEqual([]);
+  });
+
+  test("default face ports: a visible face at the target ends the arrow on that face's centre", async () => {
+    // b is left of a: the edge from a leaves its hidden left face and enters b's visible side face.
+    const value = await render(unequal("row", "center").replace("[a, b]", "[b, a]"));
+    const [start, end] = endsOf(value);
+    const to = contact(value, "b", "faceContacts", "east");
+    expect(end.x).toBeCloseTo(to.x, 1);
+    expect(end.y).toBeCloseTo(to.y, 1);
+    const from = contact(value, "a", "hiddenFaceContacts", "west");
+    expect(offLine(from, start, end)).toBeLessThan(0.1);
+    expect(distanceToSilhouette(value, "a", start)).toBeLessThan(0.6);
+    expect(lintGeometry(value).filter((d) => d.severity !== "info")).toEqual([]);
+  });
+
+  test("default face ports: a cuboid and a box join the face centre to the box along one line", async () => {
+    const value = await render(
+      unequal("row", "center").replace(
+        "{ id: b, component: cuboid, props: { width: 10mm, height: 12mm, depth: 12mm } }",
+        "{ id: b, component: box, label: B }",
+      ),
+    );
+    const [start, end] = endsOf(value);
+    const from = contact(value, "a", "faceContacts", "east");
+    expect(start.x).toBeCloseTo(from.x, 1);
+    expect(start.y).toBeCloseTo(from.y, 1);
+    const box = centreOf(value, "b").rect;
+    // The line enters the box's left side, aimed at its centre.
+    expect(end.x).toBeCloseTo(box.x, 1);
+    expect(
+      offLine({ x: box.x + box.width / 2, y: box.y + box.height / 2 }, start, end),
+    ).toBeLessThan(0.1);
+    expect(lintGeometry(value).filter((d) => d.severity !== "info")).toEqual([]);
+  });
+
+  test("a written anchor, a written route, a block, fanIn or a second edge keep the usual routing", async () => {
+    const routed = async (text: string) =>
+      (await render(text)).compiled.ir.edges.map((e) => e.route);
+    expect(await routed(unequal("row", "end", ", fromAnchor: east:0.4"))).toEqual([undefined]);
+    expect(await routed(unequal("row", "end", ", toAnchor: west:0.5"))).toEqual([undefined]);
+    expect(await routed(unequal("row", "end", ", route: curve"))).toEqual(["curve"]);
+    expect(
+      await routed(unequal("row", "end").replace("layout:", "layout:\n    fanIn: merge")),
+    ).toEqual([undefined]);
+    expect(
+      await routed(unequal("row", "end").replace("edges:\n", "edges:\n  - { from: b, to: a }\n")),
+    ).toEqual([undefined, undefined]);
+    // ports: center is routed as before.
+    expect(await routed(center(unequal("row", "end")))).toEqual([undefined]);
+  });
+
+  test("glued editable PPTX: a slanted face-to-face edge starts on the glued site at the face centre", async () => {
+    const { start, site, expected, route } = await gluedSite(unequal("row", "end"));
+    expect(route).toHaveLength(2);
+    for (const p of [start, site]) {
+      expect(p.x).toBeCloseTo(expected.x, -2);
+      expect(p.y).toBeCloseTo(expected.y, -2);
+    }
+  });
+
+  test("the PDF of a figure with face ports renders", async () => {
+    const value = await render(unequal("row", "end"));
+    expect(svgToPdf(value.svg).ok).toBe(true);
   });
 
   const fan = (mode: string, out = false) => `version: 1
