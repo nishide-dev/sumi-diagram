@@ -39,7 +39,24 @@ function withFaceShades(context: GeometryContext, items: readonly PaintItem[]): 
         },
       ];
     });
-    return [item, ...faces];
+    // The front, top and side each over the canvas once (the SVG's one opacity group), not the
+    // faces over the whole silhouette's fill.
+    const front = drawing.layers.find(
+      (layer) => layer.role === "body" && layer.shade === "front" && layer.block === undefined,
+    );
+    if (front === undefined || front.role !== "body") return [item, ...faces];
+    const points = front.path.points;
+    const xs = points.map((p) => p.x);
+    const ys = points.map((p) => p.y);
+    const [x, y] = [Math.min(...xs), Math.min(...ys)];
+    return [
+      {
+        ...item,
+        region: { kind: "polygon", points },
+        bbox: { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y },
+      },
+      ...faces,
+    ];
   });
 }
 

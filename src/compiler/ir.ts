@@ -445,7 +445,12 @@ export interface EdgeIR extends ElementIRBase {
    * Set when a `faceDirect` edge is blocked (#587): the sides it leaves and enters by, both on
    * the face centroids, so the router draws one detour (over the top faces or under the bottom ones).
    */
-  readonly faceSides?: { readonly from: "north" | "south"; readonly to: "north" | "south" };
+  readonly faceSides?: {
+    readonly from: "north" | "south" | "east" | "west";
+    readonly to: "north" | "south" | "east" | "west";
+  };
+  /** A `faceDirect` edge neither a straight line nor a detour could draw: ordinary routing, 3D-centre ports (#587). */
+  readonly centerPorts?: true;
   readonly kind: "edge";
   /** User ID; edges without one are identified by `index`. */
   readonly id?: string;

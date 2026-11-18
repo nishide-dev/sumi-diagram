@@ -915,6 +915,59 @@ edges:
     expect(Object.values(checkRoutes(value.compiled.ir, value.layout)).flat()).toEqual([]);
   });
 
+  test("a face-direct line the router would reject falls back silently (no diagnostic about a route nobody wrote)", async () => {
+    const result = await renderFigure(`version: 1
+figure: { id: r1, theme: sumi, profile: paper-double, layout: { arrange: { row: { gap: 4mm, align: end, items: [a, b] } } } }
+nodes:
+  - { id: a, component: cuboid, props: { width: 2mm, height: 4mm, depth: 20mm } }
+  - { id: b, component: cuboid, props: { width: 2mm, height: 40mm, depth: 20mm } }
+edges:
+  - { from: a, to: b }
+`);
+    expect(result.ok).toBe(true);
+    if (!result.ok || !("layout" in result.value)) throw new Error("render failed");
+    expect(result.value.layout.edges[0]?.route).toBeDefined();
+    expect(lintGeometry(result.value).filter((d) => d.severity !== "info")).toEqual([]);
+  });
+
+  test("a skip in a tight column goes round the right side faces (east visible), and a roomy one too", async () => {
+    for (const gap of ["1mm", "8mm"]) {
+      const value = await render(`version: 1
+figure: { id: col, theme: sumi, profile: paper-double, layout: { arrange: { stack: { gap: ${gap}, align: center, items: [a, b, c] } } } }
+nodes:
+  - { id: a, component: cuboid, props: { width: 12mm, height: 8mm, depth: 10mm } }
+  - { id: b, component: cuboid, props: { width: 12mm, height: 8mm, depth: 10mm } }
+  - { id: c, component: cuboid, props: { width: 12mm, height: 8mm, depth: 10mm } }
+edges:
+  - { from: a, to: b }
+  - { from: b, to: c }
+  - { from: a, to: c }
+`);
+      const skipRoute = value.layout.edges[2]?.route?.points ?? [];
+      expect(skipRoute).toHaveLength(4);
+      const first = contact(value, "a", "faceContacts", "east");
+      expect(skipRoute[0]?.x).toBeCloseTo(first.x, 1);
+      expect(skipRoute[0]?.y).toBeCloseTo(first.y, 1);
+      expect(lintGeometry(value).filter((d) => d.severity !== "info")).toEqual([]);
+      expect(Object.values(checkRoutes(value.compiled.ir, value.layout)).flat()).toEqual([]);
+    }
+  });
+
+  test("a block end (<node>.<name>) is drawn straight as before and never takes face routing", async () => {
+    const value = await render(`version: 1
+figure: { id: blk, theme: sumi, profile: paper-double, layout: { arrange: { row: { gap: 14mm, align: center, items: [a, b] } } } }
+nodes:
+  - { id: a, component: cuboid, props: { width: 8mm, height: 12mm, depth: 12mm, cells: [4, 4, 4], highlight: [{ name: k, at: [0, 0, 0], tone: orange }] } }
+  - { id: b, component: cuboid, props: { width: 8mm, height: 12mm, depth: 12mm } }
+edges:
+  - { from: a.k, to: b }
+`);
+    const edge = value.compiled.ir.edges[0];
+    expect(edge?.route).toBe("straight");
+    expect(edge?.faceSides).toBeUndefined();
+    expect(edge?.centerPorts).toBeUndefined();
+  });
+
   test("glued editable PPTX: a slanted face-to-face edge starts on the glued site at the face centre", async () => {
     const { start, site, expected, route } = await gluedSite(unequal("row", "end"));
     expect(route).toHaveLength(2);

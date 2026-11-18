@@ -3,13 +3,16 @@
  * every other node and of group titles; once the figure is placed, the others fall back to the
  * router (face-centroid ports on the visible faces, silhouette contacts on the hidden ones).
  */
+
 import { type EdgeIR, type FigureIR, readonlyMap } from "../../compiler/ir";
+import type { Diagnostic } from "../../core/diagnostics";
 import { getOutlineRenderer } from "../../core/outline";
 import { segmentCrossesRegion } from "../../lint/geometry/edges";
 import { rectPolygon } from "../../lint/geometry/shapes";
 import type { LayoutIR, Point, Rect } from "../ir";
 import { endpointRects } from "./endpoint-rects";
 import { nodeRegion } from "./ports";
+import { routeEdges } from "./router";
 
 /** Clearance, in units, kept between the line and other nodes. */
 const CLEARANCE = 2;
@@ -58,39 +61,84 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
     }
     return !titles.some((box) => segmentCrossesRegion(p, q, rectPolygon(box), 0.01));
   };
-  // A blocked edge detours over the top faces, or under the bottom ones when that is shorter:
-  // the lift needed to clear the nodes between the ends, counted from both ends.
-  const detour = (edge: EdgeIR): "north" | "south" => {
-    const [a, b] = [rects.get(edge.from), rects.get(edge.to)];
-    if (a === undefined || b === undefined) return "north";
-    const [left, right] = [Math.min(a.x, b.x), Math.max(a.x + a.width, b.x + b.width)];
-    const between = placed.nodes.filter(
-      (n) =>
-        n.key !== edge.from &&
-        n.key !== edge.to &&
-        n.rect.x < right &&
-        n.rect.x + n.rect.width > left,
-    );
-    const top = Math.min(a.y, b.y, ...between.map((n) => n.rect.y));
-    const bottom = Math.max(
-      a.y + a.height,
-      b.y + b.height,
-      ...between.map((n) => n.rect.y + n.rect.height),
-    );
-    const over = a.y - top + (b.y - top);
-    const under = bottom - (a.y + a.height) + (bottom - (b.y + b.height));
-    return over <= under ? "north" : "south";
-  };
-  const edges = ir.edges.map((e): EdgeIR => {
-    if (e.faceDirect !== true) return e;
-    if (clear(e)) return { ...e, route: "straight" };
-    const side = detour(e);
-    return { ...e, faceSides: { from: side, to: side } };
+  const about = (d: Diagnostic, edge: EdgeIR) =>
+    d.severity === "error" &&
+    (d.subject?.id === (edge.id ?? `edges[${edge.index}]`) || d.path?.[1] === edge.index);
+  const withEdge = (figure: FigureIR, edge: EdgeIR): FigureIR => ({
+    ...figure,
+    edges: figure.edges.map((e) => (e.key === edge.key ? edge : e)),
+    elements: readonlyMap(
+      [...figure.elements].map(([k, v]) => [k, k === edge.key ? edge : v] as const),
+    ),
   });
-  const byKey = new Map(edges.map((e) => [e.key, e]));
-  return {
-    ...ir,
-    edges,
-    elements: readonlyMap([...ir.elements].map(([k, v]) => [k, byKey.get(k) ?? v] as const)),
+  // The sides a blocked edge may detour by, the shorter first (the top or the right on a tie): the
+  // lift needed to clear the nodes between the ends, counted from both ends. Ends side by side
+  // go over or under (top, bottom); ends one above the other go round the right or the left
+  // (side faces: east visible, west hidden).
+  const detours = (edge: EdgeIR): ("north" | "south" | "east" | "west")[] => {
+    const [a, b] = [rects.get(edge.from), rects.get(edge.to)];
+    if (a === undefined || b === undefined) return [];
+    const [ca, cb] = [centre(a), centre(b)];
+    const sideways = Math.abs(cb.x - ca.x) >= Math.abs(cb.y - ca.y);
+    const others = placed.nodes.filter((n) => n.key !== edge.from && n.key !== edge.to);
+    if (sideways) {
+      const [left, right] = [Math.min(a.x, b.x), Math.max(a.x + a.width, b.x + b.width)];
+      const between = others.filter((n) => n.rect.x < right && n.rect.x + n.rect.width > left);
+      const top = Math.min(a.y, b.y, ...between.map((n) => n.rect.y));
+      const bottom = Math.max(
+        a.y + a.height,
+        b.y + b.height,
+        ...between.map((n) => n.rect.y + n.rect.height),
+      );
+      const over = a.y - top + (b.y - top);
+      const under = bottom - (a.y + a.height) + (bottom - (b.y + b.height));
+      return over <= under ? ["north", "south"] : ["south", "north"];
+    }
+    const [upper, lower] = [Math.min(a.y, b.y), Math.max(a.y + a.height, b.y + b.height)];
+    const between = others.filter((n) => n.rect.y < lower && n.rect.y + n.rect.height > upper);
+    const farRight = Math.max(
+      a.x + a.width,
+      b.x + b.width,
+      ...between.map((n) => n.rect.x + n.rect.width),
+    );
+    const farLeft = Math.min(a.x, b.x, ...between.map((n) => n.rect.x));
+    const right = farRight - (a.x + a.width) + (farRight - (b.x + b.width));
+    const left = a.x - farLeft + (b.x - farLeft);
+    return right <= left ? ["east", "west"] : ["west", "east"];
   };
+  // Each edge in turn: the straight line if the router accepts it, else a detour the router
+  // accepts, else ordinary routing with the 3D-centre ports (a route nobody wrote never errors).
+  let figure = ir;
+  for (const edge of ir.edges) {
+    if (edge.faceDirect !== true) continue;
+    const fits = (candidate: EdgeIR): boolean => {
+      const trial = withEdge(figure, candidate);
+      // Other edges still waiting are drawn straight in the trial: only this edge's errors count.
+      const pending = {
+        ...trial,
+        edges: trial.edges.map((e) =>
+          e.faceDirect === true &&
+          e.route === undefined &&
+          e.faceSides === undefined &&
+          e.key !== edge.key
+            ? ({ ...e, route: "straight" } as EdgeIR)
+            : e,
+        ),
+      };
+      const result = routeEdges(pending, placed, { hintTrials: false });
+      return !result.diagnostics.some((d) => about(d, edge));
+    };
+    const straight: EdgeIR = { ...edge, route: "straight" };
+    let chosen: EdgeIR | undefined = clear(edge) && fits(straight) ? straight : undefined;
+    if (chosen === undefined)
+      for (const side of detours(edge)) {
+        const candidate: EdgeIR = { ...edge, faceSides: { from: side, to: side } };
+        if (fits(candidate)) {
+          chosen = candidate;
+          break;
+        }
+      }
+    figure = withEdge(figure, chosen ?? { ...edge, centerPorts: true });
+  }
+  return figure;
 }
