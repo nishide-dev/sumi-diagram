@@ -326,8 +326,9 @@ describe("projected planes: default output is unchanged", () => {
     expect(plain.layout.nodes.every((n) => n.outline === undefined)).toBe(true);
   });
 
-  // SHA-256 of the SVG (input hash stripped) that origin/main (before #586) drew for the same
-  // sources: planes without `contents` must keep drawing exactly that.
+  // SHA-256 of the SVG (input hash stripped) that origin/main (before #586, v0.18.2) drew for the
+  // same sources: planes without `contents` must keep drawing exactly that. The version attributes
+  // are pinned to 0.18.2 so a release does not change the hashes.
   const BASELINE: Record<string, string> = {
     "circle/floor/route: straight":
       "9769f82c90565d73efd413066ba20572fc56549893ff49a226319ffa46699062",
@@ -346,7 +347,11 @@ describe("projected planes: default output is unchanged", () => {
       const text = source({ contents, shape, plane, inPlane }).replaceAll(", route: auto", "");
       const value = await render(text);
       const hash = createHash("sha256")
-        .update(value.svg.replace(/input-sha256="[^"]*"/, ""))
+        .update(
+          value.svg
+            .replace(/input-sha256="[^"]*"/, "")
+            .replace(/(sumi-version|backend-version)="[^"]*"/g, '$1="0.18.2"'),
+        )
         .digest("hex");
       expect(hash).toBe(BASELINE[name] as string);
     }
