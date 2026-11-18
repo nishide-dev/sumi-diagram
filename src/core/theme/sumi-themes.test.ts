@@ -4,7 +4,7 @@ import { contrastRatio } from "./node-variants";
 
 test("Sumi canvases and base text contrast", () => {
   for (const [id, canvas] of [
-    ["sumi", "#f8f8ee"],
+    ["sumi", "#ffffff"],
     ["sumi-dark", "#30364f"],
   ] as const) {
     const theme = getTheme(id);

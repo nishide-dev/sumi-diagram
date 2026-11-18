@@ -52,6 +52,7 @@ import type { Result } from "../result";
 import { DEFAULT_FONT_SET_ID, LATIN_FONT_SET_ID } from "./fonts";
 import { warmTones } from "./node-variants";
 import { type StyleLayerInput, type Theme, type ThemeDefinition, validateTheme } from "./schema";
+import type { StyleLayer } from "./style";
 import { TONE_NAMES, type Tone } from "./tones";
 
 /**
@@ -394,7 +395,11 @@ function llamaComponents(): NonNullable<ThemeDefinition["components"]> {
   };
 }
 
-function sumiTheme(dark: boolean): ThemeDefinition {
+/** The sumi light canvas: white, so a figure pastes into a paper or slide as is (#595). */
+const SUMI_CANVAS = "#ffffff";
+const SUMI_DARK_CANVAS = "#30364f";
+
+function sumiTheme(dark: boolean, canvasOverride?: string): ThemeDefinition {
   // A chat bubble is white on a light page; on the navy canvas it is a panel under the cream text.
   const darkBubble = (
     components: NonNullable<ThemeDefinition["components"]>,
@@ -402,7 +407,7 @@ function sumiTheme(dark: boolean): ThemeDefinition {
     dark
       ? { ...components, bubble: { ...components.bubble, default: { fill: panel } } }
       : components;
-  const canvas = dark ? "#30364f" : "#f8f8ee";
+  const canvas = canvasOverride ?? (dark ? SUMI_DARK_CANVAS : SUMI_CANVAS);
   const text = dark ? "#f0f0db" : "#30364f";
   const muted = dark ? "#acbac4" : "#4e566b";
   const panel = dark ? "#383f58" : "#efeddd";
@@ -454,7 +459,7 @@ function sumiTheme(dark: boolean): ThemeDefinition {
     id: dark ? "sumi-dark" : "sumi",
     description: dark
       ? "Navy canvas with cream ink and sand accents"
-      : "Warm cream canvas with navy ink and sand accents",
+      : "White canvas with navy ink and sand accents (themeOverrides.canvas brings back the cream #f8f8ee)",
     canvas,
     fonts: LATIN_FONT_SET_ID,
     tokens: {
@@ -495,7 +500,7 @@ function sumiTheme(dark: boolean): ThemeDefinition {
           emphasis: {
             fill: dark ? "#e1d9bc" : "#30364f",
             stroke: dark ? "#e1d9bc" : "#30364f",
-            fontColor: dark ? "#30364f" : "#f8f8ee",
+            fontColor: dark ? "#30364f" : canvas,
             bold: true,
           },
           muted: { stroke: muted, fontColor: muted },
@@ -1115,6 +1120,65 @@ export const BUILTIN_THEMES: ReadonlyMap<string, Theme> = new Map(
     return [result.value.id, warmTones(result.value)];
   }),
 );
+
+/**
+ * The theme on another canvas (`figure.themeOverrides.canvas`, #595). `sumi`
+ * and `sumi-dark` are built again with the canvas, so every color derived from
+ * it follows; any other theme has each color equal to its canvas replaced.
+ */
+export function themeOnCanvas(theme: Theme, canvas: string): Theme {
+  const target = canvas.toLowerCase();
+  if (target === theme.canvas) return theme;
+  const key = `${theme.id} ${target}`;
+  let derived = CANVAS_THEMES.get(key);
+  if (derived === undefined) {
+    derived =
+      theme.id === "sumi" || theme.id === "sumi-dark"
+        ? rebuilt(sumiTheme(theme.id === "sumi-dark", target))
+        : replaceCanvas(theme, target);
+    CANVAS_THEMES.set(key, derived);
+  }
+  return derived;
+}
+
+const CANVAS_THEMES = new Map<string, Theme>();
+
+function rebuilt(definition: ThemeDefinition): Theme {
+  const result = validateTheme(definition);
+  if (!result.ok) throw new Error(`internal error: invalid theme "${definition.id}" on a canvas`);
+  return warmTones(result.value);
+}
+
+/** Every color equal to the theme's canvas becomes `canvas`: the page is the theme's, not a tone. */
+function replaceCanvas(theme: Theme, canvas: string): Theme {
+  const from = theme.canvas;
+  const color = <T>(value: T): T =>
+    (typeof value === "string" && value.toLowerCase() === from ? canvas : value) as T;
+  const layer = (source: StyleLayer): StyleLayer =>
+    Object.freeze(
+      Object.fromEntries(Object.entries(source).map(([k, v]) => [k, color(v)])),
+    ) as StyleLayer;
+  const layers = <K>(map: ReadonlyMap<K, StyleLayer>) =>
+    new Map([...map].map(([k, v]) => [k, layer(v)] as const));
+  return Object.freeze({
+    ...theme,
+    canvas,
+    tokens: new Map(
+      [...theme.tokens].map(([name, token]) => [
+        name,
+        token.type === "color" ? { ...token, value: color(token.value) } : token,
+      ]),
+    ),
+    base: Object.freeze({
+      node: layer(theme.base.node),
+      group: layer(theme.base.group),
+      edge: layer(theme.base.edge),
+    }) as Theme["base"],
+    components: new Map([...theme.components].map(([id, variants]) => [id, layers(variants)])),
+    tones: layers(theme.tones),
+    toneLines: layers(theme.toneLines),
+  });
+}
 
 /** Returns the built-in theme with the given ID, if any. */
 export function getTheme(id: string): Theme | undefined {

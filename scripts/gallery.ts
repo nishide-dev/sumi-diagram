@@ -178,11 +178,18 @@ const readmeFigure: Rendering[] = (
   // Transparent (#479, #486): the figure sits on GitHub's and the site's own page colour.
   overrides: { theme, background: "transparent" },
 }));
+// The light figure keeps the cream ground it was drawn on (#595): `sumi` is white by default, and
+// its html cards (var(--sumi-bg)) and set-up shade follow the canvas.
+const readmeLightText = readmeFigureText.replace(
+  "\n  background: transparent\n",
+  '\n  background: transparent\n  themeOverrides: {canvas: "#f8f8ee"}\n',
+);
+if (readmeLightText === readmeFigureText) throw new Error(`${README_FIGURE}: no background line`);
 for (const rendering of readmeFigure) {
   // Image paths (the agent marks) are relative to the figure's directory.
   jobs.push({
     file: README_FIGURE,
-    source: readmeFigureText,
+    source: rendering.theme === "sumi" ? readmeLightText : readmeFigureText,
     rendering,
     assetBase: join(ROOT, dirname(README_FIGURE)),
   });

@@ -61,9 +61,7 @@ describe("theme canvas", () => {
       valid(theme({ canvas: "{color.ground}", tokens: { color: { ground: "#30364f" } } })).canvas,
     ).toBe("#30364f");
     for (const builtin of BUILTIN_THEMES.values())
-      expect(builtin.canvas).toBe(
-        builtin.id === "sumi" ? "#f8f8ee" : builtin.id === "sumi-dark" ? "#30364f" : "#ffffff",
-      );
+      expect(builtin.canvas).toBe(builtin.id === "sumi-dark" ? "#30364f" : "#ffffff");
   });
 
   test("rejects transparent, invalid and unknown canvas colors", () => {

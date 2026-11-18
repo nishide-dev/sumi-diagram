@@ -100,4 +100,4 @@ result too.
 
 ## Theme background
 
-`--sumi-bg` is the active theme's canvas color: white, cream in `sumi`, navy in `sumi-dark`.
+`--sumi-bg` is the active theme's canvas color: white (also `sumi`), navy in `sumi-dark`, or `themeOverrides.canvas`.

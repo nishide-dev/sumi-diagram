@@ -17,6 +17,9 @@ import { componentData, exampleMetadata, optionData, sampleSource } from "./data
 import { readmeHtml } from "./readme";
 
 const out = "dist/site";
+// The site keeps the cream ground of `sumi` (#595): the figures' own canvas is white, the plates
+// and the previews are cream, so the pages look as before.
+const SITE_CANVASES: Readonly<Record<string, string>> = { sumi: "#f8f8ee" };
 const components = componentSamples();
 const options = [
   {
@@ -81,7 +84,9 @@ const data = {
     ),
   },
   themes: THEMES,
-  canvases: Object.fromEntries(THEMES.map((t) => [t, getTheme(t)?.canvas ?? "#ffffff"])),
+  canvases: Object.fromEntries(
+    THEMES.map((t) => [t, SITE_CANVASES[t] ?? getTheme(t)?.canvas ?? "#ffffff"]),
+  ),
   palettes: PALETTE_NAMES.map((id) => ({ id, colors: getPalette(id)?.colors })),
   components: components.map(componentData),
   options: options.map(({ sample, title, description }) => optionData(sample, title, description)),
@@ -106,7 +111,13 @@ for (const { sample, slug, assetBase } of [
       const output = `${out}/figures/${rendering.theme}/${palette ?? "base"}/${slug}.svg`;
       jobs.push({
         file: sample.fileName,
-        source: sampleSource(sample.source, rendering.theme, rendering.profile, palette),
+        source: sampleSource(
+          sample.source,
+          rendering.theme,
+          rendering.profile,
+          palette,
+          SITE_CANVASES[rendering.theme],
+        ),
         // Transparent (#486): the page paints each preview's plate in the theme's canvas colour.
         rendering: {
           ...rendering,

@@ -89,7 +89,7 @@ export function svgToPptx(svg: string, options: SvgToPptxOptions = {}): Result<U
         width,
         height,
         metadata.value,
-        getTheme(metadata.value?.theme ?? "")?.canvas,
+        metadata.value?.canvas ?? getTheme(metadata.value?.theme ?? "")?.canvas,
       ),
       diagnostics: [],
     };

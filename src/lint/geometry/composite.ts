@@ -10,7 +10,7 @@
 
 import type { ElementKey } from "../../core/check-state";
 import type { DiagnosticSubject, DocPath } from "../../core/diagnostics";
-import { getTheme } from "../../core/theme/builtin";
+import { figureCanvas } from "../../core/theme/overrides";
 import { overlapTint } from "../../core/theme/set-style";
 import { setOverlaps } from "../../layout/set-overlap";
 import type { Point, Rect } from "../../render/geometry";
@@ -152,12 +152,12 @@ export function paintItems(context: GeometryContext, options: PaintOptions = {})
       name: `the overlap of ${sets.map((s) => s.name).join(" and ")}`,
       color: overlapTint(
         sets.map((s) => s.ir),
-        getTheme(context.ir.meta.themeId)?.canvas,
+        figureCanvas(context.ir.meta.themeId, context.ir.meta.themeOverrides),
       ),
       alpha: 1,
       ink: overlapTint(
         sets.map((s) => s.ir),
-        getTheme(context.ir.meta.themeId)?.canvas,
+        figureCanvas(context.ir.meta.themeId, context.ir.meta.themeOverrides),
       ),
       region: { kind: "polygon", points: polygon },
       bbox: boundsOf(polygon),
@@ -280,7 +280,10 @@ export function paintItemsOf(context: GeometryContext): PaintItem[] {
 export function analysisOf(context: GeometryContext): Analysis[] {
   let analysis = cache.get(context);
   if (analysis === undefined) {
-    analysis = analyze(paintItemsOf(context), getTheme(context.ir.meta.themeId)?.canvas ?? WHITE);
+    analysis = analyze(
+      paintItemsOf(context),
+      figureCanvas(context.ir.meta.themeId, context.ir.meta.themeOverrides) ?? WHITE,
+    );
     cache.set(context, analysis);
   }
   return analysis;

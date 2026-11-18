@@ -21,8 +21,8 @@
  * which must be reported (docs/design/decisions/423-tone-harmony.md).
  */
 
-import { getTheme } from "../../core/theme/builtin";
 import { deltaE, toOklch } from "../../core/theme/color-math";
+import { figureCanvas } from "../../core/theme/overrides";
 import { getPalette, type Palette } from "../../core/theme/palette";
 import { defineGeometryRule, type LintFinding } from "../rule";
 import { NEUTRAL_CHROMA, type PaintedColor, paintedColors } from "./color-census";
@@ -168,7 +168,7 @@ export const colorHarmony = defineGeometryRule({
     const palette =
       overrides?.palette === undefined
         ? undefined
-        : getPalette(overrides.palette, getTheme(ir.meta.themeId)?.canvas);
+        : getPalette(overrides.palette, figureCanvas(ir.meta.themeId, overrides));
     const problems = assessColors(paintedColors(ir), palette);
     return problems.map(
       ({ signal, message }): LintFinding => ({

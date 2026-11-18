@@ -855,6 +855,9 @@ export const FigureMetaSchema = z.strictObject({
     .describe("Paint the theme canvas or leave the outer background transparent."),
   themeOverrides: z
     .strictObject({
+      canvas: HexColor.optional().describe(
+        "Exact #RRGGBB canvas (page) color replacing the theme's: sumi is white by default and `#f8f8ee` brings back its former cream. Colors derived from the canvas (palette variants, cuboid faces, set overlaps, dimming) and the contrast lints follow it. figure.background: transparent still leaves the outer background unpainted.",
+      ),
       palette: z
         .enum(PALETTE_NAMES)
         .optional()

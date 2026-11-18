@@ -4,6 +4,8 @@ A theme decides how a figure looks: colors, corners, line widths, groups and fon
 
 `figure.background: transparent` (or `render --background transparent`) omits the outer canvas while retaining the theme canvas as the assumed ground for contrast and label backgrounds.
 
+`figure.themeOverrides.canvas: "#RRGGBB"` replaces a theme's canvas for one figure. The colors derived from the canvas (palette variants, cuboid faces, set overlaps, dimming) and the contrast lints follow it; `sumi catalog --json` lists each theme's own `canvas`.
+
 Sumi has eight built-in themes:
 
 - **`minimal`** (default): monochrome with clear outlines. A neutral starting point.
@@ -12,7 +14,7 @@ Sumi has eight built-in themes:
 - **`paper`**: color ML-paper style, after published Transformer and DiT figures: pastel tones, rounded corners, thin frames and edges, white framed panels (gray only when asked: `variant: filled`, `groupFill`), Inter for Latin text.
 - **`slides`**: large text and thick lines for projection, used with the `presentation-16x9` profile.
 - **`llama`**: after the mixture-of-experts figure of Meta's Llama 4 announcement: slate lines with open chevron arrowheads, gray-framed white boxes, dark slate `solid` blocks, a blue `emphasis` block, borderless pale panels, Inter for Latin text.
-- **`sumi`**: warm cream canvas with navy ink and sand accents, Inter for Latin text; the design system of the project site.
+- **`sumi`**: white canvas (so a figure pastes into a paper or slide as is) with navy ink and sand accents, Inter for Latin text; the design system of the project site, whose pages draw it on a cream plate. `figure.themeOverrides.canvas: "#f8f8ee"` brings back the former cream canvas, or any other `#RRGGBB`.
 - **`sumi-dark`**: the dark counterpart: navy canvas, cream ink and sand accents, Inter for Latin text.
 
 `academic` and `paper` are both for papers; choose by how the paper is printed. **Grayscale or black-and-white print: `academic`. A color ML paper: `paper`.**

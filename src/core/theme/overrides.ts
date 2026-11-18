@@ -11,6 +11,7 @@
  * `toneOverrides` as well (see `resolveStyle`).
  */
 
+import { getTheme, themeOnCanvas } from "./builtin";
 import { withPalette } from "./palette";
 import type { Theme, ToneOverride } from "./schema";
 import type { StyleLayer } from "./style";
@@ -56,12 +57,14 @@ const layer = (values: StyleLayer): StyleLayer => Object.freeze(values);
  * The theme a figure is drawn with: the built-in theme in the figure's
  * palette (#417), then its tone colors (#380), so an explicit tone color wins
  * over the palette; the figure's text scale (#514) first of all. The theme
- * itself without any of them.
+ * itself without any of them. The canvas (#595) comes before everything,
+ * since the palette, the tones and the shades derive from it.
  */
 export function figureTheme(
   theme: Theme,
   overrides:
     | {
+        readonly canvas?: string | undefined;
         readonly palette?: string | undefined;
         readonly textScale?: number | undefined;
         readonly tones?: Partial<Record<Tone, ToneOverride>> | undefined;
@@ -69,11 +72,33 @@ export function figureTheme(
       }
     | undefined,
 ): Theme {
+  const onCanvas = canvasTheme(theme, overrides);
   const resolved = withToneOverrides(
-    withPalette(withTextScale(theme, overrides?.textScale), overrides?.palette),
+    withPalette(withTextScale(onCanvas, overrides?.textScale), overrides?.palette),
     overrides?.tones,
   );
   return overrides?.solidFills === undefined
     ? resolved
     : Object.freeze({ ...resolved, solidFillOverrides: overrides.solidFills });
+}
+
+/**
+ * The canvas a figure is drawn on: `themeOverrides.canvas` (#595), else its
+ * built-in theme's; undefined for an unknown theme. Lints and exporters read
+ * it where they have only the theme's ID.
+ */
+export function figureCanvas(
+  themeId: string,
+  overrides: { readonly canvas?: string | undefined } | undefined,
+): string | undefined {
+  const canvas = overrides?.canvas?.toLowerCase();
+  return canvas ?? getTheme(themeId)?.canvas;
+}
+
+/** The theme on the figure's canvas override (#595), or the theme itself without one. */
+export function canvasTheme(
+  theme: Theme,
+  overrides: { readonly canvas?: string | undefined } | undefined,
+): Theme {
+  return overrides?.canvas === undefined ? theme : themeOnCanvas(theme, overrides.canvas);
 }

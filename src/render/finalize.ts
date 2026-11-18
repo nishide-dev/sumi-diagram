@@ -32,7 +32,7 @@ import type { Diagnostic } from "../core/diagnostics";
 import { SUMI_VERSION } from "../core/figure/validate";
 import { getProfile } from "../core/profile/builtin";
 import type { Result } from "../core/result";
-import { getTheme } from "../core/theme/builtin";
+import { figureCanvas } from "../core/theme/overrides";
 import { PT_PER_D2_UNIT } from "../core/units";
 import { invalid, readD2Svg } from "./svg";
 import {
@@ -61,6 +61,8 @@ export interface SumiSvgMetadata {
   figureId: string;
   theme: string;
   background?: "transparent";
+  /** The canvas color when `themeOverrides.canvas` replaces the theme's (#595). */
+  canvas?: string;
   profile: string;
   fontSet: string;
   /** sha256 (hex) of the `*.sumi.yaml` source text (UTF-8). */
@@ -109,6 +111,7 @@ const METADATA_ATTRIBUTES = [
   ["figure-id", (m: SumiSvgMetadata) => m.figureId],
   ["theme", (m: SumiSvgMetadata) => m.theme],
   ["background", (m: SumiSvgMetadata) => m.background],
+  ["canvas", (m: SumiSvgMetadata) => m.canvas],
   ["profile", (m: SumiSvgMetadata) => m.profile],
   ["font-set", (m: SumiSvgMetadata) => m.fontSet],
   ["input-sha256", (m: SumiSvgMetadata) => m.inputSha256],
@@ -117,7 +120,7 @@ const METADATA_ATTRIBUTES = [
 ] as const;
 
 /** Attributes that may be absent: `d2-sha256` (structured backend) and `assets-sha256`. */
-const OPTIONAL_ATTRIBUTES = new Set(["assets-sha256", "background"]);
+const OPTIONAL_ATTRIBUTES = new Set(["assets-sha256", "background", "canvas"]);
 
 /** Attribute names of `<sumi:notice>`, in output order; its text is the license. */
 const NOTICE_ATTRIBUTES = ["name", "version", "license", "source"] as const;
@@ -206,6 +209,7 @@ export function readSvgMetadata(svg: string): Result<SumiSvgMetadata | undefined
       figureId: value("figure-id"),
       theme: value("theme"),
       ...(get("background") === "transparent" && { background: "transparent" as const }),
+      ...(get("canvas") !== undefined && { canvas: value("canvas") }),
       profile: value("profile"),
       fontSet: value("font-set"),
       inputSha256: value("input-sha256"),
@@ -314,7 +318,8 @@ export function finalizeSvg(
   });
   if (artifact.d2Source !== compiled.d2Source) return mismatch("the D2 source");
   if (artifact.fontSetId !== compiled.fontSet.id) return mismatch("the font set");
-  const canvas = getTheme(compiled.ir.meta.themeId)?.canvas ?? "#ffffff";
+  const canvas =
+    figureCanvas(compiled.ir.meta.themeId, compiled.ir.meta.themeOverrides) ?? "#ffffff";
   let svg = artifact.svg;
   const parsed = readD2Svg(svg);
   if (parsed.ok) {
@@ -405,6 +410,9 @@ function metadataBase(
     figureId: ir.meta.id,
     theme: ir.meta.themeId,
     ...(ir.meta.transparentBackground && { background: "transparent" as const }),
+    ...(ir.meta.themeOverrides?.canvas !== undefined && {
+      canvas: ir.meta.themeOverrides.canvas.toLowerCase(),
+    }),
     profile: ir.meta.profileId,
     fontSet: compiled.fontSet.id,
     inputSha256: sha256(options.source),

@@ -22,7 +22,7 @@ figure:                    # required
   id: request-flow         # required ID
   title: Request handling  # optional, not drawn
   theme: minimal           # optional, default minimal
-  # themeOverrides: {palette: cool-blue, nodeCorners: square, edgeCorners: sharp}
+  # themeOverrides: {canvas: "#f8f8ee", palette: cool-blue, nodeCorners: square, edgeCorners: sharp}
   profile: paper-single    # optional, default paper-single
   # target: {height: 60mm, minFontSize: 5pt, minLineWidth: 0.5pt} # placement lint
   # fit: scale             # optional: shrink a too-wide figure to the profile width (layout-tips)
@@ -457,7 +457,7 @@ They are built in; a figure cannot define its own. `sumi catalog --json` lists t
 | `color` | general purpose with color: like `minimal`, but tones are pastel fills and emphasis is blue |
 | `paper` | color ML-paper style: pastel tone fills, rounded boxes (2pt) and groups (6pt), black 1pt frames, light gray groups, thin 0.5pt edges with small arrowheads, framed images with a 0.5pt border, Inter for Latin text |
 | `llama` | after Meta's Llama 4 MoE figure: 1pt slate lines and frames with **open chevron arrowheads** (a small gap before the box), white boxes with a gray frame, `solid` = dark slate block with white text, `emphasis` = blue accent block, `filled` = gray borderless block, `muted` = pale borderless block, borderless pale groups with a regular-weight title (`muted` group: white panel), rounded corners (3pt / 5pt), Inter for Latin text |
-| `sumi` | warm cream canvas, navy ink and sand accents |
+| `sumi` | white canvas (`themeOverrides.canvas: "#f8f8ee"` for the former cream), navy ink and sand accents |
 | `sumi-dark` | navy canvas, cream ink and sand accents |
 
 `minimal`, `academic`, `color`, `paper` and `llama` use 8pt text (7pt on edges). `academic` is
@@ -505,6 +505,11 @@ it is not an aspect-ratio score. Discover the target schema with `sumi catalog -
 `schema/unknown-field`, bad values `schema/invalid-value`; fonts, spacing and line widths
 stay the theme's):
 
+- `canvas: "#f8f8ee"` replaces the theme's canvas (page) colour with an exact `#RRGGBB`
+  (any other value is `schema/invalid-value`): `sumi` is white by default and this brings back
+  its former cream. Everything derived from the canvas follows it (palette variants, cuboid faces,
+  set overlaps, dimming, the contrast lints); for `sumi` and `sumi-dark` the theme is rebuilt on
+  it. `figure.background: transparent` still leaves the outer background unpainted.
 - `palette: cool-blue` recolours the whole figure with a built-in four-colour palette
   (below). Tones, `groupFill` and the other keys refine it.
 - `nodeCorners: square` removes node/group frame radii (also expanded matrix/tokens cells
@@ -581,7 +586,7 @@ tone carries its meaning while the whole figure stays in one family of colours. 
 name. Explicit `tones`, `groupFill`, `groupStroke` and `solidFills` win over the palette, but
 tone colours of your own next to a palette are what `geometry/color-harmony` reports (it clashes
 unless they match the palette's lightness and chroma): leave `tones` out. Contrasts are
-measured against the theme's canvas (`sumi`'s cream). On a dark canvas (`sumi-dark`) a palette
+measured against the theme's canvas (white, or `themeOverrides.canvas`). On a dark canvas (`sumi-dark`) a palette
 draws its dark variant: the canvas stays, panels are a step lighter in the palette's hue, the ink
 is its palest colour (light text and lines), the accent and the strong colour are lightened in
 their hue until they read on the canvas, and `solid`/`emphasis` fills take the canvas colour as
