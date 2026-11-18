@@ -435,6 +435,12 @@ export interface GroupIR extends ObjectIRBase {
 export interface EdgeIR extends ElementIRBase {
   /** Opt-in single-segment routing in structured layout (#349). */
   readonly route?: "straight" | "curve";
+  /**
+   * A cuboid end with face ports and no anchor (#587): the edge is one straight face-centre line
+   * if it is clear of other nodes once placed (`layout/route/face-routes.ts` then sets `route`),
+   * else it is routed.
+   */
+  readonly faceDirect?: true;
   readonly kind: "edge";
   /** User ID; edges without one are identified by `index`. */
   readonly id?: string;
@@ -1264,11 +1270,11 @@ function edgeIR(
     // A line to a block of a cuboid (#584) is one straight segment: the router knows no blocks.
     ...(e.route !== undefined
       ? { route: e.route }
-      : ((refCell(e.from) !== undefined || refCell(e.to) !== undefined) &&
-            manifest.routing !== "zoom") ||
-          (faceDirect && manifest.routing === undefined)
-        ? { route: "straight" as const }
-        : {}),
+      : (refCell(e.from) !== undefined || refCell(e.to) !== undefined) &&
+        manifest.routing !== "zoom" && { route: "straight" as const }),
+    ...(faceDirect &&
+      e.route === undefined &&
+      manifest.routing === undefined && { faceDirect: true as const }),
     ...(manifest.routing !== undefined && { routing: manifest.routing }),
   });
 }

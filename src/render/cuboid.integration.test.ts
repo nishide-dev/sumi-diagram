@@ -826,6 +826,37 @@ edges:
     expect(await routed(center(unequal("row", "end")))).toEqual([undefined]);
   });
 
+  const skip = (ports = "") => `version: 1
+figure:
+  id: skip
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: { row: { gap: 10mm, align: center, items: [a, b, c] } }
+nodes:
+  - { id: a, component: cuboid, props: { ${ports}width: 6mm, height: 20mm, depth: 12mm } }
+  - { id: b, component: cuboid, props: { ${ports}width: 6mm, height: 20mm, depth: 12mm } }
+  - { id: c, component: cuboid, props: { ${ports}width: 6mm, height: 20mm, depth: 12mm } }
+edges:
+  - { from: a, to: b }
+  - { from: b, to: c }
+  - { from: a, to: c }
+`;
+
+  test("a skip edge over an intermediate cuboid is routed around it; neighbours keep the straight face-to-face line", async () => {
+    const value = await render(skip());
+    const [ab, bc, ac] = value.layout.edges;
+    const routes = value.compiled.ir.edges.map((e) => e.route);
+    expect(routes).toEqual(["straight", "straight", undefined]);
+    expect(ab?.route?.points).toHaveLength(2);
+    expect(bc?.route?.points).toHaveLength(2);
+    // The skip is orthogonal, leaves the straight neighbours alone and passes no node.
+    expect((ac?.route?.points.length ?? 0) > 2).toBe(true);
+    expect(lintGeometry(value).filter((d) => d.severity !== "info")).toEqual([]);
+    expect(lintGeometry(value).map((d) => d.code)).not.toContain("geometry/edge-through-node");
+    expect(Object.values(checkRoutes(value.compiled.ir, value.layout)).flat()).toEqual([]);
+  });
+
   test("glued editable PPTX: a slanted face-to-face edge starts on the glued site at the face centre", async () => {
     const { start, site, expected, route } = await gluedSite(unequal("row", "end"));
     expect(route).toHaveLength(2);

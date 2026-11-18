@@ -1406,7 +1406,7 @@ wider solid for a long row. The projection is figure-wide, never per node.
   the text collide (`geometry/label-collision`).
 - **Edges.** By default (`props.ports: face`) an edge without a written anchor goes from the
   centre of the face it leaves to the centre of the face it enters, as **one straight line** (the
-  router is not used: no obstacle avoidance, no sliding to straighten). The face is the one on
+  no sliding to straighten; if that line would cross another node or a group title the edge is routed instead, see below). The face is the one on
   the side of the other end (left/right when the other end is more beside than above or below,
   else top/bottom), its centre taken in 3D: right = the **side face** (visible), top = the **top
   face** (visible), left = the **left face** and bottom = the **bottom face**, which this
@@ -1420,7 +1420,7 @@ wider solid for a long row. The projection is figure-wide, never per node.
   anchor (a fraction of the box's side, from its corner: `east:0.3`, `south:0.35`) for a corner
   or a skip connection, e.g. `north:0.85` leaves the top near its right end so a skip clears
   the width `dims` text: an edge with an anchor, an explicit `route`, a block end (`<node>.<name>`),
-  `figure.layout.fanIn`, or a second edge between the same two nodes is routed as before (the
+  `figure.layout.fanIn`, a second edge between the same two nodes, or a straight line that would cross another node (a skip over an intermediate solid) is routed as before (the
   face end is then the face centre on the visible sides). A cuboid inside a tilted plane keeps the
   plane's routing. The collision outline is the whole silhouette.
   **`props.ports: center`** keeps the earlier behaviour: an unanchored edge aims at the solid's
