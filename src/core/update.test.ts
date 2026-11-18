@@ -392,7 +392,7 @@ describe("sumi update", () => {
     expect(await dirs(home)).toEqual([".sumi-update.live", archiveName("0.20.0", TARGET)]);
   });
 
-  test("a leftover directory of the new version is replaced by the verified release", async () => {
+  test("an unreferenced directory of the new version is removed and replaced by the verified release", async () => {
     const exe = await makeInstall("0.19.0");
     await makeRelease("0.20.0");
     const leftover = join(home, archiveName("0.20.0", TARGET), "bin");
@@ -406,31 +406,30 @@ describe("sumi update", () => {
     expect(await dirs(home)).toEqual([archiveName("0.20.0", TARGET)]);
   });
 
-  test("a failed switch restores the leftover directory it set aside", async () => {
+  test("a destination that another link uses is refused and left untouched", async () => {
     const exe = await makeInstall("0.19.0");
     await makeRelease("0.20.0");
-    const leftover = join(home, archiveName("0.20.0", TARGET));
-    await mkdir(leftover, { recursive: true });
-    await writeFile(join(leftover, "precious"), "data");
-    const failing = update(
-      {
-        beforeSwitch: () => {
-          throw new Error("interrupted");
-        },
-      },
-      exe,
-    );
-    await expect(runUpdate({ env, update: failing })).rejects.toMatchObject({
-      diagnostic: { code: "update/failed" },
+    const used = join(home, archiveName("0.20.0", TARGET), "bin", "sumi");
+    await mkdir(join(used, ".."), { recursive: true });
+    await writeFile(used, "#!/bin/sh\necho in-use\n");
+    await chmod(used, 0o755);
+    const other = join(root, "bin2");
+    await mkdir(other);
+    await symlink(used, join(other, "sumi"));
+    await writeFile(join(home, ".sumi-install"), `bin=${other}\n`);
+    await expect(runUpdate({ env, update: update({}, exe) })).rejects.toMatchObject({
+      diagnostic: { code: "update/destination-exists" },
     });
-    expect(await readFile(join(leftover, "precious"), "utf8")).toBe("data");
+    expect((await runCommand([join(other, "sumi")])).stdout.trim()).toBe("in-use");
+    expect((await runCommand([join(bin, "sumi")])).stdout.trim()).toBe("0.19.0");
     expect(await dirs(home)).toEqual([
+      ".sumi-install",
       archiveName("0.19.0", TARGET),
       archiveName("0.20.0", TARGET),
     ]);
   });
 
-  test("asking for the running version is a no-op", async () => {
+  test("asking for the running version does nothing", async () => {
     const exe = await makeInstall("0.19.0");
     await makeRelease("0.19.0");
     await expect(

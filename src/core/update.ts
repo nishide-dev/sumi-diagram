@@ -224,6 +224,16 @@ async function knownBinDirs(env: Env, home: string): Promise<string[]> {
     .map((d) => resolve(d));
 }
 
+/** A known `sumi` symlink whose target resolves into `dir`, if any. */
+async function linkInto(env: Env, home: string, dir: string): Promise<string | undefined> {
+  for (const bin of await knownBinDirs(env, home)) {
+    const link = join(bin, "sumi");
+    const resolved = await realpath(link).catch(() => undefined);
+    if (resolved !== undefined && resolved.startsWith(`${dir}/`)) return link;
+  }
+  return undefined;
+}
+
 /** True if `link` is a symlink that resolves to `real`. */
 async function linksTo(link: string, real: string): Promise<boolean> {
   try {
@@ -529,7 +539,6 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateOutcome> 
   await removeStaleStaging(home, now());
   let work: string | undefined;
   let placed: string | undefined;
-  let aside: string | undefined;
   try {
     work = await mkdtemp(join(home, STAGING_PREFIX));
     log(`Downloading ${archive}`);
@@ -582,9 +591,16 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateOutcome> 
       );
     }
     if (await lstat(dest).catch(() => undefined)) {
-      // A leftover directory of that version: set it aside, delete it only after the switch.
-      aside = join(home, `.sumi-old.${randomBytes(6).toString("hex")}`);
-      await rename(dest, aside);
+      // Unreferenced leftover (no known link uses it): safe to remove. The release the
+      // links point at is never touched before the switch.
+      const user = await linkInto(env, home, dest);
+      if (user !== undefined) {
+        throw new UpdateError(
+          "destination-exists",
+          `That version is already installed at ${dest} and in use via ${user}; nothing was changed.`,
+        );
+      }
+      await rm(dest, { recursive: true, force: true });
     }
     await rename(staged, dest);
     placed = dest;
@@ -605,17 +621,10 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateOutcome> 
       throw error;
     }
     placed = undefined;
-    if (aside !== undefined) await rm(aside, { recursive: true, force: true }).catch(() => {});
-    aside = undefined;
     // Drop the old release unless another known `sumi` link still points into it
     // (links outside SUMI_BIN_DIR, the marker's directory and ~/.local/bin are not scanned).
-    let keptOld: string | undefined;
-    for (const dir of await knownBinDirs(env, home)) {
-      const other = join(dir, "sumi");
-      const resolved = await realpath(other).catch(() => undefined);
-      if (resolved !== undefined && resolved.startsWith(`${layout.prefix}/`))
-        keptOld = layout.prefix;
-    }
+    const stillUsed = await linkInto(env, home, layout.prefix);
+    const keptOld = stillUsed !== undefined ? layout.prefix : undefined;
     if (keptOld === undefined) {
       await rm(layout.prefix, { recursive: true, force: true }).catch(() => {});
     }
@@ -629,7 +638,6 @@ export async function runUpdate(options: UpdateOptions): Promise<UpdateOutcome> 
     };
   } catch (error) {
     if (placed !== undefined) await rm(placed, { recursive: true, force: true }).catch(() => {});
-    if (aside !== undefined) await rename(aside, join(home, name)).catch(() => {});
     if (error instanceof UpdateError) throw error;
     const reason = error instanceof Error ? error.message : String(error);
     throw new UpdateError(
