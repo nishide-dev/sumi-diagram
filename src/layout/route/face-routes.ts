@@ -161,6 +161,12 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
             return true;
       return false;
     });
+  // The edges drawn as direct lines whatever they are (written `route`, block ends) are
+  // obstacles for the automatic ones too.
+  const written = addDirectRoutes(ir, placed, placed).layout;
+  for (const e of written.edges)
+    if (e.route !== undefined && ir.edges.find((x) => x.key === e.key)?.faceDirect !== true)
+      accepted.push({ from: e.from, to: e.to, points: e.route.points });
   const order = ir.edges
     .filter((e) => e.faceDirect === true)
     .sort((x, y) => span(x) - span(y) || x.index - y.index);
@@ -222,20 +228,45 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
     if (![...resolved.values()].some((e) => e.faceSides !== undefined || e.centerPorts === true))
       break;
     const figure = build();
-    const crossings = findCrossings(routeEdges(figure, placed, { hintTrials: false }).layout);
+    const routed = routeEdges(figure, placed, { hintTrials: false }).layout;
+    const crossings = findCrossings(routed);
     const demote = new Set(
       crossings
         .flatMap((c) => [...c.edges, ...c.others])
         .filter((key) => resolved.get(key)?.faceSides !== undefined),
     );
+    // An automatic straight line meeting any other route (a written straight one included).
+    for (const [key, e] of resolved) {
+      if (e.route !== "straight") continue;
+      const mine = routed.edges.find((x) => x.key === key)?.route?.points ?? [];
+      const hit = routed.edges.some(
+        (other) =>
+          other.key !== key && other.route !== undefined && meetsPoints(mine, other.route.points),
+      );
+      if (hit) {
+        const { route: _route, ...rest } = e;
+        resolved.set(key, { ...rest, centerPorts: true });
+        demote.add(key);
+      }
+    }
     if (demote.size === 0) break;
     for (const key of demote) {
       const e = resolved.get(key) as EdgeIR;
+      if (e.faceSides === undefined) continue;
       const { faceSides: _dropped, ...rest } = e;
       resolved.set(key, { ...rest, centerPorts: true });
     }
   }
   return build();
+}
+
+/** Whether two polylines cross, touch or overlap. */
+function meetsPoints(p: readonly Point[], q: readonly Point[]): boolean {
+  for (let i = 0; i + 1 < p.length; i++)
+    for (let j = 0; j + 1 < q.length; j++)
+      if (segmentsTouch(p[i] as Point, p[i + 1] as Point, q[j] as Point, q[j + 1] as Point))
+        return true;
+  return false;
 }
 
 /** Whether two segments cross, touch or overlap. */
