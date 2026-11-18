@@ -59,6 +59,12 @@ export function isSolid(node: NodeIR | undefined, rect: Rect): boolean {
   return drawing?.solid === true;
 }
 
+function cuboidDrawing(node: NodeIR | undefined, rect: Rect) {
+  if (node?.render === undefined) return undefined;
+  const renderer = getOutlineRenderer(node.render.renderer);
+  return renderer?.draw(rect, renderer.params.parse(node.render.params ?? {}));
+}
+
 /** Where an unanchored edge ends on a visible face of a solid (cuboid `ports: face`, #575), if it does. */
 export function faceContactOf(
   node: NodeIR | undefined,
@@ -250,6 +256,10 @@ interface Choice {
   inward: boolean;
   anchored: boolean;
   straight?: boolean;
+  /** The port is on a cuboid's face centroid line (#587): never moved, and the end reaches the centroid. */
+  face?: boolean;
+  /** Ordinary routing with the 3D-centre ports: no face centroid (#587). */
+  plain?: boolean;
 }
 
 /**
@@ -1270,7 +1280,7 @@ function resolveEndsWith(
   const inside = (inner: Element, outer: Element): boolean => insideKeys(inner.key, outer.key);
 
   // The side of each end: the anchor's, or the default.
-  const choose = (
+  const chooseSide = (
     edge: EdgeIR,
     self: Element,
     other: Element,
@@ -1286,6 +1296,25 @@ function resolveEndsWith(
       if (port !== undefined) {
         return { ...port, inward: false, anchored: true, fixed: true };
       }
+    }
+    // A blocked face-port cuboid edge (#587): the end is the top or bottom face's centroid.
+    const faceSide = edge.faceSides?.[isSource ? "from" : "to"];
+    if (faceSide !== undefined) {
+      const drawing = render === undefined ? undefined : cuboidDrawing(self.node, self.rect);
+      const centroid =
+        (drawing?.faceContacts as Record<string, Point> | undefined)?.[faceSide] ??
+        (drawing?.hiddenFaceContacts as Record<string, Point> | undefined)?.[faceSide];
+      if (centroid !== undefined)
+        return {
+          side: faceSide,
+          offset:
+            faceSide === "north" || faceSide === "south"
+              ? (centroid.x - self.rect.x) / self.rect.width
+              : (centroid.y - self.rect.y) / self.rect.height,
+          inward: false,
+          anchored: true,
+          face: true,
+        };
     }
     // A group connected to an element inside it: the route runs inside the group.
     const inward = self.node === undefined && inside(other, self);
@@ -1376,6 +1405,12 @@ function resolveEndsWith(
     }
     return { side, inward: false, anchored: false };
   };
+  const chooseWith = (...args: Parameters<typeof chooseSide>): Choice | undefined => {
+    const choice = chooseSide(...args);
+    return choice !== undefined && args[0].centerPorts === true
+      ? { ...choice, plain: true }
+      : choice;
+  };
   /**
    * An end nobody anchored, on a node wider than the node at the other end
    * and over it with that node's centre in line with the facing side,
@@ -1434,7 +1469,7 @@ function resolveEndsWith(
     const to = element(edge.to);
     return {
       edge,
-      from: choose(
+      from: chooseWith(
         edge,
         from,
         to,
@@ -1442,7 +1477,7 @@ function resolveEndsWith(
         true,
         spread.get(endKey(index, true)),
       ),
-      to: choose(
+      to: chooseWith(
         edge,
         to,
         from,
@@ -1668,7 +1703,10 @@ function resolveEndsWith(
     }
     // A solid with `ports: face` (#575): an unanchored end on its top or side face goes in to the
     // centre of that face, on the line of its default port; a moved end keeps the silhouette.
-    const centroid = choice.anchored ? undefined : faceContactOf(self.node, self.rect, choice.side);
+    const centroid =
+      choice.plain === true || (choice.anchored && choice.face !== true)
+        ? undefined
+        : faceContactOf(self.node, self.rect, choice.side);
     if (centroid !== undefined) {
       const vertical = choice.side === "north" || choice.side === "south";
       const centred = Math.abs(vertical ? port.x - centroid.x : port.y - centroid.y) < 0.5;

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import type { ElementIR } from "../../compiler/ir";
+import { surfaceAt } from "./composite";
 import { compile, lintSpec } from "./testing";
 
 const source = `version: 1
@@ -302,4 +303,68 @@ nodes: [{ id: a, component: box, label: A, tone: blue, variant: dashed }]
 `;
   expect((await strokeFindings(yaml("#f4f4f4"))).map((f) => f.subject?.id)).toEqual(["g"]);
   expect(await strokeFindings(yaml("#505050"))).toEqual([]);
+});
+
+test("a cuboid's faces and highlighted blocks are the backdrop of an edge that starts on them (#587)", () => {
+  const figure = (highlight: string) => `version: 1
+figure: { id: c, theme: sumi, layout: { engine: structured, arrange: { row: { gap: 10mm, items: [a, b] } } } }
+nodes:
+  - { id: a, component: cuboid, variant: tinted, tone: blue, props: { width: 8mm, height: 12mm, depth: 12mm, cells: [1, 1, 1]${highlight} } }
+  - { id: b, component: box }
+edges: [{ id: e, from: a, to: b, tone: yellow }]
+`;
+  const spec = {
+    elements: {
+      "n:a": { bbox: { x: 0, y: 0, width: 120, height: 100 } },
+      "e:e": {
+        path: [
+          { x: 90, y: 50 },
+          { x: 200, y: 50 },
+        ],
+      },
+    },
+  };
+  const background = (highlight: string) =>
+    lintSpec(compile(figure(highlight)), spec, { code })[0]?.message.match(
+      /background (#\w+)/,
+    )?.[1];
+  const plain = background("");
+  const blocked = background(", highlight: [{ name: k, at: [0, 0, 0], tone: yellow }]");
+  expect(plain).toBeDefined();
+  expect(blocked).toBeDefined();
+  expect(blocked).not.toBe(plain);
+});
+
+test("the faces of one translucent node are composited as one opacity group (#587)", () => {
+  const item = (color: string, x: number, width: number) => ({
+    key: "n:a",
+    kind: "node" as const,
+    faces: true as const,
+    name: "n",
+    color,
+    alpha: 0.5,
+    ink: color,
+    region: {
+      kind: "polygon" as const,
+      points: [
+        { x, y: 0 },
+        { x: x + width, y: 0 },
+        { x: x + width, y: 10 },
+        { x, y: 10 },
+      ],
+    },
+    bbox: { x, y: 0, width, height: 10 },
+    docPath: [],
+    subject: { kind: "node" as const, id: "a" },
+  });
+  // The parent face and a block over it: the block's colour once at half opacity over the canvas.
+  const seen = surfaceAt(
+    [item("#000000", 0, 10), item("#ffffff", 2, 4)] as never,
+    { x: 3, y: 5 },
+    "#ffffff",
+  );
+  expect(seen).toBe("#ffffff");
+  expect(
+    surfaceAt([item("#000000", 0, 10), item("#000000", 2, 4)] as never, { x: 3, y: 5 }, "#ffffff"),
+  ).toBe("#808080");
 });

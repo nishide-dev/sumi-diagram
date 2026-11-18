@@ -453,7 +453,7 @@ function stateMarkerSample(entry: CatalogEntry, theme: string): string {
 /** A cuboid (#575) per variant: a plate, a block with its dimensions, joined by edges. */
 function cuboidSample(entry: CatalogEntry, theme: string): string {
   const rows = entry.variants.map(
-    (v) => `          - row: { gap: 9mm, align: end, items: [${v}-a, ${v}-b] }`,
+    (v) => `          - row: { gap: 9mm, align: center, items: [${v}-a, ${v}-b] }`,
   );
   const nodes = entry.variants.flatMap((v) => [
     `  - { id: ${v}-a, component: ${entry.name}, variant: ${v}, tone: blue, props: { width: 3mm, height: 16mm, depth: 16mm, dims: { width: "64", height: "28²" } } }`,

@@ -74,6 +74,11 @@ export interface OutlineDrawing {
    */
   readonly faces?: Partial<Record<"north" | "east", readonly Point[]>>;
   readonly faceContacts?: Partial<Record<"north" | "south" | "east" | "west", Point>>;
+  /**
+   * The centroids of the hidden faces of a solid with face ports (#587): a straight edge is aimed
+   * at one and stops where it meets the silhouette; an orthogonal route does not use them.
+   */
+  readonly hiddenFaceContacts?: Partial<Record<"south" | "west", Point>>;
   /** Ordered enclosing silhouette; equals the body union unless boundaries is supplied. */
   readonly outline: readonly Point[];
   /** Optional body-only boundary for edge contacts; collision still includes the complete silhouette. */

@@ -401,7 +401,9 @@ their own `properties`, `enum`, `const` and `anyOf`.
   `label` is normal (a thin plate holds no text); a label sits on the front face
   and widens it. `props.cells: [nx, ny, nz]` draws a grid on the visible faces, `props.highlight`
   names sub-blocks (cell ranges with a tone) that a `zoom` edge joins as `<node>.<name>` with four
-  receptive-field lines. See [cuboids](structured.md#cuboids).
+  receptive-field lines. An edge without an anchor is one straight line from the centre of the
+  face it leaves to the centre of the face it enters (`props.ports: face`, the default; `center`
+  aims at the 3D centre as before); `align: center` makes a row's edges horizontal. See [cuboids](structured.md#cuboids).
 - A `container` group with `props.plane: floor | wall` (structured layout only, since
   0.19.0) is a **tilted plane**: its nodes are arranged flat and mapped by
   `figure.projection`, the frame becomes a parallelogram, and `route: straight` edges

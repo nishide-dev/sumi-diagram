@@ -144,7 +144,7 @@ const cuboid: NodeManifest = {
   kind: "node",
   name: "cuboid",
   description:
-    "A cuboid in oblique projection (a CNN layer, a feature map or a volume): a front, top and side face, the top lighter and the side darker than the tone's fill. Depth runs up and right at figure.projection (default 45 degrees, scale 0.5). The label sits on the front face (leave it empty on a thin plate and use dims); by default (ports: center) edges without an anchor aim at the solid's projected 3D centre (the middle of its box) and meet the silhouette on the way in; a written anchor such as east:0.3 keeps its usual meaning. Structured layout only.",
+    "A cuboid in oblique projection (a CNN layer, a feature map or a volume): a front, top and side face, the top lighter and the side darker than the tone's fill. Depth runs up and right at figure.projection (default 45 degrees, scale 0.5). The label sits on the front face (leave it empty on a thin plate and use dims); by default (ports: face) an edge without an anchor is one straight line from the centre of the face it leaves to the centre of the face it enters: on the right the side face and on the top the top face (the line is drawn over the face from its centre), on the left and the bottom the hidden faces (the line is aimed at the face's centre and stops at the silhouette); ports: center aims at the solid's projected 3D centre instead. A written anchor such as east:0.3 keeps its usual meaning (the edge is then routed). Structured layout only.",
   variants: ["default", "muted", "tinted", "solid"],
   props: z
     .strictObject({
@@ -161,7 +161,7 @@ const cuboid: NodeManifest = {
         .enum(["center", "face"])
         .optional()
         .describe(
-          "Where an edge without an anchor touches the solid: center (default) meets the silhouette on the line through its projected 3D centre; face ends an edge on the east (right) side at the centre of the visible side face and on the north (top) side at the centre of the top face, drawn over the face (west and south faces are hidden: they keep the center contact). Written anchors keep their meaning; between neighbours a face end slides along its face to the middle of the overlap (if the face holds it with a margin) so edges stay straight.",
+          "Where an edge without an anchor ends: face (default) is the centre of the face on that side, in 3D: east the visible side face, north the visible top face (the end lies on it and the line is drawn over the face), west the hidden left face and south the hidden bottom face (the line is aimed at the face's centre and stops where it meets the silhouette). Between two nodes without a written anchor, route, block or fan-in, and with no other node in the way, the edge is one straight line from face centre to face centre (no sliding to straighten; the east and west faces' centres are the middle of the box, so align: center in a row makes the line horizontal). center meets the silhouette on the line through the solid's projected 3D centre (the middle of its box) and keeps the routed, straightened ends. Written anchors keep their meaning.",
         ),
       cells: z
         .tuple([CellCount, CellCount, CellCount])

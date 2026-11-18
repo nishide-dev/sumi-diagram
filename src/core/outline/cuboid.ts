@@ -27,8 +27,8 @@ export const cuboidParams = z.strictObject({
   depth: z.number().positive().default(16),
   angle: z.number().min(10).max(80).default(DEFAULT_PROJECTION_ANGLE),
   depthScale: z.number().positive().max(2).default(DEFAULT_DEPTH_SCALE),
-  /** Where edges without an anchor touch: the 3D centre's silhouette contact, or the visible faces' centres. */
-  ports: z.enum(["center", "face"]).default("center"),
+  /** Where edges without an anchor end: the centre of the face they leave or enter (default), or the 3D centre's silhouette contact. */
+  ports: z.enum(["center", "face"]).default("face"),
   /** Cells along x (width), y (height) and z (depth) as "nx,ny,nz": grid lines on the visible faces (#576). */
   cells: z
     .string()
@@ -305,13 +305,18 @@ export const cuboid: OutlineRenderer<CuboidParams> = {
       // (dx/2, -dy/2)), and meet the silhouette on the way in.
       solid: true,
       ...(blocks.length > 0 && { parts }),
-      // Opt-in (`ports: face`): the top and the side face are visible, so an edge on them ends at
-      // the centroid of the face (the other two faces are hidden and keep the silhouette contact).
+      // `ports: face` (the default, #587): an edge ends at the centroid of the face on its side.
+      // The top and the side face are visible, so the end lies on them; the left and the bottom
+      // face are hidden, so a straight edge is aimed at their centroid and stops at the silhouette.
       ...(params.ports === "face" && {
         faces: { north: top, east: side },
         faceContacts: {
           north: pt(fx + w / 2 + dx / 2, y + dy / 2),
           east: pt(fx + w + dx / 2, y + (dy + h) / 2),
+        },
+        hiddenFaceContacts: {
+          west: pt(fx + dx / 2, y + (dy + h) / 2),
+          south: pt(fx + w / 2 + dx / 2, fy + h - dy / 2),
         },
       }),
       safeArea: { x: fx, y: fy, width: w, height: h },

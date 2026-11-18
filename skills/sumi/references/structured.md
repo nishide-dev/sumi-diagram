@@ -1404,24 +1404,37 @@ wider solid for a long row. The projection is figure-wide, never per node.
   assign (CNN: width = channels, front = spatial size). Put dims once per column of
   consecutive layers (on the middle one) and give a column the room: neighbours closer than
   the text collide (`geometry/label-collision`).
-- **Edges.** Unanchored, an edge aims at the solid's projected 3D centre (the front
-  face's centre moved by half the depth offset: the middle of its box) and meets the
-  silhouette on the way in: left and right at the box's middle height, top and bottom at its
-  middle x. Between two neighbouring solids (or a solid and a box) an edge that is the only one
-  on its side of both ends is straightened within the overlap of their boxes: equal solids are
-  joined through both centres, unequal bottom-aligned ones at the middle of the overlap; fan-in
-  and fan-out ends keep their positions. A written anchor keeps its usual meaning (a
-  fraction of the box's side, from its corner: `east:0.3`, `south:0.35`): use it for a
-  corner or a skip connection, e.g. `north:0.85` leaves the top near its right end so
-  a skip clears the width `dims` text. The collision outline is the whole silhouette.
-  **`props.ports: face`** (opt-in; default `center`, the behaviour above) ends an unanchored
-  edge on the *visible* faces instead: on the right at the centre of the side face, on the top
-  at the centre of the top face, with the stretch over the solid's own face drawn on top of it
-  (geometry lint expects it). The left and bottom faces are hidden in this projection and keep
-  the `center` contact. Written anchors keep their meaning. Between neighbours a face end slides
-  along its face to the middle of the overlap (the midpoint of the face on that line, if it keeps
-  a margin inside the face), so edges between unequal solids stay straight; `route: straight` /
-  `curve` end at the face centres.
+- **Edges.** By default (`props.ports: face`) an edge without a written anchor goes from the
+  centre of the face it leaves to the centre of the face it enters, as **one straight line** (no
+  sliding to straighten). If that line would cross another node or a group title, or the router
+  cannot draw it, the edge detours (a skip over an intermediate solid): for ends side by side it
+  leaves the **top** faces' centres straight up, runs above the nodes in between and comes
+  straight down into the target's top face centre, or goes under (the hidden bottom faces'
+  centres are aimed at and the line stops at the silhouettes) when that is shorter; for ends one
+  above the other it goes round the right (visible side faces) or the left (hidden left faces),
+  the shorter side first. If no detour can be drawn either, the edge is routed as with
+  `ports: center`, without a diagnostic. The face is the one on
+  the side of the other end (left/right when the other end is more beside than above or below,
+  else top/bottom), its centre taken in 3D: right = the **side face** (visible), top = the **top
+  face** (visible), left = the **left face** and bottom = the **bottom face**, which this
+  projection hides behind the front face. On a visible face the line starts (or the arrowhead ends)
+  at the face's centre and is drawn over the face (geometry lint expects it); on a hidden face the
+  line is aimed at the face's centre and stops where it meets the silhouette. The line to a
+  node that is not a cuboid is aimed from the cuboid's face centre at the other node's centre.
+  The east and west faces' centres sit at the middle of the silhouette's box, so in a row with
+  **`align: center`** every edge between neighbours is horizontal; with `align: end` unequal
+  solids give slanted lines (that is the shape of the request, not a fault). Use a written
+  anchor (a fraction of the box's side, from its corner: `east:0.3`, `south:0.35`) for a corner
+  or an off-centre end (skips need none): an edge with an anchor, an explicit `route`, a block end (`<node>.<name>`),
+  `figure.layout.fanIn`, or a second edge between the same two nodes is routed as before (the
+  face end is then the face centre on the visible sides). A cuboid inside a tilted plane keeps the
+  plane's routing. The collision outline is the whole silhouette.
+  **`props.ports: center`** keeps the earlier behaviour: an unanchored edge aims at the solid's
+  projected 3D centre (the front face's centre moved by half the depth offset: the middle of its
+  box) and meets the silhouette on the way in, and between neighbours is routed and straightened
+  within the overlap of their boxes (equal solids through both centres, unequal bottom-aligned ones
+  at the middle of the overlap). (The opt-in `face` of the first 0.19.0 builds slid its end along the
+  face to straighten; the default replaces it and no longer slides.)
 
 ```yaml
 # expect-render: fits
@@ -1431,7 +1444,7 @@ figure:
   theme: sumi
   profile: paper-double
   layout:
-    arrange: {row: {gap: 8mm, align: end, items: [x, conv, pool]}}
+    arrange: {row: {gap: 8mm, align: center, items: [x, conv, pool]}}
 nodes:
   - id: x
     component: cuboid
@@ -1483,7 +1496,7 @@ unknown name is `ref/unknown-cell` ("Unknown block", with the cuboid's names in 
   block's own silhouette, on the line from the other end's actual contact (a face port or an anchor
   included) through the centre. The line
   may cross the block's parent cuboid on the way (it is the block's own volume), and `lint
-  --geometry` treats the parent as an end, not an obstacle. `ports: face` of the parent applies to
+  --geometry` treats the parent as an end, not an obstacle. `ports` of the parent applies to
   edges that name the cuboid itself, not to its blocks. `fromAnchor` / `toAnchor` on a block's end
   of an arrow or line is `layout/part-anchor` (on a `zoom` it is the usual `component/anchor-on-zoom`
   warning). A block is not routed round other nodes: keep the way clear, or the lint

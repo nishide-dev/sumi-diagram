@@ -96,18 +96,46 @@ export function addDirectRoutes(
     const targetPart = partOf(nodes.get(edge.to), target, edge.toPart);
     if (sourcePart !== undefined) parts.set(edge.from, sourcePart);
     if (targetPart !== undefined) parts.set(edge.to, targetPart);
-    const s =
+    const sRaw =
       sourcePart !== undefined
         ? center(sourcePart.box)
         : sourceDrawing?.fixedPort === undefined
           ? rawOf(source, edge.fromAnchor)
           : anchorPoint(source, sourceDrawing.fixedPort);
-    const t =
+    const tRaw =
       targetPart !== undefined
         ? center(targetPart.box)
         : targetDrawing?.fixedPort === undefined
           ? rawOf(target, edge.toAnchor)
           : anchorPoint(target, targetDrawing.fixedPort);
+    // A solid with face ports (#575, #587): an unanchored end belongs to the face on the side of the
+    // other end's centre, and the line joins the two faces' centres. The end lies on a visible face
+    // (the line is drawn over it) or is aimed at a hidden face's centre and stops at the silhouette.
+    const faceSides = new Map<ElementKey, "north" | "south" | "east" | "west">();
+    const faceCentre = (key: ElementKey, r: Rect, anchor: EdgeIR["fromAnchor"], other: Point) => {
+      const d = drawing(key, r);
+      if (
+        loop ||
+        parts.has(key) ||
+        isJunction(nodes.get(key)) ||
+        d?.fixedPort !== undefined ||
+        d?.faceContacts === undefined ||
+        (anchor !== undefined && anchor !== "straight")
+      )
+        return undefined;
+      const c = center(r);
+      const [dx, dy] = [other.x - c.x, other.y - c.y];
+      const side =
+        Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "east" : "west") : dy < 0 ? "north" : "south";
+      const contact =
+        d.faceContacts[side as "north" | "east"] ??
+        d.hiddenFaceContacts?.[side as "south" | "west"];
+      if (contact === undefined) return undefined;
+      faceSides.set(key, side);
+      return { x: roundUnits(contact.x), y: roundUnits(contact.y) };
+    };
+    const s = faceCentre(edge.from, source, edge.fromAnchor, tRaw) ?? sRaw;
+    const t = faceCentre(edge.to, target, edge.toAnchor, sRaw) ?? tRaw;
     // Ends on a visible face of their own solid (`ports: face`, #575): the line leaves over that face.
     const faceEnds = new Map<ElementKey, Point>();
     const end = (
@@ -131,22 +159,21 @@ export function addDirectRoutes(
       }
       const fixed = drawing(key, r)?.fixedPort;
       if (fixed !== undefined) return anchorPoint(r, fixed);
-      // A solid with `ports: face` (#575): an unanchored end toward the right or the top ends at the
-      // centre of that visible face.
-      if (anchor === undefined || anchor === "straight") {
-        const faces = drawing(key, r)?.faceContacts;
-        if (faces !== undefined) {
-          const c = center(r);
-          const [dx, dy] = [other.x - c.x, other.y - c.y];
-          const side =
-            Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "east" : "west") : dy < 0 ? "north" : "south";
-          const contact = faces[side];
-          if (contact !== undefined) {
-            faceEnds.set(key, { x: roundUnits(contact.x), y: roundUnits(contact.y) });
-            return { x: roundUnits(contact.x), y: roundUnits(contact.y) };
-          }
-        }
+      // A solid with face ports (#575, #587): an end on a visible face is that face's centre; one
+      // on a hidden face is aimed at its centre and meets the silhouette on the way in.
+      const faceSide = faceSides.get(key);
+      const solid = faceSide === undefined ? undefined : drawing(key, r);
+      const visible =
+        faceSide === undefined ? undefined : solid?.faceContacts?.[faceSide as "north" | "east"];
+      if (visible !== undefined) {
+        const contact = { x: roundUnits(visible.x), y: roundUnits(visible.y) };
+        faceEnds.set(key, contact);
+        return contact;
       }
+      const hidden =
+        faceSide === undefined
+          ? undefined
+          : solid?.hiddenFaceContacts?.[faceSide as "south" | "west"];
       // Explicit anchors are projected radially onto the silhouette. Automatic
       // ends trace the line from the other end towards this shape's centre.
       const from = anchor === undefined || anchor === "straight" ? other : rawPoint;
@@ -155,12 +182,14 @@ export function addDirectRoutes(
       const explicit = anchor !== undefined && anchor !== "straight";
       const front = explicit ? drawing(key, r) : undefined;
       const to =
-        front?.solid === true
-          ? {
-              x: front.safeArea.x + front.safeArea.width / 2,
-              y: front.safeArea.y + front.safeArea.height / 2,
-            }
-          : center(r);
+        hidden !== undefined
+          ? hidden
+          : front?.solid === true
+            ? {
+                x: front.safeArea.x + front.safeArea.width / 2,
+                y: front.safeArea.y + front.safeArea.height / 2,
+              }
+            : center(r);
       const entry =
         node === undefined
           ? boundaryEntry(from, to, rectPolygon(r))
