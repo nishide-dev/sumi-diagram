@@ -10,6 +10,7 @@
 import { randomBytes } from "node:crypto";
 import { chmod, lstat, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
+import type { UpdateEnvironment } from "../core/update";
 
 export interface CliStream {
   write(chunk: string): unknown;
@@ -25,6 +26,8 @@ export interface CliContext {
   env: Record<string, string | undefined>;
   /** Test-only hooks into otherwise unobservable moments. */
   hooks?: CliHooks;
+  /** Test-only seams for `sumi update` and the doctor's update notice (#597). */
+  update?: UpdateEnvironment;
 }
 
 export interface CliHooks {

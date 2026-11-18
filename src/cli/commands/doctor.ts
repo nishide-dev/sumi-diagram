@@ -21,6 +21,12 @@ import {
   FONT_SLOTS,
   type FontSlot,
 } from "../../core/theme/fonts";
+import {
+  checkForUpdate,
+  compareSkillVersion,
+  type SkillVersionReport,
+  type UpdateNotice,
+} from "../../core/update";
 import { loadFontMetrics } from "../../lint/metrics";
 import { type CliContext, EXIT, type ExitCode } from "../io";
 
@@ -46,13 +52,25 @@ export interface DoctorReport {
   checks: DoctorCheck[];
   /** No required check failed. */
   ok: boolean;
+  /** Present when a release check ran (compiled installs, at most once a day; #597). */
+  update?: UpdateNotice;
+  /** Present with `--skill-version`: how the Skill's version relates to the CLI's. */
+  skill?: SkillVersionReport;
+}
+
+export interface DoctorOptions {
+  json?: boolean;
+  color: boolean;
+  /** `--no-update-check` sets this to false. */
+  updateCheck?: boolean;
+  skillVersion?: string;
 }
 
 export async function doctorCommand(
-  options: { json?: boolean; color: boolean },
+  options: DoctorOptions,
   context: CliContext,
 ): Promise<ExitCode> {
-  const report = await buildDoctorReport(context);
+  const report = await buildDoctorReport(context, options);
   context.stdout.write(
     options.json
       ? `${JSON.stringify(report, null, 2)}\n`
@@ -61,14 +79,32 @@ export async function doctorCommand(
   return report.ok ? EXIT.ok : EXIT.failed;
 }
 
-export async function buildDoctorReport(context: CliContext): Promise<DoctorReport> {
+export async function buildDoctorReport(
+  context: CliContext,
+  options: Pick<DoctorOptions, "updateCheck" | "skillVersion"> = {},
+): Promise<DoctorReport> {
   const checks = [await checkD2(context), await checkFonts(), geometryLintCheck()];
+  // Never a failure: the notice is silent when offline, in CI or switched off.
+  const update =
+    options.updateCheck === false
+      ? undefined
+      : await checkForUpdate({
+          env: context.env,
+          current: SUMI_VERSION,
+          ...(context.update !== undefined && { update: context.update }),
+        });
+  const skill =
+    options.skillVersion === undefined
+      ? undefined
+      : compareSkillVersion(options.skillVersion, SUMI_VERSION);
   return {
     version: DOCTOR_JSON_VERSION,
     sumi: { version: SUMI_VERSION },
     runtime: { bun: Bun.version, platform: process.platform, arch: process.arch, mode: RUN_MODE },
     checks,
     ok: checks.every((c) => !(c.required && c.status === "error")),
+    ...(update !== undefined && { update }),
+    ...(skill !== undefined && { skill }),
   };
 }
 
@@ -228,5 +264,11 @@ export function formatDoctorText(report: DoctorReport, options: { color?: boolea
     if (check.hint !== undefined) lines.push(`${" ".repeat(9 + idWidth)}hint: ${check.hint}`);
   }
   lines.push("", report.ok ? "Ready to render." : "Some required checks failed.");
+  if (report.update?.available) {
+    lines.push(
+      `Sumi ${report.update.latest} is available (you have ${report.update.current}): run \`sumi update\``,
+    );
+  }
+  if (report.skill !== undefined) lines.push(report.skill.message);
   return `${lines.join("\n")}\n`;
 }

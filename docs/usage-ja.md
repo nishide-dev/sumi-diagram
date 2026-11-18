@@ -83,6 +83,22 @@ sumi doctor
 - macOS でブラウザからダウンロードした場合、`sumi` と `d2` は公証（notarization）されていないため Gatekeeper に止められることがあります。上のように `curl` や `gh release download` で取得するか、アーカイブを検証した後に `xattr -dr com.apple.quarantine <展開したディレクトリ>` を実行してください。
 - npm には公開していません（`sumi` は npm で使用済みの名前です）。
 
+## 更新
+
+`sumi update` は最新リリースを解決し（`SUMI_LATEST_URL`・`SUMI_DOWNLOAD_BASE` はインストーラーと同じ。通信は GitHub のリリース API とリリースの資産の取得のみ）、この環境向けの tarball を取得して `SHA256SUMS` で検証し、`SUMI_HOME` の現在の版の隣に展開し、新しい `sumi --version` を実行して確かめてから、ディレクトリを所定の位置へ移し、`SUMI_BIN_DIR/sumi` のシンボリックリンクを 1 回の rename で切り替えます。ネットワーク・チェックサム不一致・不正なアーカイブなどで失敗または中断しても、元の版はそのまま使えます。切り替えのあと、旧版のディレクトリは削除します。すでにその版なら何もしません。
+
+| コマンド | 動作 |
+| --- | --- |
+| `sumi update` | 最新リリースに更新する |
+| `sumi update --check` | 確認のみ。終了コード 0: 最新、1: 更新あり、2: 確認に失敗 |
+| `sumi update --version <版>` | その版を入れる（先頭の `v` は任意）。古い版も指定でき、ダウングレードにも使える |
+
+対象は `install.sh` が作る配置（`<SUMI_HOME>/sumi-<版>-<target>/bin/sumi`。実行中のファイルからシンボリックリンクを解決して判定し、`SUMI_HOME` を設定している場合はそのディレクトリと一致が必要）だけです。それ以外は終了コード 2 でインストーラーのコマンドを表示し、何も変更しません。`install.sh` で入れた証拠は、実行中の版に解決される `sumi` シンボリックリンク（`SUMI_BIN_DIR`、`<SUMI_HOME>/.sumi-install` に記録されたディレクトリ、`~/.local/bin` のいずれか）です。手動で展開した tarball は対象外です。同じ版のディレクトリがすでにあり、既知の bin ディレクトリの `sumi` リンクが使っていれば、拒否して何も変更しません。使うリンクがなければ参照されない残りとして削除してから、検証済みの版を置きます。保証は「リンクが指しているリリースは切り替えるまで変更されない」ことで、どこで中断されても現在の版は使えます。旧版は、既知の bin ディレクトリの `sumi` リンクがまだ指していれば削除しません（それ以外の場所のリンクは走査しないため、片付けは保守的です）。リンクを含むアーカイブは拒否します。ロックファイル（`<SUMI_HOME>/.sumi-lock`）で同時実行の 2 つ目を拒否し、ロックは自動では奪いません（stale に見えるものはヒントに削除すべきパスを示します）。
+
+**更新の通知:** `sumi doctor`（ほかのコマンドは何も出しません）は、最新リリースを 1 日 1 回まで（タイムアウト 2 秒）確認し、結果を `$XDG_CACHE_HOME/sumi/update-check.json`（既定は `~/.cache/sumi`）に保存します。新しい版があれば「`Sumi X is available (you have Y): run `sumi update``」を 1 行出します。オフラインなどで確認に失敗しても何も出さず、1 時間後に再試行します。`CI` が設定されているとき、`SUMI_NO_UPDATE_CHECK=1`、`sumi doctor --no-update-check`、ソースからの実行では確認しません。`--json` では確認した場合に `update` が加わります。
+
+**Skill の版:** `skills/sumi/SKILL.md` は `metadata.version` にリリースの版を持ち、Skill の最初の手順は `sumi doctor --skill-version <その版>` です。Skill が CLI より古ければ `npx skills update sumi`、CLI が古ければ `sumi update` を示します。`--json` では `skill` が加わります。
+
 ## D2 のインストール
 
 自動レイアウトには [D2](https://d2lang.com) CLI を使います。出力は同じバージョン内でのみ決定的なため、**D2 v0.9.0 に固定**しており、それ以外のバージョンはエラー（`backend/d2-version-mismatch`）になります。構造化レイアウトは D2 を使いません。
@@ -126,7 +142,8 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 | `render <file>` | コンパイルと描画を実行し、SVG・PDF・PPTXを書き出す。描画結果（SVG）に幾何 lintを実行し、幾何errorでも出力を残してexit 1。変換失敗時は出力しない。形式は `--format`、なければ `-o` の既知の拡張子、どちらもなければSVG。既定は入力のYAML拡張子を出力形式へ替えたパス。一時ファイル経由で書き込む | `-o, --out <file>`（stdoutはSVGのみ）、`--format svg\|pdf\|pptx`（拡張子との矛盾はusage error）、`--pptx-mode picture\|editable`（editableは実験的）、`--pptx-connectors freeform\|glued`（editableのみ）、`--emit-d2 <file>`、`--theme <name>`・`--profile <name>`、`--no-geometry`、`--json` |
 | `lint <files...>` | 描画せずに schema・参照・部品・Theme・Profile と構造 lint を検査する。`--geometry` を付けると描画し（ファイルは書かない）、幾何 lint も実行する（[規則の一覧](lint-rules.md)） | `--geometry`、`--json`、`--config <lint.json>`、`--rule <id>=<level>`（繰り返し可。`geometry/*` も可）、`--max-warnings <n>`（全ファイルの合計） |
 | `fmt <files...>` | YAML を意味を変えずに整形する（コメント・引用符・キー順は保つ）。YAML として不正なファイルは整形しない。flow の括弧の内側に空白を入れず（`{a: 1}`、`[a, b]`）、flow 形式の grid の `items` が複数 row なら 1 row（`columns` セル、`span` 込み）ごとに改行する | `--check`（書き込まずに未整形のファイルを列挙）、`--stdout`、`--canonical-order`（既知のキーを schema の順に並べる） |
-| `doctor` | Sumi / Bun のバージョン、D2 の有無とバージョン、同梱フォントの sha256、幾何 lint 用のフォントの metrics を読めるかを確認する | `--json` |
+| `doctor` | Sumi / Bun のバージョン、D2 の有無とバージョン、同梱フォントの sha256、幾何 lint 用のフォントの metrics を読めるかを確認する。新しいリリースがあれば 1 行で知らせる | `--json`、`--no-update-check`、`--skill-version <版>`（[更新](#更新)） |
+| `update` | インストール先を最新リリース（または `--version`）に差し替える | `--check`（確認のみ）、`--version <版>`（[更新](#更新)） |
 | `catalog` | 部品・Theme・Profile の一覧、同梱アイコンの検索 | `--json`、`--section components\|themes\|profiles\|icons\|targets\|sets`（繰り返し可）、`--kind node\|group\|edge`（`--section` なしでは部品だけを出す）、`--icons <語>`（アイコンを検索）、`--icons ""`（全アイコン名） |
 
 `--background canvas|transparent` は `figure.background`（既定 `canvas`）を上書きします。SVG・PDF・両 PPTX 方式と `--json` で使えます。透明にするのは外側の地だけで、ノードの塗りやラベルの下地は残り、コントラストと lint はテーマの地の色を想定します。`sumi lint --geometry` も同じフラグを受け付けますが、lint は常にテーマの地の色に対して測るので結果は変わりません。
@@ -153,8 +170,8 @@ v0.3.0 から、台形 `trapezoid` と重なった矩形 `stack` を使えます
 | 終了コード | 意味 |
 | --- | --- |
 | 0 | 成功（warning・info はあってもよい） |
-| 1 | 問題あり: error がある（`render` の幾何 lint の error を含む。SVG は書き出す）、warning が `--max-warnings` を超えた、`fmt --check` で未整形のファイルがある、`fmt` の入力が YAML として不正、`doctor` の必須項目が失敗した |
-| 2 | 使い方の誤り・内部エラー: 不正なフラグや設定、読めない / 書けないファイル、未知の theme / profile、例外 |
+| 1 | 問題あり: error がある（`render` の幾何 lint の error を含む。SVG は書き出す）、warning が `--max-warnings` を超えた、`fmt --check` で未整形のファイルがある、`fmt` の入力が YAML として不正、`doctor` の必須項目が失敗した、`update --check` で更新がある |
+| 2 | 使い方の誤り・内部エラー: 不正なフラグや設定、読めない / 書けないファイル、未知の theme / profile、例外、`update` が拒否または失敗した |
 
 - 色は端末への出力にだけ付けます。`--no-color` または `NO_COLOR=1` で無効、`FORCE_COLOR=1` で常に有効になります。
 - 使い方の誤りはスタックトレースを出さず 1 行で報告します。内部エラーのスタックトレースは `SUMI_DEBUG=1` で表示します。
@@ -344,7 +361,7 @@ npx skills add nishide-dev/sumi-diagram --skill sumi           # 対話的に導
 npx skills add nishide-dev/sumi-diagram --skill sumi -a claude-code -y   # 例: 確認なしで Claude Code に導入（.claude/skills/sumi）
 ```
 
-Skill は CLI を含みません。先に[リリース版](#インストールリリース版)を導入して `sumi` を `PATH` に通し、`sumi doctor` で確認してください（D2 とフォントは tarball に同梱）。エージェントに「この処理の流れを Sumi で図にして（論文の 1 段組）」のように頼むと、Skill が次の手順で図を作ります。
+Skill は CLI を含みません。先に[リリース版](#インストールリリース版)を導入して `sumi` を `PATH` に通し、`sumi doctor` で確認してください（D2 とフォントは tarball に同梱）。Skill の更新は `npx skills update sumi` です。最初の手順の `sumi doctor --skill-version <版>` が、Skill と CLI のどちらが古いかを知らせます。エージェントに「この処理の流れを Sumi で図にして（論文の 1 段組）」のように頼むと、Skill が次の手順で図を作ります。
 
 1. 図の内容と出力先（`paper-single` / `paper-double` / `presentation-16x9`）を確認する
 2. `sumi doctor` で環境を確認し、`sumi catalog --json` で使える部品・variant・props と Theme・Profile を調べる（存在しない部品やスタイルは使わない）
