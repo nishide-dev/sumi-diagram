@@ -93,6 +93,8 @@ geometry lint):
 | `llada` | 4 warnings: `geometry/dash-hidden` ×4 (the original figure's short dashed remask arrows) |
 | `chat` | none |
 | `llm-dialogue` | none |
+| `multilayer-network` | 4: `geometry/color-on-panel` ×3 (the blue nodes on each sumi plane's tinted fill, the look the theme is made for); `geometry/edge-touches-label` ×1 (one correspondence line passes 0.33mm from a plane title) |
+| `attention-sheet` | 3: `geometry/sparse-figure` ×1 (the two planes are wide and flat); `geometry/color-on-panel` ×2 (the tokens and the attention cells on the sumi plane fill) |
 
 `llada` is a density benchmark: the reference's cells, arrows and frames sit at its own
 pixel coordinates (`place` unit 0.3113pt = 1 reference px, scaled to 180mm), the cell colours
