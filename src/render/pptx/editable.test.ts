@@ -143,8 +143,23 @@ for (const item of corpus)
           expect(names.get(`${element.key} waveform`)).not.toBe(names.get(element.key));
         }
         if (element.kind === "edge") {
-          // A zoom edge (#176) is two lines between corners: a freeform shape in either mode.
-          const glued = connectors === "glued" && element.routing !== "zoom";
+          // A zoom edge (#176) is two lines between corners: a freeform shape in either mode. So is
+          // an edge with heads between two nodes of one projected tilted plane (#577): its heads
+          // are drawn flat on the plane. Every other edge, correspondences between planes and
+          // headless lines in a plane included, is glued.
+          const planeOf = (key: Parameters<typeof item.ir.elements.get>[0]) => {
+            const node = item.ir.elements.get(key);
+            const parent = node && node.kind !== "edge" ? node.parent : undefined;
+            const group = parent === undefined ? undefined : item.ir.elements.get(parent);
+            return group?.kind === "group" && group.plane?.contents === "projected"
+              ? parent
+              : undefined;
+          };
+          const flatHeads =
+            (element.sourceArrowhead !== undefined || element.targetArrowhead !== undefined) &&
+            planeOf(element.from) !== undefined &&
+            planeOf(element.from) === planeOf(element.to);
+          const glued = connectors === "glued" && element.routing !== "zoom" && !flatHeads;
           expect(shape.name).toBe(glued ? "p:cxnSp" : "p:sp");
           if (glued) {
             const refs = [...descendants(shape)].filter((e) =>

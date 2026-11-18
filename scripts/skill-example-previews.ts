@@ -17,6 +17,8 @@ for (const name of [
   "decision-flow",
   "system-architecture",
   "grouped",
+  "multilayer-network",
+  "attention-sheet",
 ]) {
   const pdf = join(root, "examples", name, `${name}.pdf`);
   const output = join(root, "skills", "sumi", "examples", name, name);
