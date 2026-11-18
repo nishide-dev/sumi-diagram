@@ -4,11 +4,11 @@
 
 The committed SVGs of <code>examples/</code>, rendered from their sources as written\.
 
-## examples/attention\-sheet/attention\-sheet\.sumi\.yaml
+## Causal attention on tilted planes
 
 [<code>examples/attention\-sheet/attention\-sheet\.sumi\.yaml</code>](../../examples/attention-sheet/attention-sheet.sumi.yaml) · [PDF](../../examples/attention-sheet/attention-sheet.pdf) · theme <code>sumi</code> · profile <code>paper\-double</code> · 177\.27mm × 68\.44mm \(max width 180mm, max height 220mm\)<br>info geometry/sparse\-figure: The figure is sparse: 36 nodes, text and shapes cover 23\.3% of the canvas \(below 34%\), 337mm² of canvas per node \(above 330mm²\)\.<br>info geometry/color\-on\-panel \(×2\): Group &quot;tokens&quot; is filled \#efeddd and holds 5 colored elements \(node &quot;t1&quot;, node &quot;t2&quot;, node &quot;t3&quot;, and 2 more\): the colors compete with the panel's\.
 
-<img src="../../examples/attention-sheet/attention-sheet.svg" alt="examples/attention-sheet/attention-sheet.sumi.yaml">
+<img src="../../examples/attention-sheet/attention-sheet.svg" alt="Causal attention on tilted planes">
 
 ## Chat — making plans
 
@@ -70,11 +70,11 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 <img src="../../examples/llm-dialogue/llm-dialogue.svg" alt="LLM dialogue — a math word problem">
 
-## examples/multilayer\-network/multilayer\-network\.sumi\.yaml
+## Multilayer network with correspondences
 
 [<code>examples/multilayer\-network/multilayer\-network\.sumi\.yaml</code>](../../examples/multilayer-network/multilayer-network.sumi.yaml) · [PDF](../../examples/multilayer-network/multilayer-network.pdf) · theme <code>sumi</code> · profile <code>paper\-double</code> · 167\.04mm × 96\.13mm \(max width 180mm, max height 220mm\)<br>info geometry/color\-on\-panel \(×3\): Group &quot;layer1&quot; is filled \#efeddd and holds 7 colored elements \(node &quot;a1&quot;, node &quot;b1&quot;, node &quot;c1&quot;, and 4 more\): the colors compete with the panel's\.<br>info geometry/edge\-touches\-label: Edge edges\[25\] touches the label of group &quot;layer2&quot; \(0\.33mm from the letters\)\.
 
-<img src="../../examples/multilayer-network/multilayer-network.svg" alt="examples/multilayer-network/multilayer-network.sumi.yaml">
+<img src="../../examples/multilayer-network/multilayer-network.svg" alt="Multilayer network with correspondences">
 
 ## Generic processing pipeline
 
