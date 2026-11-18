@@ -410,8 +410,10 @@ function metadataBase(
     figureId: ir.meta.id,
     theme: ir.meta.themeId,
     ...(ir.meta.transparentBackground && { background: "transparent" as const }),
-    ...(ir.meta.themeOverrides?.canvas !== undefined && {
-      canvas: ir.meta.themeOverrides.canvas.toLowerCase(),
+    // An override, and always for `sumi`, whose canvas changed from cream to white (#595): a file
+    // without it was drawn on the cream.
+    ...((ir.meta.themeOverrides?.canvas !== undefined || ir.meta.themeId === "sumi") && {
+      canvas: figureCanvas(ir.meta.themeId, ir.meta.themeOverrides)?.toLowerCase() ?? "#ffffff",
     }),
     profile: ir.meta.profileId,
     fontSet: compiled.fontSet.id,

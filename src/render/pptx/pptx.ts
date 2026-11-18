@@ -3,7 +3,7 @@ import type { Diagnostic } from "../../core/diagnostics";
 import type { Result } from "../../core/result";
 import { getTheme } from "../../core/theme/builtin";
 import { type FontSet, getFontSet } from "../../core/theme/fonts";
-import { readSvgMetadata } from "../finalize";
+import { readSvgMetadata, type SumiSvgMetadata } from "../finalize";
 import { loadEngine, runEngine } from "../pdf/engine";
 import { resolveSvgFonts } from "../pdf/fonts";
 import { exceedsPdfInputLimits } from "../pdf/pdf";
@@ -89,7 +89,7 @@ export function svgToPptx(svg: string, options: SvgToPptxOptions = {}): Result<U
         width,
         height,
         metadata.value,
-        metadata.value?.canvas ?? getTheme(metadata.value?.theme ?? "")?.canvas,
+        pictureCanvas(metadata.value),
       ),
       diagnostics: [],
     };
@@ -99,4 +99,29 @@ export function svgToPptx(svg: string, options: SvgToPptxOptions = {}): Result<U
       `Cannot create the picture package: ${e instanceof Error ? e.message : String(e)}.`,
     );
   }
+}
+
+/** The first Sumi version that draws `sumi` on a white canvas (#595). */
+const WHITE_SUMI_FROM = [0, 19, 1] as const;
+const LEGACY_SUMI_CANVAS = "#f8f8ee";
+
+const versionBefore = (version: string, limit: readonly number[]): boolean => {
+  const parts = version.split(/[-+]/)[0]?.split(".").map(Number) ?? [];
+  for (let i = 0; i < limit.length; i++) {
+    const part = parts[i] ?? 0;
+    if (Number.isNaN(part)) return false;
+    if (part !== limit[i]) return part < (limit[i] as number);
+  }
+  return false;
+};
+
+/**
+ * The canvas the SVG was painted on: its `canvas` metadata, else its theme's. An SVG made before
+ * `sumi` turned white carries no `canvas`: its master keeps the cream it was drawn on.
+ */
+export function pictureCanvas(metadata: SumiSvgMetadata | undefined): string | undefined {
+  if (metadata?.canvas !== undefined) return metadata.canvas;
+  if (metadata?.theme === "sumi" && versionBefore(metadata.sumiVersion, WHITE_SUMI_FROM))
+    return LEGACY_SUMI_CANVAS;
+  return getTheme(metadata?.theme ?? "")?.canvas;
 }
