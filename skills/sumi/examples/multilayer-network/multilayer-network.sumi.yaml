@@ -1,0 +1,130 @@
+# Example: a multilayer network, the same entities in three layers drawn as tilted planes joined by dotted correspondence lines.
+#
+# Visual language: one plane per layer, all nodes one blue (the layer is the plane, not a colour); the same node
+#   sits at the same coordinates in every plane, so its twins are vertical lines; the one node being
+#   followed (C) is the only orange one, in all three layers.
+# Structure: a `row` of a `stack` of three `container` groups with `props.plane: floor` and a legend.
+#   Nodes are listed in plane coordinates with `place`; edges inside a layer are straight lines between
+#   the mapped nodes (`route: straight`), correspondences are dotted `route: straight` edges between
+#   adjacent layers only (hidden by the upper plane, faint across it).
+# Lint: `lint --geometry` 0 errors, 0 warnings.
+version: 1
+figure:
+  id: multilayer-network
+  theme: sumi
+  profile: paper-double
+  projection: {angle: 45, depthScale: 0.45}
+  layout:
+    arrange:
+      row:
+        gap: 10mm
+        align: start
+        items:
+          - stack: {gap: 9mm, align: start, items: [layer1, layer2, layer3]}
+          - key
+groups:
+  - id: layer1
+    label: "(a) Layer 1"
+    props: {plane: floor, padding: 8mm}
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: a1, at: [24, 46]}
+          - {item: b1, at: [50, 50]}
+          - {item: c1, at: [76, 44]}
+          - {item: d1, at: [102, 48]}
+          - {item: e1, at: [34, 16]}
+          - {item: f1, at: [60, 12]}
+          - {item: g1, at: [86, 18]}
+  - id: layer2
+    label: "(b) Layer 2"
+    props: {plane: floor, padding: 8mm}
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: a2, at: [24, 46]}
+          - {item: b2, at: [50, 50]}
+          - {item: c2, at: [76, 44]}
+          - {item: d2, at: [102, 48]}
+          - {item: e2, at: [34, 16]}
+          - {item: f2, at: [60, 12]}
+          - {item: g2, at: [86, 18]}
+  - id: layer3
+    label: "(c) Layer 3"
+    props: {plane: floor, padding: 8mm}
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: a3, at: [24, 46]}
+          - {item: b3, at: [50, 50]}
+          - {item: c3, at: [76, 44]}
+          - {item: d3, at: [102, 48]}
+          - {item: e3, at: [34, 16]}
+          - {item: f3, at: [60, 12]}
+          - {item: g3, at: [86, 18]}
+nodes:
+  - {id: a1, component: circle, label: A, tone: blue, props: {width: 8mm}}
+  - {id: b1, component: circle, label: B, tone: blue, props: {width: 8mm}}
+  - {id: c1, component: circle, label: C, tone: orange, variant: emphasis, props: {width: 8mm}}
+  - {id: d1, component: circle, label: D, tone: blue, props: {width: 8mm}}
+  - {id: e1, component: circle, label: E, tone: blue, props: {width: 8mm}}
+  - {id: f1, component: circle, label: F, tone: blue, props: {width: 8mm}}
+  - {id: g1, component: circle, label: G, tone: blue, props: {width: 8mm}}
+  - {id: a2, component: circle, label: A, tone: blue, props: {width: 8mm}}
+  - {id: b2, component: circle, label: B, tone: blue, props: {width: 8mm}}
+  - {id: c2, component: circle, label: C, tone: orange, variant: emphasis, props: {width: 8mm}}
+  - {id: d2, component: circle, label: D, tone: blue, props: {width: 8mm}}
+  - {id: e2, component: circle, label: E, tone: blue, props: {width: 8mm}}
+  - {id: f2, component: circle, label: F, tone: blue, props: {width: 8mm}}
+  - {id: g2, component: circle, label: G, tone: blue, props: {width: 8mm}}
+  - {id: a3, component: circle, label: A, tone: blue, props: {width: 8mm}}
+  - {id: b3, component: circle, label: B, tone: blue, props: {width: 8mm}}
+  - {id: c3, component: circle, label: C, tone: orange, variant: emphasis, props: {width: 8mm}}
+  - {id: d3, component: circle, label: D, tone: blue, props: {width: 8mm}}
+  - {id: e3, component: circle, label: E, tone: blue, props: {width: 8mm}}
+  - {id: f3, component: circle, label: F, tone: blue, props: {width: 8mm}}
+  - {id: g3, component: circle, label: G, tone: blue, props: {width: 8mm}}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: column
+      entries:
+        - {edge: {component: line, lineWidth: 1.5pt}, label: link in a layer}
+        - {edge: {component: line, variant: dotted}, label: "same entity"}
+edges:
+  - {from: a1, to: b1, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: b1, to: c1, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: c1, to: d1, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: a1, to: e1, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: e1, to: f1, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: f1, to: g1, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: a2, to: b2, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: b2, to: e2, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: c2, to: f2, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: c2, to: g2, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: d2, to: g2, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: e2, to: f2, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: b3, to: c3, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: c3, to: d3, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: d3, to: g3, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: e3, to: f3, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: a3, to: e3, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: b3, to: f3, component: line, route: straight, lineWidth: 1.5pt}
+  - {from: a2, to: a1, component: line, route: straight, variant: dotted}
+  - {from: b2, to: b1, component: line, route: straight, variant: dotted}
+  - {from: c2, to: c1, component: line, route: straight, variant: dotted}
+  - {from: d2, to: d1, component: line, route: straight, variant: dotted}
+  - {from: e2, to: e1, component: line, route: straight, variant: dotted}
+  - {from: f2, to: f1, component: line, route: straight, variant: dotted}
+  - {from: g2, to: g1, component: line, route: straight, variant: dotted}
+  - {from: a3, to: a2, component: line, route: straight, variant: dotted}
+  - {from: b3, to: b2, component: line, route: straight, variant: dotted}
+  - {from: c3, to: c2, component: line, route: straight, variant: dotted}
+  - {from: d3, to: d2, component: line, route: straight, variant: dotted}
+  - {from: e3, to: e2, component: line, route: straight, variant: dotted}
+  - {from: f3, to: f2, component: line, route: straight, variant: dotted}
+  - {from: g3, to: g2, component: line, route: straight, variant: dotted}

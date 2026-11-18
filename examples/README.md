@@ -34,6 +34,8 @@ different theme defaults and requires identical painted colors.
 | [`llama4-moe/`](llama4-moe/llama4-moe.sumi.yaml) | `llama` / `paper-double` | Meta AI (2025), the Llama 4 mixture-of-experts figure: the `llama` theme (dark solid blocks, borderless muted panels, a white muted inner panel, a filled router, an emphasis shared expert, 1pt lines and open chevron arrowheads), alternating Attention/FFN with a dashed `zoom` into the expanded MoE panel, a ⊕ operator, and hidden-junction forks that share one bus even with a short `···` label among the experts (156.28mm × 107.77mm) |
 | [`chat/`](chat/chat.sumi.yaml) | `llama` / `paper-single` | a generic Japanese conversation using `bubble` nodes and the `chat` arrangement: a 今日 divider, timestamps, read receipts, an initial in a circle, consecutive messages and automatic wrapping; white incoming bubbles and pale green outgoing ones (83.96mm × 59.09mm) |
 | [`llm-dialogue/`](llm-dialogue/llm-dialogue.sumi.yaml) | `llama` / `paper-single` | an original illustrative user–assistant math dialogue: `chat` with avatars on both sides (bundled user/robot icons), explicit speaker notes, a multi-line answer with inline math and a follow-up question (83.96mm × 61.56mm) |
+| [`multilayer-network/`](multilayer-network/multilayer-network.sumi.yaml) | `sumi` / `paper-double` | a multilayer network: three tilted planes (`props.plane: floor`) with the same seven nodes at the same coordinates (`place`), straight links inside a layer, dotted `route: straight` correspondences between adjacent layers and one orange node followed through all of them (167mm × 96mm) |
+| [`attention-sheet/`](attention-sheet/attention-sheet.sumi.yaml) | `sumi` / `paper-double` | a token sequence and its causal attention map lying flat on two planes (`contents: projected`): boxes as parallelograms, mapped arrowheads, a `matrix` of strong / medium / weak / masked cells and its legend (177mm × 71mm) |
 
 `pipeline` and `decision-flow` use `direction: down`: four or more nodes in a
 row to the right are already wider than `paper-single` (88mm).
@@ -42,7 +44,7 @@ groups from the side (with `direction: down` they cross the groups' centered
 labels, `geometry/edge-crosses-label`), which makes them wider than one paper
 column: they use `paper-double` (180mm).
 
-All fourteen pass `sumi lint --geometry` without errors or warnings (CLIP uses
+All sixteen pass `sumi lint --geometry` without errors or warnings (CLIP uses
 `--config examples/clip/lint.json`, as explained below). The five
 structured `paper` figures use the color, ML-paper style and are laid out and routed by Sumi
 itself, without D2. `transformer` fits one column; `dit-block` is wider than
