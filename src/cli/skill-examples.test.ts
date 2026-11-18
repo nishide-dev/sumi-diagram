@@ -24,6 +24,8 @@ const NAMES = [
   "decision-flow",
   "system-architecture",
   "grouped",
+  "multilayer-network",
+  "attention-sheet",
 ];
 
 /** Do not follow symlinks: Git archives preserve them, rather than their targets. */

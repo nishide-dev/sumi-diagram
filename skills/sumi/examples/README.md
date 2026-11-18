@@ -1,6 +1,6 @@
 # Reference figures
 
-Thirteen complete figures, each a YAML plus a PNG preview. Look at the closest ones
+Sixteen complete figures, each a YAML plus a PNG preview. Look at the closest ones
 **before you write a figure and again after you render it**. They are references
 for idioms (how boxes are arranged, which tone marks what, how notes are attached),
 not templates to copy content from. The paper figures cite their public paper in
@@ -46,6 +46,13 @@ figure of your own, leave the colors to the theme (or a `palette`).
 | Chat | A generic Japanese conversation | `bubble` nodes, `chat` arrangement, date divider, timestamps, read receipts, letter avatar, consecutive messages, automatic wrapping | `llama` / `paper-single` | [YAML](chat/chat.sumi.yaml), [PNG](chat/chat.png) |
 | LLM dialogue | A user–assistant math dialogue | `chat` with avatars on both sides (bundled icons), speaker notes, multi-line answer with inline math | `llama` / `paper-single` | [YAML](llm-dialogue/llm-dialogue.sumi.yaml), [PNG](llm-dialogue/llm-dialogue.png) |
 
+## Tilted planes (`props.plane`)
+
+| Name | What it shows | Key features | Theme / profile | Files |
+| --- | --- | --- | --- | --- |
+| Multilayer network | The same seven entities in three layers, with one followed through all of them | three `plane: floor` groups stacked, nodes by coordinates (`place`) so twins are vertical, straight in-layer links, dotted `route: straight` correspondences between adjacent layers, one accent node, `figure.projection` | `sumi` / `paper-double` | [YAML](multilayer-network/multilayer-network.sumi.yaml), [PNG](multilayer-network/multilayer-network.png) |
+| Attention sheet | A token sequence and its causal attention map lying flat on two planes | `plane: floor` with `contents: projected`: boxes as parallelograms, arrowheads mapped, a `matrix` of classed cells (hatched strong, outlined medium/weak, tinted masked), legend of the cell classes | `sumi` / `paper-double` | [YAML](attention-sheet/attention-sheet.sumi.yaml), [PNG](attention-sheet/attention-sheet.png) |
+
 ## Generic diagrams (automatic layout)
 
 | Name | What it shows | Key features | Theme / profile | Files |
@@ -60,7 +67,7 @@ figure of your own, leave the colors to the theme (or a `palette`).
 Choosing quickly: a paper block diagram with residuals or notes starts from
 Transformer or DiT; multi-panel figures with images or matrices from CLIP or
 EmbeddingGemma; graphs on coordinates from GCN; a dense wide figure of cell rows and short arrows from LLaDA; a dense wide overview of small pictures (hypergraphs, feature vectors, panels) from TriCL; a dark-theme model figure from
-Llama 4 MoE; messages from Chat or LLM dialogue; flows and tiers from the generic four.
+Llama 4 MoE; messages from Chat or LLM dialogue; graphs or matrices on tilted planes from Multilayer network or Attention sheet; flows and tiers from the generic four.
 
 For a consistent visual vocabulary across panels, study GCN (the same vertex and
 edge look in every layer and tone meaning throughout) and Llama 4 MoE (the same

@@ -1,0 +1,78 @@
+# Example: a token sequence and its causal attention map drawn as tilted planes, with the objects lying flat on them.
+#
+# Visual language: a sheet per kind of thing (tokens, attention weights); tokens are blue boxes joined by
+#   arrows; weights are orange cells, darker (hatched) for a stronger weight; masked cells are
+#   gray ones. Everything lies flat on its plane (`contents: projected`); the labels stay horizontal.
+# Structure: a `row` of a `stack` of two `container` groups with `props.plane: floor` and `contents:
+#   projected`, and a legend of the cell classes. The map is a flush `matrix` in the lower plane's
+#   `place`; the upper plane holds a `row` of boxes (they grow until their label fits the flat shape).
+# Lint: `lint --geometry` 0 errors, 0 warnings.
+version: 1
+figure:
+  id: attention-sheet
+  title: Causal attention on tilted planes
+  theme: sumi
+  profile: paper-double
+  projection: {angle: 45, depthScale: 0.6}
+  layout:
+    arrange:
+      row:
+        gap: 8mm
+        align: end
+        items:
+          - stack: {gap: 5mm, align: start, items: [tokens, attention]}
+          - key
+groups:
+  - id: tokens
+    label: (a) Tokens
+    props: {plane: floor, contents: projected, padding: 7mm}
+    arrange:
+      row:
+        gap: 7mm
+        align: center
+        items: [t1, t2, t3, t4, t5]
+  - id: attention
+    label: (b) Causal attention weights
+    props: {plane: floor, contents: projected, padding: 7mm}
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: map, at: [0, 0]}
+nodes:
+  - {id: t1, component: box, label: The, tone: blue, props: {width: 16mm, height: 10mm}}
+  - {id: t2, component: box, label: cat, tone: blue, props: {width: 16mm, height: 10mm}}
+  - {id: t3, component: box, label: sat, tone: blue, props: {width: 16mm, height: 10mm}}
+  - {id: t4, component: box, label: on, tone: blue, props: {width: 16mm, height: 10mm}}
+  - {id: t5, component: box, label: mat, tone: blue, props: {width: 16mm, height: 10mm}}
+  - id: map
+    component: matrix
+    props:
+      columns: [The, cat, sat, "on", mat]
+      rows: [The, cat, sat, "on", mat]
+      cellWidth: 34pt
+      cellHeight: 32pt
+      gap: 6pt
+      headerGap: 12pt
+      classes:
+        h: {tone: orange, variant: tinted, pattern: hatch, label: strong}
+        m: {tone: orange, variant: outlined, label: medium}
+        l: {variant: outlined, label: weak}
+        x: {tone: gray, variant: tinted, label: masked}
+      cells: [hxxxx, hmxxx, mhmxx, lmhmx, llmhm]
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: column
+      entries:
+        - {class: map.h}
+        - {class: map.m}
+        - {class: map.l}
+        - {class: map.x}
+        - {edge: {component: arrow}, label: next token}
+edges:
+  - {from: t1, to: t2, component: arrow}
+  - {from: t2, to: t3, component: arrow}
+  - {from: t3, to: t4, component: arrow}
+  - {from: t4, to: t5, component: arrow}
