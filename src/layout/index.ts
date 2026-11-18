@@ -49,7 +49,7 @@ export function layoutStructuredFigure(
   });
   diagnostics.push(...placement.diagnostics);
   const placed = placement.layout;
-  const ir = resolveFaceRoutes(built, placed);
+  const ir = route ? resolveFaceRoutes(built, placed) : built;
   diagnostics.push(...setOverlapDiagnostics(ir, placed));
   if (!route) return { ok: true, value: { ir, layout: placed }, diagnostics };
   const routed = routeEdges(ir, placed);

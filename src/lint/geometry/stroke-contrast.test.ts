@@ -303,3 +303,33 @@ nodes: [{ id: a, component: box, label: A, tone: blue, variant: dashed }]
   expect((await strokeFindings(yaml("#f4f4f4"))).map((f) => f.subject?.id)).toEqual(["g"]);
   expect(await strokeFindings(yaml("#505050"))).toEqual([]);
 });
+
+test("a cuboid's faces and highlighted blocks are the backdrop of an edge that starts on them (#587)", () => {
+  const figure = (highlight: string) => `version: 1
+figure: { id: c, theme: sumi, layout: { engine: structured, arrange: { row: { gap: 10mm, items: [a, b] } } } }
+nodes:
+  - { id: a, component: cuboid, variant: tinted, tone: blue, props: { width: 8mm, height: 12mm, depth: 12mm, cells: [1, 1, 1]${highlight} } }
+  - { id: b, component: box }
+edges: [{ id: e, from: a, to: b, tone: yellow }]
+`;
+  const spec = {
+    elements: {
+      "n:a": { bbox: { x: 0, y: 0, width: 120, height: 100 } },
+      "e:e": {
+        path: [
+          { x: 90, y: 50 },
+          { x: 200, y: 50 },
+        ],
+      },
+    },
+  };
+  const background = (highlight: string) =>
+    lintSpec(compile(figure(highlight)), spec, { code })[0]?.message.match(
+      /background (#\w+)/,
+    )?.[1];
+  const plain = background("");
+  const blocked = background(", highlight: [{ name: k, at: [0, 0, 0], tone: yellow }]");
+  expect(plain).toBeDefined();
+  expect(blocked).toBeDefined();
+  expect(blocked).not.toBe(plain);
+});

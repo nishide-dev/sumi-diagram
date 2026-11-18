@@ -1405,8 +1405,15 @@ wider solid for a long row. The projection is figure-wide, never per node.
   consecutive layers (on the middle one) and give a column the room: neighbours closer than
   the text collide (`geometry/label-collision`).
 - **Edges.** By default (`props.ports: face`) an edge without a written anchor goes from the
-  centre of the face it leaves to the centre of the face it enters, as **one straight line** (the
-  no sliding to straighten). If that line would cross another node or a group title (a skip over an intermediate solid), the edge instead leaves the **top** faces' centres straight up, runs above the nodes in between and comes straight down into the target's top face centre (or, when that is shorter, goes under: the hidden bottom faces' centres are aimed at and the line stops at the silhouettes). The face is the one on
+  centre of the face it leaves to the centre of the face it enters, as **one straight line** (no
+  sliding to straighten). If that line would cross another node or a group title, or the router
+  cannot draw it, the edge detours (a skip over an intermediate solid): for ends side by side it
+  leaves the **top** faces' centres straight up, runs above the nodes in between and comes
+  straight down into the target's top face centre, or goes under (the hidden bottom faces'
+  centres are aimed at and the line stops at the silhouettes) when that is shorter; for ends one
+  above the other it goes round the right (visible side faces) or the left (hidden left faces),
+  the shorter side first. If no detour can be drawn either, the edge is routed as with
+  `ports: center`, without a diagnostic. The face is the one on
   the side of the other end (left/right when the other end is more beside than above or below,
   else top/bottom), its centre taken in 3D: right = the **side face** (visible), top = the **top
   face** (visible), left = the **left face** and bottom = the **bottom face**, which this

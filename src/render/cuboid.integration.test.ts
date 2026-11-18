@@ -953,6 +953,32 @@ edges:
     }
   });
 
+  test("face routing stays close to ports: center in time on a long row (no per-edge rerouting)", async () => {
+    const row = (ports: string, n = 200) => {
+      const ids = Array.from({ length: n }, (_, i) => `n${i}`);
+      return `version: 1
+figure: { id: perf, theme: sumi, profile: paper-double, layout: { arrange: { row: { gap: 4mm, align: center, items: [${ids.join(", ")}] } } } }
+nodes:
+${ids.map((id) => `  - { id: ${id}, component: cuboid, props: { ports: ${ports}, width: 2mm, height: 8mm, depth: 4mm } }`).join("\n")}
+edges:
+${ids
+  .slice(1)
+  .map((id, k) => `  - { from: ${ids[k]}, to: ${id} }`)
+  .join("\n")}
+`;
+    };
+    const time = async (text: string) => {
+      const start = performance.now();
+      const result = await renderFigure(text);
+      expect(result.ok).toBe(true);
+      return performance.now() - start;
+    };
+    await time(row("face", 20));
+    const centre = await time(row("center"));
+    const face = await time(row("face"));
+    expect(face).toBeLessThan(3 * centre + 1000);
+  });
+
   test("a block end (<node>.<name>) is drawn straight as before and never takes face routing", async () => {
     const value = await render(`version: 1
 figure: { id: blk, theme: sumi, profile: paper-double, layout: { arrange: { row: { gap: 14mm, align: center, items: [a, b] } } } }
@@ -964,6 +990,7 @@ edges:
 `);
     const edge = value.compiled.ir.edges[0];
     expect(edge?.route).toBe("straight");
+    expect(edge?.faceDirect).toBeUndefined();
     expect(edge?.faceSides).toBeUndefined();
     expect(edge?.centerPorts).toBeUndefined();
   });

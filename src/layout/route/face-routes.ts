@@ -10,6 +10,7 @@ import { getOutlineRenderer } from "../../core/outline";
 import { segmentCrossesRegion } from "../../lint/geometry/edges";
 import { rectPolygon } from "../../lint/geometry/shapes";
 import type { LayoutIR, Point, Rect } from "../ir";
+import { addDirectRoutes } from "./diagonal";
 import { endpointRects } from "./endpoint-rects";
 import { nodeRegion } from "./ports";
 import { routeEdges } from "./router";
@@ -52,8 +53,17 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
       width: r.width + 2 * CLEARANCE,
       height: r.height + 2 * CLEARANCE,
     });
+    const box = {
+      x0: Math.min(p.x, q.x) - CLEARANCE,
+      x1: Math.max(p.x, q.x) + CLEARANCE,
+      y0: Math.min(p.y, q.y) - CLEARANCE,
+      y1: Math.max(p.y, q.y) + CLEARANCE,
+    };
     for (const node of placed.nodes) {
       if (node.key === edge.from || node.key === edge.to) continue;
+      const r = node.rect;
+      if (r.x > box.x1 || r.x + r.width < box.x0 || r.y > box.y1 || r.y + r.height < box.y0)
+        continue;
       const other = nodes.get(node.key);
       const region =
         other === undefined ? rectPolygon(node.rect) : nodeRegion(other, inflated(node.rect));
@@ -64,13 +74,6 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
   const about = (d: Diagnostic, edge: EdgeIR) =>
     d.severity === "error" &&
     (d.subject?.id === (edge.id ?? `edges[${edge.index}]`) || d.path?.[1] === edge.index);
-  const withEdge = (figure: FigureIR, edge: EdgeIR): FigureIR => ({
-    ...figure,
-    edges: figure.edges.map((e) => (e.key === edge.key ? edge : e)),
-    elements: readonlyMap(
-      [...figure.elements].map(([k, v]) => [k, k === edge.key ? edge : v] as const),
-    ),
-  });
   // The sides a blocked edge may detour by, the shorter first (the top or the right on a tie): the
   // lift needed to clear the nodes between the ends, counted from both ends. Ends side by side
   // go over or under (top, bottom); ends one above the other go round the right or the left
@@ -109,23 +112,25 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
   // Each edge in turn: the straight line if the router accepts it, else a detour the router
   // accepts, else ordinary routing with the 3D-centre ports (a route nobody wrote never errors).
   let figure = ir;
+  const resolved = new Map<EdgeIR["key"], EdgeIR>();
   for (const edge of ir.edges) {
     if (edge.faceDirect !== true) continue;
+    // Only this edge is tried, against the placed nodes as static obstacles (not the whole figure).
     const fits = (candidate: EdgeIR): boolean => {
-      const trial = withEdge(figure, candidate);
-      // Other edges still waiting are drawn straight in the trial: only this edge's errors count.
-      const pending = {
-        ...trial,
-        edges: trial.edges.map((e) =>
-          e.faceDirect === true &&
-          e.route === undefined &&
-          e.faceSides === undefined &&
-          e.key !== edge.key
-            ? ({ ...e, route: "straight" } as EdgeIR)
-            : e,
+      const solo: FigureIR = {
+        ...ir,
+        edges: [candidate],
+        elements: readonlyMap(
+          [...ir.elements]
+            .filter(([, v]) => v.kind !== "edge")
+            .concat([[candidate.key, candidate]]),
         ),
       };
-      const result = routeEdges(pending, placed, { hintTrials: false });
+      const layout: LayoutIR = { ...placed, edges: placed.edges.filter((e) => e.key === edge.key) };
+      const result =
+        candidate.route === "straight"
+          ? addDirectRoutes(solo, layout, layout)
+          : routeEdges(solo, layout, { hintTrials: false });
       return !result.diagnostics.some((d) => about(d, edge));
     };
     const straight: EdgeIR = { ...edge, route: "straight" };
@@ -138,7 +143,12 @@ export function resolveFaceRoutes(ir: FigureIR, placed: LayoutIR): FigureIR {
           break;
         }
       }
-    figure = withEdge(figure, chosen ?? { ...edge, centerPorts: true });
+    resolved.set(edge.key, chosen ?? { ...edge, centerPorts: true });
   }
+  figure = {
+    ...figure,
+    edges: figure.edges.map((e) => resolved.get(e.key) ?? e),
+    elements: readonlyMap([...figure.elements].map(([k, v]) => [k, resolved.get(k) ?? v] as const)),
+  };
   return figure;
 }

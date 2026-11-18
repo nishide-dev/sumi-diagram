@@ -1,4 +1,5 @@
 import { getOutlineRenderer } from "../../core/outline";
+import { type CuboidParams, cuboidBlocks } from "../../core/outline/cuboid";
 import { getTheme } from "../../core/theme/builtin";
 import { contrastRatio } from "../../core/theme/node-variants";
 import type { Point } from "../../render/geometry";
@@ -20,12 +21,29 @@ function withFaceShades(context: GeometryContext, items: readonly PaintItem[]): 
     if (renderer === undefined || render === undefined || element?.bbox === undefined)
       return [item];
     if (item.kind !== "node" || render.renderer !== "sumi/cuboid") return [item];
-    const drawing = renderer.draw(element.bbox, renderer.params.parse(render.params ?? {}));
+    const params = renderer.params.parse(render.params ?? {}) as CuboidParams;
+    const drawing = renderer.draw(element.bbox, params);
+    const blocks = cuboidBlocks(params);
+    // Every face in paint order (the parent's, then each highlighted block's, over it), each over
+    // the canvas once: the SVG paints the node in one opacity group.
     const faces = drawing.layers.flatMap((layer): PaintItem[] => {
-      const params = (render.params ?? {}) as { topFill?: string; sideFill?: string };
-      const color = normalized(layer.shade === "top" ? params.topFill : params.sideFill);
-      if (layer.role !== "body" || layer.block !== undefined || color === undefined) return [];
-      if (layer.shade !== "top" && layer.shade !== "side") return [];
+      if (layer.role !== "body" || layer.shade === undefined) return [];
+      const block = layer.block === undefined ? undefined : blocks[layer.block];
+      const color =
+        layer.shade === "front"
+          ? block === undefined
+            ? item.color
+            : normalized(block.fill)
+          : normalized(
+              block === undefined
+                ? layer.shade === "top"
+                  ? params.topFill
+                  : params.sideFill
+                : layer.shade === "top"
+                  ? block.top
+                  : block.side,
+            );
+      if (color === undefined) return [];
       const points = layer.path.points;
       const xs = points.map((p) => p.x);
       const ys = points.map((p) => p.y);
@@ -39,24 +57,7 @@ function withFaceShades(context: GeometryContext, items: readonly PaintItem[]): 
         },
       ];
     });
-    // The front, top and side each over the canvas once (the SVG's one opacity group), not the
-    // faces over the whole silhouette's fill.
-    const front = drawing.layers.find(
-      (layer) => layer.role === "body" && layer.shade === "front" && layer.block === undefined,
-    );
-    if (front === undefined || front.role !== "body") return [item, ...faces];
-    const points = front.path.points;
-    const xs = points.map((p) => p.x);
-    const ys = points.map((p) => p.y);
-    const [x, y] = [Math.min(...xs), Math.min(...ys)];
-    return [
-      {
-        ...item,
-        region: { kind: "polygon", points },
-        bbox: { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y },
-      },
-      ...faces,
-    ];
+    return faces.length === 0 ? [item] : faces;
   });
 }
 
