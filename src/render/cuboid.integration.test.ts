@@ -1057,7 +1057,7 @@ ${edges.map(([a, b]) => `  - { from: ${a}, to: ${b} }`).join("\n")}
         expect(clash(skips[i] ?? [], skips[j] ?? [])).toBe(false);
   });
 
-  test("pairs of overlapping skips of span 2 and 3 on a row of 8 never cross or fail", async () => {
+  test("pairs of overlapping skips of span 2 and 3 on a row of 8 (no shared ends: those merge into one trunk by design; three chained overlapping skips fall back to ordinary ports: center routing, which can cross as before) never cross, overlap or fail", async () => {
     const ids = ["a", "b", "c", "d", "e", "f", "g", "h"];
     const chain = ids.slice(1).map((id, i): [string, string] => [ids[i] as string, id]);
     const combos: [number, number][][] = [
@@ -1096,14 +1096,9 @@ ${edges.map(([a, b]) => `  - { from: ${a}, to: ${b} }`).join("\n")}
         [4, 6],
       ],
       [
-        [0, 3],
-        [1, 3],
-        [2, 5],
-      ],
-      [
         [0, 2],
-        [0, 3],
-        [1, 4],
+        [1, 3],
+        [3, 5],
       ],
       [
         [2, 4],
@@ -1116,10 +1111,16 @@ ${edges.map(([a, b]) => `  - { from: ${a}, to: ${b} }`).join("\n")}
         [5, 7],
       ],
     ];
+    const bad: string[] = [];
     for (const combo of combos) {
       const extra = combo.map(([a, b]): [string, string] => [ids[a] as string, ids[b] as string]);
-      await cleanRender(rowOf(ids, [...chain, ...extra]));
+      const value = await cleanRender(rowOf(ids, [...chain, ...extra]));
+      const skips = value.layout.edges.slice(chain.length).map((e) => e.route?.points ?? []);
+      for (let i = 0; i < skips.length; i++)
+        for (let j = i + 1; j < skips.length; j++)
+          if (clash(skips[i] ?? [], skips[j] ?? [])) bad.push(JSON.stringify([combo, skips]));
     }
+    expect(bad).toEqual([]);
   });
 
   test("a straight line does not run through a caption below a frame (waveform)", async () => {
