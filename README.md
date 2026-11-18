@@ -77,7 +77,7 @@ To pin a version or choose directories (environment variables apply to `sh`):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/nishide-dev/sumi-diagram/main/install.sh | \
-  SUMI_VERSION=0.19.0 SUMI_HOME="$HOME/.local/share/sumi" SUMI_BIN_DIR="$HOME/.local/bin" sh
+  SUMI_VERSION=0.19.1 SUMI_HOME="$HOME/.local/share/sumi" SUMI_BIN_DIR="$HOME/.local/bin" sh
 ```
 
 **Upgrade:** run `sumi update` (checks SHA-256, switches atomically; `sumi update --check` only reports, `sumi update --version <x>` picks a version, older ones included). It only handles installs made by `install.sh`; otherwise rerun the installer. `sumi doctor` mentions a newer release at most once a day (never in CI, with `SUMI_NO_UPDATE_CHECK=1` or `--no-update-check`; offline is silent). Update the Skill with `npx skills update sumi`; `sumi doctor --skill-version <x>` tells which of the two is older. **Uninstall** with the default paths:
