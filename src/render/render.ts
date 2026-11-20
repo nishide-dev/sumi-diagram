@@ -23,14 +23,14 @@ import {
   type CompileOptions,
   compileFigure,
 } from "../compiler/compile";
+import type { FigureIR } from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
 import { type Diagnostic, hasErrors } from "../core/diagnostics";
 import { parseYaml } from "../core/figure/yaml";
 import type { Result } from "../core/result";
 import { getFontSet } from "../core/theme/fonts";
 import type { LayoutIR } from "../layout/ir";
-import { resolveFaceRoutes } from "../layout/route/face-routes";
-import { routeEdges } from "../layout/route/router";
+import { routeStructured } from "../layout/route/face-routes";
 import { setOverlapDiagnostics } from "../layout/set-overlap";
 import { placeStructured } from "../layout/structured/engine";
 import {
@@ -81,6 +81,12 @@ export interface RenderedStructuredFigure extends RenderedFigureBase {
   compiled: CompiledStructuredFigure;
   /** The routed Layout IR the SVG was drawn from. */
   layout: LayoutIR;
+  /**
+   * The figure before routing: the IR as compiled (before face routes, #587)
+   * and the placed layout, for checks that route it again
+   * (`geometry/avoidable-bend`, #604; `routeStructured`).
+   */
+  placed?: { ir: FigureIR; layout: LayoutIR };
 }
 
 export type RenderedFigure = RenderedD2Figure | RenderedStructuredFigure;
@@ -302,13 +308,12 @@ function renderStructured(
   if (fonts === undefined)
     throw new Error(`internal error: unknown font set ${compiled.fontSet.id}`);
   const placed = placeStructured(compiled.ir);
+  const unrouted = compiled.ir;
   // Face-port cuboid edges that clear the other nodes become straight lines (#587).
-  const faced = resolveFaceRoutes(compiled.ir, placed.layout);
-  const ir = faced.ir;
+  const { ir, routed } = routeStructured(unrouted, placed.layout);
   compiled = { ...compiled, ir };
   diagnostics.push(...placed.diagnostics);
   diagnostics.push(...setOverlapDiagnostics(ir, placed.layout));
-  const routed = faced.routed ?? routeEdges(ir, placed.layout);
   diagnostics.push(...routed.diagnostics);
   if (hasErrors(routed.diagnostics)) return fail();
   const layout = routed.layout;
@@ -358,6 +363,7 @@ function renderStructured(
       inspection: { ...inspected.value, painted },
       compiled,
       layout,
+      placed: { ir: unrouted, layout: placed.layout },
     },
     diagnostics,
   };

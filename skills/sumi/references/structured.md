@@ -1223,7 +1223,7 @@ edges:
   `geometry/avoidable-bend` (warning) gives anchor values (or, with both ends
   anchored, the side to move for a single bend) that it has checked by routing the
   figure again with them, or lists what is in the way (often attached labels) when
-  no two-bend route fits. Write those values
+  no two-bend route fits between the current ends. Write those values
   or drop the anchor; do not chase the line with more anchors. To move nodes into
   line instead, use `figure.layout.straighten: true`.
 - **`straight`** (`toAnchor: straight` / `fromAnchor: straight`): the end sits in line

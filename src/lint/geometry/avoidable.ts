@@ -30,9 +30,8 @@ import type { Anchor } from "../../core/figure/layout";
 import type { Side } from "../../core/figure/schema";
 import { mmToPt, ptToD2Units } from "../../core/units";
 import { groupFrontRect } from "../../layout/group-layers";
-import type { LayoutIR } from "../../layout/ir";
+import { routeStructured } from "../../layout/route/face-routes";
 import { STRAIGHT_MARGIN } from "../../layout/route/ports";
-import { routeEdges } from "../../layout/route/router";
 import type { Point, Rect } from "../../render/geometry";
 import { defineGeometryRule, type LintFinding } from "../rule";
 import { capitalize, isDrawnEdge, isStructured, mmText, printedUnits } from "./common";
@@ -285,29 +284,16 @@ const bendsOf = (points: readonly Point[] | undefined): number =>
   points === undefined ? Number.POSITIVE_INFINITY : corners(points).length - 2;
 
 /** Per figure: the routes as the router draws them now, and the checks left. */
-const verifying = new WeakMap<
-  GeometryContext,
-  { budget: number; base?: { bends: Map<ElementKey, number>; errors: number } }
->();
-
-/** Routes `ir` again on the figure's placed layout: each edge's bends and the routing errors. */
-function reroute(
-  ir: FigureIR,
-  layout: LayoutIR,
-): { bends: Map<ElementKey, number>; errors: number } {
-  const result = routeEdges(ir, layout, { hintTrials: false });
-  return {
-    bends: new Map(result.layout.edges.map((e) => [e.key, bendsOf(e.route?.points)] as const)),
-    errors: result.diagnostics.filter((d) => d.severity === "error").length,
-  };
-}
+const verifying = new WeakMap<GeometryContext, { budget: number }>();
 
 /**
- * Writes `writes` on `edge` in a copy of the figure and routes it again with
- * the real router on the same placed layout: `true` only if the edge then
- * has `bends` bends, every other edge has no more bends than before, and no
- * routing error is added. Without the layout (an auto figure) or past
- * {@link VERIFY_BUDGET}, nothing is verified.
+ * Writes `writes` on `edge` in a copy of the figure as compiled and routes
+ * it again on the same placement, the way render does (`routeStructured`:
+ * face routes, then the router): `true` only if the edge then has `bends`
+ * bends, every other edge has no more bends than in the rendered figure
+ * (which the same steps drew), and routing reports no error. Each check is
+ * one routing; at most {@link VERIFY_BUDGET} per figure. Without the
+ * placement (an auto figure), nothing is verified.
  */
 function verified(
   context: GeometryContext,
@@ -315,8 +301,9 @@ function verified(
   writes: readonly Write[],
   bends: number,
 ): boolean {
-  const layout = context.layout;
-  if (layout === undefined) return false;
+  const placed = context.placed;
+  const rendered = context.layout;
+  if (placed === undefined || rendered === undefined) return false;
   let state = verifying.get(context);
   if (state === undefined) {
     state = { budget: VERIFY_BUDGET };
@@ -324,23 +311,26 @@ function verified(
   }
   if (state.budget <= 0) return false;
   state.budget--;
-  state.base ??= reroute(context.ir, layout);
-  const changed: Record<string, unknown> = { ...edge };
+  const original = placed.ir.edges.find((e) => e.key === edge.key);
+  if (original === undefined) return false;
+  const changed: Record<string, unknown> = { ...original };
   for (const w of writes) changed[w.field] = { side: w.side, offset: w.offset };
-  const elements = new Map(context.ir.elements);
   const next = changed as unknown as EdgeIR;
+  const elements = new Map(placed.ir.elements);
   elements.set(edge.key, next);
   const ir: FigureIR = {
-    ...context.ir,
+    ...placed.ir,
     elements,
-    edges: context.ir.edges.map((e) => (e.key === edge.key ? next : e)),
+    edges: placed.ir.edges.map((e) => (e.key === edge.key ? next : e)),
   };
-  const after = reroute(ir, layout);
-  if (after.errors > state.base.errors) return false;
-  if (after.bends.get(edge.key) !== bends) return false;
-  for (const [key, n] of after.bends) {
-    if (key === edge.key) continue;
-    if (n > (state.base.bends.get(key) ?? Number.POSITIVE_INFINITY)) return false;
+  const { routed } = routeStructured(ir, placed.layout, { hintTrials: false });
+  if (routed.diagnostics.some((d) => d.severity === "error")) return false;
+  const before = new Map(rendered.edges.map((e) => [e.key, bendsOf(e.route?.points)] as const));
+  for (const e of routed.layout.edges) {
+    const n = bendsOf(e.route?.points);
+    if (e.key === edge.key) {
+      if (n !== bends) return false;
+    } else if (n > (before.get(e.key) ?? Number.POSITIVE_INFINITY)) return false;
   }
   return true;
 }
@@ -743,7 +733,7 @@ export const avoidableBend = defineGeometryRule({
           return printed >= MICRO_JOG_UNITS - 0.002 && printed < JUNCTION_STEP_UNITS;
         });
         findings.push({
-          message: `${capitalize(element.name)} bends ${bends} times, with steps of ${short.map((l) => mmText(context, l)).join(", ")}, where its ends face each other: no route with two bends keeps clear of the elements around it (in the way: ${blockers.map((b) => (b.kind === "group" ? `the title of ${b.name}` : b.name)).join(", ")}).`,
+          message: `${capitalize(element.name)} bends ${bends} times, with steps of ${short.map((l) => mmText(context, l)).join(", ")}, where its ends face each other: no route with two bends between its current ends keeps clear of the elements around it (in the way: ${blockers.map((b) => (b.kind === "group" ? `the title of ${b.name}` : b.name)).join(", ")}).`,
           path: element.docPath,
           subject: element.subject,
           hint: "Make room for a single step between the ends: give the elements in the way more room or another place (an attached label's side or gap, the arrange order or a gap), or line the ends up (figure.layout.straighten: true).",

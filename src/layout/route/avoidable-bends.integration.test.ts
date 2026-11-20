@@ -523,6 +523,7 @@ edges:
     for (const to of ["n:b", "n:c"])
       expect(routeOf(value, "n:a", to)[0]?.x).toBeCloseTo(a.x + a.width, 3);
     const finding = avoidable(value).find((d) => d.message.includes("straight line would do"));
+    expect(finding).toBeDefined();
     if (finding !== undefined) {
       const to = /toAnchor "(west:[\d.]+|west)"/.exec(finding.hint ?? "")?.[1];
       expect(to).toBeDefined();

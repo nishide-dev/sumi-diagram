@@ -9,7 +9,7 @@ import { type CheckOptions, checkFigure } from "../core/check";
 import { hasErrors } from "../core/diagnostics";
 import type { Result } from "../core/result";
 import type { LayoutIR } from "./ir";
-import { resolveFaceRoutes } from "./route/face-routes";
+import { routeStructured } from "./route/face-routes";
 import { routeEdges } from "./route/router";
 import { setOverlapDiagnostics } from "./set-overlap";
 import { placeStructured, type StructuredLayoutOptions } from "./structured/engine";
@@ -49,11 +49,12 @@ export function layoutStructuredFigure(
   });
   diagnostics.push(...placement.diagnostics);
   const placed = placement.layout;
-  const faced = route ? resolveFaceRoutes(built, placed) : { ir: built };
-  const ir = faced.ir;
+  if (!route) {
+    diagnostics.push(...setOverlapDiagnostics(built, placed));
+    return { ok: true, value: { ir: built, layout: placed }, diagnostics };
+  }
+  const { ir, routed } = routeStructured(built, placed);
   diagnostics.push(...setOverlapDiagnostics(ir, placed));
-  if (!route) return { ok: true, value: { ir, layout: placed }, diagnostics };
-  const routed = faced.routed ?? routeEdges(ir, placed);
   diagnostics.push(...routed.diagnostics);
   if (hasErrors(diagnostics)) return { ok: false, diagnostics };
   return { ok: true, value: { ir, layout: routed.layout }, diagnostics };

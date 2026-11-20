@@ -4,6 +4,7 @@
  * rendering and the geometry rules (what `sumi lint --geometry` runs).
  */
 
+import type { FigureIR } from "../../compiler/ir";
 import { checkFigure } from "../../core/check";
 import { type Diagnostic, type DocPath, formatDocPath } from "../../core/diagnostics";
 import { type CellFields, cellFieldPath } from "../../core/figure/tokens";
@@ -27,6 +28,8 @@ import { createGeometryContext, type GeometryContext } from "./context";
 export type GeometryInput = Pick<RenderedFigure, "inspection" | "compiled" | "html"> & {
   /** A structured render's routed layout (`RenderedStructuredFigure.layout`). */
   readonly layout?: LayoutIR;
+  /** A structured render's figure before routing (`RenderedStructuredFigure.placed`). */
+  readonly placed?: { readonly ir: FigureIR; readonly layout: LayoutIR };
 };
 
 export interface GeometryLintOptions {
@@ -79,6 +82,7 @@ export function geometryContextFor(input: GeometryInput, fontSet?: FontSet): Geo
     ...createGeometryContext(ir, input.inspection, fonts),
     ...(input.html && { html: input.html }),
     ...(input.layout !== undefined && { layout: input.layout }),
+    ...(input.placed !== undefined && { placed: input.placed }),
   };
 }
 

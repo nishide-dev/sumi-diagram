@@ -136,7 +136,7 @@ edges:
         {
           code: "geometry/avoidable-bend",
           message:
-            'Edge edges[1] bends 6 times, with steps of 3.2mm, 0.4mm, 2.6mm, where its ends face each other: no route with two bends keeps clear of the elements around it (in the way: the title of group "g2").',
+            'Edge edges[1] bends 6 times, with steps of 3.2mm, 0.4mm, 2.6mm, where its ends face each other: no route with two bends between its current ends keeps clear of the elements around it (in the way: the title of group "g2").',
         },
         {
           code: "geometry/edge-touches-label",

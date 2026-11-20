@@ -13,7 +13,7 @@ import type { LayoutIR, Point, Rect } from "../ir";
 import { addDirectRoutes } from "./diagonal";
 import { endpointRects } from "./endpoint-rects";
 import { nodeRegion } from "./ports";
-import { type RouteResult, routeEdges } from "./router";
+import { type RouteOptions, type RouteResult, routeEdges } from "./router";
 
 /** Clearance, in units, kept between the line and other nodes. */
 const CLEARANCE = 2;
@@ -287,4 +287,19 @@ function segmentsTouch(a: Point, b: Point, c: Point, d: Point): boolean {
     (near(a, b, c) && within(a, b, c)) ||
     (near(a, b, d) && within(a, b, d))
   );
+}
+
+/**
+ * Routes a placed structured figure the way render and the layout entry
+ * point do: face-port cuboid edges first (`resolveFaceRoutes`, #587), then
+ * the router. Also used to check `geometry/avoidable-bend`'s hints (#604) on
+ * the same placement, so the two cannot drift apart.
+ */
+export function routeStructured(
+  ir: FigureIR,
+  placed: LayoutIR,
+  options?: RouteOptions,
+): { ir: FigureIR; routed: RouteResult } {
+  const faced = resolveFaceRoutes(ir, placed);
+  return { ir: faced.ir, routed: faced.routed ?? routeEdges(faced.ir, placed, options) };
 }
