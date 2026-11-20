@@ -489,6 +489,44 @@ edges: []
     },
   );
 
+  test("an unfilled panel shows its outer panel: the hint does not stop at dropping the inner fill", async () => {
+    // A filled-dashed panel inside a blue one: `dashed` would show the blue, which still competes.
+    const source = `version: 1
+figure:
+  id: nested
+  theme: sumi
+  layout:
+    arrange: { row: { gap: 4mm, items: [outer] } }
+groups:
+  - id: outer
+    caption: Outer
+    tone: blue
+    variant: filled
+    arrange: { row: { gap: 4mm, items: [inner] } }
+  - id: inner
+    caption: Inner
+    variant: filled-dashed
+    arrange: { row: { gap: 4mm, items: [a, b, c] } }
+nodes:
+${["a", "b", "c"].map((id) => `  - { id: ${id}, component: box, label: ${id}, tone: green, variant: filled }`).join("\n")}
+edges: []
+`;
+    const [hint, ...rest] = await hintsOf(source);
+    expect(rest).toEqual([]);
+    expect(hint).not.toContain("to `dashed`");
+    expect(hint).toContain("`figure.themeOverrides.groupFill: '#ffffff'`");
+    // The `dashed` edit really would move the finding to the blue panel...
+    expect(await hintsOf(source.replace("variant: filled-dashed", "variant: dashed"))).toHaveLength(
+      1,
+    );
+    // ...while the suggested groupFill clears it.
+    const fixed = source.replace(
+      "  theme: sumi\n",
+      "  theme: sumi\n  themeOverrides: {groupFill: '#ffffff'}\n",
+    );
+    expect(await hintsOf(fixed)).toEqual([]);
+  });
+
   test("sumi-dark's panel is its canvas: the fixed panel is not reported there either", async () => {
     const source = panelFigure("sumi-dark", `${TONE}    variant: filled\n`);
     const [hint] = await hintsOf(source);

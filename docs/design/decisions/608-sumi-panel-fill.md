@@ -12,6 +12,7 @@
 - `geometry/color-on-panel` の hint は、示す変更で本当にパネルが白（キャンバス）になるかを確かめてから出す。図のテーマに上書き（キャンバス・パレット・tone）を適用したテーマで、変更後のグループの塗りを描画と同じ解決（`containerFill`: `resolveStyle` と `groupFill` の適用条件 `takesGroupFill`）で求める。
   - 試す順: tone を外す → 塗る variant を穏やかにする（`filled`→`default`、`filled-dashed`→`dashed`、`muted`→`default`）→ 両方。最初に白になるものを示す。
   - どれでも白にならなければ（既に白以外の `groupFill` がある、パレットがパネルを塗るテーマ）、`themeOverrides.groupFill` をキャンバスの色にするよう、現在の値（またはテーマのパネルの色）と共に示す。tone があれば tone を外すことも添える（tone は `groupFill` より優先される）。
+  - 変更後に塗りがなくなる（`dashed` など）場合は、その下に見える面（外側のグループの塗り、なければキャンバス）で判定する。外側のパネルが色付きなら指摘がそちらへ移るだけなので、その変更は示さない。
   - 組み込みでないテーマでは解決できないため、一般的な hint に留める。
   - テストでは hint のとおりに YAML を直して再描画し、指摘が消えることを確かめる（tone・filled・filled-dashed・既存の `groupFill`・パレット・sumi-dark）。
 - figure-format.md（Groups の既定の塗り、テーマ表、パレットの説明）、diagnostics.md、docs/themes.md、docs/lint-rules.md とテーマの説明文を実装に合わせた。

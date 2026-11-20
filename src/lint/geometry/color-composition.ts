@@ -299,14 +299,20 @@ const CALMER_VARIANT: Readonly<Record<string, string>> = {
  * candidate change is resolved through the figure's theme and suggested only if the fill it
  * gives clears the rule; failing those, the hint names `groupFill` with the canvas color.
  */
-function panelHint(panel: PaintItem, canvas: string, fills: PanelFills | undefined): string {
+function panelHint(
+  panel: PaintItem,
+  canvas: string,
+  beneath: string,
+  fills: PanelFills | undefined,
+): string {
   const tail =
     ", or color only what carries meaning: at most 2-3 hues and one accent on a white ground.";
   const page = canvas === WHITE ? "'#ffffff'" : `'${canvas}'`;
   const ground = canvas === WHITE ? "white" : `the canvas (${canvas})`;
   if (fills === undefined)
     return `Make the panel ${ground}: remove the group's tone or filled variant, or set \`figure.themeOverrides.groupFill: ${page}\`${tail}`;
-  const clears = (fill: string) => fill === "transparent" || isWhite(fill, canvas);
+  // A panel left unfilled shows what lies beneath it: an outer panel's fill, or the canvas.
+  const clears = (fill: string) => isWhite(fill === "transparent" ? beneath : fill, canvas);
   const variant = panel.variant ?? "default";
   const calmer = CALMER_VARIANT[variant];
   const toneChange =
@@ -351,6 +357,8 @@ function panelHint(panel: PaintItem, canvas: string, fills: PanelFills | undefin
 export function panelFindings(analysis: readonly Analysis[], fills?: PanelFills): LintFinding[] {
   const canvas = analysis[0]?.canvas ?? WHITE;
   const byPanel = new Map<PaintItem, PaintItem[]>();
+  /** The surface under each panel: the nearest enclosing group's fill, else the canvas. */
+  const beneath = new Map<PaintItem, string>();
   for (const a of analysis) {
     const { item } = a;
     if ((item.kind !== "node" && item.kind !== "set") || a.samples.length === 0) continue;
@@ -361,6 +369,14 @@ export function panelFindings(analysis: readonly Analysis[], fills?: PanelFills)
     if (onPanel.length < a.samples.length * SAMPLE_SHARE) continue;
     const panel = [...(onPanel[0] as Sample).under].reverse().find((u) => u.kind === "group");
     if (panel === undefined) continue;
+    if (!beneath.has(panel)) {
+      const under = (onPanel[0] as Sample).under;
+      const outer = under
+        .slice(0, under.indexOf(panel))
+        .reverse()
+        .find((u) => u.kind === "group");
+      beneath.set(panel, outer?.color ?? canvas);
+    }
     byPanel.set(panel, [...(byPanel.get(panel) ?? []), item]);
   }
   const findings: LintFinding[] = [...byPanel]
@@ -369,7 +385,7 @@ export function panelFindings(analysis: readonly Analysis[], fills?: PanelFills)
       message: `${capitalize(panel.name.replace(/ fill$/, ""))} is filled ${panel.color} and holds ${items.length} colored ${items.length === 1 ? "element" : "elements"} (${namesOf(items)}): the colors compete with the panel's.`,
       path: panel.docPath,
       subject: panel.subject,
-      hint: panelHint(panel, canvas, fills),
+      hint: panelHint(panel, canvas, beneath.get(panel) ?? canvas, fills),
     }));
   return limited(findings, "panels with colored elements");
 }
