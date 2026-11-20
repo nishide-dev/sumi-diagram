@@ -1152,10 +1152,12 @@ edges:
   to the nearest painted lip (left on ties), explicit anchors too; an unshared,
   unanchored neighbour follows the lip's line if the ends were aligned before,
   otherwise `layout/unaligned-ends` reports the remaining step.
-- **Write anchors only where the side or position matters.** After routing, an end
-  without an anchor slides along its side into line with the other end, and a
-  staircase or a route hugging a frame or node turns to another free side of an end
-  or moves its middle into the clear (#604); an anchored end never moves. An anchor
+- **Write anchors only where the side or position matters.** After routing, on an
+  edge alone on both of its sides (not a fan or multi-edge), an end without an anchor
+  slides along its side into line with the other end, and a staircase or a route
+  hugging a frame or node turns to another free side of an end or moves its middle
+  into the clear, where every corner keeps its full rounding (#604); an anchored end
+  never moves. An anchor
   just off the span two facing sides share leaves an S that a straight line would
   replace: `geometry/avoidable-bend` (warning) gives the value that fits (e.g.
   `toAnchor "east:0.15"`), or says which nodes (often attached labels) block a

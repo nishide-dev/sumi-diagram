@@ -756,10 +756,10 @@ class Router {
   /**
    * Replaces routes with simpler ones where that keeps every rule
    * (`simplify.ts`, #604) and returns the edges with their ends moved. Only
-   * an edge that is a net of its own between two ports (no junction, no
-   * shared port, no self-loop, neither end inside the other) is looked at;
-   * an end moves only if it has no written anchor and sits on a straight
-   * side of a plain node.
+   * an edge that is a net of its own between two ports, alone on both of its
+   * sides (no junction, no fan-out or fan-in, no multi-edge, no self-loop,
+   * neither end inside the other) is looked at; an end moves only if it has
+   * no written anchor and sits on a straight side of a plain node.
    */
   #simplify(edges: Edge[], routes: Map<ElementKey, Point[]>): Edge[] {
     const ir = this.#ir;
@@ -780,15 +780,6 @@ class Router {
         if (end.junction || end.side === undefined) continue;
         const id = `${end.key}|${end.side}`;
         users.set(id, [...(users.get(id) ?? []), end]);
-      }
-    }
-    /** The ends at each point of each element. */
-    const pointUsers = new Map<string, number>();
-    for (const edge of edges) {
-      for (const end of [edge.from, edge.to]) {
-        if (end.junction) continue;
-        const id = `${end.key} ${end.port.x} ${end.port.y}`;
-        pointUsers.set(id, (pointUsers.get(id) ?? 0) + 1);
       }
     }
     const SIDES: readonly Side[] = ["north", "east", "south", "west"];
@@ -891,28 +882,31 @@ class Router {
         typeof a === "object" && (a.offset <= 0.001 || a.offset >= 0.999);
       if (corner(edge.ir.fromAnchor) || corner(edge.ir.toAnchor)) continue;
       const { from, to } = edge;
-      // A net of its own between two ports; or a line between a junction and
-      // a port no other edge uses, which may only be straightened (#604).
-      const junctions = Number(from.junction) + Number(to.junction);
-      if (junctions === 2 || (junctions === 0 && netSize.get(edge.net) !== 1)) continue;
-      if (junctions === 1) {
-        const port = from.junction ? to : from;
-        if (
-          port.dir < 0 ||
-          (pointUsers.get(`${port.key} ${port.port.x} ${port.port.y}`) ?? 0) !== 1
-        )
-          continue;
-      } else if (from.dir < 0 || to.dir < 0) continue;
+      // A net of its own between two ports, alone on the side it leaves and
+      // the side it enters: a fan-out, fan-in, junction fan or multi-edge is
+      // a group of branches drawn alike, and stays as routed (#604 review).
+      if (from.junction || to.junction || from.dir < 0 || to.dir < 0) continue;
+      if (netSize.get(edge.net) !== 1) continue;
+      if ([from, to].some((e) => (users.get(`${e.key}|${e.side}`) ?? []).some((o) => o !== e)))
+        continue;
       if (edge.ir.from === edge.ir.to || inside(from.key, to.key) || inside(to.key, from.key))
         continue;
       const fromRect = rects.get(from.key);
       const toRect = rects.get(to.key);
       if (fromRect === undefined || toRect === undefined) continue;
-      const end = (e: End, rect: Rect, lane: number, room: number, written: boolean) => {
+      const end = (
+        e: End,
+        rect: Rect,
+        lane: number,
+        room: number,
+        written: boolean,
+        head: boolean,
+      ) => {
         const free = freeEnd(e, written);
         return {
           key: e.key,
           rect,
+          arrow: head ? arrow : 0,
           current: {
             port: e.port,
             outline: e.outline,
@@ -926,8 +920,22 @@ class Router {
       };
       simplifyEdges.push({
         key: edge.ir.key,
-        from: end(from, fromRect, edge.fromLane, edge.fromRoom, edge.ir.fromAnchor !== undefined),
-        to: end(to, toRect, edge.toLane, edge.toRoom, edge.ir.toAnchor !== undefined),
+        from: end(
+          from,
+          fromRect,
+          edge.fromLane,
+          edge.fromRoom,
+          edge.ir.fromAnchor !== undefined,
+          edge.ir.sourceArrowhead !== undefined,
+        ),
+        to: end(
+          to,
+          toRect,
+          edge.toLane,
+          edge.toRoom,
+          edge.ir.toAnchor !== undefined,
+          edge.ir.targetArrowhead !== undefined,
+        ),
       });
     }
     if (simplifyEdges.length === 0) return edges;
@@ -945,7 +953,7 @@ class Router {
         ...(t.side && { side: t.side }),
       };
     };
-    /** After an edge's ends move: the sides and points they leave are free, the new ones taken. */
+    /** After an edge's ends move: the sides they leave are free, the new ones taken. */
     const moveEnds = (key: ElementKey, result: Simplified) => {
       const before = ends.get(key);
       if (before === undefined) return;
@@ -962,10 +970,6 @@ class Router {
         );
         const id = `${now.key}|${now.side}`;
         users.set(id, [...(users.get(id) ?? []), now]);
-        const oldPoint = `${old.key} ${old.port.x} ${old.port.y}`;
-        pointUsers.set(oldPoint, (pointUsers.get(oldPoint) ?? 1) - 1);
-        const newPoint = `${now.key} ${now.port.x} ${now.port.y}`;
-        pointUsers.set(newPoint, (pointUsers.get(newPoint) ?? 0) + 1);
       }
       ends.set(key, after);
     };

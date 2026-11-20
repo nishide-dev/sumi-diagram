@@ -185,35 +185,19 @@ describe("example 2: a skip and a junction beside a label", () => {
 });
 
 describe("example 3: a router into experts between two attached labels", () => {
-  test("a Z past the attached labels' text, 1.5pt or more from each line", async () => {
+  // A Z would pass the two labels so closely that its corners could not
+  // round (the review of #617): the routed staircase stays, and the lint
+  // names what stands between the ends.
+  test("the staircase is kept and the lint names the labels that block a Z", async () => {
     const value = await render(MOE);
-    const points = routeOf(value, "n:router", "g:experts");
-    expect(bendCount(points)).toBe(2);
-    const column = (points[1] as Point).x;
-    // The column passes the note's short second line and the experts' label.
-    const label = (key: string) => value.layout.nodes.find((n) => n.key === key)?.label;
-    const below = label("n:experts-label");
-    const note = label("n:hash-note");
-    if (below === undefined || note === undefined) throw new Error("no labels");
-    expect(below.box.x - column).toBeGreaterThanOrEqual(3);
-    const second = note.box.x + (note.box.width + (note.lineWidths[1] as number)) / 2;
-    expect(column - second).toBeGreaterThanOrEqual(3);
-    expect(avoidable(value)).toEqual([]);
-  });
-
-  test("where the text blocks every column, the staircase is reported with what blocks it", async () => {
-    const value = await render(
-      MOE.replace(
-        '"first 3 MoE layers:\\nhash routing"',
-        '"first 3 MoE layers:\\nhash-based routing"',
-      ),
-    );
-    const points = routeOf(value, "n:router", "g:experts");
-    expect(bendCount(points)).toBeGreaterThan(2);
-    expect(jogLengths(points).filter((l) => l < TINY_JOG)).toEqual([]);
+    expect(bendCount(routeOf(value, "n:router", "g:experts"))).toBe(4);
     const findings = avoidable(value);
     expect(findings).toHaveLength(1);
     expect(findings[0]?.message).toContain('node "hash-note"');
+    expect(findings[0]?.message).toContain('node "experts-label"');
+    // Moving the note out of the way gives a Z.
+    const moved = await render(MOE.replace("side: north, gap: 1.5mm", "side: south, gap: 1.5mm"));
+    expect(bendCount(routeOf(moved, "n:router", "g:experts"))).toBeLessThanOrEqual(2);
   });
 });
 

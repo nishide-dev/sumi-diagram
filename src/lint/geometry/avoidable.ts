@@ -463,6 +463,50 @@ function staircaseBlockers(
   return [...seen];
 }
 
+/**
+ * The edge is a branch of a group drawn alike: it ends at a junction, or one
+ * of its ends shares its element's side with another edge's end (a fan-out,
+ * fan-in, spread fan-in or multi-edge).
+ */
+function inGroup(
+  context: GeometryContext,
+  element: GeometryElement,
+  points: readonly Point[],
+): boolean {
+  const edge = element.ir;
+  if (edge.kind !== "edge") return false;
+  const point = (key: ElementKey) => {
+    const e = context.get(key)?.ir;
+    return e?.kind === "node" && e.mark?.type === "point";
+  };
+  if (point(edge.from) || point(edge.to)) return true;
+  // An end and the point next to it: the side's line is across that leg.
+  const ends: [ElementKey, Point, Point][] = [
+    [edge.from, points[0] as Point, points[1] as Point],
+    [edge.to, points.at(-1) as Point, points.at(-2) as Point],
+  ];
+  return context.elements.some((o) => {
+    if (o === element || o.ir.kind !== "edge" || o.route?.[0] === undefined) return false;
+    const line = corners(o.route[0]);
+    const theirs: [ElementKey, Point | undefined, Point | undefined][] = [
+      [o.ir.from, line[0], line[1]],
+      [o.ir.to, line.at(-1), line.at(-2)],
+    ];
+    return ends.some(([key, p, next]) =>
+      theirs.some(([k, q, qn]) => {
+        if (k !== key || q === undefined || qn === undefined) return false;
+        const vertical = Math.abs(p.x - next.x) < 1e-3;
+        const theirVertical = Math.abs(q.x - qn.x) < 1e-3;
+        if (vertical !== theirVertical) return false;
+        // On one side: the same line across the leg, and leaving the same way.
+        return vertical
+          ? Math.abs(p.y - q.y) < 0.5 && Math.sign(next.y - p.y) === Math.sign(qn.y - q.y)
+          : Math.abs(p.x - q.x) < 0.5 && Math.sign(next.x - p.x) === Math.sign(qn.x - q.x);
+      }),
+    );
+  });
+}
+
 export const avoidableBend = defineGeometryRule({
   id: "geometry/avoidable-bend",
   description:
@@ -492,24 +536,6 @@ export const avoidableBend = defineGeometryRule({
         continue;
       }
       const steps = points.slice(1, -2).map((p, i) => distance(p, points[i + 2] as Point));
-      const tiny = steps.filter((l) => {
-        const printed = printedUnits(context, l);
-        return printed >= MICRO_JOG_UNITS - 0.002 && printed < AVOIDABLE_JOG_UNITS;
-      });
-      if (tiny.length > 0) {
-        const anchored =
-          writtenAnchor(edge, "fromAnchor") !== undefined ||
-          writtenAnchor(edge, "toAnchor") !== undefined;
-        findings.push({
-          message: `${capitalize(element.name)} has ${tiny.length === 1 ? "a step" : `${tiny.length} steps`} of ${tiny.map((l) => mmText(context, l)).join(", ")} between two bends (under 2mm): a jog that reads as a mistake.`,
-          path: element.docPath,
-          subject: element.subject,
-          hint: anchored
-            ? "Change fromAnchor / toAnchor so the ends line up (or remove them), or give the edge room for one clear step: the router removes steps it can, so what is left is held by the anchors or by nodes and labels in the way."
-            : "Something blocks a cleaner line: move the nodes or attached labels in the way (an attach gap or side, the arrange order or a gap) so the edge has a straight channel, or line the two ends up.",
-        });
-        continue;
-      }
       // A staircase between facing sides: something stands between the ends.
       const blockers = staircaseBlockers(context, edge, points);
       if (blockers.length > 0) {
@@ -526,6 +552,26 @@ export const avoidableBend = defineGeometryRule({
             path: b.docPath,
             message: `${capitalize(b.name)} is defined here.`,
           })),
+        });
+        continue;
+      }
+      const tiny = steps.filter((l) => {
+        const printed = printedUnits(context, l);
+        return printed >= MICRO_JOG_UNITS - 0.002 && printed < AVOIDABLE_JOG_UNITS;
+      });
+      // A branch of a fan (a junction end, or an end another edge shares) is
+      // drawn like its siblings: its step is part of the group's shape.
+      if (tiny.length > 0 && !inGroup(context, element, points)) {
+        const anchored =
+          writtenAnchor(edge, "fromAnchor") !== undefined ||
+          writtenAnchor(edge, "toAnchor") !== undefined;
+        findings.push({
+          message: `${capitalize(element.name)} has ${tiny.length === 1 ? "a step" : `${tiny.length} steps`} of ${tiny.map((l) => mmText(context, l)).join(", ")} between two bends (under 2mm): a jog that reads as a mistake.`,
+          path: element.docPath,
+          subject: element.subject,
+          hint: anchored
+            ? "Change fromAnchor / toAnchor so the ends line up (or remove them), or give the edge room for one clear step: the router removes steps it can, so what is left is held by the anchors or by nodes and labels in the way."
+            : "Something blocks a cleaner line: move the nodes or attached labels in the way (an attach gap or side, the arrange order or a gap) so the edge has a straight channel, or line the two ends up.",
         });
         continue;
       }

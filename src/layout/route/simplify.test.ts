@@ -239,23 +239,24 @@ describe("not simpler", () => {
     const edge: SimplifyEdge = {
       key: key("e"),
       from: end("a", A, "east", 20, ["east"]),
-      to: end("b", B, "west", 34),
+      to: end("b", B, "west", 40),
     };
     // Around the title, under it.
     const route = [
       { x: 60, y: 20 },
       { x: 70, y: 20 },
-      { x: 70, y: 48 },
-      { x: 110, y: 48 },
-      { x: 110, y: 34 },
-      { x: 120, y: 34 },
+      { x: 70, y: 52 },
+      { x: 110, y: 52 },
+      { x: 110, y: 40 },
+      { x: 120, y: 40 },
     ];
-    const title: Rect = { x: 80, y: 28, width: 20, height: 12 };
+    const title: Rect = { x: 80, y: 30, width: 16, height: 10 };
     const s = scene({ e: route }, { a: A, b: B }, { boxes: [title] });
     const points = simplifyRoutes([edge], s).get(key("e"))?.points as Point[];
     expect(bendCount(points)).toBe(2);
-    // Its column is past the title: the last leg at y = 34 starts beyond x = 100.
-    expect((points[2] as Point).x).toBeGreaterThan(100);
+    // Its column is past the title, and leaves the last leg room to round.
+    expect((points[2] as Point).x).toBeGreaterThan(96);
+    expect(120 - (points[2] as Point).x).toBeGreaterThanOrEqual(16);
   });
 
   test("a straight line across another net's line is not taken", () => {

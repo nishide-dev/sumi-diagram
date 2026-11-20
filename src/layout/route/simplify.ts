@@ -24,8 +24,7 @@
  *
  * An end leaves its side for an L only when the route is in trouble (three
  * bends or more, a tiny jog, a hug, a node's clearance): a plain S keeps the
- * sides the arrange tree gave it (#134). A line between a junction and a port
- * no other edge uses is only straightened, by sliding the port. It must
+ * sides the arrange tree gave it (#134). It must
  * keep every rule the grid search keeps as a hard rule, and more:
  * perpendicular stubs of the ends' lanes and the rooms before arrowheads;
  * the clearance from every node that is not an end (and from the ends
@@ -41,6 +40,7 @@ import type { ElementKey } from "../../core/check-state";
 import type { Side } from "../../core/figure/schema";
 import { mmToPt, ptToD2Units } from "../../core/units";
 import { type Point, type Rect, roundUnits } from "../ir";
+import { WIRE_CORNER_RADIUS } from "./arrowhead";
 import { DIRS, opposite, SIDE_DIR } from "./ports";
 
 /** A step between two bends shorter than this (2mm, in units) is a tiny jog. */
@@ -80,6 +80,8 @@ export interface SimplifyEnd {
   readonly current: Terminal;
   /** Straight run required out of / into the port (the stub). */
   readonly lane: number;
+  /** The arrowhead's length at this end (0 without one), for the corner rounding. */
+  readonly arrow?: number;
   /** Straight run kept before an arrowhead (`arrowRoom()`); 0 without one. */
   readonly room: number;
   /**
@@ -541,6 +543,44 @@ function arrowZones(route: readonly Point[], rooms: { from: number; to: number }
   return out;
 }
 
+/**
+ * Every corner of the candidate takes the wire's full corner radius
+ * ({@link WIRE_CORNER_RADIUS}) as the renderer rounds it (`render/wire.ts`):
+ * each leg of a turn at least two radii long (an end leg two radii past its
+ * arrowhead), and the square the arc is drawn in clear of every obstacle. A
+ * candidate whose corners would round less looks sharper than a routed line
+ * (#604 review).
+ */
+function cornersRound(edge: SimplifyEdge, c: Candidate, scene: LocalScene): boolean {
+  const p = straightened(c.core);
+  const s = segments(p);
+  if (s.length < 2) return true;
+  const R = WIRE_CORNER_RADIUS;
+  const legsOk = s.every((g, i) => {
+    const head = i === 0 ? (edge.from.arrow ?? 0) : 0;
+    const tail = i === s.length - 1 ? (edge.to.arrow ?? 0) : 0;
+    return length(g) >= 2 * R + head + tail - EPS;
+  });
+  if (!legsOk) return false;
+  for (let i = 1; i + 1 < p.length; i++) {
+    const a = p[i - 1] as Point;
+    const q = p[i] as Point;
+    const b = p[i + 1] as Point;
+    const back = { x: Math.sign(a.x - q.x) * R, y: Math.sign(a.y - q.y) * R };
+    const on = { x: Math.sign(b.x - q.x) * R, y: Math.sign(b.y - q.y) * R };
+    const xs = [q.x, q.x + back.x, q.x + on.x];
+    const ys = [q.y, q.y + back.y, q.y + on.y];
+    const square = {
+      x: Math.min(...xs),
+      y: Math.min(...ys),
+      width: Math.max(...xs) - Math.min(...xs),
+      height: Math.max(...ys) - Math.min(...ys),
+    };
+    if (scene.obstacles.some((o) => meets(square, o.rect))) return false;
+  }
+  return true;
+}
+
 /** The ends' stubs (and rooms before arrowheads) are straight and point the right way. */
 function lanesKept(edge: SimplifyEdge, c: Candidate): boolean {
   const core = c.core;
@@ -744,10 +784,6 @@ function simplifyEdge(
     others.push({ key, segs: entry.segs, box: entry.box, zones: entry.zones });
   }
   const current = measure(edge, coreOf(edge, points), points, scene, others) as Measure;
-  // A line between a junction and a port: only straight, the port sliding
-  // into line with the junction (the junction's other lines stay as routed).
-  if (edge.from.current.dir < 0 || edge.to.current.dir < 0)
-    return pick(edge, junctionStraights(edge), scene, others, current);
   const interior = segments(coreOf(edge, points)).slice(1, -1);
   const hugging =
     bends >= 2 &&
@@ -808,7 +844,7 @@ function pick(
   let best: { c: Candidate; points: Point[]; score: number[] } | undefined;
   for (const c of list) {
     const points = outlined(c);
-    if (!lanesKept(edge, c)) continue;
+    if (!lanesKept(edge, c) || !cornersRound(edge, c, scene)) continue;
     const m = measure(edge, c.core, points, scene, others, current);
     if (m === undefined || !keepsRules(edge, c, points, scene, others)) continue;
     const score = [
@@ -910,7 +946,7 @@ function nudge(
         const next = core.map((p, j) => (j === k || j === k + 1 ? { ...p, [axis]: c } : p));
         const candidate: Candidate = { from, to, core: next, moved: 0 };
         const drawn = outlined(candidate);
-        if (!lanesKept(edge, candidate)) continue;
+        if (!lanesKept(edge, candidate) || !cornersRound(edge, candidate, scene)) continue;
         const m = measure(edge, next, drawn, scene, others, current);
         if (m === undefined || !keepsRules(edge, candidate, drawn, scene, others)) continue;
         const score = scoreOf(next, m);
@@ -1037,26 +1073,6 @@ function straights(edge: SimplifyEdge, otherSides: boolean): Candidate[] {
     }
   }
   return out;
-}
-
-/** A straight line from a port slid along its side into line with a junction at the other end. */
-function junctionStraights(edge: SimplifyEdge): Candidate[] {
-  const junctionFrom = edge.from.current.dir < 0;
-  const port = junctionFrom ? edge.to : edge.from;
-  const junction = (junctionFrom ? edge.from : edge.to).current;
-  const t = port.current;
-  if (t.dir < 0 || port.free === undefined) return [];
-  const range = port.free.sides[0];
-  if (range === undefined || range.side !== t.side) return [];
-  const at = alongOf(junction.port, t.dir);
-  if (at < range.lo - EPS || at > range.hi + EPS) return [];
-  const moved = port.free.at(range.side, roundUnits(at));
-  const core = junctionFrom ? [junction.port, moved.port] : [moved.port, junction.port];
-  return [
-    junctionFrom
-      ? { from: junction, to: moved, core, moved: 1 }
-      : { from: moved, to: junction, core, moved: 1 },
-  ];
 }
 
 /** L shapes: one end leaves along x, the other along y, meeting at a corner. */
