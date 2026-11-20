@@ -109,10 +109,11 @@ export function runGeometryRules(
             related: finding.related.map((r) => ({ ...r, path: cellFieldPath(cells, r.path) })),
           }),
         };
+  const configured: GeometryContext = { ...context, lintConfig: config };
   return config.rules.flatMap(({ rule, severity, options, explicitSeverity }) =>
     isGeometryRule(rule)
       ? rule
-          .run(context, options)
+          .run(configured, options)
           .map((f) =>
             toDiagnostic(
               remap(f),
@@ -137,7 +138,10 @@ export function lintGeometry(
   options: GeometryLintOptions = {},
 ): Diagnostic[] {
   const config = resolveLintConfig(options.config, options.rules);
-  const context = geometryContextFor(input, options.fontSet);
+  const context = {
+    ...geometryContextFor(input, options.fontSet),
+    ...(options.source !== undefined && { source: options.source }),
+  };
   const locate = geometryLocator(input, options.source, options.file);
   return runGeometryRules(context, config, locate).sort(compareDiagnostics);
 }
@@ -218,7 +222,7 @@ export async function lintRenderedFigure(
     );
     if (result.ok) {
       rendered = result.value;
-      const context = geometryContextFor(rendered, fontSet);
+      const context = { ...geometryContextFor(rendered, fontSet), source: text };
       const locate = geometryLocator(rendered, text, lintOptions.file);
       const geometryConfig = htmlOnly
         ? { ...config, rules: config.rules.filter((r) => r.rule.id === "geometry/text-too-small") }

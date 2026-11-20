@@ -82,6 +82,17 @@ export interface GeometryContext {
     readonly ir: FigureIR;
     readonly layout: import("../../layout/ir").LayoutIR;
   };
+  /**
+   * The lint configuration the rules run under (set by `runGeometryRules`),
+   * for rules that lint a trial copy of the figure the same way
+   * (`geometry/relocatable-node`, #621).
+   */
+  readonly lintConfig?: import("../config").ResolvedLintConfig;
+  /**
+   * The `*.sumi.yaml` text that was rendered, when the caller has it, for
+   * hints that name where to edit (`geometry/relocatable-node`, #621).
+   */
+  readonly source?: string;
   readonly ir: FigureIR;
   readonly inspection: SvgInspection;
   /** The canvas (viewBox of `svg.d2-svg`) in element coordinates. */

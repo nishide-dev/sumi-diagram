@@ -37,6 +37,22 @@ export function mapBoxes(
   };
 }
 
+/** Calls of `placeStructured`, counted for tests that bound the layouts a lint rule runs. */
+export const placements = { count: 0 };
+
+/**
+ * Runs `fn` as a hint trial: placement inside it starts no hint trials of its
+ * own ({@link inHintTrial}). For lint rules that lay out a copy of the figure.
+ */
+export function asHintTrial<T>(fn: () => T): T {
+  trialDepth++;
+  try {
+    return fn();
+  } finally {
+    trialDepth--;
+  }
+}
+
 /** A per-diagnostic deterministic budget; no renders, and no recursive hint trials. */
 export class HintTrials {
   count = 0;

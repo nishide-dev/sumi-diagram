@@ -66,6 +66,7 @@ import {
   polylinesRectDistance,
   rectSides,
 } from "./proximity";
+import { relocatableNode } from "./relocatable";
 import {
   setContainsNonMember,
   setLabelCollision,
@@ -2200,6 +2201,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   arrowheadCramped,
   edgeJog,
   avoidableBend,
+  relocatableNode,
   zoomCrossesNode,
   edgeOnBorder,
   edgeNearBorder,
