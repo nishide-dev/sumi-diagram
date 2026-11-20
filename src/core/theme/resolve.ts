@@ -25,7 +25,7 @@ import type { FontUsage } from "../profile/constrain";
 import { FLOW_ARROW_IDS, OPERATOR_SIZES, SEPARATOR_ID } from "../registry/builtins";
 import type { ComponentId, ComponentKind } from "../registry/manifest";
 import { resolveTheme } from "./builtin";
-import { dimmedElements, dimStyle, expandColor } from "./dim";
+import { dimmedElements, dimStyle, expandColor, paleStyle } from "./dim";
 import { contrastRatio as contrast, filledToneNode, luminance, readableInk } from "./node-variants";
 import { figureTheme } from "./overrides";
 import type { Theme, ToneOverride } from "./schema";
@@ -377,6 +377,9 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
             strokeWidth: { pt: 0, units: 0 },
           })
         : hatchedStyle;
+    // A muted matrix cell or its legend sample (#612) is drawn pale.
+    const pale =
+      paint?.pale === true && painted.kind === "node" ? paleStyle(painted, theme.canvas) : painted;
     // A node's own `mono` (#279) overrides the theme's: true needs the font set's mono font.
     const mono = entry.kind === "node" ? entry.element.mono : paint?.mono;
     if (mono === true && theme.fontSet.mono === undefined) {
@@ -395,7 +398,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
       continue;
     }
     let style: ResolvedStyle =
-      mono === undefined || mono === painted.mono ? painted : Object.freeze({ ...painted, mono });
+      mono === undefined || mono === pale.mono ? pale : Object.freeze({ ...pale, mono });
     if (chatParts.has(key)) {
       // Annotation size follows the theme's small edge text; muted label ink is theme-owned.
       const small = resolveStyle(theme, { kind: "edge", id: "sumi/line", variant: "default" }).style
@@ -451,6 +454,14 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
       });
       if (frame) style = withRadius(style, overrides?.cornerRadius);
     }
+    // A matrix drawn with rules only (#612): cells without a border, a thinner middle rule.
+    if (paint?.borderless === true && style.kind === "node")
+      style = Object.freeze({ ...style, strokeWidth: { pt: 0, units: 0 } });
+    if (paint?.thin === true && style.kind === "node")
+      style = Object.freeze({
+        ...style,
+        strokeWidth: { pt: style.strokeWidth.pt / 2, units: style.strokeWidth.units / 2 },
+      });
     if (style.kind === "node" && entry.kind === "node")
       style = withTextStyle(style, theme, entry.element);
     if (style.kind === "edge" && theme.edgeLabelGap !== undefined)

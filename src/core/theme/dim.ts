@@ -27,7 +27,7 @@
 import type { ElementKey, PartialFigure } from "../check-state";
 import { edgeKey, groupKey, nodeKey } from "../check-state";
 import type { DocPath } from "../diagnostics";
-import { readableInk } from "./node-variants";
+import { contrastRatio, readableInk } from "./node-variants";
 import type { Color, ResolvedStyle } from "./style";
 
 /** A theme's colors for dimmed elements (`dim` in the theme). */
@@ -57,6 +57,55 @@ export function lightenColor(color: Color, amount: number, canvas: Color = "#fff
     Math.round(c + (Number.parseInt(ground.slice(i * 2, i * 2 + 2), 16) - c) * amount),
   );
   return `#${mixed.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** The contrast against the canvas a pale outline keeps (#612): above the 2:1 of `geometry/low-stroke-contrast`. */
+export const PALE_LINE_CONTRAST = 2.5;
+/** The contrast against its fill pale text keeps (#612), as dimmed text on a solid area. */
+export const PALE_TEXT_CONTRAST = 3;
+/** How far a pale fill moves toward the canvas (#612). */
+export const PALE_FILL_LIGHTEN = 0.5;
+
+/**
+ * `color` moved toward the canvas as far as it can while keeping `minimum`
+ * contrast against `against` (unchanged if it already has less). In steps of
+ * 1%, so the result is deterministic.
+ */
+function fadeToward(color: Color, against: Color, minimum: number, canvas: Color): Color {
+  if (!/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(color) || against === "transparent") return color;
+  const ground = expandColor(against);
+  let best = expandColor(color);
+  if (contrastRatio(best, ground) <= minimum) return best;
+  for (let percent = 1; percent <= 100; percent++) {
+    const next = lightenColor(color, percent / 100, canvas);
+    if (contrastRatio(next, ground) < minimum) break;
+    best = next;
+  }
+  return best;
+}
+
+/**
+ * A pale element (#612: a muted matrix cell and its legend sample): its fill
+ * moves {@link PALE_FILL_LIGHTEN} toward the canvas, its outline (and hatch)
+ * toward the canvas until {@link PALE_LINE_CONTRAST} against it, and its text
+ * until {@link PALE_TEXT_CONTRAST} against the new fill. Sizes, fonts and
+ * dashes stay, so layout is the same.
+ */
+export function paleStyle<S extends ResolvedStyle>(style: S, canvas: Color = "#ffffff"): S {
+  const ground = expandColor(canvas);
+  const fill = lightenColor(style.fill, PALE_FILL_LIGHTEN, ground);
+  const behind = fill === "transparent" ? ground : fill;
+  const pale: S = {
+    ...style,
+    fill,
+    stroke: fadeToward(style.stroke, ground, PALE_LINE_CONTRAST, ground),
+    fontColor: fadeToward(style.fontColor, behind, PALE_TEXT_CONTRAST, ground),
+    ...("hatch" in style &&
+      style.hatch !== undefined && {
+        hatch: fadeToward(style.hatch, behind, PALE_LINE_CONTRAST, ground),
+      }),
+  };
+  return Object.freeze(pale);
 }
 
 /** Solid areas lighten and keep at least 3:1 text contrast (#214). */

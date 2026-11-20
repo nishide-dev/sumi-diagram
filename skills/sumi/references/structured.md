@@ -2051,15 +2051,72 @@ edges:
   [4]` / `ellipsisColumns: [4]` (1-based) turn whole rows / columns into ellipsis slots
   (`⋮`, `…`, `⋱` at crossings) that keep the cell size and draw only the symbol. `flush:
   true` removes the frame's padding so other nodes' headers can touch the matrix (no
-  `label`).
-- The matrix is a borderless frame with its ID (its `label` is a title above it) around
-  nodes `<matrix>-<row>-<column>` (1-based), `<matrix>-row-<r>`, `<matrix>-col-<c>`,
-  `<matrix>-corner` (`ref/reserved-id`). Cells are not addressable: connect to the whole
-  matrix; never `attach` it (`layout/attached-matrix`). Headers are as high / wide as a
-  cell: text taller than `cellHeight + gap` collides (`geometry/label-collision`).
+  `label`, or one with `labelAt: above`).
+- The matrix is a borderless frame with its ID (its `label` is a title inside it, above the
+  headers) around nodes `<matrix>-<row>-<column>` (1-based), `<matrix>-row-<r>`,
+  `<matrix>-col-<c>`, `<matrix>-corner` (`ref/reserved-id`). Cells are not addressable:
+  connect to the whole matrix; never `attach` it (`layout/attached-matrix`). Headers are as
+  high / wide as a cell: text taller than `cellHeight + gap` collides
+  (`geometry/label-collision`).
+- **Title outside (since 0.20.0).** `labelAt: above` (or `above-left` / `above-right`) puts
+  the title above the frame and drops the frame's padding (as `flush`), so an edge to the
+  matrix ends at its headers and cells instead of stopping in the empty padding. Use it
+  whenever an edge points at a titled matrix.
+- **Header width and wrapping (since 0.20.0).** A column header is as wide as a cell, so
+  "MMLU ↑" over a 24pt column collides with its neighbour. `wrapHeaders: true` breaks header
+  text between words: column headers to the cell width (or `columnHeaderWidth`, which may
+  reach into the gap between columns) and sitting on the cells, row headers and the corner
+  to `headerWidth` (only when given; a row header stays a cell high, so keep row headers
+  short). A newline in a header always breaks it; a single word wider than the width stays
+  whole.
+- **Results tables (since 0.20.0).** `rules: true` draws the matrix as a paper's table:
+  cells without borders (tinted fills and text stay), a rule above and below and a thinner
+  one under the column headers (`headerGap` is the room beside a rule). Prefer it to
+  bordered cells for numbers; highlight the best row with a tinted class.
+- **Pale cells (since 0.20.0).** A cell (and its legend sample) whose variant is `muted` is
+  drawn pale: its border, fill and text move toward the canvas, so "skipped" or "not
+  selected" cells recede next to `tinted` and `outlined` ones. A gray class needs no
+  `themeOverrides.tones.gray`; gray (and a pale gray of your own) is never counted as an
+  accent by `geometry/theme-color-use`.
 - Every row needs as many cells as the first, every name a class, and `rows` / `columns`
   must match the grid (`component/invalid-prop`). An unused class is
   `lint/unused-matrix-class`; a legend `class` naming none is `ref/unknown-class`.
+
+A results table with rules only, wrapped headers and a title above it that the edge reaches:
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: results-table
+  theme: sumi
+  profile: paper-single
+  layout: {arrange: {row: {gap: 4mm, align: center, items: [gate, table]}}}
+nodes:
+  - {id: gate, component: box, label: Gate}
+  - id: table
+    component: matrix
+    label: Ablation
+    props:
+      labelAt: above
+      rules: true
+      wrapHeaders: true
+      columns: [PPL ↓, MMLU ↑]
+      rows: [G1, G2, None]
+      cellWidth: 24pt
+      cellHeight: 13pt
+      headerGap: 2pt
+      classes:
+        a: {tone: orange, variant: tinted, label: adopted}
+        o: {label: other}
+        s: {variant: muted, label: skipped}
+      cells:
+        - [{class: a, text: "5.761"}, {class: a, text: "60.82"}]
+        - [{class: o, text: "5.820"}, {class: o, text: "59.17"}]
+        - [{class: s, text: "6.026"}, {class: s, text: "58.79"}]
+edges:
+  - {from: gate, to: table}
+```
 
 Text and ellipsis cells (`{class, text}`, `{ellipsis}`, `ellipsisRows`, `ellipsisColumns`):
 

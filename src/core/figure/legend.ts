@@ -50,7 +50,7 @@ import { resolveStyle } from "../theme/resolve";
 import { withStrokes } from "../theme/strokes";
 import type { Tone } from "../theme/tones";
 import { recordExpanded, reportReservedId, takenIds } from "./expand";
-import type { MatrixExpansion } from "./matrix";
+import { type MatrixExpansion, MUTED_VARIANT } from "./matrix";
 import { errorAt, relatedAt } from "./report";
 import type {
   ArrangeBox,
@@ -573,7 +573,13 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
         }
         if (cls.tone !== undefined) box.tone = cls.tone;
         addNode(box, [...entryPath, "class"], `the sample box ${of}`);
-        if (cls.pattern === "hatch") paints.set(nodeKey(ids.box), { hatch: true });
+        // As pale as the class's muted cells (#612); a sample keeps its border in a ruled matrix.
+        const sampleVariant = cls.variant ?? matrix.cellVariant;
+        if (cls.pattern === "hatch" || sampleVariant === MUTED_VARIANT)
+          paints.set(nodeKey(ids.box), {
+            ...(cls.pattern === "hatch" && { hatch: true }),
+            ...(sampleVariant === MUTED_VARIANT && { pale: true }),
+          });
         expansion.entries.push({
           kind: "node",
           sample: nodeKey(ids.box),

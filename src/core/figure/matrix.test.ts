@@ -4,6 +4,7 @@ import { lintFigure } from "../../lint/lint";
 import { checkFigure } from "../check";
 import { groupKey, nodeKey } from "../check-state";
 import { BUILTIN_THEMES } from "../theme/builtin";
+import { contrastRatio } from "../theme/node-variants";
 import { matrixPartIds } from "./matrix";
 import { nodeOrder } from "./tokens";
 
@@ -737,5 +738,187 @@ describe("text and ellipsis cells (#280)", () => {
       "component/invalid-prop",
       ["nodes", 1, "props", "flush"],
     ]);
+  });
+});
+
+describe("headers, titles, pale cells and rules (#612)", () => {
+  const frameOf = (source: string) =>
+    checkFigure(source).state.doc.groups?.find((g) => g?.id === "m");
+
+  test("labelAt above: the title sits outside, and the frame has no padding", () => {
+    const check = checkFigure(
+      figure(`${PROPS}\n      labelAt: above-left`, { m: "\n    label: Title" }),
+    );
+    expect(check.state.diagnostics).toEqual([]);
+    const frame = check.state.doc.groups?.find((g) => g?.id === "m");
+    expect(frame).toMatchObject({ label: "Title", labelAt: "above-left" });
+    const ir = buildFigureIR(check);
+    expect((ir.elements.get(groupKey("m")) as GroupIR).matrix?.flush).toBe(true);
+    // flush is allowed with a title above the frame.
+    const flushed = checkFigure(
+      figure(`${PROPS}\n      labelAt: above\n      flush: true`, { m: "\n    label: Title" }),
+    );
+    expect(flushed.state.diagnostics).toEqual([]);
+    // The default is the title inside the frame, which keeps its padding.
+    const inside = buildFigureIR(checkFigure(figure(PROPS, { m: "\n    label: Title" })));
+    expect((inside.elements.get(groupKey("m")) as GroupIR).labelAt).toBeUndefined();
+    expect((inside.elements.get(groupKey("m")) as GroupIR).matrix?.flush).toBeUndefined();
+    expect(frameOf(figure(`${PROPS}\n      labelAt: top`))).not.toHaveProperty("labelAt");
+  });
+
+  test("a matrix titled above has its frame at its headers, where edges end", async () => {
+    const { renderFigure } = await import("../../render/render");
+    const west = async (props: string) => {
+      const rendered = await renderFigure(figure(props, { m: "\n    label: Title" }));
+      if (!rendered.ok || !("layout" in rendered.value)) throw new Error("render failed");
+      const { layout } = rendered.value;
+      const frame = layout.groups.find((g) => g.key === groupKey("m"));
+      const parts = layout.nodes.filter((n) => n.key.startsWith(nodeKey("m-")));
+      return Math.min(...parts.map((n) => n.rect.x)) - (frame?.rect.x ?? 0);
+    };
+    expect(await west(PROPS)).toBeGreaterThan(1);
+    expect(await west(`${PROPS}\n      labelAt: above`)).toBe(0);
+  });
+
+  test("wrapHeaders breaks headers between words to the column width", () => {
+    const props = `      columns: [Long header text, MMLU ↑]
+      rows: [First row, B]
+      cellWidth: 24pt
+      wrapHeaders: true
+      headerWidth: 60pt
+      classes:
+        o: { label: O }
+        x: { label: X }
+      cells: [ox, xo]`;
+    const ir = buildFigureIR(checkFigure(figure(props)));
+    const label = (id: string) => (ir.elements.get(nodeKey(id)) as NodeIR).label;
+    expect(label("m-col-1")).toBe("Long\nheader\ntext");
+    expect(label("m-col-2")).toBe("MMLU\n↑");
+    expect(label("m-row-1")).toBe("First row");
+    // The header box keeps the column's width.
+    expect(checkFigure(figure(props)).state.components?.get(nodeKey("m-col-1"))?.props).toEqual({
+      width: 24,
+    });
+    // A wider wrap width keeps more on a line; without wrapHeaders nothing is broken.
+    const wide = buildFigureIR(
+      checkFigure(
+        figure(
+          props.replace("wrapHeaders: true", "wrapHeaders: true\n      columnHeaderWidth: 100pt"),
+        ),
+      ),
+    );
+    expect((wide.elements.get(nodeKey("m-col-1")) as NodeIR).label).toBe("Long header text");
+    const off = buildFigureIR(checkFigure(figure(props.replace("      wrapHeaders: true\n", ""))));
+    expect((off.elements.get(nodeKey("m-col-1")) as NodeIR).label).toBe("Long header text");
+  });
+
+  test("columnHeaderWidth needs wrapHeaders", () => {
+    expect(codesOf(figure(`${PROPS}\n      columnHeaderWidth: 20pt`))).toContainEqual([
+      "component/invalid-prop",
+      ["nodes", 1, "props", "columnHeaderWidth"],
+    ]);
+  });
+
+  test("muted cells and their legend samples are pale; other cells keep their colors", () => {
+    for (const [id, theme] of BUILTIN_THEMES) {
+      const source = figure(
+        PROPS.replace("x: { pattern: hatch,", "x: { variant: muted, tone: gray,"),
+        { theme: id },
+      );
+      const { state } = checkFigure(source);
+      expect(state.diagnostics).toEqual([]);
+      const plain = checkFigure(
+        figure(PROPS.replace("x: { pattern: hatch,", "x: { variant: muted, tone: gray,"), {
+          theme: id,
+          nodes: "  - { id: b, component: box, label: B, variant: muted, tone: gray }\n",
+          items: "a, m, key, b",
+        }),
+      ).state.styles?.get(nodeKey("b"));
+      const cell = state.styles?.get(nodeKey("m-1-2"));
+      const sample = state.styles?.get(nodeKey("key-2-box"));
+      expect(cell?.kind).toBe("node");
+      // Paler than a muted box elsewhere: less contrast against the canvas, same sizes.
+      expect(contrastRatio(cell?.stroke ?? "", theme.canvas)).toBeLessThan(
+        contrastRatio(plain?.stroke ?? "", theme.canvas),
+      );
+      expect(contrastRatio(cell?.stroke ?? "", theme.canvas)).toBeGreaterThanOrEqual(2.5 - 0.15);
+      expect(cell?.strokeWidth).toEqual(plain?.strokeWidth);
+      expect(sample?.stroke).toBe(cell?.stroke);
+      // Text stays readable on the pale fill.
+      expect(contrastRatio(cell?.fontColor ?? "", cell?.fill ?? "")).toBeGreaterThanOrEqual(
+        3 - 0.15,
+      );
+      // A filled (not muted) cell is untouched.
+      expect(state.styles?.get(nodeKey("m-1-1"))?.stroke).toBe(
+        checkFigure(figure(PROPS, { theme: id })).state.styles?.get(nodeKey("m-1-1"))?.stroke,
+      );
+    }
+  });
+
+  test("rules: borderless cells between a top, a thin middle and a bottom rule", () => {
+    const check = checkFigure(figure(`${PROPS}\n      rules: true\n      headerGap: 2pt`));
+    expect(check.state.diagnostics).toEqual([]);
+    const ids = ["m-rule-top", "m-rule-mid", "m-rule-bottom"];
+    expect(ids.map((id) => matrixPartIds.rule("m", id.split("-")[2] as "top"))).toEqual(ids);
+    const style = (id: string) => check.state.styles?.get(nodeKey(id));
+    expect(style("m-1-1")?.strokeWidth.units).toBe(0);
+    expect(style("m-rule-mid")?.strokeWidth.units).toBe(
+      (style("m-rule-top")?.strokeWidth.units ?? 0) / 2,
+    );
+    // The legend's sample keeps its border.
+    const unruled = checkFigure(SOURCE.replace("variant: filled", "variant: default"));
+    const outlined = checkFigure(
+      figure(`${PROPS.replace("variant: filled", "variant: default")}\n      rules: true`),
+    );
+    expect(outlined.state.styles?.get(nodeKey("key-1-box"))?.strokeWidth).toEqual(
+      unruled.state.styles?.get(nodeKey("key-1-box"))?.strokeWidth,
+    );
+    expect(outlined.state.styles?.get(nodeKey("m-1-1"))?.strokeWidth.units).toBe(0);
+    const frame = check.state.doc.groups?.find((g) => g?.id === "m");
+    expect(frame?.arrange).toEqual({
+      stack: {
+        direction: "down",
+        gap: 2,
+        align: "end",
+        items: [
+          "m-rule-top",
+          {
+            row: {
+              direction: "right",
+              gap: 2,
+              align: "center",
+              items: [
+                "m-corner",
+                { row: { direction: "right", gap: 1.5, items: ["m-col-1", "m-col-2", "m-col-3"] } },
+              ],
+            },
+          },
+          "m-rule-mid",
+          expect.anything(),
+          "m-rule-bottom",
+        ],
+      },
+    });
+    // Without column headers there is no middle rule; an edge to the matrix is no separator's.
+    const bare = checkFigure(
+      figure(
+        `${PROPS.replace("      columns: [S, '$A_1$', P]\n      corner: Q / K\n", "")}\n      rules: true`,
+      ),
+    );
+    expect(bare.state.diagnostics).toEqual([]);
+    expect(bare.state.doc.nodes?.some((n) => n?.id === "m-rule-mid")).toBe(false);
+    // Without rules nothing is added and cells keep their border.
+    expect(unruled.state.doc.nodes?.some((n) => n?.id === "m-rule-top")).toBe(false);
+    expect(unruled.state.styles?.get(nodeKey("m-1-1"))?.strokeWidth.units).toBeGreaterThan(0);
+  });
+
+  test("a rule's ID is reserved", () => {
+    const codes = codesOf(
+      figure(`${PROPS}\n      rules: true`, {
+        nodes: "  - { id: m-rule-top, component: box, label: X }\n",
+        items: "a, m, key, m-rule-top",
+      }),
+    );
+    expect(codes.map(([code]) => code)).toContain("ref/reserved-id");
   });
 });

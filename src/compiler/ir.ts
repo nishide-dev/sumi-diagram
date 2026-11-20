@@ -89,7 +89,7 @@ import {
   sublabelFontSize,
 } from "../core/theme/style";
 import type { Tone } from "../core/theme/tones";
-import { wrapBubbleText } from "./bubble";
+import { wrapBubbleText, wrapWords } from "./bubble";
 import { withStretchOutlines } from "./stretch-outlines";
 
 export type LayoutDirection = FigureMeta["layout"]["direction"];
@@ -701,6 +701,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     // A cuboid's width and height are its front face's: its footprint is the silhouette (#575).
     const { width, height } = isCuboid ? ({} as Record<string, unknown>) : component.props;
     const style = styleOf(state, key, "node");
+    const headerWrap = matrixWrapOf(doc, key);
     // A waveform's label is a caption below its frame (#491).
     const captionBelow =
       component.manifest.render?.renderer === "sumi/waveform" &&
@@ -756,6 +757,10 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         ...(chatWidths.has(key) && { chatMessage: true as const }),
         ...(component.id === "sumi/bubble" && {
           label: wrapText(n.label),
+        }),
+        // A matrix header with wrapHeaders (#612): broken to its width, in its own font.
+        ...(headerWrap !== undefined && {
+          label: wrapWords(n.label, headerWrap * 2, style, theme.fontSet),
         }),
         ...(mark !== undefined && { label: markLabel(mark, component.props) }),
         kind: "node",
@@ -1533,6 +1538,14 @@ function tokensCellOf(doc: PartialFigure, key: ElementKey): { tokens?: TokensCel
       ...(cell?.blank !== undefined && { blank: true as const }),
     }),
   };
+}
+
+/** The width (pt) a matrix header's text wraps to (`wrapHeaders`, #612), if it wraps. */
+function matrixWrapOf(doc: PartialFigure, key: ElementKey): number | undefined {
+  const origin = doc.expanded?.get(key);
+  if (origin?.from !== "matrix") return undefined;
+  const expansion = doc.matrices?.find((m) => m.id === origin.subject.id);
+  return expansion?.parts.find((p) => nodeKey(p.id) === key)?.wrap;
 }
 
 /** `{ matrix }` for the frame or a part of a matrix (#180), otherwise `{}`. */

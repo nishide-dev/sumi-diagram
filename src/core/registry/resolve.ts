@@ -64,6 +64,8 @@ export function isBlankForD2(label: string): boolean {
 interface Element {
   kind: ComponentKind;
   key: ElementKey;
+  /** The element's own ID (an expanded part's differs from its subject's, e.g. a matrix rule, #612). */
+  id: string;
   path: DocPath;
   subject: DiagnosticSubject;
   component: string;
@@ -135,7 +137,7 @@ export function resolveComponents(
     }
     const manifest = resolved.value;
     if (componentId(manifest) === SEPARATOR_ID && engine === "structured") {
-      const id = element.subject.id;
+      const id = element.id;
       const inLinearBox = (box: ArrangeBox | undefined): boolean => {
         if (box === undefined) return false;
         const linear = box.row ?? box.stack;
@@ -692,6 +694,7 @@ function* elements(state: CheckState): Generator<Element> {
       name: origin?.name ?? `${kind} "${subject.id}"`,
       kind,
       key,
+      id: element.id ?? subject.id,
       path,
       subject,
       component: element.component,

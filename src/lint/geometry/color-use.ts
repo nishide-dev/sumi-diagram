@@ -5,7 +5,9 @@
  * this rule compares the figure's nodes and groups against it:
  *
  * - **accents**: the chromatic tones (every tone but `gray`) that nodes and
- *   groups set, against `maxAccentTones`;
+ *   groups set, against `maxAccentTones`; a gray of the figure's own (an
+ *   override, a pale cell) stays neutral unless it is painted in a clear hue
+ *   (#612);
  * - **heavy area**: the share of node area (bounding boxes) that chromatic
  *   nodes of a `heavyVariants` variant cover, against `maxHeavyShare`;
  * - **solid hues**: nodes of variant `solid` with a chromatic tone, against
@@ -43,6 +45,14 @@ const SAME_PAINT = 1;
  * another pale tint stays chromatic; a warm gray such as #efeddd (0.016) too.
  */
 const NEUTRAL_CHROMA = 0.008;
+/**
+ * A paint of tone `gray` (or of no tone) below this OKLCH chroma is a neutral
+ * gray, never an accent (#612): the theme's own grays reach it (sumi's ink
+ * #4e566b has 0.036, its gray fill #e1dece 0.022), so a gray the figure makes
+ * paler or darker (`themeOverrides.tones.gray`, a pale muted matrix cell) is
+ * still gray. Only a gray painted in a clear hue counts.
+ */
+const GRAY_CHROMA = 0.04;
 
 export interface ToneUse {
   /** The tone's name; `gray` when an override paints the gray tone in a hue. */
@@ -133,8 +143,9 @@ function hueOf(
     return tone === "gray" ? undefined : tone;
   // The theme's own neutrals (ink, canvas, gray tone and the dark block) are no hue.
   if (neutralsOf(theme).some((color) => deltaE(actual, color) <= SAME_PAINT)) return undefined;
-  // An override: judge the painted color, whatever the tone's name.
-  return toOklch(actual).c < NEUTRAL_CHROMA ? undefined : tone;
+  // An override: judge the painted color, whatever the tone's name; gray is neutral up to
+  // the chroma of the theme's own grays.
+  return toOklch(actual).c < (tone === "gray" ? GRAY_CHROMA : NEUTRAL_CHROMA) ? undefined : tone;
 }
 
 /** Measures what the figure's nodes and groups paint, against the heavy variants of `guidance`. */

@@ -1927,10 +1927,12 @@ class StructuredLayout {
     const p = this.#padOf(group);
     const at = group.labelAt ?? "top";
     const above = at.startsWith("above");
+    // A matrix's title above its frame (#612) lines up with its cells: the frame has no padding.
+    const inset = above && group.matrix?.flush === true ? 0 : p;
     const x = at.endsWith("-left")
-      ? rect.x + p + metrics.width / 2
+      ? rect.x + inset + metrics.width / 2
       : at.endsWith("-right")
-        ? rect.x + rect.width - p - metrics.width / 2
+        ? rect.x + rect.width - inset - metrics.width / 2
         : rect.x + rect.width / 2;
     const y = above
       ? footprintTop - p / 2 - metrics.height / 2
