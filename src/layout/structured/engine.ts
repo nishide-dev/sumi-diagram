@@ -266,6 +266,9 @@ export function placeStructured(
       const layout = run(struts, shifts);
       return { layout, slots: engine.slots(), footprints: engine.footprints() };
     });
+    // The slide marks make a new layout object: it keeps its pass's placement diagnostics.
+    const pass = placementDiagnostics.get(straightened.trial.layout);
+    if (pass !== undefined) placementDiagnostics.set(straightened.layout, pass);
     return { ...placed, layout: straightened.layout, straighten: straightened.stats };
   };
   // Room before arrowheads in group padding (#171, design doc §6.42): widen

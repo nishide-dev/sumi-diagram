@@ -389,6 +389,47 @@ describe("figure.layout.straighten: sliding an end along its side", () => {
   });
 });
 
+describe("figure.layout.straighten: placement diagnostics", () => {
+  test("a figure whose edge slides still reports its placement diagnostics", () => {
+    // b fills the row (nothing moves), so b's end slides up to a's line; p1 and p2 overlap.
+    const doc = {
+      version: 1,
+      figure: {
+        id: "t",
+        theme: "paper",
+        layout: {
+          straighten: true,
+          arrange: {
+            stack: {
+              gap: "20pt",
+              items: [
+                { row: { gap: "40pt", items: [column, "b"] } },
+                {
+                  place: {
+                    unit: "1pt",
+                    items: [
+                      { item: "p1", at: [0, 0] },
+                      { item: "p2", at: [10, 0] },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+      nodes: [box("a"), box("x"), box("b", "60pt"), box("p1"), box("p2")],
+      // The anchor keeps the router from dropping straight by itself (#512).
+      edges: [{ from: "a", to: "b", fromAnchor: "east" }],
+    };
+    const result = layoutStructuredFigure(stringify(doc), { measurer: FAKE });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    expect(result.value.layout.edges[0]?.slide).toBe(true);
+    expect(straight(result.value.layout, 0)).toBe(true);
+    expect(result.diagnostics.map((d) => d.code)).toContain("layout/place-overlap");
+  });
+});
+
 describe("figure.layout.straighten with the auto engine", () => {
   test("is layout/structured-only", () => {
     const doc = {

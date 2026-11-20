@@ -176,8 +176,12 @@ export function straightenLayout(
         if (!after.straight.has(index)) return;
         if (!includes(after.aligned, state.aligned) || !includes(after.straight, state.straight))
           return;
+        // An edge that already slides straight only gains from lining up.
+        if (state.straight.has(index) && !after.aligned.has(index)) return;
         // Lined up without sliding: the edge needs no slide.
-        const trialSlides = after.aligned.has(index) ? new Set(slides) : withSlide;
+        const unslid = new Set(slides);
+        unslid.delete(index);
+        const trialSlides = after.aligned.has(index) ? unslid : withSlide;
         found.push({ trial, state: after, shifts: trialShifts, moved, slides: trialSlides });
       };
       for (const which of ["to", "from"] as const) {
