@@ -98,7 +98,9 @@ describe("structured", () => {
     // a → out: straight down from a would cross the bottom title of g1.
     // top → c: straight down into c would cross the top-right title of g2.
     // The router keeps top → c off the title, but not clear of its letters
-    // (#156): it runs along the title's right end and just below it.
+    // (#156): it runs along the title's right end and just below it, with a
+    // 0.4mm step: geometry/avoidable-bend (#604) names the title as what
+    // keeps a two-bend route out.
     const rendered = await render(
       `version: 1
 figure:
@@ -130,6 +132,11 @@ edges:
           code: "geometry/arrowhead-cramped",
           message:
             "The target arrowhead of edge edges[1] has only 0pt of visible straight stem before a bend (less than 1pt).",
+        },
+        {
+          code: "geometry/avoidable-bend",
+          message:
+            'Edge edges[1] bends 6 times, with steps of 3.2mm, 0.4mm, 2.6mm, where its ends face each other: no route with two bends between its current ends keeps clear of the elements around it (in the way: the title of group "g2").',
         },
         {
           code: "geometry/edge-touches-label",

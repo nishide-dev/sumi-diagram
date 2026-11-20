@@ -72,6 +72,16 @@ export interface GeometrySet {
 
 export interface GeometryContext {
   readonly html?: ReadonlyMap<ElementKey, HtmlMeasurement>;
+  /**
+   * A structured figure's routed layout, for rules that check a suggested
+   * change by routing it again (`geometry/avoidable-bend`, #604).
+   */
+  readonly layout?: import("../../layout/ir").LayoutIR;
+  /** The same figure before routing: the IR as compiled and the placed layout. */
+  readonly placed?: {
+    readonly ir: FigureIR;
+    readonly layout: import("../../layout/ir").LayoutIR;
+  };
   readonly ir: FigureIR;
   readonly inspection: SvgInspection;
   /** The canvas (viewBox of `svg.d2-svg`) in element coordinates. */

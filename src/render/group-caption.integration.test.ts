@@ -39,6 +39,7 @@ async function render(
   assetBase?: string,
   jogEdges: readonly string[] = [],
   hugEdges: readonly string[] = [],
+  bendEdges: readonly string[] = [],
 ): Promise<RenderedFigure> {
   const result = await renderFigure(source, {
     backend: createD2CliBackend(),
@@ -60,6 +61,8 @@ async function render(
       .map((d) => [d.code, d.severity, d.subject?.id]),
   ).toEqual([
     ...jogEdges.map((id) => ["geometry/edge-jog", "info", id]),
+    // Anchors that keep a straight line out (#604).
+    ...bendEdges.map((id) => ["geometry/avoidable-bend", "warning", id]),
     // Labels pressed against their lines (#546).
     ...hugEdges.map((id) => ["geometry/edge-label-hugging", "info", id]),
   ]);
@@ -292,7 +295,13 @@ describe("the stage-B draft of figure 2 (research/124-stage-b)", () => {
       "(a) data and augmentation",
       "(b) one optimisation step",
     ]);
-    const rendered = await render(stringify(draft), dir, [], ["edges[5]", "edges[6]"]);
+    const rendered = await render(
+      stringify(draft),
+      dir,
+      [],
+      ["edges[5]", "edges[6]"],
+      ["edges[5]"],
+    );
     for (const [id, text] of [
       ["data-stage", "(a) data and augmentation"],
       ["train-step", "(b) one optimisation step"],

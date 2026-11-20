@@ -13,7 +13,7 @@ import type { LayoutIR, Point, Rect } from "../ir";
 import { addDirectRoutes } from "./diagonal";
 import { endpointRects } from "./endpoint-rects";
 import { nodeRegion } from "./ports";
-import { type RouteResult, routeEdges } from "./router";
+import { type RouteOptions, type RouteResult, routeEdges } from "./router";
 
 /** Clearance, in units, kept between the line and other nodes. */
 const CLEARANCE = 2;
@@ -23,6 +23,8 @@ const centre = (r: Rect): Point => ({ x: r.x + r.width / 2, y: r.y + r.height / 
 export function resolveFaceRoutes(
   ir: FigureIR,
   placed: LayoutIR,
+  /** Passed to every routing it runs (`routeStructured`). */
+  options: RouteOptions = {},
 ): { ir: FigureIR; routed?: RouteResult } {
   if (!ir.edges.some((e) => e.faceDirect === true)) return { ir };
   const rects = endpointRects(ir, placed);
@@ -189,7 +191,7 @@ export function resolveFaceRoutes(
       const result =
         candidate.route === "straight"
           ? addDirectRoutes(solo, layout, layout)
-          : routeEdges(solo, layout, { hintTrials: false });
+          : routeEdges(solo, layout, { ...options, hintTrials: false });
       if (result.diagnostics.some((d) => about(d, edge))) return undefined;
       const points = result.layout.edges.find((e) => e.key === edge.key)?.route?.points;
       return points === undefined || (avoid && meets(edge, points)) ? undefined : points;
@@ -230,7 +232,7 @@ export function resolveFaceRoutes(
   const automatic = (e: EdgeIR) =>
     resolved.has(e.key) && (e.route === "straight" || e.faceSides !== undefined);
   let figure = build();
-  let routed = routeEdges(figure, placed);
+  let routed = routeEdges(figure, placed, options);
   for (let round = 0; round < 3; round++) {
     const points = new Map(routed.layout.edges.map((e) => [e.key, e.route?.points ?? []]));
     const mine = figure.edges.filter(automatic);
@@ -249,7 +251,7 @@ export function resolveFaceRoutes(
       resolved.set(e.key, { ...rest, centerPorts: true });
     }
     figure = build();
-    routed = routeEdges(figure, placed);
+    routed = routeEdges(figure, placed, options);
   }
   return { ir: figure, routed };
 }
@@ -287,4 +289,19 @@ function segmentsTouch(a: Point, b: Point, c: Point, d: Point): boolean {
     (near(a, b, c) && within(a, b, c)) ||
     (near(a, b, d) && within(a, b, d))
   );
+}
+
+/**
+ * Routes a placed structured figure the way render and the layout entry
+ * point do: face-port cuboid edges first (`resolveFaceRoutes`, #587), then
+ * the router. Also used to check `geometry/avoidable-bend`'s hints (#604) on
+ * the same placement, so the two cannot drift apart.
+ */
+export function routeStructured(
+  ir: FigureIR,
+  placed: LayoutIR,
+  options?: RouteOptions,
+): { ir: FigureIR; routed: RouteResult } {
+  const faced = resolveFaceRoutes(ir, placed, options);
+  return { ir: faced.ir, routed: faced.routed ?? routeEdges(faced.ir, placed, options) };
 }

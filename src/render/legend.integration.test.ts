@@ -53,6 +53,8 @@ async function renderDraft(name: string): Promise<{ source: string; rendered: Re
           "geometry/group-empty-area",
           "geometry/dash-hidden",
           "geometry/edge-label-hugging",
+          // Figure 2 anchors one edge's ends apart where a straight line fits (#604).
+          "geometry/avoidable-bend",
         ].includes(d.code),
     ),
   ).toEqual([]);

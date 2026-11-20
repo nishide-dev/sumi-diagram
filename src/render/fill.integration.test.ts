@@ -122,5 +122,10 @@ edges: [{ from: a, to: b, fromAnchor: south, toAnchor: north }]
   const points = filled.layout.edges[0]?.route?.points;
   expect(points?.[0]).toEqual({ x: a.x + a.width / 2, y: a.y + a.height });
   expect(points?.at(-1)).toEqual({ x: b.x + b.width / 2, y: b.y });
-  expect(lintGeometry(filled).filter((d) => d.severity !== "info")).toEqual([]);
+  // The anchored centres of a and b differ by 1.6mm: geometry/avoidable-bend (#604) says so.
+  expect(
+    lintGeometry(filled)
+      .filter((d) => d.severity !== "info")
+      .map((d) => d.code),
+  ).toEqual(["geometry/avoidable-bend"]);
 });
