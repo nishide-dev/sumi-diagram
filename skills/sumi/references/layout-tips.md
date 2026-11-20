@@ -235,6 +235,16 @@ figure:
   own `gap`), as does a colliding edge label or badge (`geometry/label-collision`,
   `layout/edge-label-overlap`).
 
+## Straight edges between neighbours (`figure.layout.straighten: true`)
+
+When the preview shows small jogs or S-bends between boxes that face each other (a box
+beside a taller column, a group beside a single box), add `straighten: true` under
+`figure.layout` before nudging `gap`s or writing fractional anchors: Sumi moves a box or
+group within the free room of its row or stack so the ends line up, and keeps the move only
+if the edge is then straight and no other edge gets worse. Written `align: start | end |
+stretch`, `figure.layout.align`, shared `place` coordinates and fans are never broken, so a
+jog caused by one of those stays (see [structured.md](structured.md#straightening-edges-by-moving-nodes-figurelayoutstraighten)).
+
 ## Design principles
 
 A paper figure is read in seconds, beside its caption. Check every candidate
@@ -303,7 +313,7 @@ and decide its one visual form and tone:
 
 | Kind of thing | Visual form | Tone |
 | --- | --- | --- |
-| objects, entities (papers, users, images) | icon node | one per type |
+| concrete actors and objects (users, agents, databases, documents, tools, GPUs) | icon + label node (`iconAt`), one icon family; never on operations or every box | one per type |
 | representations, embeddings, vectors | glyph vector beside its object | the object's tone |
 | collections, groups, hyperedges, clusters | set enclosure | one tint per set |
 | operations, mappings, aggregation | arrow (edge label of a word or two), or one short box | neutral |
@@ -341,6 +351,10 @@ and do not mix per-element colours that fight it; for black-and-white print use 
 - **Pictures for things, arrows for operations.** Objects and data are icons, glyphs
   and sets; an operation is an edge or at most a few short boxes. If a box holds a
   verb phrase plus a formula, it belongs in the paper body.
+  Icons mark concrete actors and objects (a user, an agent, a database, a document, a tool,
+  a GPU, an environment), never operations or abstract steps, and not every box; use one
+  family (Tabler or emoji) per figure, `iconAt: left` for rows of components and `top` for
+  cards ([when to use an icon](assets.md#when-to-use-an-icon)).
 - **Minimal text.** Short labels only; leave equations to the text unless the
   symbol itself is the point (`sublabel` or an [html](html.md) card for one).
 - **One vocabulary.** A kind of thing keeps its form, tone and size in every panel
@@ -355,7 +369,8 @@ and do not mix per-element colours that fight it; for black-and-white print use 
 
 Sumi features for each form:
 
-- **Icons**: `label` or `box` with `icon:` ([icons](assets.md#icons), find names with
+- **Icons**: `label` or `box` with `icon:`, plus `label` and `iconAt: left | top` for the name in the same
+  node ([icons](assets.md#icons), [when to use one](assets.md#when-to-use-an-icon), find names with
   `sumi catalog --icons`); make an icon larger with `iconSize` (`2`, or `"12mm"`),
   never by enclosing it in a circle; tones from [tones and variants](figure-format.md#tones-and-variants).
 - **Feature vectors, dots, pills**: node `glyphs` ([glyphs](assets.md#glyphs)).

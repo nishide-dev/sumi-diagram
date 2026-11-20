@@ -4,7 +4,7 @@
  *
  * - With the `auto` engine, every structured-only field (`figure.layout.arrange`,
  *   `figure.layout.align`, `figure.layout.alignGrowth` (#333), `figure.layout.fanIn` (#134),
- *   `figure.layout.density` (#182),
+ *   `figure.layout.density` (#182), `figure.layout.straighten` (#618),
  *   `group.arrange`, `node.attach`, `node.sublabel` (#184),
  *   `node.labelRotation` (#178), `edge.fromAnchor` / `toAnchor`,
  *   `edge.labelAt` / `labelSide` (#128)) is an error: it would otherwise be
@@ -170,6 +170,9 @@ function checkAuto(state: CheckState, locate: Locator): void {
   }
   if (doc.figure?.layout.density !== undefined) {
     report("density", ["figure", "layout", "density"]);
+  }
+  if (doc.figure?.layout.straighten !== undefined) {
+    report("straighten", ["figure", "layout", "straighten"]);
   }
   // Stroke options (#427) are drawn by the structured writer only: D2 has no arrowhead sizes or quarter-point widths (a dotted variant is drawn as D2's finest dash).
   for (const field of STROKE_THEME_FIELDS) {

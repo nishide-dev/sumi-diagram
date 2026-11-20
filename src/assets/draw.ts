@@ -39,8 +39,16 @@ const FIT: Readonly<Record<ImageFit, string>> = {
  * The side of a node's icon in units: 1 em, or its `iconSize` (#424). A badge
  * is always 1 em.
  */
-export function iconSize(node: Pick<NodeIR, "style" | "iconSize">): number {
-  return node.iconSize ?? node.style.fontSize.units;
+export function iconSize(node: Pick<NodeIR, "style" | "iconSize"> & { iconAt?: string }): number {
+  return node.iconSize ?? node.style.fontSize.units * defaultIconEm(node.iconAt);
+}
+
+/**
+ * The default icon side in ems (#605): 1 for an icon alone; beside a label 1.2
+ * (a little over the text's line height) for `left`, 1.8 for `top` (a card's icon).
+ */
+export function defaultIconEm(iconAt: string | undefined): number {
+  return iconAt === "top" ? 1.8 : iconAt === "left" ? 1.2 : 1;
 }
 
 /** A badge's side in units: 1 em (the font size). */
@@ -57,8 +65,57 @@ export function iconBox(
   return { width: side, height: side };
 }
 
+/** The space between an icon and the text beside it (#605): 0.4 of the font size. */
+export function iconGap(node: Pick<NodeIR, "style">): number {
+  return (node.style.fontSize.units * 2) / 5;
+}
+
+/**
+ * The content box of a node with an icon beside its label (#605): the icon's
+ * square and the text block side by side (`left`, one line block, centred
+ * vertically) or one above the other (`top`, centred horizontally), `gap`
+ * apart. The node is sized around this box like around a bare label.
+ */
+export function iconLabelBox(
+  node: Pick<NodeIR, "iconAt" | "iconSize" | "style">,
+  text: { width: number; height: number },
+): { width: number; height: number } {
+  const side = iconSize(node);
+  const gap = iconGap(node);
+  return node.iconAt === "top"
+    ? { width: Math.max(side, text.width), height: side + gap + text.height }
+    : { width: side + gap + text.width, height: Math.max(side, text.height) };
+}
+
+/** How far the text block's centre sits from the content box's centre (#605): away from the icon. */
+export function iconLabelTextShift(node: Pick<NodeIR, "iconAt" | "iconSize" | "style">): {
+  x: number;
+  y: number;
+} {
+  const shift = (iconSize(node) + iconGap(node)) / 2;
+  return node.iconAt === "top" ? { x: 0, y: shift } : { x: shift, y: 0 };
+}
+
+/**
+ * Where the icon of a node with a label is drawn (#605): beside the text
+ * block's box `text`, `gap` away, centred on it across the other axis.
+ */
+export function iconRectBesideText(
+  node: Pick<NodeIR, "iconAt" | "iconSize" | "style">,
+  text: Rect,
+): Rect {
+  const side = iconSize(node);
+  const gap = iconGap(node);
+  return node.iconAt === "top"
+    ? { x: text.x + text.width / 2 - side / 2, y: text.y - gap - side, width: side, height: side }
+    : { x: text.x - gap - side, y: text.y + text.height / 2 - side / 2, width: side, height: side };
+}
+
 /** Where a node's icon is drawn: centered on the label center of its shape in `rect`. */
-export function iconRect(node: Pick<NodeIR, "shape" | "style" | "iconSize">, rect: Rect): Rect {
+export function iconRect(
+  node: Pick<NodeIR, "shape" | "style" | "iconSize" | "iconAt">,
+  rect: Rect,
+): Rect {
   const side = iconSize(node);
   const center = labelCenter(node.shape, rect);
   return { x: center.x - side / 2, y: center.y - side / 2, width: side, height: side };
@@ -221,9 +278,11 @@ function layeredImageMarkup(
  * or `""` if the node has none.
  */
 export function assetMarkup(
-  node: Pick<NodeIR, "key" | "shape" | "style" | "icon" | "iconSize" | "image">,
+  node: Pick<NodeIR, "key" | "shape" | "style" | "icon" | "iconSize" | "iconAt" | "image">,
   asset: LoadedAsset | undefined,
   rect: Rect,
+  /** The box of the label (and sublabel) of a node that has both an icon and a label (#605). */
+  text?: Rect,
 ): string {
   if (asset === undefined) {
     if (node.icon !== undefined || node.image !== undefined) {
@@ -234,8 +293,12 @@ export function assetMarkup(
   if (asset.kind === "icon") {
     return iconMarkup(
       asset,
-      iconRect(node, rect),
-      node.iconSize === undefined ? undefined : node.style.fontSize.units,
+      text !== undefined && "iconAt" in node && node.iconAt !== undefined
+        ? iconRectBesideText(node as Pick<NodeIR, "iconAt" | "iconSize" | "style">, text)
+        : iconRect(node, rect),
+      node.iconSize === undefined && node.iconAt === undefined
+        ? undefined
+        : node.style.fontSize.units,
     );
   }
   if (node.image === undefined) throw new Error(`internal error: ${node.key} is not an image`);

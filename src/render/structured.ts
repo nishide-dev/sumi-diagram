@@ -1416,7 +1416,12 @@ export function writeStructuredSvg(
     const asset =
       hatch +
       tokenSeparatorMarkup(node, placed.rect) +
-      assetMarkup(node, assets?.nodes.get(node.key), placed.rect);
+      assetMarkup(
+        node,
+        assets?.nodes.get(node.key),
+        placed.rect,
+        node.iconAt === undefined ? undefined : textBox(placed.label, placed.sublabel),
+      );
     body.push(
       objectGroup(
         node,
@@ -1672,5 +1677,22 @@ function asNode(group: GroupIR): NodeIR {
     shape: "rectangle",
     sizing: "auto",
     style: { ...group.style, kind: "node" },
+  };
+}
+
+/** The box of a node's label and sublabel together (#605): where an icon beside them is measured from. */
+function textBox(
+  label: TextLayout | undefined,
+  sublabel: TextLayout | undefined,
+): Rect | undefined {
+  const boxes = [label?.box, sublabel?.box].filter((box): box is Rect => box !== undefined);
+  if (boxes.length === 0) return undefined;
+  const x = Math.min(...boxes.map((b) => b.x));
+  const y = Math.min(...boxes.map((b) => b.y));
+  return {
+    x,
+    y,
+    width: Math.max(...boxes.map((b) => b.x + b.width)) - x,
+    height: Math.max(...boxes.map((b) => b.y + b.height)) - y,
   };
 }

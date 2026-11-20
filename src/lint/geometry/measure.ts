@@ -26,11 +26,14 @@
 
 import { LATIN_BOLD_FONT, LATIN_FONT } from "../../core/label/runs";
 import type { FontSet } from "../../core/theme/fonts";
+import { LINE_HEIGHT } from "../../layout/text";
 import type { Rect } from "../../render/geometry";
 import type { LabelGeometry, LabelRunGeometry } from "../../render/inspect";
 import { type FontMetrics, loadFontMetrics } from "../metrics";
 
 export interface MeasuredLabel {
+  /** Set on the icon square a node's `labels` carry (#94, #605): no text, the node's own picture. */
+  icon?: true;
   /** The label as inspected. */
   label: LabelGeometry;
   /** The font file the label is drawn with. */
@@ -304,6 +307,31 @@ function measureRuns(
     visibleLines,
     ...(box !== undefined && { box }),
     runs: measured,
+  };
+}
+
+/**
+ * The line box of a measured label the way the structured layout places it
+ * (`placeText()`'s `box`): `lines × lineHeight` high, centred on the baselines'
+ * half-leading, as wide as the widest line (blank lines included). An icon
+ * beside a label (#605) is placed from this box in the SVG and in the lint, so
+ * both agree. Absent when no line draws anything.
+ */
+export function layoutBoxOf(measured: MeasuredLabel): Rect | undefined {
+  const first = measured.lines[0];
+  const wide = unionOf(measured.lines.filter((line) => line.width > 0));
+  if (first === undefined || wide === undefined || measured.box === undefined) return undefined;
+  // D2 and the inspection report the font size as a single line's height; the layout uses 1.25 em.
+  const lineHeight =
+    measured.lines.length > 1
+      ? measured.label.lineHeightUnits
+      : Math.max(measured.label.fontSizeUnits * LINE_HEIGHT, first.height);
+  const halfLeading = (lineHeight - first.height) / 2;
+  return {
+    x: wide.x,
+    y: first.y - halfLeading,
+    width: wide.width,
+    height: measured.lines.length * lineHeight,
   };
 }
 

@@ -4,7 +4,7 @@
  * edge route, plus the canvas and the profile's physical limits.
  */
 
-import { badgeRect, iconRect } from "../../assets/draw";
+import { badgeRect, iconRect, iconRectBesideText } from "../../assets/draw";
 import { glyphRects } from "../../assets/glyphs";
 import type { HtmlMeasurement } from "../../assets/html-measure";
 import type { ElementIR, FigureIR, NodeIR, SetIR } from "../../compiler/ir";
@@ -16,7 +16,7 @@ import type { FontSet } from "../../core/theme/fonts";
 import { sampleCubic } from "../../layout/route/cubic";
 import type { Point, Rect } from "../../render/geometry";
 import type { ProfileLimits, SetGeometry, SvgInspection } from "../../render/inspect";
-import { type MeasuredLabel, measureLabel } from "./measure";
+import { layoutBoxOf, type MeasuredLabel, measureLabel, unionOf } from "./measure";
 import { outlineRegions } from "./outlines";
 import { type DrawnShape, flattenPath, labelArea, type Region, shapeOutline } from "./shapes";
 
@@ -118,10 +118,20 @@ function nameOf(element: ElementIR): string {
 }
 
 /** An icon's square as a one-line label without text (1 em or `iconSize`, where `iconRect()` draws it). */
-function iconAsLabel(node: NodeIR, box: Rect): MeasuredLabel {
-  const rect = iconRect(node, box);
+function iconAsLabel(node: NodeIR, box: Rect, texts: readonly MeasuredLabel[] = []): MeasuredLabel {
+  // Beside the label (#605) the icon sits next to the measured text block, as `assetMarkup()` draws it.
+  const boxes = texts.flatMap((t) => {
+    const layout = layoutBoxOf(t);
+    return layout === undefined ? [] : [layout];
+  });
+  const block = unionOf(boxes);
+  const rect =
+    node.iconAt !== undefined && block !== undefined
+      ? iconRectBesideText(node, block)
+      : iconRect(node, box);
   const size = rect.height;
   return {
+    icon: true,
     label: {
       text: "",
       anchor: { x: rect.x + rect.width / 2, y: rect.y + rect.height },
@@ -183,6 +193,7 @@ export function createGeometryContext(
         regions = { outline, labelArea: outline };
       } else regions = { outline: shapeOutline(shape, bbox), labelArea: labelArea(shape, bbox) };
     }
+    const measured = geometry.labels.map((label) => measureLabel(label, fonts));
     elements.push({
       key: geometry.key,
       kind: geometry.kind,
@@ -204,11 +215,11 @@ export function createGeometryContext(
         element.glyphs !== undefined &&
         geometry.bbox !== undefined && { glyphs: glyphRects(element, geometry.bbox) }),
       labels: [
-        ...geometry.labels.map((label) => measureLabel(label, fonts)),
+        ...measured,
         // An icon (#94) is drawn in place of the label: the rules that keep
         // labels inside their shape and apart from others check it too.
         ...(element.kind === "node" && element.icon !== undefined && geometry.bbox !== undefined
-          ? [iconAsLabel(element, geometry.bbox)]
+          ? [iconAsLabel(element, geometry.bbox, measured)]
           : []),
       ],
       ...(geometry.planeHeads !== undefined && { planeHeads: geometry.planeHeads }),
