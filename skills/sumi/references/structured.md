@@ -1219,9 +1219,10 @@ edges:
   span two facing sides share leaves an S that a straight line would replace:
   `geometry/avoidable-bend` (warning) gives anchor values whose line is checked to be
   clear (one value if the other end already faces the span, else one for each end),
-  or the sides for a single bend, or names the nodes (often attached labels) that
-  block a single step. Write those values or drop the anchor; do not chase the line
-  with more anchors. To move nodes into line instead, use `figure.layout.straighten: true`.
+  or (with both ends anchored) the side to move for a single bend, or names the
+  nodes (often attached labels) that block every two-bend route. Write those values
+  or drop the anchor; do not chase the line with more anchors. To move nodes into
+  line instead, use `figure.layout.straighten: true`.
 - **`straight`** (`toAnchor: straight` / `fromAnchor: straight`): the end sits in line
   with the other end on the side facing it, so the line has no jog. Use it for narrow
   boxes in a row feeding a wide one (patches into a projection, models into an

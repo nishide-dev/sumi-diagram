@@ -4,6 +4,7 @@
  * about them. Needs no D2.
  */
 import { describe, expect, test } from "bun:test";
+import { twoBendColumns } from "../../lint/geometry/avoidable";
 import { lintGeometry } from "../../lint/geometry/lint";
 import { renderFigure } from "../../render/render";
 import type { Point } from "../ir";
@@ -219,6 +220,11 @@ describe("example 3: a router into experts between two attached labels", () => {
     // Moving the note out of the way gives a Z.
     const moved = await render(MOE.replace("side: north, gap: 1.5mm", "side: south, gap: 1.5mm"));
     expect(bendCount(routeOf(moved, "n:router", "g:experts"))).toBeLessThanOrEqual(2);
+    // So does moving the experts' label above them.
+    const label = await render(
+      MOE.replace("attach: {to: experts, side: south", "attach: {to: experts, side: north"),
+    );
+    expect(bendCount(routeOf(label, "n:router", "g:experts"))).toBeLessThanOrEqual(2);
   });
 });
 
@@ -247,7 +253,8 @@ edges:
     const findings = avoidable(value);
     expect(findings).toHaveLength(1);
     expect(findings[0]?.message).toContain("one bend would do");
-    expect(findings[0]?.hint).toContain('fromAnchor "east" and toAnchor "north"');
+    // The target keeps its side (and its written position): only the source changes.
+    expect(findings[0]?.hint).toContain('Write fromAnchor "east",');
     const fixed = await render(pair("{from: a, to: b, fromAnchor: east, toAnchor: north}"));
     expect(bendCount(routeOf(fixed, "n:a", "n:b"))).toBe(1);
     expect(avoidable(fixed)).toEqual([]);
@@ -334,5 +341,45 @@ edges:
   test("corner anchors draw a deliberate shape and are not reported", async () => {
     const value = await render(pair('{from: a, to: b, fromAnchor: "east:0", toAnchor: "west:1"}'));
     expect(avoidable(value)).toEqual([]);
+  });
+});
+
+describe("only what is verified is claimed (review of #617)", () => {
+  test("a two-bend route that fits beside an obstacle is not reported as blocked", () => {
+    // Ports at (0, 0) and (100, 100), facing; a box near the source: a Z
+    // with its middle at x = 50 passes it.
+    const near = { x: 8, y: 8, width: 4, height: 4 };
+    expect(twoBendColumns({ x: 0, y: 0 }, { x: 100, y: 100 }, "east", [near])).toBeUndefined();
+    // A wall across the whole channel blocks every column.
+    const wall = { x: 0, y: 40, width: 100, height: 20 };
+    expect(twoBendColumns({ x: 0, y: 0 }, { x: 100, y: 100 }, "east", [wall])).toBeDefined();
+  });
+
+  test("no L is suggested for one anchor when the other end's port may move", async () => {
+    // b's north side holds two ends (c → b as well), so where a → b would
+    // enter it depends on how the ends share it: only fromAnchor is written,
+    // and the L it would need is not claimed.
+    const value = await render(`
+version: 1
+figure:
+  id: shared
+  theme: sumi
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: a, at: [0, 0]}
+          - {item: b, at: [50, 30]}
+          - {item: c, at: [50, 0]}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+  - {id: c, component: box, label: C}
+edges:
+  - {from: a, to: b, fromAnchor: north}
+  - {from: c, to: b}
+`);
+    for (const d of avoidable(value)) expect(d.message).not.toContain("one bend would do");
   });
 });

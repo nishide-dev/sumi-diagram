@@ -367,58 +367,43 @@ function anchorFix(
       }
     }
   }
-  // L: apart on both axes; one end leaves along x, the other along y.
+  // L: apart on both axes; one end leaves along x, the other along y. Only
+  // with both ends anchored: an unanchored end's port can move (fan-in
+  // spreading, port separation) when the other end changes side, so the L
+  // checked here could differ from the one the anchors would give.
+  if (fromAnchor === undefined || toAnchor === undefined) return undefined;
   const apartX = a.x + a.width <= b.x || b.x + b.width <= a.x;
   const apartY = a.y + a.height <= b.y || b.y + b.height <= a.y;
   if (bends < 2 || !apartX || !apartY) return undefined;
   const right = b.x >= a.x + a.width;
   const down = b.y >= a.y + a.height;
-  const centre = (r: Rect) => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
-  const ca = centre(a);
-  const cb = centre(b);
-  const options: { from: Side; to: Side; path: Point[] }[] = [
-    {
-      from: right ? "east" : "west",
-      to: down ? "north" : "south",
-      path: [
-        { x: right ? a.x + a.width : a.x, y: ca.y },
-        { x: cb.x, y: ca.y },
-        { x: cb.x, y: down ? b.y : b.y + b.height },
-      ],
-    },
-    {
-      from: down ? "south" : "north",
-      to: right ? "west" : "east",
-      path: [
-        { x: ca.x, y: down ? a.y + a.height : a.y },
-        { x: ca.x, y: cb.y },
-        { x: right ? b.x : b.x + b.width, y: cb.y },
-      ],
-    },
+  const first = points[0] as Point;
+  const last = points.at(-1) as Point;
+  // An end that keeps its side keeps its written position (where the route
+  // ends now); an end that moves takes the middle of its new side (the bare
+  // side the hint writes).
+  const options: { from: Side; to: Side }[] = [
+    { from: right ? "east" : "west", to: down ? "north" : "south" },
+    { from: down ? "south" : "north", to: right ? "west" : "east" },
   ];
   for (const option of options) {
-    // Only ends that are anchored change; an unanchored end must already be on the L's side.
-    if (fromAnchor === undefined && option.from !== fromSide) continue;
-    if (toAnchor === undefined && option.to !== toSide) continue;
-    if (fromAnchor?.side === option.from && toAnchor?.side === option.to) continue;
-    const [p, q, r] = option.path as [Point, Point, Point];
+    const keepFrom = option.from === fromAnchor.side;
+    const keepTo = option.to === toAnchor.side;
+    if (keepFrom && keepTo) continue;
+    const sa = sideSpan(a, option.from);
+    const sb = sideSpan(b, option.to);
+    const fromAt = keepFrom ? (vertical(option.from) ? first.x : first.y) : (sa.lo + sa.hi) / 2;
+    const toAt = keepTo ? (vertical(option.to) ? last.x : last.y) : (sb.lo + sb.hi) / 2;
+    const p: Point = vertical(option.from) ? { x: fromAt, y: sa.at } : { x: sa.at, y: fromAt };
+    const r: Point = vertical(option.to) ? { x: toAt, y: sb.at } : { x: sb.at, y: toAt };
+    const q: Point = vertical(option.from) ? { x: p.x, y: r.y } : { x: r.x, y: p.y };
     if (distance(p, q) < CLEARANCE || distance(q, r) < CLEARANCE) continue;
-    if (!clear(option.path, blocks)) continue;
-    if (
-      fromAnchor !== undefined &&
-      option.from !== fromAnchor.side &&
-      sideUsed(context, element, edge.from, a, option.from)
-    )
-      continue;
-    if (
-      toAnchor !== undefined &&
-      option.to !== toAnchor.side &&
-      sideUsed(context, element, edge.to, b, option.to)
-    )
-      continue;
+    if (!clear([p, q, r], blocks)) continue;
+    if (!keepFrom && sideUsed(context, element, edge.from, a, option.from)) continue;
+    if (!keepTo && sideUsed(context, element, edge.to, b, option.to)) continue;
     const anchors = [
-      ...(fromAnchor !== undefined ? [`fromAnchor "${option.from}"`] : []),
-      ...(toAnchor !== undefined ? [`toAnchor "${option.to}"`] : []),
+      ...(keepFrom ? [] : [`fromAnchor "${option.from}"`]),
+      ...(keepTo ? [] : [`toAnchor "${option.to}"`]),
     ];
     return { bends: 1, anchors };
   }
@@ -426,9 +411,35 @@ function anchorFix(
 }
 
 /**
+ * The two-bend routes from `p` (leaving `fromSide`) to `q` on the facing
+ * side, their middle segment at 33 columns between the stubs; `undefined`
+ * if one of them keeps the clearance from every rectangle (nothing blocks a
+ * single step).
+ */
+export function twoBendColumns(
+  p: Point,
+  q: Point,
+  fromSide: Side,
+  rects: readonly Rect[],
+): Point[][] | undefined {
+  const horizontal = fromSide === "east" || fromSide === "west";
+  const lo = (horizontal ? Math.min(p.x, q.x) : Math.min(p.y, q.y)) + CLEARANCE;
+  const hi = (horizontal ? Math.max(p.x, q.x) : Math.max(p.y, q.y)) - CLEARANCE;
+  const paths = Array.from({ length: 33 }, (_, i) => {
+    const m = lo + ((hi - lo) * i) / 32;
+    return horizontal
+      ? [p, { x: m, y: p.y }, { x: m, y: q.y }, q]
+      : [p, { x: p.x, y: m }, { x: q.x, y: m }, q];
+  });
+  return paths.some((path) => clear(path, rects)) ? undefined : paths;
+}
+
+/**
  * For a route of three or more bends between sides that face each other,
- * with a step under 4mm: the elements in the box between the two ports
- * (grown by the clearance) that keep a two-bend route out. Empty otherwise.
+ * with a step under 4mm, when no two-bend route between its ports (its middle
+ * segment at any of 33 columns between the stubs) is clear of the other
+ * elements by the clearance: the elements that block those routes. Empty
+ * otherwise.
  */
 function staircaseBlockers(
   context: GeometryContext,
@@ -457,24 +468,22 @@ function staircaseBlockers(
     return printed >= MICRO_JOG_UNITS - 0.002 && printed < JUNCTION_STEP_UNITS;
   };
   if (!steps.some(short)) return [];
-  const band = {
-    x: Math.min(p.x, q.x),
-    y: Math.min(p.y, q.y),
-    width: Math.abs(p.x - q.x),
-    height: Math.abs(p.y - q.y),
-  };
+  const all = obstacles(context, edge);
+  const columns = twoBendColumns(
+    p,
+    q,
+    fromSide,
+    all.map((o) => o.rect),
+  );
+  if (columns === undefined) return [];
+  // Every column is blocked: the elements that block some of them.
   const seen = new Set<GeometryElement>();
-  for (const { rect, element } of obstacles(context, edge)) {
-    if (seen.has(element)) continue;
-    if (
-      hits(
-        { x: band.x, y: band.y },
-        { x: band.x + band.width, y: band.y + band.height },
-        rect,
-        CLEARANCE,
-      )
-    )
-      seen.add(element);
+  for (const path of columns) {
+    for (const { rect, element } of all) {
+      if (seen.has(element)) continue;
+      if (path.slice(1).some((b, i) => hits(path[i] as Point, b, rect, CLEARANCE)))
+        seen.add(element);
+    }
   }
   return [...seen];
 }
