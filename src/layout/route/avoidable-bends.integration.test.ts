@@ -203,7 +203,10 @@ describe("example 3: a router into experts between two attached labels", () => {
 
   test("where the text blocks every column, the staircase is reported with what blocks it", async () => {
     const value = await render(
-      MOE.replace('"first 3 MoE layers:\\nhash routing"', '"first 3 MoE layers:\\nhash-based routing"'),
+      MOE.replace(
+        '"first 3 MoE layers:\\nhash routing"',
+        '"first 3 MoE layers:\\nhash-based routing"',
+      ),
     );
     const points = routeOf(value, "n:router", "g:experts");
     expect(bendCount(points)).toBeGreaterThan(2);
