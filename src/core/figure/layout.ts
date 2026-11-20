@@ -5,7 +5,7 @@
  * - With the `auto` engine, every structured-only field (`figure.layout.arrange`,
  *   `figure.layout.align`, `figure.layout.alignGrowth` (#333), `figure.layout.fanIn` (#134),
  *   `figure.layout.density` (#182), `figure.layout.straighten` (#618),
- *   `group.arrange`, `node.attach`, `node.sublabel` (#184),
+ *   `group.arrange`, `group.contentAlign` / `matchLabelHeight` (#613), `node.attach`, `node.sublabel` (#184),
  *   `node.labelRotation` (#178), `edge.fromAnchor` / `toAnchor`,
  *   `edge.labelAt` / `labelSide` (#128)) is an error: it would otherwise be
  *   ignored silently.
@@ -184,7 +184,12 @@ function checkAuto(state: CheckState, locate: Locator): void {
     const subject = { kind: "group", id: group.id } as const;
     if (group.arrange !== undefined)
       report("arrange", ["groups", index, "arrange"], groupKey(group.id), subject);
-    for (const field of ["lineWidth", "cornerRadius"] as const) {
+    for (const field of [
+      "lineWidth",
+      "cornerRadius",
+      "contentAlign",
+      "matchLabelHeight",
+    ] as const) {
       if (group[field] !== undefined)
         report(field, ["groups", index, field], groupKey(group.id), subject);
     }

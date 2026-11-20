@@ -109,6 +109,17 @@ hint は structured の `align: stretch` と内側の `justify: stretch` /
 （中央値56.81%、p75 69.28%、p95 76.56%、最大93.19%。設計 §6.71）。
 `maxWarnings` の件数を増やさず、通常の lint と出力バイトは変えない。
 
+## 伸ばしたパネルの空き帯（#613）
+
+`geometry/content-band` は **info**（structured、render / `lint --geometry` のみ）。
+`align: stretch` や `justify: stretch` で中身より高くなった group が中身を中央に置き、
+中身の上（見出しと最初の行の間）と下の**両方に 4mm 以上**の空きがあるとき報告する。
+`contentAlign` を書いた group、tilted plane・tokens・matrix・legend は対象外。
+hint の `contentAlign: top` は、その group に書いた写しを描画と同じ手順で配置・配線・
+lint し直して確かめる（1 図につき最大 4 group と元の図 1 回。図の大きさが変わらず、
+中身が見出しの直下に来て、新しい error / warning が出ないときだけ「Verified」）。
+設計は [#613](design/decisions/613-content-align.md)。
+
 `sumi lint`（API: `lintFigure()`、`src/lint`）は、診断を集める段（`yaml` → `schema` → `ref` → `layout` → `component` → `theme` → `profile`）と、**構造 lint**（stage `lint`）を実行する。構造 lint は描画前の文書だけを検査し、D2 を必要としない。描画後の SVG を検査する幾何 lint（stage `geometry`、#13）は別の段で、`lintRenderedFigure()` / `lintGeometry()` が実行する（下記の「幾何 lint」）。
 
 HTML を含む図では通常の CLI lint も非同期 `lintFigureWithHtml()` で内部を実測する（下記参照）。同期 `lintFigure()` 自体は描画しない。

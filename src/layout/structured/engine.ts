@@ -364,6 +364,8 @@ class StructuredLayout {
   readonly #itemSizes = new Map<ElementKey, Size>();
   readonly #rects = new Map<ElementKey, Rect>();
   readonly #contents = new Map<ElementKey, Rect>();
+  /** `matchLabelHeight` (#613): the title band height (units) of each name. */
+  readonly #matchedLabelHeights = new Map<string, number>();
   /** The tilted planes (#577) of the pass: the flat frame and the flat rectangles of their nodes. */
   readonly #planes = new Map<
     ElementKey,
@@ -489,6 +491,17 @@ class StructuredLayout {
       this.#groups.set(group.key, group);
       const label = measureText(group.label, group.style, measurer);
       if (label !== undefined) this.#labels.set(group.key, label);
+    }
+    // `matchLabelHeight` (#613): one title band per name, the tallest label's.
+    for (const group of ir.groups) {
+      const name = group.matchLabelHeight;
+      const label = this.#labels.get(group.key);
+      if (name === undefined) continue;
+      const height = label === undefined ? 0 : Math.ceil(label.height);
+      this.#matchedLabelHeights.set(
+        name,
+        Math.max(this.#matchedLabelHeights.get(name) ?? 0, height),
+      );
     }
     this.#matchWidths(ir);
   }
@@ -1098,24 +1111,38 @@ class StructuredLayout {
         content.height +
         p.north +
         p.south +
-        (this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(label, group)) +
+        (this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(group)) +
         groupLayerSpread(group),
     };
   }
 
   /** The room (units) a title above the border (#517) takes outside the frame, or 0. */
   #titleAbove(group: GroupIR): number {
-    const label = this.#labels.get(group.key);
-    if (label === undefined || group.labelAt?.startsWith("above") !== true) return 0;
-    return Math.ceil(label.height) + this.#padOf(group) / 2;
+    const height = this.#labelHeight(group);
+    if (height === undefined || group.labelAt?.startsWith("above") !== true) return 0;
+    return height + this.#padOf(group) / 2;
   }
 
   /**
    * Height a group's label band takes above (or below) its content: the label
    * and half the padding between it and the content.
    */
-  #labelSpace(label: TextMetrics | undefined, group: GroupIR): number {
-    return label === undefined ? 0 : Math.ceil(label.height) + this.#padOf(group) / 2;
+  #labelSpace(group: GroupIR): number {
+    const height = this.#labelHeight(group);
+    return height === undefined ? 0 : height + this.#padOf(group) / 2;
+  }
+
+  /**
+   * The height (whole units) of a group's title band: its label's, or with
+   * `matchLabelHeight` (#613) the tallest label's of its name; `undefined` for no band.
+   */
+  #labelHeight(group: GroupIR): number | undefined {
+    if (group.matchLabelHeight !== undefined) {
+      const matched = this.#matchedLabelHeights.get(group.matchLabelHeight) ?? 0;
+      return matched > 0 ? matched : undefined;
+    }
+    const label = this.#labels.get(group.key);
+    return label === undefined ? undefined : Math.ceil(label.height);
   }
 
   /**
@@ -1668,7 +1695,7 @@ class StructuredLayout {
     if (group === undefined) return;
     rect = groupFrontRect(group, rect);
     const p = this.#padding(key);
-    const band = this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(this.#labels.get(key), group);
+    const band = this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(group);
     // The label band is above the content, or below it for a bottom label (#127).
     const top = labelAtBottom(group.labelAt) ? 0 : band;
     const content: Rect = {
@@ -1682,10 +1709,27 @@ class StructuredLayout {
     const rigid = group.tokens !== undefined || group.matrix !== undefined;
     if (rigid) this.#locked++;
     try {
-      this.#placeContainer(key, group.arrange, content);
+      this.#placeContainer(key, group.arrange, this.#alignedContent(group, content));
     } finally {
       if (rigid) this.#locked--;
     }
+  }
+
+  /**
+   * `contentAlign` (#613): the part of a group's content area its content is
+   * placed in. A group taller than its content (stretched by its box) centres
+   * the content by default; `top` / `bottom` place it at its natural height at
+   * that edge instead, so the room is one band on the other side. The area
+   * reported as the group's content stays the whole area, and the arrange
+   * tree's box gets no room across it to centre or straighten (#618) in.
+   */
+  #alignedContent(group: GroupIR, content: Rect): Rect {
+    const align = group.contentAlign;
+    if (align === undefined || align === "center") return content;
+    const natural = this.#containerSize(group.key, group.arrange).height;
+    const spare = content.height - natural;
+    if (spare <= 0) return content;
+    return { ...content, y: align === "top" ? content.y : content.y + spare, height: natural };
   }
 
   /** Places the attached nodes of `container` into `rects`, each after its target. */

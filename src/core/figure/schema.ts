@@ -121,6 +121,10 @@ export type AttachSide = Side | Corner;
  * Where a group's label (title) sits inside the group's border (#127, design
  * doc §6.27): along the top or bottom edge, at the left, centre or right.
  */
+/** Where a group's content sits when the group is taller than it (#613). */
+export const GROUP_CONTENT_ALIGNS = ["top", "center", "bottom"] as const;
+export type GroupContentAlign = (typeof GROUP_CONTENT_ALIGNS)[number];
+
 export const GROUP_LABEL_POSITIONS = [
   "top-left",
   "top",
@@ -1021,6 +1025,15 @@ export const GroupSchema = z.strictObject({
     .describe(
       'Text drawn centred below the group\'s border, e.g. "(a) encoder". Drawn as a label with the reserved ID <id>-caption.',
     ),
+  contentAlign: z
+    .enum(GROUP_CONTENT_ALIGNS)
+    .optional()
+    .describe(
+      "Structured layout: where the group's content (its arrange tree and attached nodes) sits when the group is taller than the content, e.g. a panel stretched to its neighbours' height by align: stretch or justify: stretch. top puts the content right under the title and leaves the room at the bottom, bottom leaves it at the top, center (the default) splits it above and below. Sibling panels with top share the line their first rows start on. No effect on a group at its natural height or on a tilted plane. Omitted means center.",
+    ),
+  matchLabelHeight: Id.optional().describe(
+    "Structured layout: groups that write the same name reserve the same height for their title (the tallest of their labels), so a one-line title and a two-line title start their content on one line; a group without a label reserves the band too. With contentAlign: top in a stretched row, the first rows of the panels line up. Omitted means the group's own title height.",
+  ),
   component: ComponentRef.default("container").describe("Component reference (kind: group)."),
   variant: Variant,
   tone: Tone,

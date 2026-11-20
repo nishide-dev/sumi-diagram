@@ -43,6 +43,7 @@ import {
   printedUnits,
   printScale,
 } from "./common";
+import { contentBand } from "./content-band";
 import type { GeometryContext, GeometryElement } from "./context";
 import { deadSpace } from "./dead-space";
 import { sparseFigure, textHeavy } from "./density";
@@ -2183,6 +2184,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   colorOnPanel,
   lineTooThin,
   groupEmptyArea,
+  contentBand,
   badgeCollision,
   glyphCollision,
   exceedsPageWidth,
