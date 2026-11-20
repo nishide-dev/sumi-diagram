@@ -7,7 +7,7 @@ import { describe, expect, test } from "bun:test";
 import { lintGeometry } from "../../lint/geometry/lint";
 import { renderFigure } from "../../render/render";
 import type { Point } from "../ir";
-import { bendCount, jogLengths, TINY_JOG } from "./simplify";
+import { bendCount } from "./simplify";
 
 async function render(source: string) {
   const result = await renderFigure(source);

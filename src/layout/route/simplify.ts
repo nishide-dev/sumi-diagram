@@ -486,7 +486,6 @@ function keepsRules(
   edge: SimplifyEdge,
   c: Candidate,
   points: readonly Point[],
-  scene: SimplifyScene,
   others: readonly Other[],
 ): boolean {
   if (!lanesKept(edge, c)) return false;
@@ -846,7 +845,7 @@ function pick(
     const points = outlined(c);
     if (!lanesKept(edge, c) || !cornersRound(edge, c, scene)) continue;
     const m = measure(edge, c.core, points, scene, others, current);
-    if (m === undefined || !keepsRules(edge, c, points, scene, others)) continue;
+    if (m === undefined || !keepsRules(edge, c, points, others)) continue;
     const score = [
       jogLengths(points).filter((l) => l < TINY_JOG).length,
       c.moved,
@@ -948,7 +947,7 @@ function nudge(
         const drawn = outlined(candidate);
         if (!lanesKept(edge, candidate) || !cornersRound(edge, candidate, scene)) continue;
         const m = measure(edge, next, drawn, scene, others, current);
-        if (m === undefined || !keepsRules(edge, candidate, drawn, scene, others)) continue;
+        if (m === undefined || !keepsRules(edge, candidate, drawn, others)) continue;
         const score = scoreOf(next, m);
         if (best === undefined || lexLess(score, best.score)) best = { core: next, m, score };
       }
