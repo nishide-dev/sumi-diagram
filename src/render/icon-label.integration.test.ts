@@ -136,6 +136,41 @@ describe("geometry", () => {
     expect(node.sublabel).toBeDefined();
   });
 
+  test("default icon sizes: 1.2 em for left, 1.8 em for top, iconSize overrides", async () => {
+    const out = await render(PAIR);
+    const [a, b] = out.compiled.ir.nodes;
+    const em = a?.style.fontSize.units as number;
+    expect(iconSize(a as never)).toBeCloseTo(1.2 * em, 5);
+    expect(iconSize(b as never)).toBeCloseTo(1.8 * em, 5);
+    const sized = await render(PAIR.replace("iconAt: top,", "iconAt: top, iconSize: 3,"));
+    expect(iconSize(sized.compiled.ir.nodes[1] as never)).toBeCloseTo(3 * em, 5);
+  });
+
+  test.each([
+    ["left", "width: 60mm"],
+    ["top", "width: 60mm, height: 30mm"],
+  ])("a node wider than its content centres icon and text as one group (%s)", async (at, props) => {
+    const out = await render(
+      figure(
+        `  - { id: a, component: box, label: Database, icon: tabler/database, iconAt: ${at}, props: { ${props} } }\n  - { id: b, component: box, label: B }`,
+      ),
+    );
+    const node = out.layout.nodes.find((n) => n.key === "n:a");
+    const ir = out.compiled.ir.nodes[0];
+    if (node?.label === undefined || ir === undefined) throw new Error("no node");
+    const icon = iconGroups(out.svg)[0];
+    const side = iconSize(ir);
+    const l = node.label.box;
+    const left = at === "left" ? (icon?.x ?? 0) : Math.min(icon?.x ?? 0, l.x);
+    const right = at === "left" ? l.x + l.width : Math.max((icon?.x ?? 0) + side, l.x + l.width);
+    expect((left + right) / 2).toBeCloseTo(node.rect.x + node.rect.width / 2, 1);
+    if (at === "top") {
+      const top = icon?.y ?? 0;
+      const bottom = l.y + l.height;
+      expect((top + bottom) / 2).toBeCloseTo(node.rect.y + node.rect.height / 2, 1);
+    }
+  });
+
   test("the node grows to hold icon and label, and iconSize applies", async () => {
     const plain = await render(
       figure(
@@ -153,7 +188,7 @@ describe("geometry", () => {
       r.layout.nodes.find((n) => n.key === key)?.rect.height as number;
     const em = plain.compiled.ir.nodes[0]?.style.fontSize.units as number;
     expect(w(left)).toBeGreaterThan(w(plain));
-    expect(Math.abs(w(left) - w(plain) - (em + (em * 2) / 5))).toBeLessThan(2);
+    expect(Math.abs(w(left) - w(plain) - (1.2 * em + (em * 2) / 5))).toBeLessThan(2);
     expect(h(big)).toBeGreaterThan(h(plain));
     expect(w(big)).toBeGreaterThan(w(left));
   });

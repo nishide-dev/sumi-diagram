@@ -39,8 +39,16 @@ const FIT: Readonly<Record<ImageFit, string>> = {
  * The side of a node's icon in units: 1 em, or its `iconSize` (#424). A badge
  * is always 1 em.
  */
-export function iconSize(node: Pick<NodeIR, "style" | "iconSize">): number {
-  return node.iconSize ?? node.style.fontSize.units;
+export function iconSize(node: Pick<NodeIR, "style" | "iconSize"> & { iconAt?: string }): number {
+  return node.iconSize ?? node.style.fontSize.units * defaultIconEm(node.iconAt);
+}
+
+/**
+ * The default icon side in ems (#605): 1 for an icon alone; beside a label 1.2
+ * (a little over the text's line height) for `left`, 1.8 for `top` (a card's icon).
+ */
+export function defaultIconEm(iconAt: string | undefined): number {
+  return iconAt === "top" ? 1.8 : iconAt === "left" ? 1.2 : 1;
 }
 
 /** A badge's side in units: 1 em (the font size). */
@@ -104,7 +112,10 @@ export function iconRectBesideText(
 }
 
 /** Where a node's icon is drawn: centered on the label center of its shape in `rect`. */
-export function iconRect(node: Pick<NodeIR, "shape" | "style" | "iconSize">, rect: Rect): Rect {
+export function iconRect(
+  node: Pick<NodeIR, "shape" | "style" | "iconSize" | "iconAt">,
+  rect: Rect,
+): Rect {
   const side = iconSize(node);
   const center = labelCenter(node.shape, rect);
   return { x: center.x - side / 2, y: center.y - side / 2, width: side, height: side };
@@ -285,7 +296,9 @@ export function assetMarkup(
       text !== undefined && "iconAt" in node && node.iconAt !== undefined
         ? iconRectBesideText(node as Pick<NodeIR, "iconAt" | "iconSize" | "style">, text)
         : iconRect(node, rect),
-      node.iconSize === undefined ? undefined : node.style.fontSize.units,
+      node.iconSize === undefined && node.iconAt === undefined
+        ? undefined
+        : node.style.fontSize.units,
     );
   }
   if (node.image === undefined) throw new Error(`internal error: ${node.key} is not an image`);

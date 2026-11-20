@@ -58,7 +58,7 @@ Each line is a ready-made reference (`tabler/wave-sine`); use it verbatim. Table
   `diamond`, …) or a `label`; not on `operator`, `junction`, `trapezoid`, `stack`,
   `image` (`asset/icon-unsupported`) or groups.
 - **Icon and label in one node** (structured layout): give a node both `icon` and
-  `label` and it draws the icon next to the text, sized around both. `iconAt: left`
+  `label` and it draws the icon next to the text, sized around both. The icon defaults to 1.2 em beside the text (`left`) and 1.8 em above it (`top`, a card's icon); `iconSize` overrides. The icon and text are centred as one group in the node, also when the node is wider than its content. `iconAt: left`
   (the default) puts the icon, then the text, on one line block, centred vertically
   (rows of components, narrow boxes); `iconAt: top` puts the icon over the text,
   centred (cards, actors). `iconSize` sets the icon, `sublabel` goes under the label
