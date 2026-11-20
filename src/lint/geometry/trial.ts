@@ -66,6 +66,8 @@ export function problemsOf(
   trial: Trial,
   assets: Parameters<typeof writeStructuredSvg>[3],
   skip: ReadonlySet<string>,
+  /** The figure's YAML, for rules that name where to edit (`geometry/relocatable-node`); the trial must keep its arrange items. */
+  source?: string,
 ): Problems | undefined {
   const fonts = getFontSet(trial.ir.meta.fontSetId);
   if (fonts === undefined) return undefined;
@@ -77,6 +79,7 @@ export function problemsOf(
     layout: trial.layout,
     placed: trial.placed,
     lintConfig: config,
+    ...(source !== undefined && { source }),
   };
   const counts: Problems = new Map();
   const add = (code: string, subject: unknown) => {

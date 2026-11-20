@@ -4,13 +4,22 @@
  * into the YAML, renders within the profile without new errors or warnings.
  */
 import { describe, expect, spyOn, test } from "bun:test";
+import { asHintTrial } from "../../layout/hint-trials";
 import * as engine from "../../layout/structured/engine";
 import { widthPath } from "../../layout/structured/width-tree";
 import { printedSize } from "../../render/size";
+import { resolveLintConfig } from "../config";
 import { defineGeometryRule } from "../rule";
 import { geometryContextFor, lintRenderedFigure } from "./lint";
 import { exceedsPageWidth } from "./rules";
-import { explainWidth, fitHints, MAX_FIT_TRIALS, widthTreeLines } from "./width-fit";
+import {
+  explainWidth,
+  fitHints,
+  MAX_FIT_TRIALS,
+  skippedInTrials,
+  widthTreeJson,
+  widthTreeLines,
+} from "./width-fit";
 
 const widthHint = async (text: string, options: Parameters<typeof lintRenderedFigure>[1] = {}) => {
   const report = await lintRenderedFigure(text, options);
@@ -147,6 +156,60 @@ describe("the natural-width path (#607)", () => {
     ]);
   });
 
+  test("a spanning grid item that widens its columns is marked, in text and JSON", async () => {
+    const text = `version: 1
+figure:
+  id: span
+  profile: paper-single
+  layout:
+    engine: structured
+    arrange: { grid: { columns: 2, items: [a, b, { item: wide, span: 2 }] } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+  - { id: wide, component: box, label: W, props: { width: 60mm } }
+`;
+    const report = await lintRenderedFigure(text);
+    if (!report.rendered) throw new Error("render failed");
+    const tree = explainWidth(geometryContextFor(report.rendered));
+    if (!tree) throw new Error("no tree");
+    const lines = widthTreeLines(tree);
+    expect(lines.find((l) => l.includes('node "wide"'))?.trimStart()).toStartWith("* ");
+    expect(lines.find((l) => l.includes('node "a"'))?.trimStart()).not.toStartWith("* ");
+    const grid = widthTreeJson(tree).children[0];
+    expect(grid?.children.map((c) => [c.name, c.setsWidth])).toEqual([
+      ['node "a"', false],
+      ['node "b"', false],
+      ['node "wide"', true],
+    ]);
+  });
+
+  test("nothing inside a group whose title sets its width is marked", async () => {
+    const text = `version: 1
+figure:
+  id: title
+  profile: paper-single
+  layout: { engine: structured, arrange: { row: { items: [g] } } }
+groups:
+  - { id: g, label: "A panel title much wider than what it holds", arrange: { stack: { items: [a] } } }
+nodes:
+  - { id: a, component: box, label: A }
+`;
+    const report = await lintRenderedFigure(text);
+    if (!report.rendered) throw new Error("render failed");
+    const tree = explainWidth(geometryContextFor(report.rendered));
+    if (!tree) throw new Error("no tree");
+    expect(widthPath(tree).at(-1)?.name).toBe('group "g"');
+    const lines = widthTreeLines(tree);
+    expect(lines.some((l) => l.trimStart().startsWith('* group "g" '))).toBe(true);
+    expect(lines.find((l) => l.includes('node "a"'))?.trimStart()).not.toStartWith("* ");
+    expect(lines.find((l) => l.includes('group "g".arrange'))?.trimStart()).not.toStartWith("* ");
+    const group = widthTreeJson(tree).children[0]?.children[0];
+    expect(group?.setsWidth).toBe(true);
+    expect(group?.children[0]?.setsWidth).toBe(false);
+    expect(group?.children[0]?.children[0]?.setsWidth).toBe(false);
+  });
+
   test("auto figures keep the observed breakdown", async () => {
     const { hint } = await widthHint(`version: 1
 figure: { id: auto, profile: paper-single, layout: { direction: right } }
@@ -279,22 +342,66 @@ nodes:
     const context = geometryContextFor(report.rendered);
     const tree = explainWidth(context);
     if (!tree) throw new Error("no tree");
+    const overflow = context.inspection.canvas.width.pt - 88 * (72 / 25.4);
     const spy = spyOn(engine, "placeStructured");
     try {
-      const result = fitHints(context, tree, context.inspection.canvas.width.pt - 88 * (72 / 25.4));
+      const result = fitHints(context, tree, overflow);
+      expect(result.trials).toBeGreaterThan(0);
       expect(result.trials).toBeLessThanOrEqual(MAX_FIT_TRIALS);
       expect(spy.mock.calls.length).toBe(result.trials);
       expect(result.fits.length).toBe(1);
+      spy.mockClear();
+      // Inside another rule's trial (#621's relocations, or a trial of this rule): nothing runs.
+      const nested = asHintTrial(() => fitHints(context, tree, overflow));
+      expect(nested).toEqual({
+        fits: [],
+        rejected: [],
+        trials: 0,
+        skipped: "inside another trial",
+      });
+      expect(asHintTrial(() => explainWidth(context))).toBeUndefined();
+      expect(spy).not.toHaveBeenCalled();
     } finally {
       spy.mockRestore();
     }
   });
 
   test("fit: scale keeps the fitting values in geometry/heavy-scaling", async () => {
-    const text = panels.replace("  theme: sumi\n", "  theme: sumi\n  fit: scale\n");
+    const text = panels
+      .replace("  theme: sumi\n", "  theme: sumi\n  fit: scale\n")
+      .replace("gap: 3mm", "gap: 25mm");
     const report = await lintRenderedFigure(text);
+    expect(report.diagnostics.some((d) => d.code === "geometry/exceeds-page-width")).toBe(false);
     const heavy = report.diagnostics.find((d) => d.code === "geometry/heavy-scaling");
-    if (heavy === undefined) return; // Text has headroom at this scale: nothing reported.
-    expect(heavy.hint).toContain("Fits 88mm");
+    expect(heavy).toBeDefined();
+    expect(heavy?.hint).toContain("Width breakdown before scaling: Width to remove: ");
+    expect(heavy?.hint).toMatch(
+      /Fits 88mm .*set figure\.layout\.arrange\.row\.gap to [\d.]+mm \(now 25mm\).*\(together\) → [\d.]+mm/,
+    );
+  });
+
+  test("relocatable-node counts in the trials only when configured as warning or error", async () => {
+    const report = await lintRenderedFigure(panels);
+    if (!report.rendered) throw new Error("render failed");
+    const base = geometryContextFor(report.rendered);
+    const at = (level?: string) => ({
+      ...base,
+      lintConfig: resolveLintConfig(
+        level === undefined ? {} : { rules: { "geometry/relocatable-node": level } },
+      ),
+    });
+    expect([...skippedInTrials(at())].sort()).toEqual([
+      "geometry/exceeds-page-width",
+      "geometry/heavy-scaling",
+      "geometry/relocatable-node",
+    ]);
+    for (const level of ["warning", "error"])
+      expect(skippedInTrials(at(level)).has("geometry/relocatable-node")).toBe(false);
+    // With it counted, the trials still run (it lays out its own candidates inside them).
+    const promoted = await lintRenderedFigure(panels, {
+      config: { rules: { "geometry/relocatable-node": "warning" } },
+    });
+    const hint = promoted.diagnostics.find((d) => d.code === "geometry/exceeds-page-width")?.hint;
+    expect(hint).toContain("(together) → ");
   });
 });

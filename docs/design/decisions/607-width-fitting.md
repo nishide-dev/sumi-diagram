@@ -33,7 +33,7 @@
   `Width path (natural widths, before stretch): page 92.96mm = margins 2 × 1.94mm + arranged content 89.02mm → figure.layout.arrange.row 89.02mm = 2 items (…) + 1 × 4mm gap (profile default) → figure.layout.arrange.row.items[1].stack 64.56mm, as wide as its widest item (next: group "moe" 41.22mm); its items are stretched to one width when drawn, natural widths: legend "key" 64.56mm, group "moe" 41.22mm, group "attn" 34.81mm → legend "key" 64.56mm (a legend sized by its own props, e.g. perRow). Widest contributor: legend "key" (64.56mm).`
 
   項目が 1 つだけの箱は幅を素通しするので道筋から省く。描いた座標の細かな内訳（#368 の `related`）はそのまま残す。
-- **`sumi render --explain-width`**（opt-in）: 木全体を 1 行 1 項目で stderr に出す（幅を決める項目に `*`、grid は列ごとに最も広い項目）。先頭行はページ（余白・配置した中身・はみ出し）。`--json` では `widthTree`（pt、IR の参照なし、`setsWidth`）を足す。収まっている図でも使えるので、上限ぎりぎりの調整（run 5）にも使える。出力の SVG / PDF / PPTX は変わらない（テストでバイト一致を確かめる）。
+- **`sumi render --explain-width`**（opt-in）: 木全体を 1 行 1 項目で stderr に出す（幅を決める項目に `*`。row はすべての項目、stack は最も広い項目、grid は列の幅を決めた項目: 列ごとに最も広い 1 列の項目と、自分の列を広げた複数列にまたがる項目。中身より広いタイトルが幅を決めるグループでは、中の項目に `*` を付けない。`--json` の `setsWidth` も同じ規則）。先頭行はページ（余白・配置した中身・はみ出し）。`--json` では `widthTree`（pt、IR の参照なし、`setsWidth`）を足す。収まっている図でも使えるので、上限ぎりぎりの調整（run 5）にも使える。フラグは木を読んで出すだけで、書き出す内容には触れない。テストでは、フラグの有無で SVG がバイト一致することを確かめる（PDF / PPTX は同じ SVG から変換するので、個別には比べていない）。ギャラリーと examples（SVG・PDF）は `bun run gallery:check` が main と同一であることを確かめる。
 
 **info の lint を新しく足す案は採らなかった。** 幅が上限を超えたときは既に error の `geometry/exceeds-page-width` が出て、エージェントはそのヒントを読む（Skill の手順もそう書いている）。同じ内容の info を別に出すと重複になり、収まっている図にも毎回出すとノイズになる。収まっている図の内訳は、必要なときに頼む opt-in のフラグがふさわしい。`sumi measure` のような新しいコマンドも、`render` と同じ描画を繰り返すだけなので、`render` のフラグにした。
 
@@ -47,7 +47,10 @@
 
 超過分 O を、1 つの値だけで消せる値を計算する（gap は O / gap の数、余白は O / 2）。どれも 1 つでは足りないときは、**全部を同時に**、それぞれが減らせる量に比例して分担させる（まず gap と余白だけ、それでも足りなければ幅も含めて）。これが #603 の提案 (c)「縮小の前に間隔を詰める」をヒントとして実現したもの。
 
-**どの値も実際にやってみて確かめる**（#621 の `relocatable.ts` と同じ道具を `trial.ts` に切り出して共有する）。値を書き込んだ IR の写しを、描画と同じ手順（`placeStructured` → `routeStructured`）で配置・配線し、SVG を書いて、ほかの geometry 規則（幅の 2 規則と `relocatable-node` を除く）を利用者の lint 設定どおりにかける。
+**どの値も実際にやってみて確かめる**（#621 の `relocatable.ts` と同じ道具を `trial.ts` に切り出して共有する）。値を書き込んだ IR の写しを、描画と同じ手順（`placeStructured` → `routeStructured`）で配置・配線し、SVG を書いて、ほかの geometry 規則を利用者の lint 設定どおりにかける。除くのは次だけ。
+
+- 幅の 2 規則（`exceeds-page-width`・`heavy-scaling`）: 試しは収まるかを直接確かめる。狭くなった図は縮小が小さくなるので、文字が小さくなることはない。
+- `geometry/relocatable-node`: **既定の info のときだけ除く**（info は数えないので結果は変わらず、自分で配置の試しを走らせる分の費用だけを省く）。利用者が warning / error に上げているときは試しでも走らせる。`asHintTrial` の中でも、この規則は自分の候補を配置・配線し直すので（入れ子の試しを止めるのは幅・空きのヒントだけ）、正しい答えを出す。ヒントの場所を YAML から取るので、試しの文脈に元の YAML（`source`）を渡す。試しが変えるのは gap・余白・幅だけで arrange の項目は変わらないため、YAML の場所はそのまま当たる。このとき費用は試し 1 回あたり最大 7 回の配置が増える（下の上限に加わる）。
 
 - ページが上限に収まり、
 - 配置・配線の error がなく、
@@ -89,7 +92,7 @@
 - 超過していない図（`fit: scale` なしで収まる図）: 何も増えない。
 - 構造化の図が超過したとき（`exceeds-page-width`、または `heavy-scaling` が出たとき）:
   - 木のための配置 1 回（`structuredWidthTree`）。
-  - 収まる値の試しは **1 診断につき最大 8 回**（`MAX_FIT_TRIALS`、元の図の 1 回を含む）。1 回は配置・配線 1 度ずつと、ページに収まったものだけ SVG と geometry lint 1 度。テストで `placeStructured` の呼び出し回数が試しの回数と一致し、8 以下であることを確かめる。
+  - 収まる値の試しは **1 診断につき最大 8 回**（`MAX_FIT_TRIALS`、元の図の 1 回を含む）。1 回は配置・配線 1 度ずつと、ページに収まったものだけ SVG と geometry lint 1 度。テストで `placeStructured` の呼び出し回数が試しの回数と一致し、8 以下であること、ほかの試しの中（`asHintTrial`）では木も試しも作らないことを確かめる。`relocatable-node` を warning / error に上げた設定では、lint する試し 1 回ごとにその規則の配置が最大 7 回加わる（最大 8 × 7 回）。
   - 収まる値が見つからないときだけ、従来の `verifyHints`（最大 6 回、#307）。
   - 全体を `asHintTrial` の中で走らせるので、写しにかけた規則の中のヒントは試しを始めない。ほかの規則の試しの中（`inHintTrial`）では木も試しも作らない。
 - 試しを走らせない図: 要素が 240 を超える図（`MAX_FIT_ELEMENTS`。木と道筋は出す）、HTML・外部ファイルの画像を含む図、auto の図（描いた座標の内訳だけ）。
@@ -99,5 +102,5 @@
 
 - 描画結果（ギャラリー・examples・ゴールデン・再現図）は変わらない。エンジンの変更は読み取り専用のメソッドと、配置の最後に呼ぶ任意のコールバックだけ。`bun run gallery:check` がバイト一致を確かめる。
 - 新しい診断コードはない。変わるのは `geometry/exceeds-page-width` と `geometry/heavy-scaling` のヒントの文面だけ（ギャラリーはメッセージだけを載せるので変わらない）。ギャラリーの図で両規則が出るのは `dit-block` と `clip` の `heavy-scaling`。どちらもヒントに道筋が増えるだけで、収まる値は出ない（`dit-block` は道筋の値を全部最小にしても 13.88mm しか減らず、`clip` は外部の画像を含むので試しを走らせない）。どちらも妥当（`fit: scale` で縮める図で、詰めても収まらない）。
-- `geometry/relocatable-node` の試しの道具（`layoutTrial`、`problemsOf`）を `trial.ts` に移した。振る舞いは同じ（除く規則を引数にしただけ）。
+- `geometry/relocatable-node` の試しの道具（`layoutTrial`、`problemsOf`）を `trial.ts` に移した。振る舞いは同じ（除く規則と、任意の `source` を引数にしただけ）。
 - 既存のテストのうち、ヒントに「gap を 0mm に」が出ることを確かめていたもの（`verified.test.ts`、`width.test.ts`）は、収まる値が見つかる図では `verifyHints` を直接呼んで確かめ、診断のヒントには収まる値が出ることを確かめるように変えた。

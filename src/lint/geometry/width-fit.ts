@@ -27,12 +27,22 @@ export const MAX_FIT_TRIALS = 8;
 /** Larger figures get the width path only (each trial is linted in full). */
 export const MAX_FIT_ELEMENTS = 240;
 
-/** Rules a trial is not linted by: the width rules themselves, and one that starts trials of its own. */
-const SKIP: ReadonlySet<string> = new Set([
-  "geometry/exceeds-page-width",
-  "geometry/heavy-scaling",
-  "geometry/relocatable-node",
-]);
+/**
+ * Rules a trial is not linted by: the width rules themselves (the trial is
+ * checked for fitting directly; a narrower figure scales less, so its text
+ * only grows). `geometry/relocatable-node` is skipped only at its default
+ * info level: configured as warning or error it runs in the trial too (it
+ * then lays out its own candidates; the trials only change gaps, paddings
+ * and widths, so its hint still points at the same YAML items).
+ */
+const WIDTH_RULES = ["geometry/exceeds-page-width", "geometry/heavy-scaling"];
+const RELOCATABLE = "geometry/relocatable-node";
+
+export function skippedInTrials(context: GeometryContext): ReadonlySet<string> {
+  const configured = context.lintConfig?.rules.find((r) => r.rule.id === RELOCATABLE);
+  const counts = configured !== undefined && configured.severity !== "info";
+  return new Set(counts ? WIDTH_RULES : [...WIDTH_RULES, RELOCATABLE]);
+}
 
 /** The figure as it was laid out (before routing), whose arrange boxes the width tree refers to. */
 const baseIr = (context: GeometryContext): FigureIR => context.placed?.ir ?? context.ir;
@@ -68,7 +78,7 @@ function describe(entry: WidthEntry, next: WidthEntry | undefined): string {
       const items =
         entry.kind === "grid"
           ? `${entry.columnsPt?.length ?? 0} columns (${(entry.columnsPt ?? []).map(mm).join(" + ")})`
-          : `${entry.children.length} items (${entry.children
+          : `${entry.children.length} item${entry.children.length === 1 ? "" : "s"} (${entry.children
               .filter((c) => c.widthPt > 0)
               .sort((a, b) => b.widthPt - a.widthPt)
               .slice(0, 3)
@@ -349,6 +359,7 @@ export function fitHints(
   if (!assets.ok) return none("inline or bundled assets could not be prepared");
   const options = hintLayoutOptions.get(ir);
   const naturalPt = context.inspection.canvas.width.pt;
+  const skip = skippedInTrials(context);
   return asHintTrial(() => {
     let trials = 0;
     const run = (copy: FigureIR) => {
@@ -362,7 +373,7 @@ export function fitHints(
       const base = run(ir);
       // The trial must redraw the figure as rendered, or nothing it shows can be trusted.
       if (base !== undefined && Math.abs(base.layout.canvas.width / 2 - naturalPt) < 0.01)
-        baseline = problemsOf(context, base, assets.value, SKIP);
+        baseline = problemsOf(context, base, assets.value, skip, context.source);
       return baseline;
     };
     const fits: { text: string; widthPt: number }[] = [];
@@ -388,7 +399,7 @@ export function fitHints(
           broken = true;
           return;
         }
-        const after = problemsOf(context, trial, assets.value, SKIP);
+        const after = problemsOf(context, trial, assets.value, skip, context.source);
         if (after === undefined) return;
         const added = newProblems(before, after);
         if (added.length > 0)

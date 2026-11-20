@@ -49,6 +49,8 @@ export interface WidthEntry {
   /** Grid items: the column (0-based) and how many columns the item spans. */
   readonly column?: number;
   readonly span?: number;
+  /** Grid items: the width the item needs of its columns (its centring included), in pt. */
+  readonly trackPt?: number;
   /** Generated contents measured as a whole (their own props size them). */
   readonly leaf?: WidthLeafKind;
   readonly children: readonly WidthEntry[];
@@ -94,15 +96,28 @@ export function allEntries(root: WidthEntry): WidthEntry[] {
 }
 
 /**
- * Whether `child` sets `parent`'s width: every item of a row, the widest
- * single-column item of each grid column, the widest child otherwise.
+ * Whether `child` sets `parent`'s width: every item of a row; in a grid, an
+ * item as wide as the columns it spans (a spanning item that widened its
+ * columns included); otherwise the widest child. Nothing inside a group
+ * whose title is wider than its content sets the group's width.
  */
 export function setsWidth(parent: WidthEntry, child: WidthEntry): boolean {
+  if (parent.kind === "group" && parent.titlePt !== undefined) return false;
   if (parent.kind === "row") return true;
-  if (parent.kind === "grid" && child.column !== undefined) {
-    if (child.span !== 1) return false;
-    return (
-      widest(parent.children.filter((c) => c.column === child.column && c.span === 1)) === child
+  if (parent.kind === "grid" && child.column !== undefined && parent.columnsPt !== undefined) {
+    const span = child.span ?? 1;
+    const tracks = parent.columnsPt.slice(child.column, child.column + span);
+    const available = tracks.reduce((a, b) => a + b, 0) + (parent.gap?.pt ?? 0) * (span - 1);
+    const needs = child.trackPt ?? child.widthPt;
+    if (needs < available - 0.01) return false;
+    // Equally wide items of one column: the first sets it.
+    return !parent.children.some(
+      (c) =>
+        c !== child &&
+        parent.children.indexOf(c) < parent.children.indexOf(child) &&
+        c.column === child.column &&
+        (c.span ?? 1) === span &&
+        (c.trackPt ?? c.widthPt) >= needs - 0.01,
     );
   }
   return widest(parent.children) === child;

@@ -268,7 +268,8 @@ you act on it:
    whose title is wider than its content, or a `place` box (its written coordinates).
 3. `Fits <max>`: values that make the figure fit, each **tried**: the figure is laid out,
    routed, drawn and linted with that one change, and it is shown only if the page then
-   fits and no new error or warning appears. One value at a time (a row's or grid's gap,
+   fits and no new error or warning appears (`geometry/relocatable-node` counts only when
+   your config raises it to warning or error). One value at a time (a row's or grid's gap,
    a group's `props.padding`, a node's explicit `width`; smallest change first, up to 3);
    if none is enough alone, all of them together, each giving its share (`(together)`).
    Apply one, re-run. `would fit but adds <code>` names a value that fits but breaks

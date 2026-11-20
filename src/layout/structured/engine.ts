@@ -180,7 +180,15 @@ interface GridTracks {
   columnGap: number;
   rowGap: number;
   size: Size;
-  cells: { item: ArrangeItemIR; span: number; column: number; row: number; size: Size }[];
+  cells: {
+    item: ArrangeItemIR;
+    span: number;
+    column: number;
+    row: number;
+    size: Size;
+    /** The width it needs of its columns (centring and `align` included). */
+    trackWidth: number;
+  }[];
 }
 
 /**
@@ -743,7 +751,7 @@ class StructuredLayout {
           const cell = tracks.cells[i];
           return found === undefined || cell === undefined
             ? []
-            : [{ ...found, column: cell.column, span: cell.span }];
+            : [{ ...found, column: cell.column, span: cell.span, trackPt: pt(cell.trackWidth) }];
         });
         return {
           ...base,
