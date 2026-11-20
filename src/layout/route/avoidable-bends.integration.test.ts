@@ -6,7 +6,9 @@
 import { describe, expect, test } from "bun:test";
 import { lintGeometry } from "../../lint/geometry/lint";
 import { renderFigure } from "../../render/render";
+import { layoutStructuredFigure } from "../index";
 import type { Point } from "../ir";
+import { routeEdges } from "./router";
 import { bendCount } from "./simplify";
 
 async function render(source: string) {
@@ -313,5 +315,44 @@ edges:
   test("corner anchors draw a deliberate shape and are not reported", async () => {
     const value = await render(pair('{from: a, to: b, fromAnchor: "east:0", toAnchor: "west:1"}'));
     expect(avoidable(value)).toEqual([]);
+  });
+});
+
+describe("straight, curved and zoom edges count (review of #617)", () => {
+  const source = (extra: string) => `
+version: 1
+figure:
+  id: foreign
+  theme: sumi
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: a, at: [0, 0]}
+          - {item: b, at: [40, 3]}
+          - {item: c, at: [0, 30]}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+  - {id: c, component: box, label: C}
+edges:
+  - {from: a, to: b}
+${extra}`;
+  const points = (text: string, simplify: boolean) => {
+    const placed = layoutStructuredFigure(text, { route: false });
+    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+    const routed = routeEdges(placed.value.ir, placed.value.layout, { simplify });
+    return routed.layout.edges.find((e) => e.from === "n:a" && e.to === "n:b")?.route?.points;
+  };
+
+  test("an edge alone on its sides is simplified; one sharing a side with a straight edge is not", () => {
+    // Alone: the S between a and b becomes straight.
+    const alone = source("");
+    expect(points(alone, false)?.length).toBeGreaterThan(2);
+    expect(points(alone, true)).toHaveLength(2);
+    // A straight edge from c also ends on b's west side: a → b stays as routed.
+    const shared = source("  - {from: c, to: b, route: straight}\n");
+    expect(points(shared, true)).toEqual(points(shared, false));
   });
 });

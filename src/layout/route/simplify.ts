@@ -129,6 +129,14 @@ export interface SimplifyScene {
   }[];
   /** Every route (updated as edges are simplified). */
   readonly routes: Map<ElementKey, Point[]>;
+  /**
+   * Straight, curved and zoom edges (lines, curves flattened): a candidate
+   * meets each no more often than the routed line did.
+   */
+  readonly foreign?: readonly {
+    readonly key: ElementKey;
+    readonly lines: readonly (readonly Point[])[];
+  }[];
   /** The room before each route's arrowheads (0 where there is none). */
   readonly rooms: ReadonlyMap<ElementKey, { readonly from: number; readonly to: number }>;
   /** `a` and `b` may share lines (one net, #113): neither counts against the other. */
@@ -267,6 +275,36 @@ function contacts(mine: readonly Seg[], theirs: readonly Seg[], within: Rect): C
   return out;
 }
 
+/** The axis-parallel segment `g` and the segment `p`–`q` (any direction) come within half a unit. */
+function meetsSegment(g: Seg, p: Point, q: Point): boolean {
+  const pad = 0.5;
+  const x0 = Math.min(g.a.x, g.b.x) - pad;
+  const x1 = Math.max(g.a.x, g.b.x) + pad;
+  const y0 = Math.min(g.a.y, g.b.y) - pad;
+  const y1 = Math.max(g.a.y, g.b.y) + pad;
+  // Clip p–q to the padded box of g (Liang–Barsky): they meet if anything is left.
+  let t0 = 0;
+  let t1 = 1;
+  const dx = q.x - p.x;
+  const dy = q.y - p.y;
+  for (const [den, num] of [
+    [-dx, p.x - x0],
+    [dx, x1 - p.x],
+    [-dy, p.y - y0],
+    [dy, y1 - p.y],
+  ] as const) {
+    if (Math.abs(den) < 1e-12) {
+      if (num < 0) return false;
+      continue;
+    }
+    const t = num / den;
+    if (den < 0) t0 = Math.max(t0, t);
+    else t1 = Math.min(t1, t);
+    if (t0 > t1) return false;
+  }
+  return true;
+}
+
 /** Proper crossings of the polyline with the border of `r` (ends on the border do not count). */
 function borderCrossings(s: readonly Seg[], r: Rect): number {
   let n = 0;
@@ -387,6 +425,8 @@ interface LocalScene extends SimplifyScene {
 interface Measure {
   /** Per other route: crossings and touches, overlaps, close parallels. */
   contacts: Contacts[];
+  /** Per straight, curved or zoom edge near the route: the segments of it the route meets. */
+  foreign: number[];
   groupCrossings: number[];
   groupRuns: number[];
   /** Per obstacle: how far the route comes inside its clearance (≤ 0: clear). */
@@ -473,7 +513,16 @@ function measure(
       return undefined;
     all.push(c);
   }
-  return { contacts: all, groupCrossings, groupRuns, shortfalls, shortfall };
+  const foreign: number[] = [];
+  for (const [i, f] of (scene.foreign ?? []).entries()) {
+    let n = 0;
+    for (const line of f.lines)
+      for (let k = 1; k < line.length; k++)
+        for (const g of s) if (meetsSegment(g, line[k - 1] as Point, line[k] as Point)) n++;
+    if (limit !== undefined && n > (limit.foreign[i] as number)) return undefined;
+    foreign.push(n);
+  }
+  return { contacts: all, foreign, groupCrossings, groupRuns, shortfalls, shortfall };
 }
 
 /**
@@ -762,8 +811,10 @@ function simplifyEdge(
   // The nodes in the way: none of the ends' own.
   const nodes = full.nodes.filter((n) => meets(n.rect, region) && !own(n.key));
   const boxes = full.boxes.filter((b) => meets(b, region));
+  const foreign = (full.foreign ?? []).filter((f) => f.lines.some((l) => meets(boxOf(l), region)));
   const local = (relaxed: boolean): LocalScene => ({
     ...full,
+    foreign,
     nodes,
     boxes,
     groups: full.groups.filter((g) => meets(g.rect, region)),

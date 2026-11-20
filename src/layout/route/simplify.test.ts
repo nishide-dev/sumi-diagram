@@ -342,6 +342,23 @@ describe("not simpler", () => {
       }
     });
 
+    test("a straight, curved or zoom line the route never met may not be crossed", () => {
+      // A diagonal line (a straight edge) across y = 30 between x = 80 and 90:
+      // the routed Z keeps clear of it, the straight line at y = 30 would cross it.
+      const diagonal = [
+        { x: 80, y: 26 },
+        { x: 90, y: 34 },
+      ];
+      const plain = simplifyRoutes([edge], scene({ e: route }, { l: L, r: R }));
+      expect(plain.get(key("e"))?.points).toHaveLength(2);
+      const changed = simplifyRoutes(
+        [edge],
+        scene({ e: route }, { l: L, r: R }, { foreign: [{ key: key("s"), lines: [diagonal] }] }),
+      );
+      const points = changed.get(key("e"))?.points;
+      if (points !== undefined) expect(points).not.toHaveLength(2);
+    });
+
     test("a route of another net the line never met may not be crossed, though the total stays", () => {
       // The routed line crosses v; the straight line at y = 30 would cross w instead.
       const v = [

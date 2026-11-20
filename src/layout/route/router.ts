@@ -90,6 +90,7 @@ import {
 import { deepFreeze } from "../structured/engine";
 import { arrowheadLength, edgeArrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
+import { sampleCubic } from "./cubic";
 import { addDirectRoutes, isDirectEdge } from "./diagonal";
 import { endpointRects, makeInside } from "./endpoint-rects";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
@@ -238,6 +239,46 @@ export interface RouteOptions {
   simplify?: boolean;
 }
 
+/**
+ * An edge the orthogonal router does not route (`route: straight`, `curve`,
+ * a zoom edge), as the simplification after routing sees it (#604): its
+ * lines (curves flattened) and its ends on the elements it touches.
+ */
+export interface ForeignEdge {
+  readonly key: ElementKey;
+  readonly lines: readonly (readonly Point[])[];
+  readonly ends: readonly { readonly key: ElementKey; readonly point: Point }[];
+}
+
+/**
+ * The straight, curved and zoom edges of `ir` drawn on `layout` before the
+ * orthogonal routes exist: their geometry depends on the elements only.
+ */
+function foreignEdges(ir: FigureIR, layout: LayoutIR): ForeignEdge[] {
+  if (!ir.edges.some((e) => isDirectEdge(e) || isZoomEdge(e))) return [];
+  const direct = addDirectRoutes(ir, layout, layout).layout;
+  const zoom = addZoomRoutes(ir, layout, direct).layout;
+  const kinds = new Map(ir.edges.map((e) => [e.key, e]));
+  const out: ForeignEdge[] = [];
+  for (const e of zoom.edges) {
+    const edge = kinds.get(e.key);
+    if (edge === undefined || e.route === undefined) continue;
+    if (!isDirectEdge(edge) && !isZoomEdge(edge)) continue;
+    const lines: Point[][] =
+      e.route.lines !== undefined
+        ? e.route.lines.map((l) => [l[0], l[1]])
+        : edge.route === "curve" && e.route.points.length === 4
+          ? [sampleCubic(e.route.points)]
+          : [[...e.route.points]];
+    const ends = lines.flatMap((l) => [
+      { key: edge.from, point: l[0] as Point },
+      { key: edge.to, point: l.at(-1) as Point },
+    ]);
+    out.push({ key: e.key, lines, ends });
+  }
+  return out;
+}
+
 export function routeEdges(
   ir: FigureIR,
   unmoved: LayoutIR,
@@ -259,6 +300,7 @@ export function routeEdges(
     withoutZoomEdges(orthogonalIR),
     withoutZoomLayouts(orthogonalIR, orthogonalLayout),
     options,
+    options.simplify === false ? [] : foreignEdges(ir, layout),
   );
   const routed =
     options.hintTrials === false
@@ -285,7 +327,12 @@ export function withMergedFanIn(ir: FigureIR): FigureIR {
   return { ...ir, meta: { ...ir.meta, fanIn: "merge" } };
 }
 
-function routeWithoutZoom(ir: FigureIR, layout: LayoutIR, options: RouteOptions): RouteResult {
+function routeWithoutZoom(
+  ir: FigureIR,
+  layout: LayoutIR,
+  options: RouteOptions,
+  foreign: readonly ForeignEdge[] = [],
+): RouteResult {
   const routeFigure = (figure: FigureIR) =>
     chooseRouting(figure, (stubLines: boolean) =>
       new Router(
@@ -295,6 +342,7 @@ function routeWithoutZoom(ir: FigureIR, layout: LayoutIR, options: RouteOptions)
         options.verifyLowerBound ?? false,
         stubLines,
         options.simplify ?? true,
+        foreign,
       ).run(),
     );
   const result = routeFigure(ir);
@@ -582,6 +630,8 @@ class Router {
   readonly #stubLines: boolean;
   /** Simplify routes after routing (`#simplify`, #604). */
   readonly #simplifyRoutes: boolean;
+  /** Straight, curved and zoom edges, which the simplification keeps clear of (#604). */
+  readonly #foreign: readonly ForeignEdge[];
 
   constructor(
     ir: FigureIR,
@@ -590,8 +640,10 @@ class Router {
     verify: boolean,
     stubLines: boolean,
     simplifyRoutes = true,
+    foreign: readonly ForeignEdge[] = [],
   ) {
     this.#simplifyRoutes = simplifyRoutes;
+    this.#foreign = foreign;
     this.#ir = ir;
     this.#layout = layout;
     this.#lowerBound = lowerBound;
@@ -780,6 +832,40 @@ class Router {
         if (end.junction || end.side === undefined) continue;
         const id = `${end.key}|${end.side}`;
         users.set(id, [...(users.get(id) ?? []), end]);
+      }
+    }
+    // The ends of straight, curved and zoom edges use a side too (a zoom
+    // line's corner: both sides it touches).
+    for (const f of this.#foreign) {
+      for (const { key, point } of f.ends) {
+        const rect = rects.get(key);
+        if (rect === undefined) continue;
+        const near = (a: number, b: number) => Math.abs(a - b) < 0.5;
+        const sides: Side[] = [];
+        if (near(point.y, rect.y)) sides.push("north");
+        if (near(point.y, bottomOf(rect))) sides.push("south");
+        if (near(point.x, rect.x)) sides.push("west");
+        if (near(point.x, rightOf(rect))) sides.push("east");
+        // Inside the box (on a round shape's outline): the side it faces most.
+        if (sides.length === 0) {
+          const dx = (point.x - (rect.x + rect.width / 2)) / Math.max(rect.width, 1e-9);
+          const dy = (point.y - (rect.y + rect.height / 2)) / Math.max(rect.height, 1e-9);
+          sides.push(
+            Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "east" : "west") : dy > 0 ? "south" : "north",
+          );
+        }
+        for (const side of sides) {
+          const id = `${key}|${side}`;
+          const end: End = {
+            key,
+            junction: false,
+            side,
+            dir: SIDE_DIR[side],
+            port: point,
+            outline: point,
+          };
+          users.set(id, [...(users.get(id) ?? []), end]);
+        }
       }
     }
     const SIDES: readonly Side[] = ["north", "east", "south", "west"];
@@ -1004,6 +1090,7 @@ class Router {
         }),
         routes,
         rooms,
+        foreign: this.#foreign.map((f) => ({ key: f.key, lines: f.lines })),
         shares: (a, b) => netOf.get(a) === netOf.get(b),
         inside,
       },
