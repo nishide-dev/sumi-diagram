@@ -11,6 +11,7 @@ import { createGeometryContext } from "../../lint/geometry/context";
 import { lintGeometry } from "../../lint/geometry/lint";
 import { renderFigure } from "../../render/render";
 import type { Point } from "../ir";
+import { resolveFaceRoutes, routeStructured } from "./face-routes";
 
 /** Bends of a route: points minus its two ends, after dropping points in line. */
 function bendCount(points: readonly Point[]): number {
@@ -539,5 +540,38 @@ edges:
         bendCount(routeOf(value, "n:a", "n:c")),
       );
     }
+  });
+
+  test("a check passes its routing options to every routing inside face resolution", async () => {
+    const value = await render(`version: 1
+figure: { id: grid, theme: sumi, profile: paper-double, layout: { arrange: { grid: { columns: 2, rowGap: 12mm, columnGap: 12mm, items: [a, b, c, d] } } } }
+nodes:
+  - { id: a, component: cuboid, props: { width: 6mm, height: 12mm, depth: 8mm } }
+  - { id: b, component: cuboid, props: { width: 6mm, height: 12mm, depth: 8mm } }
+  - { id: c, component: cuboid, props: { width: 6mm, height: 12mm, depth: 8mm } }
+  - { id: d, component: cuboid, props: { width: 6mm, height: 12mm, depth: 8mm } }
+edges:
+  - { from: a, to: d }
+  - { from: b, to: c, fromAnchor: west:0.5 }
+`);
+    const placed = value.placed;
+    if (placed === undefined) throw new Error("no placement");
+    // Face resolution routes this figure itself (it has cuboid face edges),
+    // so the router after it never runs: the options must reach the inner calls.
+    expect(resolveFaceRoutes(placed.ir, placed.layout).routed).toBeDefined();
+    let reads = 0;
+    const options = {
+      get hintTrials() {
+        reads += 1;
+        return false;
+      },
+    };
+    const { routed } = routeStructured(placed.ir, placed.layout, options);
+    expect(reads).toBeGreaterThan(0);
+    // Without hint trials no hint diagnostics come out of the inner routings.
+    expect(routed.diagnostics.filter((d) => d.hint !== undefined)).toEqual([]);
+    expect(routed.layout.edges.map((e) => e.route?.points)).toEqual(
+      value.layout.edges.map((e) => e.route?.points),
+    );
   });
 });

@@ -277,7 +277,11 @@ interface Write {
   readonly offset: number;
 }
 
-/** At most this many hints are checked by routing again, per figure. */
+/**
+ * At most this many hint checks per figure. Each check runs the render's
+ * routing steps once (`routeStructured`); face resolution among them can
+ * itself route the figure several times when it has cuboid face edges.
+ */
 export const VERIFY_BUDGET = 8;
 
 const bendsOf = (points: readonly Point[] | undefined): number =>
@@ -291,8 +295,9 @@ const verifying = new WeakMap<GeometryContext, { budget: number }>();
  * it again on the same placement, the way render does (`routeStructured`:
  * face routes, then the router): `true` only if the edge then has `bends`
  * bends, every other edge has no more bends than in the rendered figure
- * (which the same steps drew), and routing reports no error. Each check is
- * one routing; at most {@link VERIFY_BUDGET} per figure. Without the
+ * (which the same steps drew), and routing reports no error. Each call is
+ * one check (one pass of those steps, with `hintTrials: false` reaching every
+ * routing inside them); at most {@link VERIFY_BUDGET} per figure. Without the
  * placement (an auto figure), nothing is verified.
  */
 function verified(
