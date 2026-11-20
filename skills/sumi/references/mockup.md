@@ -37,11 +37,15 @@ any theme.
   `END SUMI SIZES` in [mockup-template.html](mockup-template.html); never type these values.
   A mockup text smaller than the profile minimum is a defect.
 - Label widths: `sumi catalog --sizes --profile <id> --theme <id> --component box --label "Multi-Head Attention"`
-  (`--label` and `--component` repeatable, `--json` for numbers) gives each box's natural
-  width and height with your real labels. Draw boxes at least that size, or leave out `width`
-  so the template sizes them like Sumi; a box drawn narrower is a `geometry/label-overflow`
-  in the render (the template outlines it in red). Operators are `--op` (5.6mm on paper,
-  8.5mm at `size: large`), not the size of the symbol you would draw by hand.
+  (`--label` and `--component` repeatable, `--json` for numbers) gives two widths for your real
+  labels. WIDTH is the natural width: the label plus the node padding on both sides, what Sumi
+  draws when you leave out `width` (and what the template draws then). MIN WIDTH is the narrowest
+  `props.width` that still passes `geometry/label-overflow`, which only keeps the text clear of
+  the frame, so it is narrower ("Encoder" on paper: 16.05mm natural, 11.11mm minimum). A box
+  drawn narrower than MIN WIDTH overflows in the render; the template outlines such a box in
+  red, from the browser's text widths (approximate). Between the two the text touches the
+  padding: legal, but cramped. Operators are `--op` (5.6mm on paper, 8.5mm at `size: large`),
+  not the size of the symbol you would draw by hand.
   [Default sizes](sizes.md) has the same numbers as tables.
 
 Then fill the colour variables of the template (`--canvas`; `--ink` and the tone fills and lines

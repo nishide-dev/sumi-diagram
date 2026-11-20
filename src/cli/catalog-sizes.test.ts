@@ -11,6 +11,7 @@ import {
   type SizeSetting,
   sizesCss,
 } from "../layout/structured/default-sizes";
+import { lintRenderedFigure } from "../lint/geometry/lint";
 import { run } from "./program";
 
 const ROOT = resolve(import.meta.dir, "..", "..");
@@ -140,6 +141,55 @@ describe("sumi catalog --sizes", () => {
     ]);
   });
 
+  test("MIN WIDTH is the edge of geometry/label-overflow, checked by rendering and linting", async () => {
+    const overflows = async (component: string, label: string, widthPt: number) => {
+      const yaml = JSON.stringify({
+        version: 1,
+        figure: {
+          id: "w",
+          theme: "sumi",
+          profile: "paper-double",
+          layout: { engine: "structured", arrange: { row: { items: ["n"] } } },
+        },
+        nodes: [{ id: "n", component, label, props: { width: `${widthPt}pt` } }],
+      });
+      const report = await lintRenderedFigure(yaml);
+      return report.diagnostics.some((d) => d.code === "geometry/label-overflow");
+    };
+    const [setting] = await sizesJson([
+      "--profile",
+      "paper-double",
+      ...["box", "diamond", "ellipse", "cylinder", "label"].flatMap((c) => ["--component", c]),
+      ...["Encoder", "埋め込み層"].flatMap((l) => ["--label", l]),
+    ]);
+    let checked = 0;
+    for (const size of setting?.components ?? []) {
+      const label = size.label ?? "";
+      if (size.component === "sumi/label") {
+        expect(size.minWidth, label).toBeNull();
+        continue;
+      }
+      const min = size.minWidth;
+      if (min === null) throw new Error(`${size.component} ${label}: no minWidth`);
+      // Below the natural width: it leaves out the node padding.
+      expect(min.pt, `${size.component} ${label}`).toBeLessThan(size.width.pt);
+      expect(
+        await overflows(size.component, label, min.pt),
+        `${size.component} ${label} at ${min.pt}pt`,
+      ).toBe(false);
+      expect(
+        await overflows(size.component, label, min.pt - 0.5),
+        `${size.component} ${label} at ${min.pt - 0.5}pt`,
+      ).toBe(true);
+      checked++;
+    }
+    expect(checked).toBe(8);
+    const box = setting?.components.find(
+      (c) => c.component === "sumi/box" && c.label === "Encoder",
+    );
+    expect([box?.width.mm, box?.minWidth?.mm]).toEqual([16.05, 11.11]);
+  });
+
   test("compact density keeps the width and lowers a box", async () => {
     const [normal] = await sizesJson(["--profile", "paper-double", "--component", "box"]);
     const [compact] = await sizesJson([
@@ -161,8 +211,10 @@ describe("sumi catalog --sizes", () => {
     expect(result).toMatchObject({ exitCode: 0, stderr: "" });
     expect(result.stdout).toStartWith("paper-double, density normal, theme minimal, textScale 1\n");
     expect(result.stdout).toContain("font set sumi/biz-ud-gothic");
-    expect(result.stdout).toMatch(/^COMPONENT\s+WIDTH\s+HEIGHT\s+PROPS\s+LABEL$/m);
-    expect(result.stdout).toMatch(/^sumi\/box\s+\d+(\.\d+)?mm\s+6mm\s+-\s+"Encoder"$/m);
+    expect(result.stdout).toMatch(/^COMPONENT\s+WIDTH\s+HEIGHT\s+MIN WIDTH\s+PROPS\s+LABEL$/m);
+    expect(result.stdout).toMatch(
+      /^sumi\/box\s+\d+(\.\d+)?mm\s+6mm\s+\d+(\.\d+)?mm\s+-\s+"Encoder"$/m,
+    );
     expect(result.stdout).toMatch(/^Sized by their props.*sumi\/matrix$/m);
   });
 
@@ -203,6 +255,7 @@ describe("sumi catalog --sizes", () => {
       ["--sizes", "--css"],
       ["--sizes", "--css", "--json", "--profile", "paper-double"],
       ["--sizes", "--css", "--profile", "paper-double", "--component", "box"],
+      ["--sizes", "--css", "--profile", "paper-double", "--label", ""],
       ["--sizes", "--profile", "a4"],
       ["--sizes", "--theme", "nope"],
       ["--sizes", "--component", "nope"],

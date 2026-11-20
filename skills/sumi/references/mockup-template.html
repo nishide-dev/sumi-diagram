@@ -67,9 +67,27 @@
   </svg>
 </div>
 <script>
-  // A box drawn narrower or lower than its label needs: Sumi would report geometry/label-overflow.
-  // Check the exact width with `sumi catalog --sizes --profile <id> --component box --label "<label>"`.
-  for (const el of document.querySelectorAll(".box, .op")) {
-    if (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) el.classList.add("overflow");
+  // A box whose text runs into its frame gets a red outline: Sumi would report geometry/label-overflow,
+  // which, like this check, lets the text use the padding but not cross the frame. The browser's text
+  // widths are approximate; ask Sumi for the exact limit with
+  // `sumi catalog --sizes --profile <id> --component box --label "<label>"` (MIN WIDTH).
+  // Checked once the fonts have loaded, and again whenever a box changes size or content.
+  function checkOverflow() {
+    for (const el of document.querySelectorAll(".box, .op")) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const text = range.getBoundingClientRect();
+      const over = text.width > el.clientWidth + 0.5 || text.height > el.clientHeight + 0.5;
+      if (el.classList.contains("overflow") !== over) el.classList.toggle("overflow", over);
+    }
   }
+  document.fonts.ready.then(() => {
+    checkOverflow();
+    const resized = new ResizeObserver(checkOverflow);
+    for (const el of document.querySelectorAll(".box, .op")) resized.observe(el);
+    new MutationObserver(() => {
+      for (const el of document.querySelectorAll(".box, .op")) resized.observe(el);
+      checkOverflow();
+    }).observe(document.getElementById("fig"), { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["style"] });
+  });
 </script>

@@ -140,8 +140,10 @@ function sizesCommand(options: CatalogCommandOptions, context: CliContext): Exit
   if (options.css && options.profile === undefined) {
     throw new UsageError("--css needs one --profile.");
   }
-  if (options.css && options.component !== undefined) {
-    throw new UsageError("--css cannot be combined with --component.");
+  if (options.css && (options.component !== undefined || options.label !== undefined)) {
+    throw new UsageError(
+      "--css cannot be combined with --component or --label: its sizes are those of a one-word box.",
+    );
   }
   const profiles =
     options.profile === undefined ? SIZE_SETTINGS.map((s) => s.profile) : [options.profile];
@@ -155,6 +157,8 @@ function sizesCommand(options: CatalogCommandOptions, context: CliContext): Exit
         ...(options.textScale !== undefined && { textScale: options.textScale }),
         ...(options.label !== undefined && { labels: options.label }),
         ...(options.component !== undefined && { components: options.component }),
+        // The CSS needs no overflow search.
+        ...(options.css === true && { minWidths: false }),
       }),
     );
   } catch (error) {
@@ -191,10 +195,11 @@ export function formatSizesText(setting: SizeSetting): string {
     `  Spacing: gap ${spacing.gap.mm}mm, group padding ${spacing.groupPadding.pt}pt (${spacing.groupPadding.mm}mm) each side, node padding ${spacing.nodePaddingX.pt}pt left/right and ${spacing.nodePaddingY.pt}pt top/bottom, margin ${spacing.margin.mm}mm, max width ${spacing.maxWidth === null ? "none" : `${spacing.maxWidth.mm}mm`}`,
   ];
   const table = formatTable(
-    ["COMPONENT", "WIDTH", "HEIGHT", "PROPS", "LABEL"],
+    ["COMPONENT", "WIDTH", "HEIGHT", "MIN WIDTH", "PROPS", "LABEL"],
     setting.components.map((size) => [
       size.component,
       ...sizeText(size),
+      size.minWidth === null ? "-" : `${size.minWidth.mm}mm`,
       propsText(size.props),
       size.label === null ? "(no label)" : JSON.stringify(size.label),
     ]),
@@ -203,7 +208,9 @@ export function formatSizesText(setting: SizeSetting): string {
     setting.sizedByProps.length === 0
       ? ""
       : `Sized by their props, not by a label (see sumi catalog): ${setting.sizedByProps.join(", ")}\n`;
-  return `${header.join("\n")}\n${table}${byProps}`;
+  const note =
+    "WIDTH × HEIGHT: the natural size (label plus padding). MIN WIDTH: the narrowest props.width that passes geometry/label-overflow.\n";
+  return `${header.join("\n")}\n${table}${note}${byProps}`;
 }
 
 /** The human-readable catalog: one table per section, titled when there are several. */

@@ -20,6 +20,11 @@ import { BUILTIN_THEMES } from "../../core/theme/builtin";
 import { themeCatalogEntry } from "../../core/theme/catalog";
 import { getFontSet, LATIN_FONT_SET_ID } from "../../core/theme/fonts";
 import { formatMm, formatPt, ptToMm, roundToD2Units } from "../../core/units";
+import { ALL_LINT_RULES } from "../../lint/config";
+import { createGeometryContext } from "../../lint/geometry/context";
+import { type GeometryRule, isGeometryRule } from "../../lint/rule";
+import { inspectSvg } from "../../render/inspect";
+import { writeStructuredSvg } from "../../render/structured";
 import { placeStructured } from "./engine";
 
 /** The settings the Skill's component table is measured in: a profile and its text scale. */
@@ -66,6 +71,14 @@ export interface ComponentSize {
   label: string | null;
   width: SizeLength;
   height: SizeLength;
+  /**
+   * The narrowest `props.width` (a multiple of 0.5pt) at which the label still
+   * passes `geometry/label-overflow`, found by drawing the node and running
+   * that rule. Narrower than `width`: the natural width includes the node
+   * padding, the rule only keeps the text clear of the frame. `null` when the
+   * row has no label, the component takes no `width`, or no width overflows.
+   */
+  minWidth: SizeLength | null;
 }
 
 /** Everything `sumi catalog --sizes` reports for one profile, density, theme and text scale. */
@@ -96,6 +109,8 @@ export interface SizeOptions {
   textScale?: number;
   /** Labels to measure each component with. Default `[SIZE_LABEL]`. */
   labels?: readonly string[];
+  /** Also find each labelled row's {@link ComponentSize.minWidth}. Default true. */
+  minWidths?: boolean;
   /** Node components to measure (short names or IDs). Default: all. */
   components?: readonly string[];
 }
@@ -224,6 +239,64 @@ function measure(
   }
 }
 
+/** The geometry rule `minWidth` is checked against, looked up after all rules are defined. */
+function labelOverflowRule(): GeometryRule<unknown> {
+  const rule = ALL_LINT_RULES.find((r) => r.id === "geometry/label-overflow");
+  if (rule === undefined || !isGeometryRule(rule)) {
+    throw new Error("internal error: geometry/label-overflow is not a geometry rule");
+  }
+  return rule as GeometryRule<unknown>;
+}
+
+/**
+ * Whether a node with `props.width` of `units` (0.5pt) draws its label
+ * without `geometry/label-overflow`; `undefined` when it cannot be drawn so.
+ */
+function fitsAt(
+  frame: Frame,
+  component: string,
+  label: string,
+  units: number,
+): boolean | undefined {
+  const node = { id: "n", component, label, props: { width: `${units / 2}pt` } };
+  const compiled = compileFigure(figureText(frame, { row: { items: ["n"] } }, [node]));
+  if (!compiled.ok) return undefined;
+  const { ir } = compiled.value;
+  const fonts = getFontSet(ir.meta.fontSetId);
+  if (fonts === undefined) return undefined;
+  try {
+    const { layout } = placeStructured(ir);
+    const inspected = inspectSvg(writeStructuredSvg(ir, layout, fonts), ir);
+    if (!inspected.ok) return undefined;
+    const context = createGeometryContext(ir, inspected.value, fonts);
+    return labelOverflowRule().run(context, undefined).length === 0;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The narrowest width (pt) at which the label passes `geometry/label-overflow`; see {@link ComponentSize.minWidth}. */
+function minWidthOf(
+  frame: Frame,
+  component: string,
+  label: string,
+  naturalPt: number,
+): number | undefined {
+  // Whole layout units (0.5pt) at or above the natural width, which fits.
+  let fits = Math.ceil(naturalPt * 2);
+  if (fitsAt(frame, component, label, fits) !== true) return undefined;
+  if (fitsAt(frame, component, label, 1) === true) return undefined;
+  let overflows = 1;
+  while (fits - overflows > 1) {
+    const middle = Math.floor((fits + overflows) / 2);
+    const result = fitsAt(frame, component, label, middle);
+    if (result === undefined) return undefined;
+    if (result) fits = middle;
+    else overflows = middle;
+  }
+  return fits / 2;
+}
+
 /** The text sizes, line widths and radius Sumi resolves for a box, a group and an edge. */
 function probeStyles(frame: Frame): Pick<SizeSetting, "text" | "lines" | "radiusPt"> {
   const text = figureText(
@@ -295,6 +368,7 @@ function componentSizes(
   frame: Frame,
   ids: readonly string[],
   labels: readonly string[],
+  minWidths: boolean,
 ): Pick<SizeSetting, "components" | "sizedByProps"> {
   const components: ComponentSize[] = [];
   const sizedByProps: string[] = [];
@@ -304,12 +378,15 @@ function componentSizes(
     props: Record<string, string> | null,
     size: { width: number; height: number },
   ) => {
+    const min =
+      minWidths && label !== null ? minWidthOf(frame, component, label, size.width) : undefined;
     components.push({
       component,
       props,
       label,
       width: length(size.width),
       height: length(size.height),
+      minWidth: min === undefined ? null : length(min),
     });
   };
   for (const id of ids) {
@@ -353,7 +430,7 @@ export function defaultSizes(options: SizeOptions): SizeSetting {
     ...frame,
     ...styles,
     spacing: sizeSpacing(frame.profile, frame.density),
-    ...componentSizes(frame, ids, options.labels ?? [SIZE_LABEL]),
+    ...componentSizes(frame, ids, options.labels ?? [SIZE_LABEL], options.minWidths ?? true),
   };
 }
 
@@ -465,7 +542,12 @@ function componentTable(): string[] {
     `| --- | ${SIZE_SETTINGS.map(() => "---").join(" | ")} |`,
   ];
   const settings = SIZE_SETTINGS.map((s) =>
-    defaultSizes({ profile: s.profile, theme: SIZE_THEME, textScale: s.textScale }),
+    defaultSizes({
+      profile: s.profile,
+      theme: SIZE_THEME,
+      textScale: s.textScale,
+      minWidths: false,
+    }),
   );
   const cell = (size: ComponentSize, note = "") =>
     `${size.width.mm}mm × ${size.height.mm}mm${note}`;
