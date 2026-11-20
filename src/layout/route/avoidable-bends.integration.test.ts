@@ -1,16 +1,31 @@
 /**
  * The three routes the #603 dogfooding study complained about (#604), cut
- * down to the elements involved: what the router now does with them and
- * what `geometry/avoidable-bend` says about the rest. Needs no D2.
+ * down to the elements involved, and what `geometry/avoidable-bend` says
+ * about them. Needs no D2.
  */
 import { describe, expect, test } from "bun:test";
-import type { ElementKey } from "../../core/check-state";
 import { lintGeometry } from "../../lint/geometry/lint";
 import { renderFigure } from "../../render/render";
-import { layoutStructuredFigure } from "../index";
 import type { Point } from "../ir";
-import { routeEdges } from "./router";
-import { bendCount } from "./simplify";
+
+/** Bends of a route: points minus its two ends, after dropping points in line. */
+function bendCount(points: readonly Point[]): number {
+  const p: Point[] = [];
+  for (const q of points) {
+    const a = p.at(-2);
+    const b = p.at(-1);
+    if (b !== undefined && Math.abs(b.x - q.x) < 1e-6 && Math.abs(b.y - q.y) < 1e-6) continue;
+    if (
+      a !== undefined &&
+      b !== undefined &&
+      ((Math.abs(a.x - b.x) < 1e-6 && Math.abs(b.x - q.x) < 1e-6) ||
+        (Math.abs(a.y - b.y) < 1e-6 && Math.abs(b.y - q.y) < 1e-6))
+    )
+      p.pop();
+    p.push(q);
+  }
+  return Math.max(0, p.length - 2);
+}
 
 async function render(source: string) {
   const result = await renderFigure(source);
@@ -30,7 +45,7 @@ const avoidable = (value: Awaited<ReturnType<typeof render>>) =>
 
 // Example 1: an encoder's edge into a matrix, anchored 0.2 down its east side,
 // just below the encoder's side: an S where a straight line fits.
-const CRITIC = (anchor: string) => `
+const CRITIC = (anchor: string, from = "") => `
 version: 1
 figure:
   id: critic
@@ -58,7 +73,7 @@ nodes:
         n: {tone: gray}
       cells: [pnnn, npnn, nnpn, nnnp]
 edges:
-  - {from: phi, to: critic, toAnchor: "${anchor}"}
+  - {from: phi, to: critic, toAnchor: "${anchor}"${from === "" ? "" : `, fromAnchor: "${from}"`}}
 `;
 
 // Example 2: a label's line into a hidden junction placed just beside it,
@@ -158,16 +173,19 @@ edges:
 `;
 
 describe("example 1: an anchor just outside the facing span", () => {
-  test("the S is kept (the anchor is written) and the lint gives the anchor that is straight", async () => {
+  test("the S is kept (the anchor is written) and the lint gives the anchors that are straight", async () => {
     const value = await render(CRITIC("east:0.2"));
     expect(bendCount(routeOf(value, "n:phi", "g:critic"))).toBe(2);
     const findings = avoidable(value);
     expect(findings).toHaveLength(1);
     const hint = findings[0]?.hint ?? "";
-    const written = /toAnchor "(east:0\.\d+)"/.exec(hint)?.[1];
-    expect(written).toBeDefined();
-    // Applied, the unanchored source slides into line: one straight segment.
-    const fixed = await render(CRITIC(written as string));
+    // phi's centre is off the shared span, so both ends get a value.
+    const to = /toAnchor "(east:0\.\d+)"/.exec(hint)?.[1];
+    const from = /fromAnchor "(west:0\.\d+)"/.exec(hint)?.[1];
+    expect(to).toBeDefined();
+    expect(from).toBeDefined();
+    // Applied: one straight segment.
+    const fixed = await render(CRITIC(to as string, from as string));
     expect(routeOf(fixed, "n:phi", "g:critic")).toHaveLength(2);
     expect(avoidable(fixed)).toEqual([]);
   });
@@ -316,139 +334,5 @@ edges:
   test("corner anchors draw a deliberate shape and are not reported", async () => {
     const value = await render(pair('{from: a, to: b, fromAnchor: "east:0", toAnchor: "west:1"}'));
     expect(avoidable(value)).toEqual([]);
-  });
-});
-
-describe("straight, curved and zoom edges count (review of #617)", () => {
-  const source = (extra: string) => `
-version: 1
-figure:
-  id: foreign
-  theme: sumi
-  layout:
-    arrange:
-      place:
-        unit: 1mm
-        items:
-          - {item: a, at: [0, 0]}
-          - {item: b, at: [40, 3]}
-          - {item: c, at: [0, 30]}
-nodes:
-  - {id: a, component: box, label: A}
-  - {id: b, component: box, label: B}
-  - {id: c, component: box, label: C}
-edges:
-  - {from: a, to: b}
-${extra}`;
-  const points = (text: string, simplify: boolean) => {
-    const placed = layoutStructuredFigure(text, { route: false });
-    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
-    const routed = routeEdges(placed.value.ir, placed.value.layout, { simplify });
-    return routed.layout.edges.find((e) => e.from === "n:a" && e.to === "n:b")?.route?.points;
-  };
-
-  test("an edge alone on its sides is simplified; one sharing a side with a straight edge is not", () => {
-    // Alone: the S between a and b becomes straight.
-    const alone = source("");
-    expect(points(alone, false)?.length).toBeGreaterThan(2);
-    expect(points(alone, true)).toHaveLength(2);
-    // A straight edge from c also ends on b's west side: a → b stays as routed.
-    const shared = source("  - {from: c, to: b, route: straight}\n");
-    expect(points(shared, true)).toEqual(points(shared, false));
-  });
-
-  test("a replacement that meets a curve drawn with the final routes is given back", () => {
-    // A stand-in for a curve into a junction, whose tangent comes from the
-    // orthogonal routes: it crosses a → b only once a → b is straight.
-    const text = source("");
-    const placed = layoutStructuredFigure(text, { route: false });
-    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
-    const key = placed.value.layout.edges[0]?.key as ElementKey;
-    const routed = routeEdges(placed.value.ir, placed.value.layout, {
-      foreignOf: (routes) => {
-        const p = routes.get(key);
-        if (p === undefined || p.length !== 2) return [];
-        const a = p[0] as Point;
-        const b = p[1] as Point;
-        const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-        return [
-          {
-            key: "e:curve" as ElementKey,
-            lines: [
-              [
-                { x: mid.x, y: mid.y - 3 },
-                { x: mid.x, y: mid.y + 3 },
-              ],
-            ],
-            ends: [],
-          },
-        ];
-      },
-    });
-    const after = routed.layout.edges.find((e) => e.key === key)?.route?.points;
-    expect(after).toEqual(points(text, false));
-  });
-
-  test("the check runs on the routes as returned, after the parallel runs are separated", () => {
-    // Nested skips on one side are moved into lanes of their own after
-    // routing (#512); x → y is simplified. The straight, curved and zoom
-    // edges are compared with the separated routes, the ones returned.
-    const text = `
-version: 1
-figure:
-  id: order
-  theme: sumi
-  layout:
-    fanIn: merge
-    arrange:
-      row:
-        gap: 12mm
-        align: start
-        items:
-          - stack: {direction: up, gap: 4mm, align: stretch, items: [a1, a2, a3, m, b3, b2, b1]}
-          - x
-          - y
-nodes:
-  - {id: a1, component: box, label: A1}
-  - {id: a2, component: box, label: A2}
-  - {id: a3, component: box, label: A3}
-  - {id: m, component: box, label: M}
-  - {id: b3, component: box, label: B3}
-  - {id: b2, component: box, label: B2}
-  - {id: b1, component: box, label: B1}
-  - {id: x, component: box, label: X, props: {height: 20mm}}
-  - {id: y, component: box, label: Y, props: {height: 8mm}}
-edges:
-  - {from: a3, to: b3, fromAnchor: east, toAnchor: east}
-  - {from: a2, to: b2, fromAnchor: east, toAnchor: east}
-  - {from: a1, to: b1, fromAnchor: east, toAnchor: east}
-  - {from: x, to: y}
-`;
-    const placed = layoutStructuredFigure(text, { route: false });
-    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
-    let seen: Map<ElementKey, readonly Point[]> | undefined;
-    const routed = routeEdges(placed.value.ir, placed.value.layout, {
-      foreignOf: (routes) => {
-        seen = new Map(routes);
-        return [];
-      },
-    });
-    const xy = routed.layout.edges.find((e) => e.from === "n:x" && e.to === "n:y");
-    expect(xy?.route?.points).toHaveLength(2);
-    expect(seen).toBeDefined();
-    // The last routes the check saw are the returned ones (up to the shift
-    // that puts the content at the margin).
-    const first = routed.layout.edges[0];
-    const shown = (seen as Map<ElementKey, readonly Point[]>).get(first?.key as ElementKey) ?? [];
-    const out = first?.route?.points ?? [];
-    const dx = (out[0] as Point).x - (shown[0] as Point).x;
-    const dy = (out[0] as Point).y - (shown[0] as Point).y;
-    for (const e of routed.layout.edges) {
-      const a = (seen as Map<ElementKey, readonly Point[]>).get(e.key) ?? [];
-      const b = e.route?.points ?? [];
-      expect(b.map((p) => ({ x: p.x - dx, y: p.y - dy }))).toEqual(
-        a.map((p) => ({ x: expect.closeTo(p.x, 2), y: expect.closeTo(p.y, 2) })),
-      );
-    }
   });
 });

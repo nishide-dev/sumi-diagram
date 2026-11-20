@@ -72,11 +72,13 @@ for (const theme of BUILTIN_THEMES.keys()) {
       const inspected = value.inspection.elements.find((e) => e.key === "g:panel");
       for (const field of ["x", "y", "width", "height"] as const)
         expect(inspected?.bbox?.[field]).toBeCloseTo(placed.rect[field], 6);
+      // The input's centre is off the front frame's: the written `west`
+      // anchor gets a value that lines them up (#604).
       expect(
-        lintGeometry(value, { source: layeredGroupSource(theme, variant) }).filter(
-          (d) => d.severity !== "info",
-        ),
-      ).toEqual([]);
+        lintGeometry(value, { source: layeredGroupSource(theme, variant) })
+          .filter((d) => d.severity !== "info")
+          .map((d) => [d.code, /toAnchor "west:0\.\d+"/.test(d.hint ?? "")]),
+      ).toEqual([["geometry/avoidable-bend", true]]);
       const markup = value.svg.match(/<g class="sumi-k-g--panel[\s\S]*?<\/g>/)?.[0] ?? "";
       expect((markup.match(/<rect /g) ?? []).length).toBe(4);
       expect(svgToPdf(value.svg).ok).toBe(true);

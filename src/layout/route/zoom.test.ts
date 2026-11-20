@@ -11,7 +11,6 @@ import { type LayoutFigureOptions, layoutStructuredFigure } from "../index";
 import type { LayoutIR, Rect } from "../ir";
 import type { TextMeasurer } from "../text";
 import { checkRoutes } from "./check";
-import { routeEdges } from "./router";
 import { zoomLines, zoomSide } from "./zoom";
 
 const FAKE: TextMeasurer = {
@@ -219,14 +218,8 @@ describe("zoom edges in a structured layout", () => {
   });
 
   test("the other edges are routed as without the zoom edges", () => {
-    // The grid search ignores zoom lines. The simplification after routing
-    // (#604) keeps clear of them, so it is left out of this comparison.
-    const routedWith = (text: string) => {
-      const placed = run(text, { route: false });
-      return routeEdges(placed.value.ir, placed.value.layout, { simplify: false }).layout;
-    };
-    const without = routedWith(figure(routed));
-    const withZoom = routedWith(figure([...zooms.slice(0, 2), ...routed, ...zooms.slice(2)]));
+    const without = run(figure(routed)).value.layout;
+    const withZoom = run(figure([...zooms.slice(0, 2), ...routed, ...zooms.slice(2)])).value.layout;
     const routes = (layout: LayoutIR) =>
       layout.edges.filter((e) => e.route?.lines === undefined).map((e) => e.route?.points);
     expect(routes(withZoom)).toEqual(routes(without));

@@ -3,15 +3,15 @@
  * `docs/design/decisions/604-avoidable-bends.md`): an orthogonal edge with
  * more bends than its ends need, or with a tiny step between two bends.
  *
- * The router removes the bends it may (`layout/route/simplify.ts`): it slides
- * and turns ends nobody anchored. What it may not touch is what the YAML
- * wrote, so this rule names the cause and the fix:
+ * The rule names the cause and a fix the author can write; it does not
+ * change the routes (rewriting them after routing was tried in #617 and
+ * dropped; moving nodes into line is `figure.layout.straighten`, #618):
  *
  * - **A written anchor** keeps the ends out of line: the two sides face each
  *   other over a common span, but the anchored position lies outside it.
- *   The hint gives the anchor value that puts the end inside the span (the
- *   nearest to what was written); the router then slides an unanchored other
- *   end into line. Or the anchors hold the ends on sides where an L with one
+ *   The hint gives anchor values whose exact line is checked to be clear:
+ *   one value when the other end already lies in the span, else one for
+ *   each end. Or the anchors hold the ends on sides where an L with one
  *   bend would fit: the hint names the sides.
  * - **A tiny jog**: a step between two bends shorter than 2mm (printed; under
  *   1pt is `geometry/edge-jog`'s), which nothing could straighten.
@@ -29,6 +29,7 @@ import type { ElementKey } from "../../core/check-state";
 import type { Anchor } from "../../core/figure/layout";
 import type { Side } from "../../core/figure/schema";
 import { mmToPt, ptToD2Units } from "../../core/units";
+import { groupFrontRect } from "../../layout/group-layers";
 import { STRAIGHT_MARGIN } from "../../layout/route/ports";
 import type { Point, Rect } from "../../render/geometry";
 import { defineGeometryRule, type LintFinding } from "../rule";
@@ -172,6 +173,9 @@ const writtenAnchor = (edge: EdgeIR, field: "fromAnchor" | "toAnchor"): Anchor |
 /** The box an element is routed to: its shape's, or its text's for a label. */
 function boxOf(element: GeometryElement | undefined): Rect | undefined {
   if (element === undefined) return undefined;
+  // A layered group's edges end on its front frame, not its whole footprint.
+  if (element.ir.kind === "group" && element.bbox !== undefined)
+    return groupFrontRect(element.ir, element.bbox);
   return (
     element.bbox ?? unionOf(element.labels.flatMap((l) => (l.box === undefined ? [] : [l.box])))
   );
@@ -324,27 +328,39 @@ function anchorFix(
         w !== undefined && (w < lo - 1e-6 || w > hi + 1e-6);
       // Both written, inside the span but apart: one position for both.
       const apart = wf !== undefined && wt !== undefined && Math.abs(wf - wt) > 0.5;
-      if (outside(wf) || outside(wt) || apart) {
-        // The anchors to change: both when both are written, else the one outside.
+      // An end without an anchor stays where the router put it: a single
+      // anchor can only line up with that end's position (within the 1pt the
+      // router straightens, #169); else both ends get a value.
+      const across = (p: Point, side: Side) => (vertical(side) ? p.x : p.y);
+      const single = (wf === undefined) !== (wt === undefined);
+      const freeAt =
+        wf === undefined
+          ? across(points[0] as Point, fromSide)
+          : across(points.at(-1) as Point, toSide);
+      const alone = single && freeAt >= lo - 1e-6 && freeAt <= hi + 1e-6;
+      // One anchor in the span, but off the other end's position by more
+      // than the router straightens.
+      const off = alone && Math.abs((wf ?? wt ?? freeAt) - freeAt) > 2;
+      if (outside(wf) || outside(wt) || apart || off) {
         const fields = (
           [
-            ["fromAnchor", wf, a, fromSide],
-            ["toAnchor", wt, b, toSide],
+            ["fromAnchor", a, fromSide],
+            ["toAnchor", b, toSide],
           ] as const
-        ).filter(([, w]) => w !== undefined && (apart || outside(w)));
+        ).filter(([field]) => (alone ? (field === "fromAnchor" ? wf : wt) !== undefined : true));
         // The exact line the written values give is checked, not the ideal one.
         const offsets = straightOffsets(
-          fields.map(([, , rect, side]) => ({ rect, side })),
-          at,
-          lo,
-          hi,
+          fields.map(([, rect, side]) => ({ rect, side })),
+          alone ? freeAt : at,
+          alone ? Math.max(lo, freeAt - 1) : lo,
+          alone ? Math.min(hi, freeAt + 1) : hi,
           (c) => clear(lineAt(c), blocks),
         );
         if (offsets !== undefined) {
           return {
             bends: 0,
             anchors: fields.map(
-              ([field, , , side], i) => `${field} "${anchorText(side, offsets[i] as number)}"`,
+              ([field, , side], i) => `${field} "${anchorText(side, offsets[i] as number)}"`,
             ),
           };
         }
@@ -531,7 +547,7 @@ export const avoidableBend = defineGeometryRule({
           message: `${capitalize(element.name)} bends ${bends} times where ${fix.bends === 0 ? "a straight line" : "one bend"} would do: its written ${fix.anchors.length === 1 ? "anchor holds an end" : "anchors hold the ends"} ${fix.bends === 0 ? "out of line" : "on sides that need more bends"}.`,
           path: element.docPath,
           subject: element.subject,
-          hint: `Write ${fix.anchors.join(" and ")}${fix.bends === 0 && fix.anchors.length === 1 ? " (the end without an anchor follows into line)" : ""}, or remove the anchor if the default sides are fine. Write an anchor only where the side or position matters.`,
+          hint: `Write ${fix.anchors.join(" and ")}, or remove the anchor if the default sides are fine (or figure.layout.straighten: true, which moves nodes into line). Write an anchor only where the side or position matters.`,
         });
         continue;
       }

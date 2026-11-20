@@ -594,47 +594,26 @@ describe("facing ends out of line by little, in a short gap (#169)", () => {
       },
     );
 
-    test.each([2.5, 3, 6, 20])(
-      "off by %p: the unanchored source still slides into line after routing (#604)",
-      (delta) => {
-        const value = run(make(delta));
-        expectClean(value);
-        const points = pointsOf(value.layout, 0);
-        expect(points).toHaveLength(2);
-        const a = rectOf(value.layout, "a");
-        const center = vertical ? a.x + a.width / 2 : a.y + a.height / 2;
-        expect(across(points[0] as Point)).toBeCloseTo(center + delta, 3);
-        expect(across(points[1] as Point)).toBe(across(points[0] as Point));
-      },
-    );
-
-    const OPPOSITE = { north: "south", south: "north", east: "west", west: "east" } as const;
-    test.each([2.5, 3, 6, 20])(
-      "off by %p, both anchored: an S between the ends, shorter than a loop",
-      (delta) => {
-        const anchored = (d: number) =>
-          facing(kind, direction, d, `${OPPOSITE[SIDES[direction]]}:0.5`);
-        const make = anchored;
-        const value = run(make(delta));
-        expectClean(value);
-        const points = pointsOf(value.layout, 0);
-        const length = points.slice(1).reduce((s, p, i) => s + span(points[i] as Point, p), 0);
-        const a = rectOf(value.layout, "a");
-        const b = rectOf(value.layout, "b");
-        const gap = vertical
-          ? Math.max(b.y - (a.y + a.height), a.y - (b.y + b.height))
-          : Math.max(b.x - (a.x + a.width), a.x - (b.x + b.width));
-        const lanes = ROUTE.clearance + arrowheadLength(1);
-        expect(gap).toBeLessThan(lanes);
-        // Out of a for its stub, across, back, across, into b for its stub.
-        expect(points).toHaveLength(6);
-        expect(length).toBeCloseTo(gap + 2 * (lanes - gap) + delta, 2);
-        const placed = layoutStructuredFigure(make(delta), { measurer: FAKE, route: false });
-        if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
-        const result = routeEdges(placed.value.ir, placed.value.layout, { verifyLowerBound: true });
-        expect(result.diagnostics).toEqual([]);
-      },
-    );
+    test.each([2.5, 3, 6, 20])("off by %p: an S between the ends, shorter than a loop", (delta) => {
+      const value = run(make(delta));
+      expectClean(value);
+      const points = pointsOf(value.layout, 0);
+      const length = points.slice(1).reduce((s, p, i) => s + span(points[i] as Point, p), 0);
+      const a = rectOf(value.layout, "a");
+      const b = rectOf(value.layout, "b");
+      const gap = vertical
+        ? Math.max(b.y - (a.y + a.height), a.y - (b.y + b.height))
+        : Math.max(b.x - (a.x + a.width), a.x - (b.x + b.width));
+      const lanes = ROUTE.clearance + arrowheadLength(1);
+      expect(gap).toBeLessThan(lanes);
+      // Out of a for its stub, across, back, across, into b for its stub.
+      expect(points).toHaveLength(6);
+      expect(length).toBeCloseTo(gap + 2 * (lanes - gap) + delta, 2);
+      const placed = layoutStructuredFigure(make(delta), { measurer: FAKE, route: false });
+      if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+      const result = routeEdges(placed.value.ir, placed.value.layout, { verifyLowerBound: true });
+      expect(result.diagnostics).toEqual([]);
+    });
   });
 
   test("a port shared by a fan-in stays; the other end moves, even anchored", () => {

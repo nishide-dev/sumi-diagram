@@ -68,7 +68,7 @@
  * (`labels.ts`) and the content and canvas grow to hold the routes.
  */
 
-import type { ArrangeBoxIR, EdgeIR, FigureIR, NodeIR } from "../../compiler/ir";
+import type { ArrangeBoxIR, EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Diagnostic, hasErrors } from "../../core/diagnostics";
 import type { Side } from "../../core/figure/schema";
@@ -90,9 +90,8 @@ import {
 import { deepFreeze } from "../structured/engine";
 import { arrowheadLength, edgeArrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
-import { sampleCubic } from "./cubic";
 import { addDirectRoutes, isDirectEdge } from "./diagonal";
-import { endpointRects, makeInside } from "./endpoint-rects";
+import { endpointRects } from "./endpoint-rects";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
 import { groupTitleDiagnostics } from "./group-title-diagnostics";
 import { PairHeap } from "./heap";
@@ -102,31 +101,18 @@ import { groupArrowheadStems } from "./padding";
 import { separateParallelRuns, separateSameSideRuns } from "./parallel";
 import { routeWithPlanes } from "./planes";
 import {
-  anchorPoint,
   bottomOf,
   DIRS,
   type End,
   facing,
   isJunction,
-  nodeBoundaryEntry,
   opposite,
   resolveEnds,
   rightOf,
-  SIDE_DIR,
   STRAIGHT_MARGIN,
   straightenable,
   straightPlacement,
 } from "./ports";
-import {
-  lineContacts,
-  type SideRange,
-  type Simplified,
-  type SimplifyEdge,
-  type SimplifyEnd,
-  type SimplifyScene,
-  simplifyRoutes,
-  type Terminal,
-} from "./simplify";
 import { addZoomRoutes, isZoomEdge, withoutZoomEdges, withoutZoomLayouts } from "./zoom";
 
 /** Router parameters in units (0.5pt) and costs (in units of length). */
@@ -164,34 +150,6 @@ export const ROUTE = Object.freeze({
   /** Extra grid lines beside a same-side skip's ends, for nested skips to take separate lanes. */
   sideLanes: 3,
 });
-
-/** Shapes whose ends may slide along a side or move to another (#604): sides drawn straight. */
-const SLIDING_SHAPES: ReadonlySet<string> = new Set(["rectangle", "square", "text", "cylinder"]);
-
-/** The box of each line of an upright label, as wide as the line (its whole box if turned). */
-function textLines(label: TextLayout): Rect[] {
-  if (label.rotation !== undefined) return [label.box];
-  return label.lineWidths.map((width, i) => {
-    const x =
-      label.textAlign === "left"
-        ? label.box.x
-        : label.textAlign === "right"
-          ? label.box.x + label.box.width - width
-          : label.box.x + (label.box.width - width) / 2;
-    return { x, y: label.box.y + i * label.lineHeightUnits, width, height: label.lineHeightUnits };
-  });
-}
-
-/** Where a line into `port` along the side's inward normal meets the drawn shape (as `resolveEnds`). */
-function outlineOf(node: NodeIR, rect: Rect, side: Side, port: Point): Point {
-  const outward = SIDE_DIR[side];
-  const depth = outward % 2 === 0 ? rect.width : rect.height;
-  const d = DIRS[opposite(outward)] as Point;
-  const far = { x: port.x + d.x * depth, y: port.y + d.y * depth };
-  const t = nodeBoundaryEntry(port, far, node, rect);
-  if (t === undefined || t <= 0) return port;
-  return { x: roundUnits(port.x + d.x * depth * t), y: roundUnits(port.y + d.y * depth * t) };
-}
 
 /** Stroke-to-stroke gap between lanes of nested same-side skips (1.5pt, with rounding room). */
 const SIDE_LANE_GAP = 3.02;
@@ -237,68 +195,6 @@ export interface RouteOptions {
    * whole layout routed each way need not match once a tie appears.
    */
   verifyLowerBound?: boolean;
-  /** Replace routes with simpler ones after routing (#604; default `true`). */
-  simplify?: boolean;
-  /**
-   * For tests: how the straight, curved and zoom edges are drawn given the
-   * orthogonal routes (default: as `routeEdges` draws them).
-   */
-  foreignOf?: ForeignOf;
-}
-
-/**
- * An edge the orthogonal router does not route (`route: straight`, `curve`,
- * a zoom edge), as the simplification after routing sees it (#604): its
- * lines (curves flattened) and its ends on the elements it touches.
- */
-export interface ForeignEdge {
-  readonly key: ElementKey;
-  readonly lines: readonly (readonly Point[])[];
-  readonly ends: readonly { readonly key: ElementKey; readonly point: Point }[];
-}
-
-/** How straight, curved and zoom edges are drawn given the orthogonal routes. */
-export type ForeignOf = (routes: ReadonlyMap<ElementKey, readonly Point[]>) => ForeignEdge[];
-
-/**
- * The straight, curved and zoom edges of `ir` drawn on `layout` with the
- * orthogonal `routes` (a curve into a junction takes its tangent from an
- * orthogonal route there, `junctionTangents`).
- */
-function foreignEdges(
-  ir: FigureIR,
-  placed: LayoutIR,
-  routes: ReadonlyMap<ElementKey, readonly Point[]>,
-): ForeignEdge[] {
-  if (!ir.edges.some((e) => isDirectEdge(e) || isZoomEdge(e))) return [];
-  const layout: LayoutIR = {
-    ...placed,
-    edges: placed.edges.map((e) => {
-      const points = routes.get(e.key);
-      return points === undefined ? e : { ...e, route: { points } };
-    }),
-  };
-  const direct = addDirectRoutes(ir, layout, layout).layout;
-  const zoom = addZoomRoutes(ir, layout, direct).layout;
-  const kinds = new Map(ir.edges.map((e) => [e.key, e]));
-  const out: ForeignEdge[] = [];
-  for (const e of zoom.edges) {
-    const edge = kinds.get(e.key);
-    if (edge === undefined || e.route === undefined) continue;
-    if (!isDirectEdge(edge) && !isZoomEdge(edge)) continue;
-    const lines: Point[][] =
-      e.route.lines !== undefined
-        ? e.route.lines.map((l) => [l[0], l[1]])
-        : edge.route === "curve" && e.route.points.length === 4
-          ? [sampleCubic(e.route.points)]
-          : [[...e.route.points]];
-    const ends = lines.flatMap((l) => [
-      { key: edge.from, point: l[0] as Point },
-      { key: edge.to, point: l.at(-1) as Point },
-    ]);
-    out.push({ key: e.key, lines, ends });
-  }
-  return out;
 }
 
 export function routeEdges(
@@ -322,9 +218,6 @@ export function routeEdges(
     withoutZoomEdges(orthogonalIR),
     withoutZoomLayouts(orthogonalIR, orthogonalLayout),
     options,
-    options.simplify === false
-      ? () => []
-      : (options.foreignOf ?? ((routes) => foreignEdges(ir, layout, routes))),
   );
   const routed =
     options.hintTrials === false
@@ -351,12 +244,7 @@ export function withMergedFanIn(ir: FigureIR): FigureIR {
   return { ...ir, meta: { ...ir.meta, fanIn: "merge" } };
 }
 
-function routeWithoutZoom(
-  ir: FigureIR,
-  layout: LayoutIR,
-  options: RouteOptions,
-  foreign: ForeignOf = () => [],
-): RouteResult {
+function routeWithoutZoom(ir: FigureIR, layout: LayoutIR, options: RouteOptions): RouteResult {
   const routeFigure = (figure: FigureIR) =>
     chooseRouting(figure, (stubLines: boolean) =>
       new Router(
@@ -365,8 +253,6 @@ function routeWithoutZoom(
         options.lowerBound ?? true,
         options.verifyLowerBound ?? false,
         stubLines,
-        options.simplify ?? true,
-        foreign,
       ).run(),
     );
   const result = routeFigure(ir);
@@ -652,10 +538,6 @@ class Router {
 
   /** Also a grid line at the end of each stub that has a room beyond it (see `routeEdges`). */
   readonly #stubLines: boolean;
-  /** Simplify routes after routing (`#simplify`, #604). */
-  readonly #simplifyRoutes: boolean;
-  /** Straight, curved and zoom edges, which the simplification keeps clear of (#604). */
-  readonly #foreignOf: ForeignOf;
 
   constructor(
     ir: FigureIR,
@@ -663,11 +545,7 @@ class Router {
     lowerBound: boolean,
     verify: boolean,
     stubLines: boolean,
-    simplifyRoutes = true,
-    foreign: ForeignOf = () => [],
   ) {
-    this.#simplifyRoutes = simplifyRoutes;
-    this.#foreignOf = foreign;
     this.#ir = ir;
     this.#layout = layout;
     this.#lowerBound = lowerBound;
@@ -802,382 +680,29 @@ class Router {
       this.#occupy(cells, edge);
       routes.set(edge.ir.key, points);
     }
+    const parallelEdges = routable.map((e) => ({
+      key: e.ir.key,
+      width: e.ir.style.strokeWidth.units,
+      fromRoom: Math.max(e.fromLane, e.fromRoom),
+      toRoom: Math.max(e.toLane, e.toRoom),
+    }));
     const obstacles = [
       ...this.#obstacles.map((o) => o.rect),
       ...this.#layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
       ...captionBoxes(this.#ir, this.#layout),
     ];
-    /** Separates parallel runs (#329, #512) of `r` in place, for the edges as they are. */
-    const separate = (current: Edge[], r: Map<ElementKey, Point[]>) => {
-      const parallelEdges = current.map((e) => ({
-        key: e.ir.key,
-        width: e.ir.style.strokeWidth.units,
-        fromRoom: Math.max(e.fromLane, e.fromRoom),
-        toRoom: Math.max(e.toLane, e.toRoom),
-      }));
-      const byKey = new Map(current.map((e) => [e.ir.key, e] as const));
-      const shares = (a: ElementKey, b: ElementKey) =>
-        sharable(byKey.get(a) as Edge, byKey.get(b) as Edge);
-      separateParallelRuns(r, parallelEdges, obstacles, shares);
-      separateSameSideRuns(
-        r,
-        parallelEdges,
-        obstacles,
-        this.#layout.groups.map((g) => g.rect),
-        shares,
-      );
-    };
-    // Avoidable bends (#604): simpler shapes where they keep every rule.
-    // Straight, curved and zoom edges are drawn from the orthogonal routes (a
-    // curve into a junction takes its tangent from one), and the separation
-    // can move segments: so the check against them runs on the routes as
-    // returned, after separating. A replacement that meets one of them more
-    // often than its routed line does (after separating, unsimplified) is
-    // given back and the rest simplified again (three rounds at most, else
-    // nothing is replaced).
-    let final = routable;
-    if (!this.#simplifyRoutes) {
-      separate(routable, routes);
-    } else {
-      const grid = new Map(routes);
-      const base = new Map(grid);
-      separate(routable, base);
-      const excluded = new Set<ElementKey>();
-      let result: { edges: Edge[]; routes: Map<ElementKey, Point[]> } | undefined;
-      for (let round = 0; round < 3 && result === undefined; round++) {
-        const r = new Map(grid);
-        const simplified = this.#simplify(routable, r, excluded);
-        separate(simplified.edges, r);
-        if (simplified.changed.size === 0) {
-          result = { edges: simplified.edges, routes: r };
-          break;
-        }
-        const foreign = this.#foreignOf(r);
-        const worse = [...simplified.changed].filter((key) =>
-          foreign.some((f) =>
-            f.lines.some(
-              (line) =>
-                lineContacts(r.get(key) ?? [], line) > lineContacts(base.get(key) ?? [], line),
-            ),
-          ),
-        );
-        if (worse.length === 0) result = { edges: simplified.edges, routes: r };
-        for (const key of worse) excluded.add(key);
-      }
-      const chosen = result ?? { edges: routable, routes: base };
-      routes.clear();
-      for (const [k, v] of chosen.routes) routes.set(k, v);
-      final = chosen.edges;
-    }
-    return { layout: this.#result(final, routes), diagnostics: this.#diagnostics };
-  }
-
-  /**
-   * Replaces routes with simpler ones where that keeps every rule
-   * (`simplify.ts`, #604) and returns the edges with their ends moved. Only
-   * an edge that is a net of its own between two ports, alone on both of its
-   * sides (no junction, no fan-out or fan-in, no multi-edge, no self-loop,
-   * neither end inside the other) is looked at; an end moves only if it has
-   * no written anchor and sits on a straight side of a plain node.
-   */
-  #simplify(
-    edges: Edge[],
-    routes: Map<ElementKey, Point[]>,
-    excluded: ReadonlySet<ElementKey>,
-  ): { edges: Edge[]; changed: Set<ElementKey> } {
-    const ir = this.#ir;
-    const layout = this.#layout;
-    const rects = endpointRects(ir, layout);
-    const nodeIR = new Map(ir.nodes.map((n) => [n.key, n]));
-    const parents = new Map(
-      [...layout.nodes, ...layout.groups].map((n) => [n.key, n.parent] as const),
-    );
-    const tokenFrames = new Set(ir.groups.filter((g) => g.tokens !== undefined).map((g) => g.key));
-    const inside = makeInside(rects, parents, tokenFrames);
-    const netSize = new Map<number, number>();
-    for (const edge of edges) netSize.set(edge.net, (netSize.get(edge.net) ?? 0) + 1);
-    /** The ends on each side of each element (`key|side`). */
-    const users = new Map<string, End[]>();
-    for (const edge of edges) {
-      for (const end of [edge.from, edge.to]) {
-        if (end.junction || end.side === undefined) continue;
-        const id = `${end.key}|${end.side}`;
-        users.set(id, [...(users.get(id) ?? []), end]);
-      }
-    }
-    // The ends of straight, curved and zoom edges use a side too (a zoom
-    // line's corner: both sides it touches).
-    // Drawn with the routes as the grid search left them (#604).
-    const foreign = this.#foreignOf(routes);
-    for (const f of foreign) {
-      for (const { key, point } of f.ends) {
-        const rect = rects.get(key);
-        if (rect === undefined) continue;
-        const near = (a: number, b: number) => Math.abs(a - b) < 0.5;
-        const sides: Side[] = [];
-        if (near(point.y, rect.y)) sides.push("north");
-        if (near(point.y, bottomOf(rect))) sides.push("south");
-        if (near(point.x, rect.x)) sides.push("west");
-        if (near(point.x, rightOf(rect))) sides.push("east");
-        // Inside the box (on a round shape's outline): the side it faces most.
-        if (sides.length === 0) {
-          const dx = (point.x - (rect.x + rect.width / 2)) / Math.max(rect.width, 1e-9);
-          const dy = (point.y - (rect.y + rect.height / 2)) / Math.max(rect.height, 1e-9);
-          sides.push(
-            Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "east" : "west") : dy > 0 ? "south" : "north",
-          );
-        }
-        for (const side of sides) {
-          const id = `${key}|${side}`;
-          const end: End = {
-            key,
-            junction: false,
-            side,
-            dir: SIDE_DIR[side],
-            port: point,
-            outline: point,
-          };
-          users.set(id, [...(users.get(id) ?? []), end]);
-        }
-      }
-    }
-    const SIDES: readonly Side[] = ["north", "east", "south", "west"];
-    const along = (p: Point, side: Side) => (side === "north" || side === "south" ? p.x : p.y);
-    const freeEnd = (end: End, written: boolean): SimplifyEnd["free"] => {
-      const node = nodeIR.get(end.key);
-      const rect = rects.get(end.key);
-      if (
-        written ||
-        node === undefined ||
-        rect === undefined ||
-        end.side === undefined ||
-        end.beforeGap !== undefined ||
-        end.dir !== SIDE_DIR[end.side] ||
-        node.render !== undefined ||
-        node.image?.layers !== undefined ||
-        node.legend !== undefined ||
-        node.tokens !== undefined ||
-        node.matrix !== undefined ||
-        node.captionOf !== undefined ||
-        !SLIDING_SHAPES.has(node.shape) ||
-        // `fanIn: spread` (#134) set these ends side by side on purpose.
-        (ir.meta.fanIn === "spread" &&
-          (users.get(`${end.key}|${end.side}`) ?? []).some((e) => e !== end))
-      )
-        return undefined;
-      const straightSide = (side: Side) =>
-        node.shape !== "cylinder" || side === "east" || side === "west";
-      // The sides and positions free now: read when the edge's turn comes,
-      // after the edges before it may have moved their ends (`moveEnds`).
-      const freeSides = (): SideRange[] => {
-        const sides: SideRange[] = [];
-        for (const side of [end.side as Side, ...SIDES.filter((s) => s !== end.side)]) {
-          if (!straightSide(side) || (side === "south" && node.labelBelow === true)) continue;
-          const others = (users.get(`${end.key}|${side}`) ?? []).filter((e) => e !== end);
-          // Another side only if no other end uses it.
-          if (side !== end.side && others.length > 0) continue;
-          const vertical = side === "north" || side === "south";
-          const start = vertical ? rect.x : rect.y;
-          const span = vertical ? rect.width : rect.height;
-          const margin = Math.min(STRAIGHT_MARGIN, span / 2);
-          let lo = start + margin;
-          let hi = start + span - margin;
-          const here = along(end.port, side);
-          for (const other of others) {
-            const at = along(other.port, side);
-            if (at <= here) lo = Math.max(lo, at + 2 * ROUTE.clearance);
-            if (at >= here) hi = Math.min(hi, at - 2 * ROUTE.clearance);
-          }
-          if (side === end.side && (here < lo - 1e-9 || here > hi + 1e-9)) {
-            lo = here;
-            hi = here;
-          }
-          if (hi >= lo) sides.push({ side, lo, hi });
-        }
-        return sides[0]?.side === end.side ? sides : [];
-      };
-      if (freeSides().length === 0) return undefined;
-      return {
-        get sides() {
-          return freeSides();
-        },
-        at: (side, at) => {
-          const port = anchorPoint(rect, {
-            side,
-            offset:
-              side === "north" || side === "south"
-                ? (at - rect.x) / rect.width
-                : (at - rect.y) / rect.height,
-          });
-          const exact =
-            side === "north" || side === "south" ? { ...port, x: at } : { ...port, y: at };
-          return {
-            port: exact,
-            outline: outlineOf(node, rect, side, exact),
-            dir: SIDE_DIR[side],
-            side,
-          };
-        },
-      };
-    };
-    const simplifyEdges: SimplifyEdge[] = [];
-    const rooms = new Map<ElementKey, { from: number; to: number }>();
-    for (const edge of edges) {
-      const arrow = edgeArrowheadLength(edge.ir.style);
-      rooms.set(edge.ir.key, {
-        from:
-          edge.ir.sourceArrowhead === undefined
-            ? 0
-            : Math.max(edge.from.junction ? arrow : edge.fromLane, edge.fromRoom),
-        to:
-          edge.ir.targetArrowhead === undefined
-            ? 0
-            : Math.max(edge.to.junction ? arrow : edge.toLane, edge.toRoom),
-      });
-      if (!routes.has(edge.ir.key)) continue;
-      // An anchor at a corner (offset 0 or 1) draws a deliberate shape, such
-      // as a zoom callout's lines: left as routed (as `geometry/avoidable-bend`).
-      const corner = (a: EdgeIR["fromAnchor"]) =>
-        typeof a === "object" && (a.offset <= 0.001 || a.offset >= 0.999);
-      if (corner(edge.ir.fromAnchor) || corner(edge.ir.toAnchor)) continue;
-      const { from, to } = edge;
-      // A net of its own between two ports, alone on the side it leaves and
-      // the side it enters: a fan-out, fan-in, junction fan or multi-edge is
-      // a group of branches drawn alike, and stays as routed (#604 review).
-      if (from.junction || to.junction || from.dir < 0 || to.dir < 0) continue;
-      if (netSize.get(edge.net) !== 1) continue;
-      if ([from, to].some((e) => (users.get(`${e.key}|${e.side}`) ?? []).some((o) => o !== e)))
-        continue;
-      if (edge.ir.from === edge.ir.to || inside(from.key, to.key) || inside(to.key, from.key))
-        continue;
-      const fromRect = rects.get(from.key);
-      const toRect = rects.get(to.key);
-      if (fromRect === undefined || toRect === undefined) continue;
-      const end = (
-        e: End,
-        rect: Rect,
-        lane: number,
-        room: number,
-        written: boolean,
-        head: boolean,
-      ) => {
-        const free = freeEnd(e, written);
-        return {
-          key: e.key,
-          rect,
-          arrow: head ? arrow : 0,
-          current: {
-            port: e.port,
-            outline: e.outline,
-            dir: e.dir,
-            ...(e.side && { side: e.side }),
-          },
-          lane,
-          room,
-          ...(free !== undefined && { free }),
-        };
-      };
-      simplifyEdges.push({
-        key: edge.ir.key,
-        from: end(
-          from,
-          fromRect,
-          edge.fromLane,
-          edge.fromRoom,
-          edge.ir.fromAnchor !== undefined,
-          edge.ir.sourceArrowhead !== undefined,
-        ),
-        to: end(
-          to,
-          toRect,
-          edge.toLane,
-          edge.toRoom,
-          edge.ir.toAnchor !== undefined,
-          edge.ir.targetArrowhead !== undefined,
-        ),
-      });
-    }
-    if (simplifyEdges.length === 0) return { edges, changed: new Set() };
-    const netOf = new Map(edges.map((e) => [e.ir.key, e.net]));
-    /** The ends of each edge as they are now. */
-    const ends = new Map(edges.map((e) => [e.ir.key, { from: e.from, to: e.to }] as const));
-    const moved = (e: End, t: Terminal): End => {
-      if (t.port.x === e.port.x && t.port.y === e.port.y && t.dir === e.dir) return e;
-      const { beforeGap: _, ...rest } = e;
-      return {
-        ...rest,
-        port: t.port,
-        outline: t.outline,
-        dir: t.dir,
-        ...(t.side && { side: t.side }),
-      };
-    };
-    /** After an edge's ends move: the sides they leave are free, the new ones taken. */
-    const moveEnds = (key: ElementKey, result: Simplified) => {
-      const before = ends.get(key);
-      if (before === undefined) return;
-      const after = { from: moved(before.from, result.from), to: moved(before.to, result.to) };
-      for (const [old, now] of [
-        [before.from, after.from],
-        [before.to, after.to],
-      ] as const) {
-        if (old === now || old.junction) continue;
-        const was = `${old.key}|${old.side}`;
-        users.set(
-          was,
-          (users.get(was) ?? []).filter((e) => e !== old),
-        );
-        const id = `${now.key}|${now.side}`;
-        users.set(id, [...(users.get(id) ?? []), now]);
-      }
-      ends.set(key, after);
-    };
-    const scene: SimplifyScene = {
-      nodes: this.#obstacles.map((o) => {
-        const node = nodeIR.get(o.key);
-        // Annotation text: a label attached to a node, or a caption.
-        const soft =
-          node !== undefined &&
-          ((node.attach !== undefined && node.shape === "text") || node.captionOf !== undefined);
-        if (!soft) return o;
-        const label = this.#layout.nodes.find((n) => n.key === o.key)?.label;
-        return { ...o, soft, ...(label !== undefined && { lines: textLines(label) }) };
-      }),
-      boxes: [
-        ...layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
-        ...captionBoxes(ir, layout),
-      ],
-      groups: layout.groups.map((g) => {
-        const element = ir.elements.get(g.key);
-        const group = element?.kind === "group" ? element : undefined;
-        return {
-          key: g.key,
-          rect: group === undefined ? g.rect : groupFrontRect(group, g.rect),
-          drawn:
-            group !== undefined &&
-            group.style.strokeWidth.units > 0 &&
-            group.style.stroke !== "transparent",
-        };
-      }),
+    const byKey = new Map(routable.map((e) => [e.ir.key, e] as const));
+    const shares = (a: ElementKey, b: ElementKey) =>
+      sharable(byKey.get(a) as Edge, byKey.get(b) as Edge);
+    separateParallelRuns(routes, parallelEdges, obstacles, shares);
+    separateSameSideRuns(
       routes,
-      rooms,
-      foreign: foreign.map((f) => ({ key: f.key, lines: f.lines })),
-      shares: (a, b) => netOf.get(a) === netOf.get(b),
-      inside,
-    };
-    const changed = simplifyRoutes(
-      simplifyEdges.filter((e) => !excluded.has(e.key)),
-      scene,
-      moveEnds,
+      parallelEdges,
+      obstacles,
+      this.#layout.groups.map((g) => g.rect),
+      shares,
     );
-    if (changed.size === 0) return { edges, changed: new Set() };
-    return {
-      edges: edges.map((edge) => {
-        const now = ends.get(edge.ir.key);
-        return now === undefined || !changed.has(edge.ir.key) ? edge : { ...edge, ...now };
-      }),
-      changed: new Set(changed.keys()),
-    };
+    return { layout: this.#result(routable, routes), diagnostics: this.#diagnostics };
   }
 
   /** Try all directions at arrowed junctions, with the same hard stub as a port. */
