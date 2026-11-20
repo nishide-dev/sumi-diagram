@@ -2135,11 +2135,11 @@ export const glyphCollision = defineGeometryRule({
           );
         });
         // An icon is the node's picture, which a glyph may touch; text it must not cover.
-        const ownText =
-          !hasIcon(element) &&
-          element.labels.some((label) =>
+        const ownText = element.labels.some(
+          (label) =>
+            label.icon !== true &&
             label.visibleLines.some((line) => rectsOverlap(glyph, line, GEOMETRY_TOLERANCE_UNITS)),
-          );
+        );
         const ownBadge =
           element.badge !== undefined &&
           rectsOverlap(glyph, element.badge, GEOMETRY_TOLERANCE_UNITS);

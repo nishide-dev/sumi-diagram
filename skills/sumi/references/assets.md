@@ -71,7 +71,7 @@ Each line is a ready-made reference (`tabler/wave-sine`); use it verbatim. Table
   attach a `label` node carrying the icon to a side without edges
   (`{id: cond-icon, component: label, icon: tabler/clock, attach: {to: cond, side: south, gap: 1mm}}`)
   and say so in the report.
-- The icon is one text line tall (1 em) unless `iconSize` sets it: a number is a
+- An icon drawn alone is one text line tall (1 em; beside a label 1.2 em for `left`, 1.8 em for `top`) unless `iconSize` sets it: a number is a
   multiple of the node's font size (`iconSize: 2.5`), a string a length
   (`iconSize: "12mm"`). **Size icons with `iconSize`; do not wrap them in a
   `circle` or `box` to make them bigger.** A bare `label` with `icon` and

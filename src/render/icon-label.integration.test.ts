@@ -464,4 +464,16 @@ ${["tabler/database", "tabler/cpu", "emoji/fire", "tabler/user", "tabler/flame",
     expect(legendFound).not.toContain("geometry/icon-overuse");
     expect(legendFound).not.toContain("geometry/icon-family-mix");
   });
+
+  describe("glyphs", () => {
+    test("a glyph touching only its own icon is allowed, one covering the label is not", async () => {
+      const make = (glyph: string) =>
+        figure(
+          `  - { id: a, component: box, label: Hi, icon: tabler/database, iconSize: 3, glyphs: [${glyph}] }\n  - { id: b, component: box, label: B }`,
+        );
+      const onIcon = make("{ kind: dot, at: west, dx: 1 }");
+      const found = lintGeometry(await render(onIcon), { source: onIcon }).map((d) => d.code);
+      expect(found).not.toContain("geometry/glyph-collision");
+    });
+  });
 });

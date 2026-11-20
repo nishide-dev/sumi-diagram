@@ -32,6 +32,8 @@ import type { LabelGeometry, LabelRunGeometry } from "../../render/inspect";
 import { type FontMetrics, loadFontMetrics } from "../metrics";
 
 export interface MeasuredLabel {
+  /** Set on the icon square a node's `labels` carry (#94, #605): no text, the node's own picture. */
+  icon?: true;
   /** The label as inspected. */
   label: LabelGeometry;
   /** The font file the label is drawn with. */

@@ -131,6 +131,7 @@ function iconAsLabel(node: NodeIR, box: Rect, texts: readonly MeasuredLabel[] = 
       : iconRect(node, box);
   const size = rect.height;
   return {
+    icon: true,
     label: {
       text: "",
       anchor: { x: rect.x + rect.width / 2, y: rect.y + rect.height },
