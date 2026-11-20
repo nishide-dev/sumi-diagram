@@ -11,15 +11,18 @@
  * render's own steps (`placeStructured`, `straighten` as configured, then
  * `routeStructured`), drawn and checked by the other geometry rules. A move
  * is reported only if the edges it is for bend less in total (or, with as
- * many bends, take a shorter detour), no edge bends more, the canvas grows
- * in neither direction and no new error or warning appears. Only the best
+ * many bends, take a shorter detour), no edge bends more, no other edge's
+ * detour grows by more than 1pt, no edge turns around, the canvas grows in
+ * neither direction and the geometry lint (under the same configuration)
+ * finds no new error or warning. Only the best
  * move is reported, as a YAML edit; nothing is changed: where a node sits
  * can carry meaning (failures below the main flow), so the author decides.
  *
  * Cost: at most {@link RELOCATE_TRIALS} candidate layouts per figure, plus
  * one layout of the figure as it is (once a candidate passes), and only for
  * figures `HintTrials` accepts (at most 80 elements) without HTML or
- * external assets.
+ * external assets. All of it, the lint of each trial included, runs as a
+ * hint trial, so no other rule starts layouts inside it.
  */
 
 import { loadFigureAssets } from "../../assets/load";
@@ -62,7 +65,7 @@ interface Slot {
   readonly where: string;
 }
 
-interface Candidate {
+export interface Candidate {
   readonly slot: Slot;
   /** Grid: the target item index (an empty cell); stack / row: the new index. */
   readonly target: number;
@@ -77,6 +80,8 @@ interface Candidate {
 interface Trial {
   readonly ir: FigureIR;
   readonly layout: LayoutIR;
+  /** The trial before routing, as `GeometryContext.placed`. */
+  readonly placed: { readonly ir: FigureIR; readonly layout: LayoutIR };
   readonly diagnostics: readonly Diagnostic[];
 }
 
@@ -143,7 +148,7 @@ function arrangeSlots(context: GeometryContext, ir: FigureIR) {
       if (item.growFirst === true) return;
       const wrapped =
         box.kind === "grid" &&
-        (box.spans?.[index] !== undefined || box.cellAligns?.[index] !== undefined);
+        ((box.spans?.[index] ?? 1) !== 1 || box.cellAligns?.[index] !== undefined);
       const at: DocPath = [...path, box.kind, "items", index, ...(wrapped ? ["item"] : [])];
       visit(item, at, `the ${item.kind} at ${pathText(at)}`);
     });
@@ -247,22 +252,8 @@ function movedBox(box: ArrangeBoxIR, from: number, to: number): ArrangeBoxIR {
   };
 }
 
-const yamlId = (id: string) => (/^[A-Za-z_][\w.-]*$/.test(id) ? id : JSON.stringify(id));
-
-/** An item as written in `items`: its ID, `null`, or a nested box (elided). */
-function itemText(context: GeometryContext, item: ArrangeItemIR): string {
-  if (item === null) return "null";
-  if (typeof item === "string") {
-    const ir = context.get(item)?.ir;
-    return yamlId(ir !== undefined && ir.kind !== "edge" ? ir.id : item);
-  }
-  if (item.growFirst === true && typeof item.items[0] === "string")
-    return itemText(context, item.items[0]);
-  return `{ ${item.kind}: … }`;
-}
-
 /** What a trial layout leaves to check: per edge the bends and detour, the canvas, the problems. */
-function routesOf(layout: LayoutIR) {
+export function routesOf(layout: LayoutIR) {
   return new Map(
     layout.edges.map(
       (e) =>
@@ -297,146 +288,261 @@ function reversesAnEdge(ir: FigureIR, before: LayoutIR, after: LayoutIR): boolea
   });
 }
 
-/** Errors and warnings of a trial: its layout's and the other geometry rules', counted by code and subject. */
-function problemsOf(trial: Trial, assets: Parameters<typeof writeStructuredSvg>[3]) {
+/** How an item is named in a hint: its ID, `null`, or the kind of nested box. */
+function itemName(context: GeometryContext, item: ArrangeItemIR): string {
+  if (item === null) return "null";
+  if (typeof item === "string") {
+    const ir = context.get(item)?.ir;
+    return ir !== undefined && ir.kind !== "edge" ? ir.id : item;
+  }
+  if (item.growFirst === true && typeof item.items[0] === "string")
+    return itemName(context, item.items[0]);
+  return `a nested ${item.kind}`;
+}
+
+const yamlId = (id: string) => (/^[A-Za-z_][\w.-]*$/.test(id) ? id : JSON.stringify(id));
+
+/**
+ * The box's `items` in YAML flow style, the same in meaning as written (a
+ * grid cell wrapper `{ item, span, align }` is written back from its span and
+ * align; one with span 1 and no align is the bare item), or `undefined` when
+ * the IR cannot give an item back: a nested box, whose fields are not kept
+ * as written.
+ */
+function itemsYaml(context: GeometryContext, box: ArrangeBoxIR): string | undefined {
+  const out: string[] = [];
+  for (const [i, item] of box.items.entries()) {
+    if (item !== null && typeof item !== "string" && item.growFirst !== true) return undefined;
+    const name = itemName(context, item);
+    const text = item === null ? name : yamlId(name);
+    const span = box.kind === "grid" ? (box.spans?.[i] ?? 1) : 1;
+    const align = box.kind === "grid" ? box.cellAligns?.[i] : undefined;
+    out.push(
+      item !== null && (span !== 1 || align !== undefined)
+        ? `{ item: ${text}${span !== 1 ? `, span: ${span}` : ""}${align !== undefined ? `, align: ${align}` : ""} }`
+        : text,
+    );
+  }
+  return `[ ${out.join(", ")} ]`;
+}
+
+type RouteMap = ReturnType<typeof routesOf>;
+
+/** Why a trial was not kept, or what it gained. */
+export type RouteVerdict =
+  | { readonly ok: true; readonly bends: [number, number]; readonly detour: number }
+  | {
+      readonly ok: false;
+      readonly reason: "lost-route" | "more-bends" | "longer-detour" | "no-gain";
+    };
+
+/**
+ * Compares the routes of a trial with the rendered ones: kept only if no edge
+ * loses its route or bends more, no other edge's detour grows by more than
+ * 1pt, and `edges` (what the move is for) bend less in total, or as much
+ * with a detour at least 1pt shorter.
+ */
+export function compareRoutes(
+  before: RouteMap,
+  after: RouteMap,
+  edges: readonly ElementKey[],
+): RouteVerdict {
+  for (const [key, r] of before) {
+    const a = after.get(key);
+    if (a === undefined || !Number.isFinite(a.bends)) return { ok: false, reason: "lost-route" };
+    if (a.bends > r.bends) return { ok: false, reason: "more-bends" };
+    if (!edges.includes(key) && a.detour > r.detour + DETOUR_GAIN)
+      return { ok: false, reason: "longer-detour" };
+  }
+  const sum = (map: RouteMap, field: "bends" | "detour") =>
+    edges.reduce((s, key) => s + (map.get(key)?.[field] ?? 0), 0);
+  const bends: [number, number] = [sum(before, "bends"), sum(after, "bends")];
+  const detour = sum(before, "detour") - sum(after, "detour");
+  if (bends[1] < bends[0] || (bends[1] === bends[0] && detour >= DETOUR_GAIN))
+    return { ok: true, bends, detour };
+  return { ok: false, reason: "no-gain" };
+}
+
+/** Errors and warnings of a lint run: by code and subject, counted. */
+type Problems = Map<string, number>;
+
+/**
+ * Lints a trial the way the figure itself is linted: its layout's
+ * diagnostics, then the geometry rules (all but this one) under the same
+ * configuration and levels, on the trial's SVG with its placement and routes
+ * (so rules that check a hint by routing again, such as
+ * `geometry/avoidable-bend`, do so here too). Runs inside the hint-trial
+ * guard, so no rule starts layouts of its own.
+ */
+function problemsOf(
+  context: GeometryContext,
+  trial: Trial,
+  assets: Parameters<typeof writeStructuredSvg>[3],
+): Problems | undefined {
   const fonts = getFontSet(trial.ir.meta.fontSetId);
   if (fonts === undefined) return undefined;
   const inspected = inspectSvg(writeStructuredSvg(trial.ir, trial.layout, fonts, assets), trial.ir);
   if (!inspected.ok) return undefined;
-  const context = createGeometryContext(trial.ir, inspected.value, fonts);
-  const counts = new Map<string, number>();
+  const config = context.lintConfig ?? resolveLintConfig();
+  const linted: GeometryContext = {
+    ...createGeometryContext(trial.ir, inspected.value, fonts),
+    layout: trial.layout,
+    placed: trial.placed,
+    lintConfig: config,
+  };
+  const counts: Problems = new Map();
   const add = (code: string, subject: unknown) => {
     const key = `${code} ${JSON.stringify(subject ?? null)}`;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   };
   for (const d of trial.diagnostics)
     if (d.severity === "error" || d.severity === "warning") add(d.code, d.subject);
-  // The rules at their default levels (a rule's configured level is not known here).
-  for (const { rule, severity, options } of resolveLintConfig().rules) {
+  for (const { rule, severity, options, explicitSeverity } of config.rules) {
     if (!isGeometryRule(rule) || rule.id === RELOCATABLE_NODE) continue;
-    for (const f of rule.run(context, options)) {
-      const level = f.severity ?? severity;
+    for (const f of rule.run(linted, options)) {
+      const level = explicitSeverity ? severity : (f.severity ?? severity);
       if (level === "error" || level === "warning") add(rule.id, f.subject);
     }
   }
   return counts;
 }
 
-export const relocatableNode = defineGeometryRule({
-  id: RELOCATABLE_NODE,
-  description:
-    "An edge bends more than its ends need, and moving an end (or the arrange item holding it) to a nearby empty grid cell or another place in its stack or row, checked by laying the figure out and routing it again, removes bends.",
-  defaultSeverity: "info",
-  fixable: false,
-  run(context) {
-    if (!isStructured(context)) return [];
-    const placed = context.placed;
-    const rendered = context.layout;
-    if (placed === undefined || rendered === undefined) return [];
-    const original = placed.ir;
-    const excess = excessEdges(context);
-    if (excess.length === 0) return [];
-    if (!new HintTrials(original).eligible) return [];
-    if (context.html?.size || original.nodes.some((n) => n.image !== undefined)) return [];
-    if ([...(original.assets?.values() ?? [])].some((a) => a.src !== undefined)) return [];
+/** What became of one candidate move. */
+export interface RelocationOutcome {
+  readonly candidate: Candidate;
+  /** The moved box. */
+  readonly box: ArrangeBoxIR;
+  readonly verdict:
+    | RouteVerdict
+    | {
+        readonly ok: false;
+        readonly reason: "failed" | "error" | "reversed" | "grows" | "problems";
+      };
+  /** The route comparison, for a move whose routes passed but that a later check turned down. */
+  readonly routes?: RouteVerdict;
+  /** Canvas shrink in units (kept moves only). */
+  readonly shorter?: number;
+  readonly narrower?: number;
+}
 
-    const { slotOf, outer } = arrangeSlots(context, original);
-    // Candidate moves, per end of each edge: its own slot, then the next item out.
-    const candidates = new Map<string, Candidate>();
-    let order = 0;
-    for (const element of excess) {
-      const edge = element.ir;
-      if (edge.kind !== "edge") continue;
-      for (const [end, other] of [
-        [edge.from, edge.to],
-        [edge.to, edge.from],
-      ] as const) {
-        let slot = slotOf(end);
-        for (let level = 0; level < 2 && slot !== undefined; level++, slot = outer(slot)) {
-          const { box, index } = slot;
-          if (holds(context, box.items[index] ?? null, other)) break;
-          if (box.kind !== "grid" && box.kind !== "stack" && box.kind !== "row") continue;
-          if (box.growFirst === true) continue;
-          // Other ends in this box, for ranking: the cells in line with them come first.
-          const cells = box.kind === "grid" ? gridCells(box) : undefined;
-          const lineUp = (target: number) => {
-            if (cells === undefined) return 0;
-            const t = cells[target];
-            if (t === undefined) return 0;
-            let n = 0;
-            for (const e of excess) {
-              if (e.ir.kind !== "edge") continue;
-              const mine = holds(context, box.items[index] ?? null, e.ir.from)
-                ? e.ir.to
-                : holds(context, box.items[index] ?? null, e.ir.to)
-                  ? e.ir.from
-                  : undefined;
-              if (mine === undefined) continue;
-              const at = box.items.findIndex((item) => holds(context, item, mine));
-              const c = at >= 0 ? cells[at] : undefined;
-              if (c !== undefined && (c.row === t.row || c.column === t.column)) n++;
-            }
-            return n;
-          };
-          const targets: { target: number; distance: number }[] = [];
-          if (cells !== undefined) {
-            const here = cells[index];
-            if (here === undefined || (box.spans?.[index] ?? 1) !== 1) continue;
-            box.items.forEach((item, t) => {
-              const c = cells[t];
-              if (item !== null || t === index || c === undefined) return;
-              if ((box.spans?.[t] ?? 1) !== 1) return;
-              const d = Math.max(Math.abs(c.row - here.row), Math.abs(c.column - here.column));
-              if (d <= REACH) targets.push({ target: t, distance: d });
-            });
-          } else {
-            for (let d = 1; d <= REACH; d++)
-              for (const t of [index - d, index + d])
-                if (t >= 0 && t < box.items.length) targets.push({ target: t, distance: d });
+/**
+ * Finds the candidate moves of a figure and tries the first
+ * {@link RELOCATE_TRIALS}, as the rule does: every layout, route and lint of
+ * a trial runs inside the hint-trial guard. Empty when the rule does not
+ * apply. Exported for tests.
+ */
+export function relocationTrials(context: GeometryContext): RelocationOutcome[] {
+  if (!isStructured(context)) return [];
+  const placed = context.placed;
+  const rendered = context.layout;
+  if (placed === undefined || rendered === undefined) return [];
+  const original = placed.ir;
+  const excess = excessEdges(context);
+  if (excess.length === 0) return [];
+  if (!new HintTrials(original).eligible) return [];
+  if (context.html?.size || original.nodes.some((n) => n.image !== undefined)) return [];
+  if ([...(original.assets?.values() ?? [])].some((a) => a.src !== undefined)) return [];
+
+  const { slotOf, outer } = arrangeSlots(context, original);
+  // Candidate moves, per end of each edge: its own slot, then the next item out.
+  const candidates = new Map<string, Candidate>();
+  let order = 0;
+  for (const element of excess) {
+    const edge = element.ir;
+    if (edge.kind !== "edge") continue;
+    for (const [end, other] of [
+      [edge.from, edge.to],
+      [edge.to, edge.from],
+    ] as const) {
+      let slot = slotOf(end);
+      for (let level = 0; level < 2 && slot !== undefined; level++, slot = outer(slot)) {
+        const { box, index } = slot;
+        if (holds(context, box.items[index] ?? null, other)) break;
+        if (box.kind !== "grid" && box.kind !== "stack" && box.kind !== "row") continue;
+        if (box.growFirst === true) continue;
+        // Other ends in this box, for ranking: the cells in line with them come first.
+        const cells = box.kind === "grid" ? gridCells(box) : undefined;
+        const lineUp = (target: number) => {
+          if (cells === undefined) return 0;
+          const t = cells[target];
+          if (t === undefined) return 0;
+          let n = 0;
+          for (const e of excess) {
+            if (e.ir.kind !== "edge") continue;
+            const mine = holds(context, box.items[index] ?? null, e.ir.from)
+              ? e.ir.to
+              : holds(context, box.items[index] ?? null, e.ir.to)
+                ? e.ir.from
+                : undefined;
+            if (mine === undefined) continue;
+            const at = box.items.findIndex((item) => holds(context, item, mine));
+            const c = at >= 0 ? cells[at] : undefined;
+            if (c !== undefined && (c.row === t.row || c.column === t.column)) n++;
           }
-          for (const { target, distance } of targets) {
-            const id = `${slot.itemsPath.join("/")}#${index}>${target}`;
-            const known = candidates.get(id);
-            if (known !== undefined) {
-              if (!known.edges.includes(edge.key))
-                candidates.set(id, { ...known, edges: [...known.edges, edge.key] });
-              continue;
-            }
-            candidates.set(id, {
-              slot,
-              target,
-              edges: [edge.key],
-              score: lineUp(target),
-              distance,
-              order: order++,
-            });
+          return n;
+        };
+        const targets: { target: number; distance: number }[] = [];
+        if (cells !== undefined) {
+          const here = cells[index];
+          if (here === undefined || (box.spans?.[index] ?? 1) !== 1) continue;
+          box.items.forEach((item, t) => {
+            const c = cells[t];
+            if (item !== null || t === index || c === undefined) return;
+            if ((box.spans?.[t] ?? 1) !== 1) return;
+            const d = Math.max(Math.abs(c.row - here.row), Math.abs(c.column - here.column));
+            if (d <= REACH) targets.push({ target: t, distance: d });
+          });
+        } else {
+          for (let d = 1; d <= REACH; d++)
+            for (const t of [index - d, index + d])
+              if (t >= 0 && t < box.items.length) targets.push({ target: t, distance: d });
+        }
+        for (const { target, distance } of targets) {
+          const id = `${slot.itemsPath.join("/")}#${index}>${target}`;
+          const known = candidates.get(id);
+          if (known !== undefined) {
+            if (!known.edges.includes(edge.key))
+              candidates.set(id, { ...known, edges: [...known.edges, edge.key] });
+            continue;
           }
+          candidates.set(id, {
+            slot,
+            target,
+            edges: [edge.key],
+            score: lineUp(target),
+            distance,
+            order: order++,
+          });
         }
       }
     }
-    const ordered = [...candidates.values()]
-      .sort((a, b) => b.score - a.score || a.distance - b.distance || a.order - b.order)
-      .slice(0, RELOCATE_TRIALS);
-    if (ordered.length === 0) return [];
+  }
+  const ordered = [...candidates.values()]
+    .sort((a, b) => b.score - a.score || a.distance - b.distance || a.order - b.order)
+    .slice(0, RELOCATE_TRIALS);
+  if (ordered.length === 0) return [];
 
-    const assets = loadFigureAssets(original);
-    if (!assets.ok) return [];
-    const options = hintLayoutOptions.get(original);
+  const assets = loadFigureAssets(original);
+  if (!assets.ok) return [];
+  const options = hintLayoutOptions.get(original);
+  // Everything below (layouts, routes and the lint of each trial) runs as a
+  // hint trial: no rule or router starts trials of its own, so the layouts
+  // are the candidates' and the baseline's only.
+  return asHintTrial(() => {
     const trial = (ir: FigureIR): Trial | undefined => {
       try {
-        return asHintTrial(() => {
-          const laid = placeStructured(ir, options);
-          const { ir: faced, routed } = routeStructured(ir, laid.layout, { hintTrials: false });
-          return {
-            ir: faced,
-            layout: routed.layout,
-            diagnostics: [
-              ...laid.diagnostics,
-              ...setOverlapDiagnostics(faced, laid.layout),
-              ...routed.diagnostics,
-            ],
-          };
-        });
+        const laid = placeStructured(ir, options);
+        const { ir: faced, routed } = routeStructured(ir, laid.layout, { hintTrials: false });
+        return {
+          ir: faced,
+          layout: routed.layout,
+          placed: { ir, layout: laid.layout },
+          diagnostics: [
+            ...laid.diagnostics,
+            ...setOverlapDiagnostics(faced, laid.layout),
+            ...routed.diagnostics,
+          ],
+        };
       } catch {
         // A counterfactual may be invalid; it is never a recommendation.
         return undefined;
@@ -444,7 +550,7 @@ export const relocatableNode = defineGeometryRule({
     };
     const before = routesOf(rendered);
     const { width, height } = rendered.canvas;
-    let baseline: Map<string, number> | undefined | null = null;
+    let baseline: Problems | undefined | null = null;
     const baselineProblems = () => {
       if (baseline !== null) return baseline;
       baseline = undefined;
@@ -456,63 +562,87 @@ export const relocatableNode = defineGeometryRule({
         base.layout.canvas.width === width &&
         base.layout.canvas.height === height &&
         [...before].every(([key, r]) => again.get(key)?.bends === r.bends);
-      if (same) baseline = problemsOf(base, assets.value);
+      if (same) baseline = problemsOf(context, base, assets.value);
       return baseline;
     };
-
-    let best:
-      | {
-          candidate: Candidate;
-          bends: [number, number];
-          detour: number;
-          shorter: number;
-          narrower: number;
-          box: ArrangeBoxIR;
-        }
-      | undefined;
+    const outcomes: RelocationOutcome[] = [];
     for (const candidate of ordered) {
       const { slot, target } = candidate;
       const box = movedBox(slot.box, slot.index, target);
+      const done = (verdict: RelocationOutcome["verdict"], extra = {}) =>
+        outcomes.push({ candidate, box, verdict, ...extra });
       const result = trial(mapBoxes(original, (b, o) => (o === slot.box ? box : b)));
-      if (result === undefined) continue;
-      if (result.diagnostics.some((d) => d.severity === "error")) continue;
-      const after = routesOf(result.layout);
-      if (after.size !== before.size) continue;
-      // No edge bends more, or loses its route.
-      if ([...before].some(([key, r]) => (after.get(key)?.bends ?? Infinity) > r.bends)) continue;
-      const sum = (map: typeof before, field: "bends" | "detour") =>
-        candidate.edges.reduce((s, key) => s + (map.get(key)?.[field] ?? 0), 0);
-      const bendsBefore = sum(before, "bends");
-      const bendsAfter = sum(after, "bends");
-      const detour = sum(before, "detour") - sum(after, "detour");
-      if (!(bendsAfter < bendsBefore || (bendsAfter === bendsBefore && detour >= DETOUR_GAIN)))
+      if (result === undefined) {
+        done({ ok: false, reason: "failed" });
         continue;
+      }
+      if (result.diagnostics.some((d) => d.severity === "error")) {
+        done({ ok: false, reason: "error" });
+        continue;
+      }
+      const verdict = compareRoutes(before, routesOf(result.layout), candidate.edges);
+      if (!verdict.ok) {
+        done(verdict);
+        continue;
+      }
       // The reading direction stays: no edge comes to point the other way.
-      if (reversesAnEdge(original, rendered, result.layout)) continue;
+      if (reversesAnEdge(original, rendered, result.layout)) {
+        done({ ok: false, reason: "reversed" }, { routes: verdict });
+        continue;
+      }
       const canvas = result.layout.canvas;
-      if (canvas.width > width + 1e-6 || canvas.height > height + 1e-6) continue;
+      if (canvas.width > width + 1e-6 || canvas.height > height + 1e-6) {
+        done({ ok: false, reason: "grows" }, { routes: verdict });
+        continue;
+      }
       const base = baselineProblems();
       if (base === undefined) break;
-      const problems = problemsOf(result, assets.value);
-      if (problems === undefined) continue;
-      if ([...problems].some(([key, n]) => n > (base.get(key) ?? 0))) continue;
-      const gain = bendsBefore - bendsAfter;
-      const shorter = height - canvas.height;
-      const narrower = width - canvas.width;
+      const problems = problemsOf(context, result, assets.value);
+      if (problems === undefined || [...problems].some(([key, n]) => n > (base.get(key) ?? 0))) {
+        done({ ok: false, reason: "problems" }, { routes: verdict });
+        continue;
+      }
+      done(verdict, { shorter: height - canvas.height, narrower: width - canvas.width });
+    }
+    return outcomes;
+  });
+}
+
+export const relocatableNode = defineGeometryRule({
+  id: RELOCATABLE_NODE,
+  description:
+    "An edge bends more than its ends need, and moving an end (or the arrange item holding it) to a nearby empty grid cell or another place in its stack or row, checked by laying the figure out and routing it again, removes bends.",
+  defaultSeverity: "info",
+  fixable: false,
+  run(context) {
+    const rendered = context.layout;
+    if (rendered === undefined) return [];
+    const { width, height } = rendered.canvas;
+    let best: (RelocationOutcome & { verdict: { ok: true } }) | undefined;
+    const gainOf = (o: { verdict: { bends: [number, number] } }) =>
+      o.verdict.bends[0] - o.verdict.bends[1];
+    for (const outcome of relocationTrials(context)) {
+      if (!outcome.verdict.ok) continue;
+      const kept = outcome as RelocationOutcome & {
+        verdict: { ok: true; bends: [number, number]; detour: number };
+      };
+      const area = (o: RelocationOutcome) => (o.shorter ?? 0) * width + (o.narrower ?? 0) * height;
       if (
         best === undefined ||
-        gain > best.bends[0] - best.bends[1] ||
-        (gain === best.bends[0] - best.bends[1] &&
-          (detour > best.detour + 1e-6 ||
-            (Math.abs(detour - best.detour) <= 1e-6 &&
-              shorter * width + narrower * height >
-                best.shorter * width + best.narrower * height + 1e-6)))
+        gainOf(kept) > gainOf(best as typeof kept) ||
+        (gainOf(kept) === gainOf(best as typeof kept) &&
+          (kept.verdict.detour > (best as typeof kept).verdict.detour + 1e-6 ||
+            (Math.abs(kept.verdict.detour - (best as typeof kept).verdict.detour) <= 1e-6 &&
+              area(kept) > area(best) + 1e-6)))
       )
-        best = { candidate, bends: [bendsBefore, bendsAfter], detour, shorter, narrower, box };
+        best = kept;
     }
     if (best === undefined) return [];
+    const won = best as RelocationOutcome & {
+      verdict: { ok: true; bends: [number, number]; detour: number };
+    };
 
-    const { candidate, box } = best;
+    const { candidate, box } = won;
     const { slot, target } = candidate;
     const item = slot.box.items[slot.index] ?? null;
     const movedKey =
@@ -531,21 +661,15 @@ export const relocatableNode = defineGeometryRule({
       };
       return [{ element: e, text: `${e.name} (${id(e.ir.from)} → ${id(e.ir.to)})` }];
     });
-    const endKey = edges[0]?.element.ir;
-    const who =
-      moved?.name ??
-      (endKey?.kind === "edge" && item !== null
-        ? `the ${typeof item === "string" ? "item" : item.kind} holding ${
-            context.get(holds(context, item, endKey.from) ? endKey.from : endKey.to)?.name ?? "it"
-          }`
-        : "the item");
+    const name = itemName(context, item);
+    const who = moved?.name ?? name;
     // A nested box is named by its path ("the row at …"); a group's or the figure's by its owner.
     const where = slot.where.startsWith("the ")
       ? slot.where
       : `the ${slot.box.kind} of ${slot.where}`;
-    const items = box.items.map((i) => itemText(context, i));
+    const field = pathText(slot.itemsPath);
     let move: string;
-    let change: string;
+    let edit: string;
     if (slot.box.kind === "grid") {
       const cells = gridCells(slot.box);
       const from = cells[slot.index];
@@ -557,32 +681,38 @@ export const relocatableNode = defineGeometryRule({
       const row = gridCells(box)
         .map((c, i) => ({ c, i }))
         .filter(({ c }) => c.row === to.row && c.column >= lo && c.column <= hi)
-        .map(({ i }) => items[i]);
-      const dropped = box.items.length < slot.box.items.length;
+        .map(({ i }) => itemName(context, box.items[i] ?? null));
+      const dropped = slot.box.items.length - box.items.length;
       move = `from row ${from.row + 1}, column ${from.column + 1} to the empty cell at row ${to.row + 1}, column ${to.column + 1} of ${where}`;
-      change = `row ${to.row + 1}, columns ${lo + 1}–${hi + 1} become ${row.join(", ")}${dropped ? `, and the emptied last row ${from.row + 1} is dropped` : ""}`;
+      edit = `swap items[${slot.index}] (${name}) with items[${target}] (the null at row ${to.row + 1}, column ${to.column + 1}), so row ${to.row + 1}, columns ${lo + 1}–${hi + 1} become ${row.join(", ")}${
+        dropped > 0
+          ? `; then delete the last ${dropped} items (row ${from.row + 1}, now empty)`
+          : ""
+      }`;
     } else {
       move = `from place ${slot.index + 1} to place ${target + 1} of ${where}`;
-      change = `the order becomes ${items.join(", ")}`;
+      edit = `move items[${slot.index}] (${name}) to items[${target}], so the order becomes ${box.items.map((i) => itemName(context, i)).join(", ")}`;
     }
+    const yaml = itemsYaml(context, box);
     const list = edges.map((e) => e.text).join(" and ");
     const times = (n: number) => `${n} ${n === 1 ? "time" : "times"}`;
+    const [b0, b1] = won.verdict.bends;
     const effect =
-      best.bends[0] > best.bends[1]
+      b0 > b1
         ? edges.length === 1
-          ? `${list} bends ${times(best.bends[1])} instead of ${best.bends[0]}`
-          : `${list} bend ${times(best.bends[1])} in total instead of ${best.bends[0]}`
-        : `${list} ${edges.length === 1 ? "takes" : "take"} a ${mmText(context, best.detour)} shorter detour`;
+          ? `${list} bends ${times(b1)} instead of ${b0}`
+          : `${list} bend ${times(b1)} in total instead of ${b0}`
+        : `${list} ${edges.length === 1 ? "takes" : "take"} a ${mmText(context, won.verdict.detour)} shorter detour`;
     const size = [
-      ...(best.shorter > 1e-6 ? [`${mmText(context, best.shorter)} shorter`] : []),
-      ...(best.narrower > 1e-6 ? [`${mmText(context, best.narrower)} narrower`] : []),
+      ...((won.shorter ?? 0) > 1e-6 ? [`${mmText(context, won.shorter ?? 0)} shorter`] : []),
+      ...((won.narrower ?? 0) > 1e-6 ? [`${mmText(context, won.narrower ?? 0)} narrower`] : []),
     ];
     return [
       {
-        message: `${capitalize(who)} could move ${move}: then ${effect}${size.length > 0 ? `, and the figure is ${size.join(" and ")}` : ""} (checked by laying the figure out and routing it again: no other edge bends more, the figure does not grow and no new error or warning appears).`,
+        message: `${capitalize(who)} could move ${move}: then ${effect}${size.length > 0 ? `, and the figure is ${size.join(" and ")}` : ""} (checked by laying the figure out and routing it again: no other edge bends more or takes a longer detour, the figure does not grow and the geometry lint finds no new error or warning).`,
         path: slot.itemsPath,
         ...(moved !== undefined && { subject: moved.subject }),
-        hint: `In ${pathText(slot.itemsPath)}, ${change}: items: [ ${items.join(", ")} ]. Nothing is moved for you: keep the current place if it carries meaning (such as failures below the main flow).`,
+        hint: `In ${field}, ${edit}${yaml === undefined ? "" : `: items: ${yaml}`}. Nothing is moved for you: keep the current place if it carries meaning (such as failures below the main flow).`,
         related: edges.map(({ element }) => ({
           path: element.docPath,
           message: `${capitalize(element.name)} is defined here.`,

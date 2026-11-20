@@ -132,7 +132,7 @@ edges:
         {
           code: "geometry/relocatable-node",
           message:
-            'Node "c" could move from place 2 to place 1 of the row of group "g2": then edge edges[1] (top → c) bends 4 times instead of 6 (checked by laying the figure out and routing it again: no other edge bends more, the figure does not grow and no new error or warning appears).',
+            'Node "c" could move from place 2 to place 1 of the row of group "g2": then edge edges[1] (top → c) bends 4 times instead of 6 (checked by laying the figure out and routing it again: no other edge bends more or takes a longer detour, the figure does not grow and the geometry lint finds no new error or warning).',
         },
         {
           code: "geometry/arrowhead-cramped",

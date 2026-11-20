@@ -37,6 +37,9 @@ export function mapBoxes(
   };
 }
 
+/** Calls of `placeStructured`, counted for tests that bound the layouts a lint rule runs. */
+export const placements = { count: 0 };
+
 /**
  * Runs `fn` as a hint trial: placement inside it starts no hint trials of its
  * own ({@link inHintTrial}). For lint rules that lay out a copy of the figure.

@@ -64,7 +64,7 @@ import { getFontSet } from "../../core/theme/fonts";
 import { sublabelTextStyle } from "../../core/theme/style";
 import { roundToD2Units } from "../../core/units";
 import { groupFrontRect, groupLayerSpread } from "../group-layers";
-import { hintLayoutOptions, inHintTrial } from "../hint-trials";
+import { hintLayoutOptions, inHintTrial, placements } from "../hint-trials";
 import {
   type EdgeLayout,
   type GroupLayout,
@@ -213,6 +213,7 @@ export function placeStructured(
     throw new Error("internal error: the structured layout needs a structured figure");
   }
   hintLayoutOptions.set(ir, options);
+  placements.count++;
   const base = options.profile ?? getProfile(ir.meta.profileId);
   if (base === undefined) throw new Error(`internal error: unknown profile ${ir.meta.profileId}`);
   // `figure.layout.density: compact` (#182) swaps in the profile's compact spacing.

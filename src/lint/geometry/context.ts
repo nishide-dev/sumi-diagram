@@ -82,6 +82,12 @@ export interface GeometryContext {
     readonly ir: FigureIR;
     readonly layout: import("../../layout/ir").LayoutIR;
   };
+  /**
+   * The lint configuration the rules run under (set by `runGeometryRules`),
+   * for rules that lint a trial copy of the figure the same way
+   * (`geometry/relocatable-node`, #621).
+   */
+  readonly lintConfig?: import("../config").ResolvedLintConfig;
   readonly ir: FigureIR;
   readonly inspection: SvgInspection;
   /** The canvas (viewBox of `svg.d2-svg`) in element coordinates. */

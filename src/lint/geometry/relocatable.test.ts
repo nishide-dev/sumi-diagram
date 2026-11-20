@@ -10,10 +10,17 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse, stringify } from "yaml";
 import type { Diagnostic } from "../../core/diagnostics";
+import { placements } from "../../layout/hint-trials";
 import { type RenderedStructuredFigure, renderFigure } from "../../render/render";
 import { corners } from "./avoidable";
-import { lintGeometry } from "./lint";
-import { RELOCATABLE_NODE } from "./relocatable";
+import { geometryContextFor, lintGeometry } from "./lint";
+import {
+  compareRoutes,
+  RELOCATABLE_NODE,
+  RELOCATE_TRIALS,
+  relocatableNode,
+  relocationTrials,
+} from "./relocatable";
 
 const FIGURES = join(import.meta.dir, "..", "..", "..", "tests", "fixtures", "figures");
 
@@ -55,10 +62,10 @@ describe("geometry/relocatable-node", () => {
     expect(hint?.subject).toEqual({ kind: "node", id: "retrying" });
     expect(hint?.path).toEqual(["groups", 1, "arrange", "grid", "items"]);
     expect(hint?.message).toBe(
-      'Node "retrying" could move from row 5, column 6 to the empty cell at row 4, column 6 of the grid of group "active": then edge edges[11] (c-error → retrying) and edge edges[12] (retrying → c-backoff) bend 0 times in total instead of 4, and the figure is 9.9mm shorter (checked by laying the figure out and routing it again: no other edge bends more, the figure does not grow and no new error or warning appears).',
+      'Node "retrying" could move from row 5, column 6 to the empty cell at row 4, column 6 of the grid of group "active": then edge edges[11] (c-error → retrying) and edge edges[12] (retrying → c-backoff) bend 0 times in total instead of 4, and the figure is 9.9mm shorter (checked by laying the figure out and routing it again: no other edge bends more or takes a longer detour, the figure does not grow and the geometry lint finds no new error or warning).',
     );
     expect(hint?.hint).toContain(
-      "In groups[1].arrange.grid.items, row 4, columns 5–7 become c-backoff, retrying, c-error, and the emptied last row 5 is dropped: items: [ ",
+      "In groups[1].arrange.grid.items, swap items[33] (retrying) with items[26] (the null at row 4, column 6), so row 4, columns 5–7 become c-backoff, retrying, c-error; then delete the last 7 items (row 5, now empty): items: [ ",
     );
 
     // Apply the hint: write its items line into the grid.
@@ -80,6 +87,101 @@ describe("geometry/relocatable-node", () => {
     const relint = lintGeometry(after, { source: applied });
     expect(problems([...redrawn, ...relint])).toEqual(problems([...drawn, ...lint]));
     expect(relint.filter((d) => d.code === RELOCATABLE_NODE)).toEqual([]);
+  });
+
+  test("the trials lay the figure out at most RELOCATE_TRIALS + 1 times, the trials' own lint included", async () => {
+    const source = readFileSync(join(FIGURES, "color-use/request-states-a.sumi.yaml"), "utf8");
+    const context = geometryContextFor(await render(source));
+    const start = placements.count;
+    const found = relocatableNode.run(context, undefined);
+    const layouts = placements.count - start;
+    expect(found).toHaveLength(1);
+    // Six candidates and the figure as it is; no rule run on a trial adds any.
+    expect(layouts).toBeGreaterThan(1);
+    expect(layouts).toBeLessThanOrEqual(RELOCATE_TRIALS + 1);
+  });
+
+  test("a grid with a span / align wrapper and a nested stack: the hint's edit round-trips", async () => {
+    const original = readFileSync(join(FIGURES, "color-use/request-states-a.sumi.yaml"), "utf8");
+    const row1 = "items: [ start, null, c-invalid, null, null, null, null,";
+    expect(original).toContain(row1);
+    const wrapped = original.replace(
+      row1,
+      "items: [ { item: start, span: 2, align: start }, c-invalid, null, null, null, null,",
+    );
+    const nested = original
+      .replace(
+        row1,
+        "items: [ { item: start, span: 2, align: start }, c-invalid, { stack: { gap: 1mm, items: [ note ] } }, null, null, null,",
+      )
+      .replace("\nnodes:\n", "\nnodes:\n  - { id: note, component: label, label: note }\n");
+    /** The hint's swap and delete, done on the source's items. */
+    const apply = (source: string, hint: string) => {
+      const swap = /swap items\[(\d+)\] .*? with items\[(\d+)\]/.exec(hint);
+      const drop = /delete the last (\d+) items/.exec(hint);
+      if (swap === null) throw new Error(`no swap in ${hint}`);
+      const doc = parse(source);
+      const items: unknown[] = doc.groups[1].arrange.grid.items;
+      const [i, j] = [Number(swap[1]), Number(swap[2])];
+      [items[i], items[j]] = [items[j], items[i]];
+      if (drop !== null) items.splice(items.length - Number(drop[1]), Number(drop[1]));
+      return { doc, items };
+    };
+    for (const [source, line] of [
+      [wrapped, true],
+      [nested, false],
+    ] as const) {
+      const before = await render(source);
+      const [hint] = lintGeometry(before, { source }).filter((d) => d.code === RELOCATABLE_NODE);
+      if (hint?.hint === undefined) throw new Error("no hint");
+      const { doc, items } = apply(source, hint.hint);
+      const written = /: items: (\[.*\])\. Nothing/.exec(hint.hint)?.[1];
+      if (line) {
+        // The items line is the same items as the edit, wrapper included.
+        expect(written).toBeDefined();
+        expect(parse(written ?? "")).toEqual(items);
+        expect(written).toContain("{ item: start, span: 2, align: start }");
+      } else {
+        // A nested box cannot be written back: no items line, only the edit.
+        expect(written).toBeUndefined();
+        expect(hint.hint).not.toContain("…");
+      }
+      const after = await render(stringify(doc));
+      expect(bends(after, "e:#11")).toBe(0);
+      expect(bends(after, "e:#12")).toBe(0);
+      expect(after.layout?.canvas.height).toBeLessThan(before.layout?.canvas.height ?? 0);
+    }
+  });
+
+  test("a move that lengthens another edge's detour by more than 1pt is turned down", () => {
+    const routes = (entries: [string, number, number][]) =>
+      new Map(entries.map(([key, bends, detour]) => [key as `e:${string}`, { bends, detour }]));
+    const before = routes([
+      ["e:#0", 2, 0],
+      ["e:#1", 1, 0],
+    ]);
+    // e:#0 goes straight; e:#1 keeps its bend but runs 3 units (1.5pt) further back.
+    expect(
+      compareRoutes(
+        before,
+        routes([
+          ["e:#0", 0, 0],
+          ["e:#1", 1, 3],
+        ]),
+        ["e:#0" as `e:${string}`],
+      ),
+    ).toEqual({ ok: false, reason: "longer-detour" });
+    // Up to 1pt (2 units) is allowed.
+    expect(
+      compareRoutes(
+        before,
+        routes([
+          ["e:#0", 0, 0],
+          ["e:#1", 1, 2],
+        ]),
+        ["e:#0" as `e:${string}`],
+      ),
+    ).toEqual({ ok: true, bends: [2, 0], detour: 0 });
   });
 
   test("a figure without detours gets nothing", async () => {
@@ -109,7 +211,18 @@ edges:
     // group-caption: swapping enc and dec bends inner → c and c → out less
     // (8 → 6), but Encoder → Decoder would run right to left.
     const source = readFileSync(join(FIGURES, "layout/group-caption.sumi.yaml"), "utf8");
-    const lint = lintGeometry(await render(source), { source });
+    const figure = await render(source);
+    // The swap is tried, and its routes alone would pass (fewer bends, nothing
+    // worse), but it turns an edge around.
+    const outcomes = relocationTrials(geometryContextFor(figure));
+    const reversed = outcomes.filter((o) => !o.verdict.ok && o.verdict.reason === "reversed");
+    expect(reversed.length).toBeGreaterThan(0);
+    for (const o of reversed) {
+      expect(o.routes?.ok).toBe(true);
+      if (o.routes?.ok) expect(o.routes.bends[1]).toBeLessThan(o.routes.bends[0]);
+    }
+    expect(outcomes.some((o) => o.verdict.ok)).toBe(false);
+    const lint = lintGeometry(figure, { source });
     expect(lint.filter((d) => d.code === RELOCATABLE_NODE)).toEqual([]);
   });
 });

@@ -1230,10 +1230,12 @@ edges:
   items within their room. When moving an end to a nearby empty grid cell or another
   place in its stack / row would remove bends, `geometry/relocatable-node` (info) says
   so, after laying the figure out and routing it again with the move (no other edge
-  worse, no growth, no new warning). Its hint names the `items` field, the row and
-  column (1-based) and gives the rewritten `items` line, e.g. `row 4, columns 5–7
-  become c-backoff, retrying, c-error`. Apply it unless the current place means
-  something (failures kept below the main flow).
+  worse, no growth, no new warning). Its hint names the `items` field and the edit by
+  index (`swap items[33] (retrying) with items[26]`, then `delete the last 7 items`),
+  the row and columns (1-based) it changes, e.g. `row 4, columns 5–7 become c-backoff,
+  retrying, c-error`, and the rewritten `items` line when it can be written back
+  exactly. Apply it unless the current place means something (failures kept below
+  the main flow).
 - **`straight`** (`toAnchor: straight` / `fromAnchor: straight`): the end sits in line
   with the other end on the side facing it, so the line has no jog. Use it for narrow
   boxes in a row feeding a wide one (patches into a projection, models into an

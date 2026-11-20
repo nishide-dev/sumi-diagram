@@ -109,10 +109,11 @@ export function runGeometryRules(
             related: finding.related.map((r) => ({ ...r, path: cellFieldPath(cells, r.path) })),
           }),
         };
+  const configured: GeometryContext = { ...context, lintConfig: config };
   return config.rules.flatMap(({ rule, severity, options, explicitSeverity }) =>
     isGeometryRule(rule)
       ? rule
-          .run(context, options)
+          .run(configured, options)
           .map((f) =>
             toDiagnostic(
               remap(f),
