@@ -1,0 +1,70 @@
+# DeepSeek-R1 multi-stage training (arXiv 2501.12948, Sections 2-3, Appendix B.3-B.4).
+# Base layout: multi-stage-data-flow (stages with data stores), adapted to coordinates from mockup.html.
+# Data sets are `stack` nodes; RL stages orange, SFT stages blue; solid = model weights, dashed = data.
+version: 1
+figure:
+  id: deepseek-r1-training
+  theme: sumi
+  profile: screen-doc
+  themeOverrides: {textScale: 1.5}
+  layout:
+    arrange:
+      stack:
+        gap: 5mm
+        items:
+          - place:
+              unit: 1mm
+              items:
+                - {item: base, at: [12, 60]}
+                - {item: rl0, at: [53, 8]}
+                - {item: zero, at: [94, 8]}
+                - {item: cold, at: [94, 35]}
+                - {item: csft, at: [94, 60]}
+                - {item: rrl, at: [135, 60]}
+                - {item: distilled, at: [53, 85]}
+                - {item: split, at: [94, 85]}
+                - {item: sftdata, at: [135, 85]}
+                - {item: nonreason, at: [174.5, 60]}
+                - {item: sft2, at: [94, 110]}
+                - {item: rlall, at: [135, 110]}
+                - {item: r1, at: [176, 110]}
+          - key
+nodes:
+  - {id: base, component: box, label: "DeepSeek-\nV3-Base", weight: bold, props: {width: 24mm, height: 15mm}}
+  - {id: rl0, component: box, label: Pure RL, sublabel: rule rewards, tone: orange, variant: tinted, props: {width: 34mm, height: 13mm}}
+  - {id: zero, component: box, label: "DeepSeek-\nR1-Zero", weight: bold, props: {width: 34mm, height: 15mm}}
+  - {id: cold, component: stack, label: Cold-start CoT, sublabel: thousands, props: {width: 36mm, height: 15mm}}
+  - {id: csft, component: box, label: Cold-start SFT, tone: blue, variant: tinted, props: {width: 34mm, height: 13mm}}
+  - {id: rrl, component: box, label: Reasoning RL, sublabel: + language reward, tone: orange, variant: tinted, props: {width: 36mm, height: 13mm}}
+  - {id: distilled, component: box, label: Distilled, sublabel: "Qwen2.5 · Llama\n1.5B–70B", weight: bold, props: {width: 34mm, height: 15mm}}
+  - {id: split, component: junction}
+  - {id: sftdata, component: stack, label: SFT data, sublabel: ~800k, props: {width: 37mm, height: 15mm}}
+  - {id: nonreason, component: stack, label: Non-reasoning, sublabel: "~200k, from V3", props: {width: 37mm, height: 15mm}}
+  - {id: sft2, component: box, label: SFT, tone: blue, variant: tinted, props: {width: 34mm, height: 13mm}}
+  - {id: rlall, component: box, label: All-scenario RL, sublabel: + reward models, tone: orange, variant: tinted, props: {width: 36mm, height: 13mm}}
+  - {id: r1, component: box, label: DeepSeek-R1, variant: emphasis, props: {width: 34mm, height: 13mm}}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {tone: blue, variant: tinted}, label: SFT stage}
+        - {node: {tone: orange, variant: tinted}, label: RL stage (GRPO)}
+        - {edge: {}, label: model weights}
+        - {edge: {variant: dashed}, label: data}
+edges:
+  - {from: base, to: rl0, fromAnchor: north, toAnchor: west}
+  - {from: rl0, to: zero}
+  - {from: base, to: csft}
+  - {from: csft, to: rrl}
+  - {from: base, to: sft2, fromAnchor: south, toAnchor: west}
+  - {from: sft2, to: rlall}
+  - {from: rlall, to: r1}
+  - {from: zero, to: cold, variant: dashed, label: readable rewrite}
+  - {from: cold, to: csft, variant: dashed}
+  - {from: rrl, to: sftdata, variant: dashed, label: "rejection sampling, ~600k"}
+  - {from: nonreason, to: sftdata, fromAnchor: south, toAnchor: east, variant: dashed}
+  - {from: sftdata, to: split, component: line, variant: dashed}
+  - {from: split, to: sft2, variant: dashed}
+  - {from: split, to: distilled, variant: dashed, label: SFT only}

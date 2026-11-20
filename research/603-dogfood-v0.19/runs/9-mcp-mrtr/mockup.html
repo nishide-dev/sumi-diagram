@@ -1,0 +1,59 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  :root {
+    --canvas:#ffffff; --ink:#30364f; --muted:#4e566b;
+    --blue:#d9e4e6; --blue-line:#3d5d77; --orange:#efdfce; --orange-line:#814b2d; --band:#f4f4f1;
+    --font:"Inter","Helvetica Neue",Arial,sans-serif;
+    --fs-node:12; --fs-group:13.5; --fs-edge:10.5; --frame-w:1.5; --edge-w:1.5; --pt:0.3528mm;
+  }
+  @page { size: 190mm 142mm; margin:0 }
+  html,body{margin:0;background:var(--canvas)}
+  #fig{position:relative;width:190mm;height:142mm;overflow:hidden;font:calc(var(--fs-node)*var(--pt)) var(--font);color:var(--ink)}
+  .box{position:absolute;box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;border:calc(var(--frame-w)*var(--pt)) solid var(--ink);background:#fff;border-radius:1mm;transform:translate(-50%,-50%)}
+  .b{background:var(--blue);border-color:var(--blue-line);color:var(--blue-line)}
+  .o{background:var(--orange);border-color:var(--orange-line);color:var(--orange-line)}
+  .d{border-style:dashed}
+  .band{position:absolute;background:var(--band);border-radius:1.5mm}
+  .t{position:absolute;font-size:calc(var(--fs-edge)*var(--pt));white-space:nowrap;transform:translate(-50%,-50%)}
+  .bold{font-weight:bold}
+  svg{position:absolute;inset:0;width:190mm;height:142mm}
+  path.e{fill:none;stroke:var(--ink);stroke-width:calc(var(--edge-w)*0.3528)}
+  path.l{fill:none;stroke:var(--muted);stroke-width:0.3;stroke-dasharray:1.2 1}
+</style>
+<div id="fig">
+  <div class="band" style="left:62mm;top:17mm;width:122mm;height:40mm"></div>
+  <div class="band" style="left:62mm;top:80mm;width:122mm;height:45mm"></div>
+  <div class="t" style="left:36mm;top:37mm;color:var(--muted)">Round 1</div>
+  <div class="t" style="left:36mm;top:102mm;color:var(--muted)">Round 2 (retry)</div>
+  <svg viewBox="0 0 190 142">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2.4" markerHeight="2.4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z" fill="#30364f"/></marker></defs>
+    <path class="l" d="M18 13 V124 M72 13 V124 M168 13 V29 M168 37 V65 M168 73 V102 M168 110 V124"/>
+    <path class="e" d="M72 24 H168" marker-end="url(#ah)"/>
+    <path class="e" d="M168 44 H72" stroke-dasharray="2 1.2" marker-end="url(#ah)"/>
+    <path class="e" d="M72 64 H18" marker-end="url(#ah)"/>
+    <path class="e" d="M18 74 H72" stroke-dasharray="2 1.2" marker-end="url(#ah)"/>
+    <path class="e" d="M72 93 H168" marker-end="url(#ah)"/>
+    <path class="e" d="M168 118 H72" stroke-dasharray="2 1.2" marker-end="url(#ah)"/>
+    <path class="e" d="M136 53 V84" stroke="#814b2d" stroke-dasharray="0.6 0.8" marker-end="url(#ah)"/>
+  </svg>
+  <div class="box bold" style="left:18mm;top:8mm;width:24mm;height:9mm">User</div>
+  <div class="box bold" style="left:72mm;top:8mm;width:24mm;height:9mm">Client</div>
+  <div class="box bold" style="left:168mm;top:8mm;width:24mm;height:9mm">Server</div>
+  <div class="t" style="left:120mm;top:20.5mm">tools/call (id: 1)</div>
+  <div class="box" style="left:168mm;top:33mm;width:30mm;height:8mm">needs input</div>
+  <div class="t" style="left:120mm;top:40.5mm">InputRequiredResult (id: 1)</div>
+  <div class="box b" style="left:97mm;top:50mm;width:34mm;height:7mm">inputRequests</div>
+  <div class="box o d" style="left:136mm;top:50mm;width:34mm;height:7mm">requestState</div>
+  <div class="t" style="left:117mm;top:69mm;color:var(--orange-line)">echoed unchanged</div>
+  <div class="t" style="left:45mm;top:60.5mm">asks the user</div>
+  <div class="t" style="left:45mm;top:77.5mm">answers</div>
+  <div class="box d" style="left:168mm;top:69mm;width:30mm;height:8mm">keeps no state</div>
+  <div class="box b" style="left:97mm;top:87mm;width:34mm;height:7mm">inputResponses</div>
+  <div class="box o d" style="left:136mm;top:87mm;width:34mm;height:7mm">requestState</div>
+  <div class="t" style="left:120mm;top:96.5mm">tools/call (id: 2, new id)</div>
+  <div class="box" style="left:168mm;top:106mm;width:30mm;height:8mm">completes</div>
+  <div class="t" style="left:120mm;top:114.5mm">CallToolResult (id: 2)</div>
+  <div class="t" style="left:95mm;top:134mm">─ request &nbsp;&nbsp; ┄ response &nbsp;&nbsp; <span style="color:var(--blue-line)">■ input exchange</span> &nbsp;&nbsp; <span style="color:var(--orange-line)">▭ opaque to the client</span></div>
+</div>

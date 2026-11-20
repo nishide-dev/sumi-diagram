@@ -1,0 +1,96 @@
+# Kimi K2 (arXiv 2507.20534): agentic data synthesis (§3.1.1) feeding SFT, then the colocated RL loop (§3.3).
+version: 1
+figure:
+  id: kimi-k2-agentic-data-rl
+  theme: sumi
+  profile: paper-double
+  fit: scale
+  themeOverrides: {groupFill: '#ffffff'}
+  layout:
+    density: compact
+    arrange:
+      stack:
+        gap: 3mm
+        items:
+          - row: {gap: 2mm, align: stretch, items: [pa, flow, pb]}
+          - key
+groups:
+  - id: pa
+    caption: (a) Agentic data synthesis for tool use
+    arrange:
+      row: {gap: 2.5mm, align: center, items: [c_tools, repo, c_tasks, {row: {gap: 5mm, items: [c_roll, c_filter]}}]}
+  - id: c_tools
+    label: Tool specs
+    variant: plain
+    props: {padding: 2pt}
+    arrange: {stack: {gap: 5mm, items: [real, synth]}}
+  - id: c_tasks
+    label: Agents & tasks
+    variant: plain
+    props: {padding: 2pt}
+    arrange: {stack: {gap: 5mm, items: [agents, tasks]}}
+  - id: c_roll
+    label: Rollouts
+    variant: dashed
+    arrange: {stack: {gap: 5.5mm, items: [user, agent, toolsim]}}
+  - id: c_filter
+    label: Filtering
+    variant: plain
+    props: {padding: 2pt}
+    arrange: {stack: {gap: 5mm, items: [judge, kept]}}
+  - id: pb
+    caption: (b) Colocated RL loop
+    arrange:
+      stack:
+        gap: 7mm
+        items:
+          - env
+          - row: {gap: 3mm, items: [sft, worker]}
+  - id: worker
+    label: same GPUs
+    labelAt: bottom-left
+    variant: dashed
+    arrange: {stack: {gap: 4.5mm, items: [infer, train, ckpt]}}
+nodes:
+  - {id: real, component: box, label: "Real MCP\ntools", sublabel: 3000+, tone: blue, variant: tinted, matchWidth: col}
+  - {id: synth, component: box, label: "Synthetic\ntools", sublabel: "20,000+", tone: blue, variant: tinted, matchWidth: col}
+  - {id: repo, component: cylinder, label: "Tool\nrepository", tone: blue, variant: tinted, props: {height: 20mm}}
+  - {id: agents, component: box, label: Agents, sublabel: thousands, tone: blue, variant: tinted, matchWidth: col}
+  - {id: tasks, component: box, label: Tasks, sublabel: with rubrics, tone: blue, variant: tinted, matchWidth: col}
+  - {id: user, component: box, label: "User\nsimulator", tone: gray, variant: outlined, matchWidth: col}
+  - {id: agent, component: box, label: Agent, tone: green, variant: tinted, matchWidth: col}
+  - {id: toolsim, component: box, label: "Tool\nsimulator", sublabel: or sandbox, tone: gray, variant: outlined, matchWidth: col}
+  - {id: judge, component: box, label: LLM judge, tone: orange, variant: tinted, matchWidth: col}
+  - {id: kept, component: box, label: "Kept\ntrajectories", tone: blue, variant: tinted, matchWidth: col}
+  - {id: flow, component: block-arrow}
+  - {id: env, component: box, label: Environments, sublabel: "VM, code\ninterpreter", tone: gray, variant: outlined}
+  - {id: sft, component: box, label: Policy, sublabel: after SFT, tone: green, variant: tinted}
+  - {id: infer, component: box, label: "Inference\nengine", tone: green, variant: tinted, matchWidth: eng}
+  - {id: train, component: box, label: "Training\nengine", tone: green, variant: tinted, matchWidth: eng}
+  - {id: ckpt, component: box, label: "Checkpoint\nengine", tone: gray, variant: outlined, matchWidth: eng}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {tone: blue, variant: tinted}, label: data}
+        - {node: {tone: green, variant: tinted}, label: model / engine}
+        - {node: {tone: gray, variant: outlined}, label: simulator / environment}
+        - {node: {tone: orange, variant: tinted}, label: judge}
+        - {edge: {variant: dashed}, label: parameter broadcast}
+edges:
+  - {from: real, to: repo}
+  - {from: synth, to: repo}
+  - {from: repo, to: agents}
+  - {from: agents, to: tasks}
+  - {from: tasks, to: agent}
+  - {from: user, to: agent, component: double-arrow}
+  - {from: agent, to: toolsim, component: double-arrow}
+  - {from: agent, to: judge}
+  - {from: judge, to: kept}
+  - {from: infer, to: env, component: double-arrow, label: actions / obs., labelSide: left}
+  - {from: sft, to: infer}
+  - {from: infer, to: train, label: rollouts}
+  - {from: train, to: ckpt}
+  - {from: ckpt, to: infer, variant: dashed, fromAnchor: east, toAnchor: east}

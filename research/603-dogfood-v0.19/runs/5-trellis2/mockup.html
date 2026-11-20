@@ -1,0 +1,100 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  :root {
+    --canvas: #ffffff; --ink: #30364f; --panel: #ffffff;
+    --blue: #d9e4e6; --blue-top: #eef3f4; --blue-side: #bac9d0; --blue-line: #3d5d77;
+    --orange: #efdfce; --orange-line: #814b2d;
+    --gray: #e1dece; --gray-line: #4e566b;
+    --font: "Inter", "Helvetica Neue", Arial, sans-serif;
+    --fs-node: 8; --fs-group: 9; --fs-edge: 7;
+    --frame-w: 0.75; --edge-w: 0.75; --arrow: #30364f; --pt: 0.3528mm;
+  }
+  @page { size: 180mm 100mm; margin: 0 }
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 180mm; height: 100mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  .box { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center; text-align: center;
+         border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: #fff; border-radius: 0.8mm; line-height: 1.15 }
+  .group { position: absolute; box-sizing: border-box; background: var(--panel); border: calc(var(--frame-w) * var(--pt)) solid var(--ink); border-radius: 1mm }
+  .cap { position: absolute; font-size: calc(var(--fs-group) * var(--pt)); text-align: center }
+  .lbl { position: absolute; font-size: calc(var(--fs-edge) * var(--pt)); text-align: center; white-space: nowrap }
+  .tok { position: absolute; box-sizing: border-box; width: 5mm; height: 5mm; display: flex; align-items: center; justify-content: center; font-style: italic;
+         border: calc(var(--frame-w) * var(--pt)) solid; border-radius: 0.6mm }
+  .tb { background: var(--blue); border-color: var(--blue-line); color: var(--blue-line) }
+  .to { background: var(--orange); border-color: var(--orange-line); color: var(--orange-line) }
+  svg.edges { position: absolute; inset: 0; width: 180mm; height: 100mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: calc(var(--edge-w) * 0.3528) }
+  svg.edges marker path { fill: var(--arrow) }
+</style>
+<div id="fig">
+  <!-- panels -->
+  <div class="group" style="left:2mm; top:3mm; width:58mm; height:42mm"></div>
+  <div class="cap" style="left:2mm; top:46mm; width:58mm">(a) O-Voxel</div>
+  <div class="group" style="left:70mm; top:3mm; width:108mm; height:42mm"></div>
+  <div class="cap" style="left:70mm; top:46mm; width:108mm">(b) Sparse Compression VAE</div>
+  <div class="group" style="left:2mm; top:53mm; width:176mm; height:40mm"></div>
+  <div class="cap" style="left:2mm; top:94mm; width:176mm">(c) Flow-matching generation</div>
+
+  <!-- (a) -->
+  <div class="lbl" style="left:5mm; top:23mm; width:12mm">mesh</div>
+  <div class="tok tb" style="left:30mm; top:31mm">v</div><div class="tok tb" style="left:35mm; top:31mm">δ</div><div class="tok tb" style="left:40mm; top:31mm">γ</div>
+  <div class="lbl" style="left:46mm; top:32mm">shape</div>
+  <div class="tok to" style="left:30mm; top:37mm">c</div><div class="tok to" style="left:35mm; top:37mm">m</div><div class="tok to" style="left:40mm; top:37mm">r</div><div class="tok to" style="left:45mm; top:37mm">α</div>
+  <div class="lbl" style="left:51mm; top:38mm">PBR</div>
+  <div class="lbl" style="left:22mm; top:5mm">N³ sparse grid</div>
+
+  <!-- (b) -->
+  <div class="box" style="left:76mm; top:15mm; width:20mm; height:12mm">Sparse conv<br>encoder</div>
+  <div class="lbl" style="left:76mm; top:28mm; width:20mm">16× down</div>
+  <div class="lbl" style="left:103mm; top:33mm">≈9.6K tokens</div>
+  <div class="box" style="left:124mm; top:15mm; width:20mm; height:12mm">Pruning<br>decoder</div>
+  <div class="lbl" style="left:150mm; top:34mm">O-Voxel</div>
+
+  <!-- (c) -->
+  <div class="lbl" style="left:4mm; top:65mm; width:12mm">image</div>
+  <div class="box" style="left:6mm; top:72mm; width:20mm; height:10mm">Structure<br>DiT</div>
+  <div class="lbl" style="left:30mm; top:85mm">occupancy</div>
+  <div class="box" style="left:48mm; top:72mm; width:20mm; height:10mm">Geometry<br>DiT</div>
+  <div class="lbl" style="left:73mm; top:85mm">shape latent</div>
+  <div class="box" style="left:92mm; top:72mm; width:20mm; height:10mm">Material<br>DiT</div>
+  <div class="lbl" style="left:116mm; top:85mm">PBR latent</div>
+  <div class="box" style="left:134mm; top:72mm; width:20mm; height:10mm">SC-VAE<br>decoders</div>
+  <div class="lbl" style="left:158mm; top:85mm">mesh + PBR</div>
+
+  <svg class="edges" viewBox="0 0 180 100">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2" markerHeight="2" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+    <!-- mesh icon (a) -->
+    <g fill="none" stroke="#30364f" stroke-width="0.3"><path d="M6 20 L11 11 L16 20 Z M11 11 L11 22 M6 20 L11 22 L16 20"/></g>
+    <!-- grid cuboid (a) -->
+    <g stroke="#3d5d77" stroke-width="0.26">
+      <rect x="24" y="12" width="16" height="16" fill="#d9e4e6"/>
+      <path d="M24 12 L29 7 L45 7 L40 12 Z" fill="#eef3f4"/><path d="M40 12 L45 7 L45 23 L40 28 Z" fill="#bac9d0"/>
+      <rect x="28" y="16" width="4" height="4" fill="#30364f"/><rect x="32" y="20" width="4" height="4" fill="#30364f"/><rect x="24" y="24" width="4" height="4" fill="#30364f"/>
+    </g>
+    <path class="e" d="M17 17 H23" marker-end="url(#ah)" marker-start="url(#ah)"/>
+    <path class="e" d="M32 28.5 V30.5"/>
+    <!-- block arrows -->
+    <path d="M62 22 h3 v-2 l3 3.5 l-3 3.5 v-2 h-3z" fill="#30364f"/>
+    <path d="M88 47.5 v2 h-2 l3.5 3 l3.5 -3 h-2 v-2z" fill="#30364f" opacity="0"/>
+    <!-- (b) latents -->
+    <g stroke-width="0.26"><rect x="104" y="12" width="7" height="7" fill="#d9e4e6" stroke="#3d5d77"/><path d="M104 12 l2 -2 h7 l-2 2z M111 12 l2 -2 v7 l-2 2z" fill="#bac9d0" stroke="#3d5d77"/>
+      <rect x="104" y="23" width="7" height="7" fill="#efdfce" stroke="#814b2d"/><path d="M104 23 l2 -2 h7 l-2 2z M111 23 l2 -2 v7 l-2 2z" fill="#e0c8b0" stroke="#814b2d"/></g>
+    <path class="e" d="M96 21 H103" marker-end="url(#ah)"/><path class="e" d="M114 21 H123" marker-end="url(#ah)"/>
+    <!-- recon voxel -->
+    <g stroke="#3d5d77" stroke-width="0.26"><rect x="150" y="16" width="14" height="14" fill="#d9e4e6"/><path d="M150 16 l4 -4 h14 l-4 4z" fill="#eef3f4"/><path d="M164 16 l4 -4 v14 l-4 4z" fill="#bac9d0"/></g>
+    <path class="e" d="M144 21 H149" marker-end="url(#ah)"/>
+    <!-- (c) image icon -->
+    <rect x="11" y="57" width="8" height="7" fill="none" stroke="#30364f" stroke-width="0.3"/>
+    <path class="e" d="M15 64 V66 H102 V71.5" /><path class="e" d="M16 66 V71.5" marker-end="url(#ah)"/><path class="e" d="M58 66 V71.5" marker-end="url(#ah)"/><path class="e" d="M102 70 V71.5" marker-end="url(#ah)"/>
+    <!-- occupancy cuboid -->
+    <g stroke="#4e566b" stroke-width="0.26"><rect x="32" y="73" width="9" height="9" fill="#e1dece"/><path d="M32 73 l3 -3 h9 l-3 3z M41 73 l3 -3 v9 l-3 3z" fill="#cfcbb8"/></g>
+    <path class="e" d="M26 77 H31" marker-end="url(#ah)"/><path class="e" d="M44 77 H47" marker-end="url(#ah)"/>
+    <g stroke="#3d5d77" stroke-width="0.26"><rect x="76" y="74" width="7" height="7" fill="#d9e4e6"/><path d="M76 74 l2 -2 h7 l-2 2z M83 74 l2 -2 v7 l-2 2z" fill="#bac9d0"/></g>
+    <path class="e" d="M68 77 H75" marker-end="url(#ah)"/><path class="e" d="M85 77 H91" marker-end="url(#ah)"/>
+    <g stroke="#814b2d" stroke-width="0.26"><rect x="120" y="74" width="7" height="7" fill="#efdfce"/><path d="M120 74 l2 -2 h7 l-2 2z M127 74 l2 -2 v7 l-2 2z" fill="#e0c8b0"/></g>
+    <path class="e" d="M112 77 H119" marker-end="url(#ah)"/><path class="e" d="M129 77 H133" marker-end="url(#ah)"/>
+    <path class="e" d="M154 77 H160" marker-end="url(#ah)"/>
+    <g fill="none" stroke="#30364f" stroke-width="0.3"><path d="M162 82 L167 72 L172 82 Z M167 72 L167 84 M162 82 L167 84 L172 82"/></g>
+  </svg>
+</div>

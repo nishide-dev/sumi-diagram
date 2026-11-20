@@ -1,0 +1,105 @@
+# MCP 2026-07-28, Multi Round-Trip Requests (basic workflow), drawn from the spec text.
+version: 1
+figure:
+  id: mcp-mrtr
+  theme: sumi
+  profile: screen-doc
+  themeOverrides: {textScale: 1.5}
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: p_user, at: [18, 8]}
+          - {item: p_client, at: [72, 8]}
+          - {item: p_server, at: [168, 8]}
+          - {item: c1, at: [72, 24]}
+          - {item: c2, at: [72, 44]}
+          - {item: c3, at: [72, 66]}
+          - {item: c4, at: [72, 76]}
+          - {item: c5, at: [72, 99]}
+          - {item: c6, at: [72, 124]}
+          - {item: cend, at: [72, 128]}
+          - {item: s1, at: [168, 24]}
+          - {item: n_input, at: [168, 33]}
+          - {item: s2, at: [168, 44]}
+          - {item: n_nostate, at: [168, 71]}
+          - {item: s5, at: [168, 99]}
+          - {item: n_done, at: [168, 112]}
+          - {item: s6, at: [168, 124]}
+          - {item: send, at: [168, 128]}
+          - {item: u3, at: [18, 66]}
+          - {item: u4, at: [18, 76]}
+          - {item: uend, at: [18, 128]}
+          - {item: req1, at: [97, 50]}
+          - {item: st1, at: [136, 50]}
+          - {item: resp2, at: [97, 93]}
+          - {item: st2, at: [136, 93]}
+          - {item: key, at: [95, 139]}
+nodes:
+  - {id: p_user, component: box, label: User, weight: bold, props: {width: 24mm}}
+  - {id: p_client, component: box, label: Client, weight: bold, props: {width: 24mm}}
+  - {id: p_server, component: box, label: Server, weight: bold, props: {width: 24mm}}
+  - {id: c1, component: junction, variant: hidden}
+  - {id: c2, component: junction, variant: hidden}
+  - {id: c3, component: junction, variant: hidden}
+  - {id: c4, component: junction, variant: hidden}
+  - {id: c5, component: junction, variant: hidden}
+  - {id: c6, component: junction, variant: hidden}
+  - {id: cend, component: junction, variant: hidden}
+  - {id: s1, component: junction, variant: hidden}
+  - {id: s2, component: junction, variant: hidden}
+  - {id: s5, component: junction, variant: hidden}
+  - {id: s6, component: junction, variant: hidden}
+  - {id: send, component: junction, variant: hidden}
+  - {id: u3, component: junction, variant: hidden}
+  - {id: u4, component: junction, variant: hidden}
+  - {id: uend, component: junction, variant: hidden}
+  - {id: n_input, component: box, label: needs input, props: {width: 34mm}}
+  - {id: n_nostate, component: box, label: keeps no state, variant: dashed, props: {width: 34mm}}
+  - {id: n_done, component: box, label: "rebuilds state,\ncompletes", props: {width: 34mm}}
+  - {id: req1, component: box, label: inputRequests, tone: blue, variant: tinted, props: {width: 36mm}}
+  - {id: st1, component: box, label: requestState, tone: orange, variant: tinted, props: {width: 34mm}}
+  - {id: resp2, component: box, label: inputResponses, tone: blue, variant: tinted, props: {width: 36mm}}
+  - {id: st2, component: box, label: requestState, tone: orange, variant: tinted, props: {width: 34mm}}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {edge: {}, label: request}
+        - {edge: {variant: dashed}, label: response}
+        - {node: {tone: blue, variant: tinted}, label: input exchange}
+        - {node: {tone: orange, variant: tinted}, label: opaque to the client}
+sets:
+  - {id: round1, label: Round 1, labelAt: left, members: [c1, s1, n_input, c2, s2, req1, st1], shape: rect, variant: filled, fillOpacity: 0.1, padding: 8mm}
+  - {id: round2, label: "Round 2 (retry)", labelAt: left, members: [resp2, st2, c5, s5, n_done, c6, s6], shape: rect, variant: filled, fillOpacity: 0.1, padding: 8mm}
+edges:
+  # messages, in time order
+  - {from: c1, to: s1, route: straight, label: "tools/call (id: 1)"}
+  - {from: s2, to: c2, route: straight, variant: dashed, label: "InputRequiredResult (id: 1)", labelSide: right}
+  - {from: c3, to: u3, route: straight, label: prompts for input, labelSide: right}
+  - {from: u4, to: c4, route: straight, variant: dashed, label: provides responses, labelSide: right}
+  - {from: c5, to: s5, route: straight, label: "tools/call (id: 2, new id)", labelSide: right}
+  - {from: s6, to: c6, route: straight, variant: dashed, label: "CallToolResult (id: 2)", labelSide: right}
+  - {from: st1, to: st2, route: straight, variant: dotted, tone: orange, label: echoed unchanged, labelSide: right}
+  # lifelines
+  - {from: p_user, to: u3, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: u3, to: u4, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: u4, to: uend, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: p_client, to: c1, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: c1, to: c2, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: c2, to: c3, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: c3, to: c4, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: c4, to: c5, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: c5, to: c6, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: c6, to: cend, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: p_server, to: s1, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: s1, to: n_input, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: n_input, to: s2, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: s2, to: n_nostate, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: n_nostate, to: s5, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: s5, to: n_done, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: n_done, to: s6, component: line, variant: muted, lineWidth: 0.5pt, route: straight}
+  - {from: s6, to: send, component: line, variant: muted, lineWidth: 0.5pt, route: straight}

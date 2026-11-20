@@ -1,0 +1,80 @@
+<!doctype html>
+<!-- Mockup for the DeepSeek-R1 training pipeline (sumi theme, screen-doc, textScale 1.5). -->
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  :root {
+    --canvas: #ffffff; --ink: #30364f; --panel: #efeddd;
+    --blue: #d9e4e6; --blue-line: #3d5d77;
+    --orange: #efdfce; --orange-line: #814b2d;
+    --font: "Inter", "Helvetica Neue", Arial, sans-serif;
+    --fs-node: 12; --fs-group: 13.5; --fs-edge: 10.5;
+    --frame-w: 1.5; --edge-w: 1.5;
+    --arrow: #30364f;
+    --pt: 0.3528mm;
+  }
+  @page { size: 200mm 122mm; margin: 0 }
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 200mm; height: 122mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  .box { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center;
+         text-align: center; border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: #fff; border-radius: 0.8mm; line-height: 1.15 }
+  .box small { font-size: calc(10.5 * var(--pt)); opacity: .85 }
+  .model { font-weight: bold }
+  .final { background: var(--ink); color: #fff; font-weight: bold }
+  .sft { background: var(--blue); border-color: var(--blue-line); color: var(--blue-line) }
+  .rl { background: var(--orange); border-color: var(--orange-line); color: var(--orange-line) }
+  .cyl { border-radius: 50% / 18%; background: #fff }
+  svg.edges { position: absolute; inset: 0; width: 200mm; height: 122mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: calc(var(--edge-w) * 0.3528) }
+  svg.edges path.d { stroke-dasharray: 1.6 1.2 }
+  svg.edges text { font-size: calc(var(--fs-edge) * 0.3528px); fill: var(--ink); font-family: var(--font) }
+  svg.edges marker path { fill: var(--arrow) }
+  .legend { position: absolute; left: 40mm; top: 110mm; display: flex; gap: 8mm; align-items: center; font-size: calc(var(--fs-node) * var(--pt)) }
+  .sw { display: inline-block; width: 7mm; height: 4mm; vertical-align: middle; margin-right: 2mm; box-sizing: border-box; border: calc(var(--frame-w) * var(--pt)) solid }
+</style>
+<div id="fig">
+  <!-- columns x centre: 16, 58, 100, 142, 182 ; rows y centre: 8, 30, 52, 74, 96 -->
+  <div class="box model" style="left:3mm; top:45mm; width:26mm; height:14mm">DeepSeek-<br>V3-Base</div>
+
+  <div class="box rl" style="left:42mm; top:2mm; width:32mm; height:12mm">Pure RL<small>GRPO · rule rewards</small></div>
+  <div class="box model" style="left:85mm; top:2mm; width:30mm; height:12mm">R1-Zero</div>
+
+  <div class="box cyl" style="left:85mm; top:24mm; width:30mm; height:12mm">Cold-start CoT<small>thousands</small></div>
+
+  <div class="box sft" style="left:85mm; top:46mm; width:30mm; height:12mm">Cold-start SFT</div>
+  <div class="box rl" style="left:126mm; top:46mm; width:32mm; height:12mm">Reasoning RL<small>+ language reward</small></div>
+
+  <div class="box model" style="left:43mm; top:68mm; width:30mm; height:12mm">Distilled<small>Qwen2.5 · Llama</small></div>
+  <div class="box cyl" style="left:127mm; top:68mm; width:30mm; height:12mm">SFT data<small>~800k</small></div>
+  <div class="box cyl" style="left:167mm; top:68mm; width:30mm; height:12mm">Non-reasoning<small>~200k (V3 SFT)</small></div>
+
+  <div class="box sft" style="left:85mm; top:90mm; width:30mm; height:12mm">SFT</div>
+  <div class="box rl" style="left:126mm; top:90mm; width:32mm; height:12mm">RL, all scenarios<small>rules + reward models</small></div>
+  <div class="box final" style="left:167mm; top:90mm; width:30mm; height:12mm">DeepSeek-R1</div>
+
+  <svg class="edges" viewBox="0 0 200 122">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2.4" markerHeight="2.4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+    <!-- weights -->
+    <path class="e" d="M16 45 V8 H42" marker-end="url(#ah)"/>
+    <path class="e" d="M74 8 H85" marker-end="url(#ah)"/>
+    <path class="e" d="M29 52 H85" marker-end="url(#ah)"/>
+    <path class="e" d="M115 52 H126" marker-end="url(#ah)"/><text x="116" y="50">Dev1</text>
+    <path class="e" d="M16 59 V96 H85" marker-end="url(#ah)"/>
+    <path class="e" d="M115 96 H126" marker-end="url(#ah)"/><text x="116" y="94">Dev3</text>
+    <path class="e" d="M158 96 H167" marker-end="url(#ah)"/>
+    <!-- data -->
+    <path class="e d" d="M100 14 V24" marker-end="url(#ah)"/><text x="102" y="20.5">readable rewrite</text>
+    <path class="e d" d="M100 36 V46" marker-end="url(#ah)"/>
+    <path class="e d" d="M142 58 V68" marker-end="url(#ah)"/><text x="144" y="64.5">Dev2: rejection sampling, ~600k</text>
+    <path class="e d" d="M167 74 H157" marker-end="url(#ah)"/>
+    <path class="e d" d="M127 74 H100 V90" marker-end="url(#ah)"/>
+    <path class="e d" d="M100 74 H73" marker-end="url(#ah)"/><text x="76" y="72">distillation</text>
+    <circle cx="100" cy="74" r="0.8" fill="var(--ink)"/>
+  </svg>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--blue);border-color:var(--blue-line)"></span>SFT stage</span>
+    <span><span class="sw" style="background:var(--orange);border-color:var(--orange-line)"></span>RL stage (GRPO)</span>
+    <span>— model weights</span>
+    <span>- - data</span>
+  </div>
+</div>

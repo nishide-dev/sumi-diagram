@@ -1,0 +1,101 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  :root {
+    --canvas: #ffffff; --ink: #30364f; --panel: #ffffff; --panel-line: #4e566b;
+    --blue: #d9e4e6; --blue-line: #3d5d77;
+    --green: #dce7d3; --green-line: #426344;
+    --orange: #efdfce; --orange-line: #814b2d;
+    --gray-line: #4e566b;
+    --font: "Inter", "Helvetica Neue", Arial, sans-serif;
+    --fs-node: 8; --fs-sub: 7; --fs-group: 9; --fs-edge: 7;
+    --frame-w: 1; --edge-w: 1;
+    --arrow: #30364f;
+    --pt: 0.3528mm;
+  }
+  @page { size: 180mm 70mm; margin: 0 }
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 180mm; height: 70mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  .box { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center;
+         text-align: center; border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: #fff; border-radius: 0.7mm; line-height: 1.15 }
+  .box small { font-size: calc(var(--fs-sub) * var(--pt)) }
+  .blue { background: var(--blue); border-color: var(--blue-line); color: var(--blue-line) }
+  .green { background: var(--green); border-color: var(--green-line); color: var(--green-line) }
+  .orange { background: var(--orange); border-color: var(--orange-line); color: var(--orange-line) }
+  .gray { background: #fff; border-color: var(--gray-line); color: var(--gray-line) }
+  .group { position: absolute; box-sizing: border-box; background: var(--panel); border: calc(var(--frame-w) * var(--pt)) solid var(--panel-line); border-radius: 1.5mm }
+  .dashed { border-style: dashed; background: transparent }
+  .gtitle { position: absolute; font-weight: bold; font-size: calc(var(--fs-group) * var(--pt)); white-space: nowrap }
+  .lab { position: absolute; transform: translate(-50%, -50%); white-space: nowrap }
+  .cap { position: absolute; transform: translateX(-50%); font-size: calc(var(--fs-group) * var(--pt)); white-space: nowrap }
+  svg.edges { position: absolute; inset: 0; width: 180mm; height: 70mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: calc(var(--edge-w) * 0.3528) }
+  svg.edges path.d { stroke-dasharray: 1.2 0.8 }
+  svg.edges text { font-size: calc(var(--fs-edge) * 0.3528px); fill: var(--ink); font-family: var(--font) }
+  svg.edges marker path { fill: var(--arrow) }
+</style>
+<div id="fig">
+  <!-- panel a: x 2..114, y 4..58 -->
+  <div class="group" style="left:2mm; top:4mm; width:112mm; height:52mm"></div>
+  <div class="cap" style="left:58mm; top:57.5mm">(a) Agentic data synthesis for tool use</div>
+  <!-- stage headings -->
+  <div class="lab" style="left:15mm; top:9mm">Tool specs</div>
+  <div class="lab" style="left:58mm; top:9mm">Agents &amp; tasks</div>
+  <div class="lab" style="left:83mm; top:9mm">Rollouts</div>
+  <div class="lab" style="left:104mm; top:9mm">Filtering</div>
+
+  <div class="box blue" style="left:6mm; top:16mm; width:18mm; height:11mm">Real MCP<br>tools<small>3000+</small></div>
+  <div class="box blue" style="left:6mm; top:36mm; width:18mm; height:11mm">Synthetic<br>tools<small>20,000+</small></div>
+  <div class="box blue" style="left:28mm; top:24mm; width:17mm; height:15mm; border-radius:50%/2.5mm">Tool<br>repository</div>
+  <div class="box blue" style="left:49mm; top:16mm; width:18mm; height:11mm">Agents<small>prompt + tools</small></div>
+  <div class="box blue" style="left:49mm; top:36mm; width:18mm; height:11mm">Tasks<small>with rubrics</small></div>
+  <!-- rollout frame -->
+  <div class="group dashed" style="left:71mm; top:13mm; width:24mm; height:40mm"></div>
+  <div class="box gray" style="left:74mm; top:15mm; width:18mm; height:9mm">User<br>simulator</div>
+  <div class="box green" style="left:74mm; top:28mm; width:18mm; height:7mm">Agent</div>
+  <div class="box gray" style="left:74mm; top:39mm; width:18mm; height:12mm">Tool simulator<small>or sandbox</small></div>
+  <div class="box orange" style="left:97mm; top:28mm; width:14mm; height:7mm">LLM judge</div>
+  <div class="box blue" style="left:97mm; top:41mm; width:14mm; height:10mm">Kept<br>trajectories</div>
+
+  <!-- flow marker -->
+  <svg style="position:absolute; left:115.5mm; top:28.5mm; width:5mm; height:4mm" viewBox="0 0 10 8"><path d="M0 2.5H6V0L10 4L6 8V5.5H0z" fill="#30364f"/></svg>
+
+  <!-- panel b: x 122..178 -->
+  <div class="group" style="left:122mm; top:4mm; width:56mm; height:52mm"></div>
+  <div class="cap" style="left:150mm; top:57.5mm">(b) Colocated RL loop</div>
+  <div class="box gray" style="left:143mm; top:7mm; width:22mm; height:9mm">Environments<small>VM, code interpreter</small></div>
+  <div class="box green" style="left:125mm; top:27mm; width:12mm; height:9mm">SFT<br>model</div>
+  <div class="group dashed" style="left:140mm; top:22mm; width:28mm; height:32mm"></div>
+  <div class="gtitle" style="left:141mm; top:50.5mm; font-weight:normal; font-size:calc(7*var(--pt))">same GPUs</div>
+  <div class="box green" style="left:143mm; top:27.5mm; width:22mm; height:8mm">Inference engine</div>
+  <div class="box green" style="left:143mm; top:38mm; width:22mm; height:8mm">Training engine</div>
+  <div class="box gray" style="left:166mm; top:38mm; width:11mm; height:8mm"><small>Ckpt<br>engine</small></div>
+
+  <!-- legend -->
+  <div class="box blue" style="left:40mm; top:63mm; width:5mm; height:3.5mm"></div><div class="lab" style="left:52mm; top:64.8mm">data</div>
+  <div class="box green" style="left:62mm; top:63mm; width:5mm; height:3.5mm"></div><div class="lab" style="left:76mm; top:64.8mm">model / engine</div>
+  <div class="box gray" style="left:90mm; top:63mm; width:5mm; height:3.5mm"></div><div class="lab" style="left:106mm; top:64.8mm">simulator / env.</div>
+  <div class="box orange" style="left:120mm; top:63mm; width:5mm; height:3.5mm"></div><div class="lab" style="left:131mm; top:64.8mm">judge</div>
+
+  <svg class="edges" viewBox="0 0 180 70">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2" markerHeight="2" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+    <path class="e" d="M24 21.5 H26 V28 H28" marker-end="url(#ah)"/>
+    <path class="e" d="M24 41.5 H26 V35 H28" marker-end="url(#ah)"/>
+    <path class="e" d="M45 31.5 H47 V21.5 H49" marker-end="url(#ah)"/>
+    <path class="e" d="M58 27 V36" marker-end="url(#ah)"/>
+    <path class="e" d="M67 41.5 H69 V31.5 H74" marker-end="url(#ah)"/>
+    <path class="e" d="M83 24 V28" marker-start="url(#ah)" marker-end="url(#ah)"/>
+    <path class="e" d="M83 35 V39" marker-start="url(#ah)" marker-end="url(#ah)"/>
+    <path class="e" d="M95 31.5 H97" marker-end="url(#ah)"/>
+    <path class="e" d="M104 35 V41" marker-end="url(#ah)"/>
+    <!-- b -->
+    <path class="e" d="M154 16 V27.5" marker-start="url(#ah)" marker-end="url(#ah)"/>
+    <text x="155.5" y="22">actions / obs.</text>
+    <path class="e" d="M137 31.5 H143" marker-end="url(#ah)"/>
+    <path class="e" d="M154 35.5 V38" marker-end="url(#ah)"/>
+    <path class="e" d="M165 42 H166" marker-end="url(#ah)"/>
+    <path class="e d" d="M171.5 38 V31.5 H165" marker-end="url(#ah)"/>
+    <text x="167" y="30">broadcast</text>
+  </svg>
+</div>

@@ -1,0 +1,125 @@
+# Contrastive RL training loop and the residual block whose depth is scaled.
+# Source: "1000 Layer Networks for Self-Supervised RL" (arXiv 2503.14858), Sec. 3 and 4.1.
+version: 1
+figure:
+  id: deep-crl
+  theme: sumi
+  profile: presentation-16x9
+  themeOverrides:
+    textScale: 2
+  layout:
+    arrange:
+      row:
+        gap: 10mm
+        align: stretch
+        items: [loop, detail]
+groups:
+  - id: loop
+    variant: plain
+    caption: (a) Contrastive RL training loop
+    arrange:
+      stack:
+        gap: 10mm
+        items:
+          - place:
+              unit: 1mm
+              items:
+                - {item: actor, at: [36, 22]}
+                - {item: env, at: [130, 22]}
+                - {item: buffer, at: [206, 22]}
+                - {item: phi, at: [190, 72]}
+                - {item: psi, at: [190, 112]}
+                - {item: critic, at: [125, 88], origin: body}
+                - {item: critic-title, at: [125, 66]}
+                - {item: loss, at: [40, 86]}
+          - key
+  - id: detail
+    variant: plain
+    caption: (b) Residual block
+    arrange:
+      stack:
+        direction: up
+        gap: 6mm
+        items: [depth, h-in, block, h-out]
+  - id: block
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: unit, at: [0, 0], origin: body}
+          - {item: split, at: [0, 40]}
+          - {item: skip-low, at: [-30, 40]}
+          - {item: skip-high, at: [-30, -40]}
+          - {item: add, at: [0, -40]}
+  - id: unit
+    variant: dashed
+    arrange:
+      stack:
+        direction: up
+        gap: 6mm
+        align: stretch
+        items: [dense, norm, swish]
+nodes:
+  # (a) loop
+  - {id: actor, component: box, label: 'Actor $\pi_\theta(a\,|\,s,\,g)$', tone: blue, variant: tinted}
+  - {id: env, component: box, label: Environment}
+  - {id: buffer, component: cylinder, label: Replay buffer, props: {width: 46mm, height: 21mm}}
+  - {id: phi, component: box, label: 'Encoder $\phi(s,\,a)$', tone: blue, variant: emphasis, matchWidth: enc}
+  - {id: psi, component: box, label: 'Encoder $\psi(g)$', tone: blue, variant: tinted, matchWidth: enc}
+  - id: critic
+    component: matrix
+    props:
+      flush: true
+      cellWidth: 8mm
+      variant: outlined
+      classes:
+        p: {tone: blue, pattern: hatch, label: positive (same trajectory)}
+        n: {tone: gray, label: negative (other trajectory)}
+      cells: [pnnn, npnn, nnpn, nnnp]
+  - {id: critic-title, component: label, label: 'Critic $\|\phi-\psi\|_2$'}
+  - {id: loss, component: box, label: InfoNCE loss, tone: orange, variant: tinted}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      perRow: 2
+      entries:
+        - {node: {tone: blue, variant: tinted}, label: residual network (b)}
+        - {class: critic.p}
+        - {class: critic.n}
+        - {edge: {variant: dashed}, label: actor objective}
+  # (b) residual block
+  - {id: h-in, component: label, label: '$h_i$'}
+  - {id: split, component: junction, variant: hidden}
+  - {id: skip-low, component: junction, variant: hidden}
+  - {id: skip-high, component: junction, variant: hidden}
+  - {id: dense, component: box, label: Dense, tone: gray, variant: tinted, props: {width: 40mm}}
+  - {id: norm, component: box, label: LayerNorm, tone: gray, variant: tinted}
+  - {id: swish, component: box, label: Swish, tone: gray, variant: tinted}
+  - {id: times4, component: label, label: ×4, attach: {to: unit, side: east, gap: 2mm}}
+  - {id: add, component: operator, props: {symbol: plus}}
+  - {id: h-out, component: label, label: '$h_{i+1}$'}
+  - {id: depth, component: label, label: "N blocks = 4N Dense layers\n(depth up to 1024)"}
+edges:
+  # (a) main loop, clockwise
+  - {from: actor, to: env, fromAnchor: "east:0.3", toAnchor: "west:0.3", label: action $a$, labelSide: left}
+  - {from: env, to: actor, fromAnchor: "west:0.7", toAnchor: "east:0.7", label: 'state $s$, goal $g$', labelSide: left}
+  - {from: env, to: buffer, label: trajectories}
+  - {from: buffer, to: phi, label: '$(s,\,a)$'}
+  - {from: buffer, to: psi, fromAnchor: "south:0.88", toAnchor: east, label: future $g$, labelAt: middle}
+  - {from: phi, to: critic, toAnchor: "east:0.2"}
+  - {from: psi, to: critic, toAnchor: south}
+  - {from: critic, to: loss}
+  - {from: critic-title, to: actor, fromAnchor: west, toAnchor: south, variant: dashed, label: maximize critic}
+  - {from: phi, to: block, component: zoom}
+  # (b)
+  - {from: h-in, to: split, component: line}
+  - {from: split, to: dense}
+  - {from: dense, to: norm}
+  - {from: norm, to: swish}
+  - {from: swish, to: add}
+  - {from: split, to: skip-low, component: line}
+  - {from: skip-low, to: skip-high, component: line}
+  - {from: skip-high, to: add}
+  - {from: add, to: h-out}

@@ -1,0 +1,106 @@
+# Native Sparse Attention (NSA), arXiv 2502.11089, Sections 3.2-3.3 and 4.1.
+# (a) one query's keys/values go through three branches (compression, top-n block
+# selection, sliding window); a learned gate (MLP + sigmoid) mixes the branch outputs.
+# (b) which key blocks each branch keeps (schematic counts).
+version: 1
+figure:
+  id: nsa-branches
+  theme: sumi
+  profile: paper-double
+  themeOverrides:
+    tones: {gray: {fill: '#ffffff', line: '#a3a8b4', text: '#4e566b'}}
+  layout:
+    arrange:
+      row:
+        gap: 5mm
+        align: stretch
+        items: [panel_a, divider, panel_b]
+groups:
+  - id: panel_a
+    variant: plain
+    caption: (a) Three branches mixed by a gate
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: q, at: [5, 16]}
+          - {item: kv, at: [8, 39.5], origin: body}
+          - {item: kv_label, at: [8, 56]}
+          - {item: split, at: [18, 39.5]}
+          - {item: cmp, at: [36, 26]}
+          - {item: slc, at: [36, 39.5]}
+          - {item: win, at: [36, 53]}
+          - {item: attn_cmp, at: [60, 26]}
+          - {item: attn_slc, at: [60, 39.5]}
+          - {item: attn_win, at: [60, 53]}
+          - {item: gate, at: [87, 16]}
+          - {item: add, at: [87, 39.5]}
+          - {item: out, at: [97, 39.5]}
+  - id: panel_b
+    variant: plain
+    caption: (b) Key blocks each branch keeps
+    arrange:
+      stack:
+        gap: 6mm
+        items: [{stack: {gap: 1.5mm, items: [kept, axis]}}, key]
+nodes:
+  - {id: q, component: label, label: '$q_t$'}
+  - id: kv
+    component: tokens
+    props:
+      direction: down
+      gap: 1pt
+      width: 10pt
+      height: 10pt
+      cells: ['', '', '', '', '', '']
+  - {id: kv_label, component: label, label: '$k_{1:t}$, $v_{1:t}$'}
+  - {id: split, component: junction}
+  - {id: cmp, component: box, label: "Compress\nblocks", tone: blue, variant: tinted, matchWidth: branch}
+  - {id: slc, component: box, label: "Select\ntop-n blocks", tone: orange, variant: tinted, matchWidth: branch}
+  - {id: win, component: box, label: "Sliding\nwindow", tone: green, variant: tinted, matchWidth: branch}
+  - {id: attn_cmp, component: box, label: Attention, matchWidth: attn}
+  - {id: attn_slc, component: box, label: Attention, matchWidth: attn}
+  - {id: attn_win, component: box, label: Attention, matchWidth: attn}
+  - {id: gate, component: box, label: "Gate\nMLP + $\\sigma$"}
+  - {id: add, component: operator, variant: emphasis, props: {symbol: plus, size: large}}
+  - {id: out, component: label, label: '$o_t^*$'}
+  - {id: divider, component: separator, variant: dashed}
+  - id: kept
+    component: matrix
+    props:
+      rows: [cmp, slc, win]
+      cellWidth: 11pt
+      gap: 1.5pt
+      headerGap: 3pt
+      classes:
+        c: {tone: blue, variant: tinted, label: compressed}
+        s: {tone: orange, variant: tinted, label: selected}
+        w: {tone: green, variant: tinted, label: in window}
+        .: {tone: gray, variant: outlined, label: skipped}
+      cells:
+        - cccccccccc
+        - s..s..s.ss
+        - .......www
+  - {id: axis, component: label, label: "key blocks 1 … t →"}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      perRow: 2
+      entries: [{class: kept.c}, {class: kept.s}, {class: kept.w}, {class: kept..}]
+edges:
+  - {from: kv, to: split, component: line}
+  - {from: split, to: cmp, toAnchor: west, route: curve}
+  - {from: split, to: slc, toAnchor: west}
+  - {from: split, to: win, toAnchor: west, route: curve}
+  - {from: cmp, to: attn_cmp}
+  - {from: slc, to: attn_slc}
+  - {from: win, to: attn_win}
+  - {from: attn_slc, to: add}
+  - {from: attn_cmp, fromAnchor: east, to: add, route: curve}
+  - {from: attn_win, fromAnchor: east, to: add, route: curve}
+  - {from: q, to: gate}
+  - {from: gate, to: add, label: '$g_t^c$'}
+  - {from: add, to: out}
+  - {from: attn_cmp, fromAnchor: south, to: slc, toAnchor: north, variant: dashed, label: block scores, labelAt: start, labelSide: left}
