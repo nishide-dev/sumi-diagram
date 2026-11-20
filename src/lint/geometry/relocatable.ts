@@ -147,9 +147,8 @@ function arrangeSlots(context: GeometryContext, ir: FigureIR) {
       parent.set(item, { box, index });
       // A caption stack (#130) stands for its group: not a box of its own.
       if (item.growFirst === true) return;
-      const wrapped =
-        box.kind === "grid" &&
-        ((box.spans?.[index] ?? 1) !== 1 || box.cellAligns?.[index] !== undefined);
+      // Written as a cell wrapper `{ item: … }`: the box sits under its `item` key.
+      const wrapped = box.kind === "grid" && box.wrapped?.[index] === true;
       const at: DocPath = [...path, box.kind, "items", index, ...(wrapped ? ["item"] : [])];
       visit(item, at, `the ${item.kind} at ${pathText(at)}`);
     });
@@ -232,6 +231,7 @@ function movedBox(box: ArrangeBoxIR, from: number, to: number): ArrangeBoxIR {
   let items = swap(box.items) as ArrangeItemIR[];
   let spans = swap(box.spans);
   let cellAligns = swap(box.cellAligns);
+  let wrapped = swap(box.wrapped);
   // The row the item left, if it was the last and is now empty, is dropped:
   // an empty row still takes a row gap.
   const cells = gridCells(box);
@@ -243,6 +243,7 @@ function movedBox(box: ArrangeBoxIR, from: number, to: number): ArrangeBoxIR {
       items = items.filter((_, i) => keep[i]);
       spans = spans?.filter((_, i) => keep[i]);
       cellAligns = cellAligns?.filter((_, i) => keep[i]);
+      wrapped = wrapped?.filter((_, i) => keep[i]);
     }
   }
   return {
@@ -250,6 +251,7 @@ function movedBox(box: ArrangeBoxIR, from: number, to: number): ArrangeBoxIR {
     items,
     ...(spans !== undefined && { spans }),
     ...(cellAligns !== undefined && { cellAligns }),
+    ...(wrapped !== undefined && { wrapped }),
   };
 }
 
@@ -303,9 +305,9 @@ function itemName(context: GeometryContext, item: ArrangeItemIR): string {
 
 /**
  * The box's `items` as data, the same in meaning as written: an ID, `null`,
- * or a grid cell wrapper `{ item, span, align }` rebuilt from its span and
- * align (a wrapper with span 1 and no align is the bare item; a wrapper
- * around `null` stays a wrapper). `undefined` when the IR cannot give an
+ * or a grid cell wrapper `{ item, span, align }` where one was written
+ * (`ArrangeBoxIR.wrapped`), rebuilt from its span and align (a span of 1 is
+ * left out). `undefined` when the IR cannot give an
  * item back: a nested box, whose fields are not kept as written.
  */
 function itemsData(context: GeometryContext, box: ArrangeBoxIR): unknown[] | undefined {
@@ -315,8 +317,9 @@ function itemsData(context: GeometryContext, box: ArrangeBoxIR): unknown[] | und
     const value = item === null ? null : itemName(context, item);
     const span = box.kind === "grid" ? (box.spans?.[i] ?? 1) : 1;
     const align = box.kind === "grid" ? box.cellAligns?.[i] : undefined;
+    const written = box.kind === "grid" && box.wrapped?.[i] === true;
     out.push(
-      span !== 1 || align !== undefined
+      written || span !== 1 || align !== undefined
         ? {
             item: value,
             ...(span !== 1 && { span }),
@@ -727,7 +730,7 @@ export const relocatableNode = defineGeometryRule({
     ];
     return [
       {
-        message: `${capitalize(who)} could move ${move}: then ${effect}${size.length > 0 ? `, and the figure is ${size.join(" and ")}` : ""} (checked by laying the figure out and routing it again: no other edge bends more or takes a longer detour, the figure does not grow and the geometry lint finds no new error or warning).`,
+        message: `${capitalize(who)} could move ${move}: then ${effect}${size.length > 0 ? `, and the figure is ${size.join(" and ")}` : ""} (checked by laying the figure out and routing it again: no other edge bends more or has its detour grow by more than 1pt, the figure does not grow and the geometry lint finds no new error or warning).`,
         path: slot.itemsPath,
         ...(moved !== undefined && { subject: moved.subject }),
         hint: `In ${field}, ${edit}${yaml === undefined ? "" : `: items: ${yaml}`}. Nothing is moved for you: keep the current place if it carries meaning (such as failures below the main flow).`,

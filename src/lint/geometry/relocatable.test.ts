@@ -62,7 +62,7 @@ describe("geometry/relocatable-node", () => {
     expect(hint?.subject).toEqual({ kind: "node", id: "retrying" });
     expect(hint?.path).toEqual(["groups", 1, "arrange", "grid", "items"]);
     expect(hint?.message).toBe(
-      'Node "retrying" could move from row 5, column 6 to the empty cell at row 4, column 6 of the grid of group "active": then edge edges[11] (c-error → retrying) and edge edges[12] (retrying → c-backoff) bend 0 times in total instead of 4, and the figure is 9.9mm shorter (checked by laying the figure out and routing it again: no other edge bends more or takes a longer detour, the figure does not grow and the geometry lint finds no new error or warning).',
+      'Node "retrying" could move from row 5, column 6 to the empty cell at row 4, column 6 of the grid of group "active": then edge edges[11] (c-error → retrying) and edge edges[12] (retrying → c-backoff) bend 0 times in total instead of 4, and the figure is 9.9mm shorter (checked by laying the figure out and routing it again: no other edge bends more or has its detour grow by more than 1pt, the figure does not grow and the geometry lint finds no new error or warning).',
     );
     expect(hint?.hint).toContain(
       "In groups[1].arrange.grid.items, swap items[33] (retrying) with items[26] (the null at row 4, column 6), so row 4, columns 5–7 become c-backoff, retrying, c-error; then delete the last 7 items (row 5, now empty): items: [ ",
@@ -165,6 +165,37 @@ describe("geometry/relocatable-node", () => {
       expect(bends(after, "e:#12")).toBe(0);
       expect(after.layout?.canvas.height).toBeLessThan(before.layout?.canvas.height ?? 0);
     }
+  });
+
+  test("a grid inside a cell wrapper of span 1: the hint names the path under `item`", async () => {
+    // `{ item: <grid> }` with no span or align: the wrapper is still written,
+    // so the inner grid's items are at …items[0].item.grid.items.
+    const doc = parse(readFileSync(join(FIGURES, "color-use/request-states-a.sumi.yaml"), "utf8"));
+    doc.groups[1].arrange = { grid: { columns: 1, items: [{ item: doc.groups[1].arrange }] } };
+    const source = stringify(doc);
+    const [hint] = lintGeometry(await render(source), { source }).filter(
+      (d) => d.code === RELOCATABLE_NODE,
+    );
+    expect(hint?.path).toEqual([
+      "groups",
+      1,
+      "arrange",
+      "grid",
+      "items",
+      0,
+      "item",
+      "grid",
+      "items",
+    ]);
+    expect(hint?.hint).toStartWith(
+      "In groups[1].arrange.grid.items[0].item.grid.items, swap items[33] (retrying) with items[26]",
+    );
+    // The location is the inner grid's items: the line after its `items:` key.
+    const lines = source.split("\n");
+    const line = hint?.location?.line ?? 0;
+    expect(lines[line - 2]?.trim()).toBe("items:");
+    expect(lines[line - 1]?.trim()).toBe("- start");
+    expect(lines.slice(0, line - 2).some((l) => l.trim() === "- item:")).toBe(true);
   });
 
   test("a move that lengthens another edge's detour by more than 1pt is turned down", () => {
