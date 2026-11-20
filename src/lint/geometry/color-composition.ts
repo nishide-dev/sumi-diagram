@@ -20,7 +20,12 @@
  * (docs/design/decisions/440-color-composition.md).
  */
 
+import type { FigureIR } from "../../compiler/ir";
+import { getTheme } from "../../core/theme/builtin";
 import { deltaE, type Oklch, toOklch } from "../../core/theme/color-math";
+import { figureTheme } from "../../core/theme/overrides";
+import { containerFill } from "../../core/theme/resolve";
+import { isTone } from "../../core/theme/tones";
 import { defineGeometryRule, type LintFinding } from "../rule";
 import { type Analysis, analysisOf, type PaintItem, type Sample } from "./composite";
 
@@ -253,33 +258,98 @@ export const colorOnPanel = defineGeometryRule({
     "Colored nodes or sets sit on a group filled with a color other than white: the two colors compete. Keep the panel white and color only what carries meaning.",
   defaultSeverity: "info",
   fixable: false,
-  run: (context) => panelFindings(analysisOf(context)),
+  run: (context) => panelFindings(analysisOf(context), panelFillsOf(context.ir)),
 });
 
 /**
- * Where the panel's color comes from decides what makes it white (#608): the group's own `tone`
- * and `variant: filled` both paint it (a tone wins over `groupFill`); without them the panel is
- * the theme's group fill, which `themeOverrides.groupFill` sets for every untoned group at once.
+ * The fill a container group would get in this figure, for checking a suggested change (#608):
+ * the figure's built-in theme with its overrides (canvas, palette, tones) and `groupFill`.
  */
-function panelHint(panel: PaintItem): string {
-  const own = [
-    ...(panel.tone !== undefined ? [`\`tone: ${panel.tone}\``] : []),
-    ...(panel.variant === "filled"
-      ? ["`variant: filled`"]
-      : panel.variant === "filled-dashed"
-        ? ["`variant: filled-dashed` (use `dashed`)"]
-        : []),
-  ];
-  const groupFill = "`figure.themeOverrides.groupFill: '#ffffff'`";
-  const white =
-    own.length > 0
-      ? `Remove the group's ${own.join(" and ")}, so it takes the theme's panel (white in paper and sumi; elsewhere also set ${groupFill})`
-      : `Set ${groupFill} to make every untoned panel white at once (the default groups of paper and sumi already are)`;
-  return `${white}, or color only what carries meaning: at most 2-3 hues and one accent on a white ground.`;
+export interface PanelFills {
+  /** `themeOverrides.groupFill`, if the figure sets it. */
+  readonly groupFill?: string;
+  /** With `groupFill` given, as if the figure set that instead. */
+  readonly fillOf: (variant: string, tone: string | undefined, groupFill?: string) => string;
+}
+
+/** The figure's panel fills; undefined for a theme that is not built in. */
+export function panelFillsOf(ir: FigureIR): PanelFills | undefined {
+  const builtin = getTheme(ir.meta.themeId);
+  if (builtin === undefined) return undefined;
+  const overrides = ir.meta.themeOverrides;
+  const theme = figureTheme(builtin, overrides);
+  const groupFill = overrides?.groupFill;
+  return {
+    ...(groupFill !== undefined && { groupFill }),
+    fillOf: (variant, tone, instead = groupFill) =>
+      containerFill(theme, instead, variant, tone !== undefined && isTone(tone) ? tone : undefined),
+  };
+}
+
+/** A calmer variant that draws less of the panel: the fill goes, the frame stays. */
+const CALMER_VARIANT: Readonly<Record<string, string>> = {
+  filled: "default",
+  "filled-dashed": "dashed",
+  muted: "default",
+};
+
+/**
+ * What makes the panel white (#608). The group's own `tone` and a filled or muted variant paint
+ * it, and a tone wins over `groupFill`; otherwise the fill is the theme's (or `groupFill`). Each
+ * candidate change is resolved through the figure's theme and suggested only if the fill it
+ * gives clears the rule; failing those, the hint names `groupFill` with the canvas color.
+ */
+function panelHint(panel: PaintItem, canvas: string, fills: PanelFills | undefined): string {
+  const tail =
+    ", or color only what carries meaning: at most 2-3 hues and one accent on a white ground.";
+  const page = canvas === WHITE ? "'#ffffff'" : `'${canvas}'`;
+  const ground = canvas === WHITE ? "white" : `the canvas (${canvas})`;
+  if (fills === undefined)
+    return `Make the panel ${ground}: remove the group's tone or filled variant, or set \`figure.themeOverrides.groupFill: ${page}\`${tail}`;
+  const clears = (fill: string) => fill === "transparent" || isWhite(fill, canvas);
+  const variant = panel.variant ?? "default";
+  const calmer = CALMER_VARIANT[variant];
+  const toneChange =
+    panel.tone === undefined
+      ? []
+      : [{ tone: undefined, variant, say: [`remove its \`tone: ${panel.tone}\``] }];
+  const variantChange =
+    calmer === undefined
+      ? []
+      : [
+          {
+            tone: panel.tone,
+            variant: calmer,
+            say: [`change its \`variant: ${variant}\` to \`${calmer}\``],
+          },
+        ];
+  const both =
+    toneChange.length > 0 && calmer !== undefined
+      ? [
+          {
+            tone: undefined,
+            variant: calmer,
+            say: [...(toneChange[0]?.say ?? []), ...(variantChange[0]?.say ?? [])],
+          },
+        ]
+      : [];
+  for (const change of [...toneChange, ...variantChange, ...both]) {
+    if (clears(fills.fillOf(change.variant, change.tone)))
+      return `In the group, ${change.say.join(" and ")}: the panel is then ${ground}${tail}`;
+  }
+  // The theme's group fill (or the figure's groupFill) is the color: it applies to untoned groups.
+  const now =
+    fills.groupFill !== undefined
+      ? `now '${fills.groupFill}'`
+      : `the theme's panel is ${fills.fillOf(variant, undefined)}`;
+  if (clears(fills.fillOf(variant, undefined, canvas)))
+    return `${panel.tone === undefined ? "Set" : `Remove the group's \`tone: ${panel.tone}\` and set`} \`figure.themeOverrides.groupFill: ${page}\` (${now}), which every untoned panel takes${tail}`;
+  return `Make the panel ${ground}${tail}`;
 }
 
 /** The findings of `geometry/color-on-panel` on an analysis. */
-export function panelFindings(analysis: readonly Analysis[]): LintFinding[] {
+export function panelFindings(analysis: readonly Analysis[], fills?: PanelFills): LintFinding[] {
+  const canvas = analysis[0]?.canvas ?? WHITE;
   const byPanel = new Map<PaintItem, PaintItem[]>();
   for (const a of analysis) {
     const { item } = a;
@@ -299,7 +369,7 @@ export function panelFindings(analysis: readonly Analysis[]): LintFinding[] {
       message: `${capitalize(panel.name.replace(/ fill$/, ""))} is filled ${panel.color} and holds ${items.length} colored ${items.length === 1 ? "element" : "elements"} (${namesOf(items)}): the colors compete with the panel's.`,
       path: panel.docPath,
       subject: panel.subject,
-      hint: panelHint(panel),
+      hint: panelHint(panel, canvas, fills),
     }));
   return limited(findings, "panels with colored elements");
 }

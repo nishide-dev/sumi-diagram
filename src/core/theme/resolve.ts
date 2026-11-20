@@ -327,6 +327,29 @@ const smaller = (a: StyleLength, b: StyleLength): StyleLength => (a.units < b.un
 const larger = (a: StyleLength, b: StyleLength): StyleLength => (a.units > b.units ? a : b);
 
 /**
+ * Whether `themeOverrides.groupFill` paints a group: a `container` without a tone whose own
+ * fill is drawn (not `plain`, `dashed`, `dotted`, or `academic`'s open groups).
+ */
+export function takesGroupFill(id: string, tone: string | undefined, fill: string): boolean {
+  return id === CONTAINER_ID && tone === undefined && fill !== "transparent";
+}
+
+/**
+ * The fill a `container` group of `variant` and `tone` gets in a figure: `theme` is the
+ * figure's theme (`figureTheme`: canvas, palette and tone overrides applied), then `groupFill`
+ * as the theme stage applies it. Lints use it to check a suggested change (#608).
+ */
+export function containerFill(
+  theme: Theme,
+  groupFill: string | undefined,
+  variant: string,
+  tone: Tone | undefined,
+): string {
+  const { fill } = resolveStyle(theme, { kind: "group", id: CONTAINER_ID, variant, tone }).style;
+  return groupFill !== undefined && takesGroupFill(CONTAINER_ID, tone, fill) ? groupFill : fill;
+}
+
+/**
  * Runs the `theme` stage: resolves `figure.theme` (reporting `theme/unknown`)
  * and records the effective style of every valid element with a resolved
  * component in `state.styles`. Returns the theme, or `undefined` if the figure
@@ -422,10 +445,8 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
       style = Object.freeze({ ...style, stroke: overrides.groupStroke });
     if (
       overrides?.groupFill !== undefined &&
-      id === CONTAINER_ID &&
       style.kind === "group" &&
-      tone === undefined &&
-      style.fill !== "transparent"
+      takesGroupFill(id, tone, style.fill)
     )
       style = Object.freeze({ ...style, fill: overrides.groupFill });
     // `sumi/operator` props.size (#311): the circle is a multiple of the font size, so scale that.

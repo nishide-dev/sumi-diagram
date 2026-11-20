@@ -276,10 +276,12 @@ groups:
 - The default group fill is the theme's: white in `paper` and `sumi` (`sumi-dark`: its
   navy canvas), a pale panel in `minimal`, `color`, `slides` and `llama`, none in
   `academic`. A `muted` group is the canvas (white; `sumi-dark`: navy) in every theme but
-  `academic` (no fill). `figure.themeOverrides.groupFill: '#rrggbb'` sets the fill of every
-  group without a tone in one place, `muted` and `filled` ones included (`'#ffffff'` whitens
-  them; `'#efeddd'` brings back `sumi`'s sand panel from before v0.20.0); a sand panel for
-  one `sumi` group is `variant: filled`.
+  `academic` (no fill). `figure.themeOverrides.groupFill: '#rrggbb'` sets, in one place, the
+  fill of every `container` group that has no `tone` and draws a fill: default, `muted`,
+  `filled` and `filled-dashed` groups. Groups without a fill keep none (`plain`, `dashed`,
+  `dotted`, and every `academic` group but `filled`), and a `tone` wins over it. `'#ffffff'`
+  whitens the panels; `'#efeddd'` brings back `sumi`'s sand panel from before v0.20.0. A sand
+  panel for one `sumi` group is `variant: filled`.
 
 ## Edges and the connection table
 

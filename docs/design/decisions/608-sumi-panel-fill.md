@@ -9,7 +9,11 @@
 - `sumi` / `sumi-dark` の既定のグループと `muted` のグループの塗りをキャンバスの色にする（`sumi`: 白、`sumi-dark`: 紺 #30364f）。枠（`muted` の灰色 1pt）と見出しは変えない。`paper` の既定（白いパネルと枠）と同じ考え方で、色は意味を持つ要素だけが持つ。
 - 砂色は 1 段手間をかけて選ぶ。1 つのパネルなら `variant: filled`（#e1d9bc、従来どおり）、図全体なら `figure.themeOverrides.groupFill: "#efeddd"` で従来の既定パネルに戻る（`groupFill` は tone のないグループに効く既存の上書き）。
 - `themeOverrides.canvas` で替えたキャンバスにもパネルは従う（クリーム色のキャンバスならクリーム色のパネル）。#595 の「クリーム色の上書きは #595 前の SVG とバイト一致」は成り立たなくなる。`groupFill: "#efeddd"` を足すと既定のパネルは戻るが、`groupFill` は `muted` と `filled` のグループにも効くため、それらの色（従来 #e1d9bc）までは戻らない。
-- `geometry/color-on-panel` の hint を塗りの出どころで分ける。グループ自身の `tone` と `variant: filled`（`filled-dashed`）はどちらもパネルを塗り、tone は `groupFill` より優先されるため、あるものをすべて挙げて外すよう促す。どちらもなければテーマの塗りなので `themeOverrides.groupFill: '#ffffff'` で tone のないパネルを一度に白にする。テストでは hint のとおりに YAML を直して再描画し、指摘が消えることを確かめる。
+- `geometry/color-on-panel` の hint は、示す変更で本当にパネルが白（キャンバス）になるかを確かめてから出す。図のテーマに上書き（キャンバス・パレット・tone）を適用したテーマで、変更後のグループの塗りを描画と同じ解決（`containerFill`: `resolveStyle` と `groupFill` の適用条件 `takesGroupFill`）で求める。
+  - 試す順: tone を外す → 塗る variant を穏やかにする（`filled`→`default`、`filled-dashed`→`dashed`、`muted`→`default`）→ 両方。最初に白になるものを示す。
+  - どれでも白にならなければ（既に白以外の `groupFill` がある、パレットがパネルを塗るテーマ）、`themeOverrides.groupFill` をキャンバスの色にするよう、現在の値（またはテーマのパネルの色）と共に示す。tone があれば tone を外すことも添える（tone は `groupFill` より優先される）。
+  - 組み込みでないテーマでは解決できないため、一般的な hint に留める。
+  - テストでは hint のとおりに YAML を直して再描画し、指摘が消えることを確かめる（tone・filled・filled-dashed・既存の `groupFill`・パレット・sumi-dark）。
 - figure-format.md（Groups の既定の塗り、テーマ表、パレットの説明）、diagnostics.md、docs/themes.md、docs/lint-rules.md とテーマの説明文を実装に合わせた。
 
 ## 影響
