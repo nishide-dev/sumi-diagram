@@ -6,7 +6,7 @@ and embeds them; it never draws, edits or resizes pixels. Prefer existing
 components and icons. For a small custom drawing use inline SVG, for photos ask
 the user for the file, for rich text a card see [html](html.md).
 
-Contents: [minimal example](#minimal-example) · [icons](#icons) ·
+Contents: [minimal example](#minimal-example) · [icons](#icons) · [when to use one](#when-to-use-an-icon) ·
 [corner badges](#corner-badges) · [file images](#file-images) ·
 [inline SVG](#inline-svg) · [one picture, many uses (`figure.assets`, crop)](#reusing-one-picture-figureassets) ·
 [patch grids and tokens image cells](#patches-from-one-picture) ·
@@ -57,12 +57,20 @@ Each line is a ready-made reference (`tabler/wave-sine`); use it verbatim. Table
 - `icon:` goes on a node with a plain shape (`box`, `circle`, `ellipse`,
   `diamond`, …) or a `label`; not on `operator`, `junction`, `trapezoid`, `stack`,
   `image` (`asset/icon-unsupported`) or groups.
-- **The icon replaces the label** (both: `asset/icon-with-label`). To caption an
-  icon attach a `label` node beside it (structured) or use a neighbouring node.
-  Icon and text on one block is not possible in one node: attach a `label` node
-  carrying the icon to a side without edges (`{id: cond-icon, component: label,
-  icon: tabler/clock, attach: {to: cond, side: south, gap: 1mm}}`) and say so
-  in the report.
+- **Icon and label in one node** (structured layout): give a node both `icon` and
+  `label` and it draws the icon next to the text, sized around both. `iconAt: left`
+  (the default) puts the icon, then the text, on one line block, centred vertically
+  (rows of components, narrow boxes); `iconAt: top` puts the icon over the text,
+  centred (cards, actors). `iconSize` sets the icon, `sublabel` goes under the label
+  and `tone` colours a bare `label` node's icon and text. A `box`, `circle`,
+  `ellipse`, `diamond` or `label` takes it (`circle`, `diamond` fit it worst: prefer
+  `box`). `iconAt` without both fields is `asset/icon-at-without-label`. Without a
+  `label` the icon is drawn alone, as before. Editable PPTX still rejects icons
+  (`pptx/unsupported-asset`); SVG, PDF and picture PPTX draw them. The auto (D2)
+  layout cannot: `asset/icon-with-label` there, so use `figure.layout.arrange`, or
+  attach a `label` node carrying the icon to a side without edges
+  (`{id: cond-icon, component: label, icon: tabler/clock, attach: {to: cond, side: south, gap: 1mm}}`)
+  and say so in the report.
 - The icon is one text line tall (1 em) unless `iconSize` sets it: a number is a
   multiple of the node's font size (`iconSize: 2.5`), a string a length
   (`iconSize: "12mm"`). **Size icons with `iconSize`; do not wrap them in a
@@ -91,6 +99,50 @@ sumi catalog --icons "smiling face"
 sumi catalog --icons "artist dark" --json
 sumi catalog --icons "" --json          # entries beginning with emoji/ are emoji
 ```
+
+### When to use an icon
+
+An icon names a **concrete actor or object**; it does not decorate a step.
+
+- Use one for: a person or user, an agent or robot, a database or store, a document
+  or file, a tool or API, the web or a search, a GPU or server, an environment, a
+  model (a brain), a message or email. Leave operations (rerank, normalise, sum) and
+  abstract steps as plain labelled boxes; a figure whose boxes all carry icons stops
+  telling things apart (`geometry/icon-overuse`, info, at 80% of 6+ nodes).
+- **One family per figure**: Tabler (outline, takes the text colour or a tone; the
+  quiet default) or emoji (full colour, friendly). Do not mix them
+  (`geometry/icon-family-mix`, info) unless the mix is the point.
+- Size and placement: the default 1 em next to the text reads best; use `iconSize`
+  1.25 to 2 for a card, never a frame around the icon. `iconAt: left` for a column
+  or row of components, `top` for a card or an actor with a short label.
+- Search the name with `sumi catalog --icons`; these exist in the bundle:
+
+| Concept | Tabler icon |
+| --- | --- |
+| user, person / people | `tabler/user` / `tabler/users` |
+| agent, robot, chatbot | `tabler/robot`, `tabler/message-chatbot` |
+| model, neural network | `tabler/brain` |
+| database, store | `tabler/database` |
+| document, file, text | `tabler/file-text`, `tabler/file-description` |
+| folder, dataset | `tabler/folder` |
+| code, script | `tabler/code`, `tabler/file-code` |
+| terminal, code runner | `tabler/terminal-2` |
+| tool, tools | `tabler/tool`, `tabler/tools` |
+| API, webhook | `tabler/api`, `tabler/webhook` |
+| web, internet / search | `tabler/world` / `tabler/search`, `tabler/world-search` |
+| GPU, CPU, server | `tabler/gpu`, `tabler/cpu`, `tabler/server` |
+| cloud | `tabler/cloud` |
+| environment, world | `tabler/planet`, `tabler/world` |
+| image, video | `tabler/photo`, `tabler/video` |
+| message, mail | `tabler/message`, `tabler/mail` |
+| lock, key, security | `tabler/lock`, `tabler/key`, `tabler/shield` |
+| device | `tabler/device-desktop`, `tabler/device-mobile` |
+| time, schedule | `tabler/clock` |
+| experiment, test | `tabler/flask`, `tabler/test-pipe` |
+| chart, metrics | `tabler/chart-bar`, `tabler/report-analytics` |
+
+A worked figure: the [actors-and-tools](../layouts/actors-and-tools/actors-and-tools.sumi.yaml)
+layout (user, agent, tools, database as icon + label nodes; operations plain).
 
 ## Corner badges
 
@@ -370,7 +422,8 @@ edges:
 | `asset/unknown-icon` | use the hint's name, or search `sumi catalog --icons "<word>"` |
 | `asset/unsupported-icon` | the name exists upstream but needs unsupported SVG features: choose another (also for badges) |
 | `asset/unknown-icon-set` | use `tabler/` or `emoji/` |
-| `asset/icon-with-label` | remove the label, or move the text into a separate `label` node |
+| `asset/icon-with-label` | auto layout only: use `figure.layout.arrange` (icon + label in one node, `iconAt`), or move the text into a separate `label` node |
+| `asset/icon-at-without-label` | `iconAt` needs both `icon` and `label`: add the missing one, or remove `iconAt` |
 | `asset/icon-unsupported` | put the icon on a `box`, `circle`, `label`, … |
 | `asset/icon-size-without-icon` | `iconSize` belongs to a node with `icon`: add the icon or remove it |
 | `asset/invalid-path` | a relative path with `/` (no `\`, scheme or leading `/`) naming a file and not leaving the directory through `..` |

@@ -5,8 +5,9 @@
  *
  * - `icon` (`<set>/<name>`): the set must be bundled (`asset/unknown-icon-set`)
  *   and have the icon (`asset/unknown-icon`, with the closest names as a
- *   hint). An icon is drawn in place of the label, so a node with an icon
- *   takes no label (`asset/icon-with-label`), and only plain shapes take one:
+ *   hint). An icon is drawn alone, or (#605) beside the label in the
+ *   structured engine (`iconAt`); in the auto engine a node with an icon takes
+ *   no label (`asset/icon-with-label`), and only plain shapes take one:
  *   not marks, outline components or images (`asset/icon-unsupported`).
  *   `iconSize` (#424) needs an `icon` (`asset/icon-size-without-icon`).
  * - `sumi/image`: `props.src` must be a relative path that stays in the
@@ -96,6 +97,20 @@ export function checkAssets(state: CheckState, locate: Locator): void {
       continue;
     }
 
+    if (node.iconAt !== undefined && (node.icon === undefined || isBlankForD2(node.label))) {
+      fail(
+        "asset/icon-at-without-label",
+        node.icon === undefined
+          ? `Node "${node.id}" sets iconAt but draws no icon.`
+          : `Node "${node.id}" sets iconAt but has no label to put the icon beside.`,
+        ["iconAt"],
+        node.icon === undefined
+          ? "Add icon and label, or remove iconAt."
+          : "Add a label, or remove iconAt: an icon without a label is drawn alone.",
+      );
+      continue;
+    }
+
     for (const [field, value] of [
       ["badge", node.badge?.icon],
       ["icon", node.icon],
@@ -116,12 +131,16 @@ export function checkAssets(state: CheckState, locate: Locator): void {
         );
         continue;
       }
-      if (field === "icon" && !isBlankForD2(node.label)) {
+      if (
+        field === "icon" &&
+        !isBlankForD2(node.label) &&
+        state.doc.figure?.layout?.engine !== "structured"
+      ) {
         fail(
           "asset/icon-with-label",
-          `Node "${node.id}" has both an icon and a label; the icon is drawn in place of the label.`,
+          `Node "${node.id}" has both an icon and a label; an icon beside a label needs the structured layout engine.`,
           ["icon"],
-          "Remove the label, or put the text in a label node attached beside the icon.",
+          "Lay the figure out with figure.layout.arrange (then icon + label share one node, iconAt: left | top), or remove the label, or put the text in a label node attached beside the icon.",
         );
         continue;
       }

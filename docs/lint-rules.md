@@ -69,6 +69,8 @@ set の塗りは不透明な淡い色で、重なりは既定で全参加色の�
 | `geometry/translucent-over-color` | warning | 不透明度が 1 未満の塗りが、白以外の面（パネル・ほかの塗り）の上にある。色が下の面で変わる |
 | `geometry/low-stroke-contrast` | info / warning | エッジの線（3:1 未満で info、1.5:1 未満で warning）と、塗りが背後の色とほぼ同じで輪郭だけで形を示すノードの枠（2:1 未満で info）が、実際に描かれた背景（地・グループ・set の合成色）から区別しにくい。グループの枠、operator・junction・zoom、`dim` の中の要素は対象外（#463） |
 | `geometry/color-on-panel` | info | 白以外の塗りのグループが、有彩色のノードか set を 3 つ以上持つ（OKLCH 彩度 0.025 以上。`gray` 以外の tone を書いたノードは、淡い tone も拾うため 0.008 以上）。パネルの色と要素の色が競う。1〜2 個（Llama 4 のアクセント）は報告しない |
+| `geometry/icon-family-mix` | info | ノードのアイコンに Tabler（`tabler/*`）と絵文字（`emoji/*`）が両方ある（#606）。凡例の見本・バッジは数えない。1 つの図では一方に揃える |
+| `geometry/icon-overuse` | info | ラベルかアイコンを持つノードが 6 以上で、その 80% 以上がアイコンを描く（#606）。アイコンは具体的な役者や物（利用者、データベース、文書、ツール、GPU）に付け、演算や抽象的な手順は文字の箱にする。凡例・tokens・matrix の部品、キャプションは数えない |
 
 warning にしたのは、最終の色を実際に合成して測る検査で、図の意図ではなく結果の濁りを見ているため。`geometry/color-on-panel` は好みと意図に左右されるので info とし、`maxWarnings` に含めない。
 しきい値は、試行 3 の図（灰色のパネルに半透明の set。変更前の描き方で `muddy-color` 6 件、`translucent-over-color` 9 件、`color-on-panel` 2 件）で出て、`examples/llada` と `examples/llama4-moe` で何も出ず、

@@ -47,6 +47,7 @@ import { deadSpace } from "./dead-space";
 import { sparseFigure, textHeavy } from "./density";
 import { obstaclesCrossedByRoute, type RouteObstacle, segmentCrossesRegion } from "./edges";
 import { groupEmptySpace } from "./empty-space";
+import { iconFamilyMix, iconOveruse } from "./icons";
 import { microJogLengths } from "./jogs";
 import { inkLines, unionOf } from "./measure";
 import { regionsOverlap } from "./outlines";
@@ -128,7 +129,7 @@ const isCaption = (element: GeometryElement): boolean =>
   element.ir.kind === "node" && element.ir.captionOf !== undefined;
 
 const hasIcon = (element: GeometryElement): boolean =>
-  element.ir.kind === "node" && element.ir.icon !== undefined;
+  element.ir.kind === "node" && element.ir.icon !== undefined && element.ir.iconAt === undefined;
 
 /** `label`, or `icon` for a node that draws an icon in place of its label (#94). */
 const contentNoun = (element: GeometryElement): string => (hasIcon(element) ? "icon" : "label");
@@ -2135,7 +2136,7 @@ export const glyphCollision = defineGeometryRule({
         });
         // An icon is the node's picture, which a glyph may touch; text it must not cover.
         const ownText =
-          (element.ir.kind !== "node" || element.ir.icon === undefined) &&
+          !hasIcon(element) &&
           element.labels.some((label) =>
             label.visibleLines.some((line) => rectsOverlap(glyph, line, GEOMETRY_TOLERANCE_UNITS)),
           );
@@ -2167,6 +2168,8 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   deadSpace,
   sparseFigure,
   textHeavy,
+  iconFamilyMix,
+  iconOveruse,
   heavyScaling,
   exceedsTargetHeight,
   placementUsage,

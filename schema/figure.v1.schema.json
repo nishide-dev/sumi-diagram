@@ -521,7 +521,7 @@
             ]
           },
           "icon": {
-            "description": "A bundled icon drawn in place of the label, e.g. tabler/wave-sine (text color) or emoji/fire (original multicolour palette).",
+            "description": "A bundled icon, drawn alone when the node has no label, or beside the label (see iconAt), e.g. tabler/wave-sine (text color) or emoji/fire (original multicolour palette).",
             "type": "string",
             "maxLength": 80,
             "pattern": "^([a-z][a-z0-9]*)\\/([a-z0-9]+(?:-[a-z0-9]+)*)$"
@@ -546,6 +546,14 @@
                 ],
                 "description": "A length with a unit (mm, cm, in or pt), e.g. \"3mm\"; 0 needs no unit."
               }
+            ]
+          },
+          "iconAt": {
+            "description": "Where the icon sits when the node has both icon and label (#605): left (icon, then the text, on one line block; the default) or top (icon above the text). The node grows to hold both. Structured layout only; without a label the icon is drawn alone.",
+            "type": "string",
+            "enum": [
+              "left",
+              "top"
             ]
           },
           "badge": {

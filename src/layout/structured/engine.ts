@@ -43,7 +43,7 @@
  * in the design doc.
  */
 
-import { badgeRect, iconBox } from "../../assets/draw";
+import { badgeRect, iconBox, iconLabelBox, iconLabelTextShift } from "../../assets/draw";
 import { glyphRects } from "../../assets/glyphs";
 import type {
   ArrangeBoxIR,
@@ -327,10 +327,13 @@ class StructuredLayout {
       // sublabel (#184) stacks under the label; a turned label (#178) takes
       // its turned box.
       const text = label === undefined ? undefined : textBlock(label, sublabel);
+      // An icon beside the label (#605): the box holds both.
       const box =
         text !== undefined && node.labelRotation !== undefined
           ? { width: text.height, height: text.width }
-          : (text ?? iconBox(node));
+          : text !== undefined && node.icon !== undefined
+            ? iconLabelBox(node, text)
+            : (text ?? iconBox(node));
       // A separator contributes no size: siblings determine its span and gap
       // supplies the whitespace on either side. This avoids sizing feedback.
       let size =
@@ -1480,7 +1483,15 @@ class StructuredLayout {
               y: rect.y + rect.height + caption.gap + caption.height / 2,
             };
       const sublabel = this.#sublabels.get(node.key);
-      const anchored = this.#alignedCenter(node, rect, center, metrics, sublabel);
+      // The text block sits away from the icon beside it (#605).
+      const shift = node.icon !== undefined ? iconLabelTextShift(node) : { x: 0, y: 0 };
+      const anchored = this.#alignedCenter(
+        node,
+        rect,
+        { x: center.x + shift.x, y: center.y + shift.y },
+        metrics,
+        sublabel,
+      );
       if (sublabel === undefined) {
         labels.set(node.key, placeText(metrics, anchored, node.labelRotation, node.textAlign));
         continue;

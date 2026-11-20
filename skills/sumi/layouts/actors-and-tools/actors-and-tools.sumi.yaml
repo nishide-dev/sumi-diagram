@@ -1,0 +1,50 @@
+# Layout: concrete actors and objects as icon + label nodes: a user asks an agent, which calls tools and reads a database.
+#
+# Use when: the figure names things (a user, an agent, services, stores, documents) rather than steps: an
+#   LLM agent with tools, a client with its backends, a pipeline of named components. Icons mark the actors
+#   and objects only; operations stay edge labels.
+# Structure: a row of User → Agent → a Tools frame (a stack of boxes) with the Database under the Agent. The things
+#   (User, Agent, Web search, Documents, Database) are icon + label nodes, one icon family (Tabler):
+#   `iconAt: top` for the two cards, `left` (the default) for the component rows; the operations (Rerank,
+#   Summarise) are plain labelled boxes without icons, so the icons keep telling things apart. One
+#   blue tone marks the actor the figure is about.
+# Change: the labels and icon names (`sumi catalog --icons`); the number of tools (a box and its edge).
+#   Give an icon to a concrete actor or object only; keep an operation a plain box.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: actors-and-tools
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 16mm
+        align: center
+        items:
+          - user
+          - stack: {gap: 12mm, align: stretch, items: [agent, store]}
+          - tools
+    align:
+      - {y: [user, agent]}
+groups:
+  - id: tools
+    label: Tools
+    labelAt: above-left
+    arrange:
+      stack: {gap: 4mm, align: stretch, items: [search, rerank, files, summarise]}
+nodes:
+  - {id: user, component: box, label: User, icon: tabler/user, iconAt: top, tone: blue, variant: tinted, props: {width: 26mm}}
+  - {id: agent, component: box, label: Agent, icon: tabler/robot, iconAt: top, props: {width: 26mm}}
+  - {id: search, component: box, label: Web search, icon: tabler/world-search}
+  - {id: rerank, component: box, label: Rerank, variant: muted}
+  - {id: files, component: box, label: Documents, icon: tabler/file-text}
+  - {id: summarise, component: box, label: Summarise, variant: muted}
+  - {id: store, component: box, label: Database, icon: tabler/database, variant: muted}
+edges:
+  - {from: user, to: agent, component: double-arrow, label: task / answer}
+  - {from: agent, to: search}
+  - {from: search, to: rerank}
+  - {from: agent, to: files}
+  - {from: files, to: summarise}
+  - {from: agent, to: store, component: double-arrow, label: memory, labelAt: middle}
