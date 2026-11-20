@@ -5,10 +5,14 @@
 
 import { describe, expect, test } from "bun:test";
 import { stringify } from "yaml";
+import { buildFigureIR } from "../../compiler/ir";
 import { checkFigure } from "../../core/check";
 import { layoutStructuredFigure } from "../index";
 import type { LayoutIR, Point, Rect } from "../ir";
+import { resolveEnds } from "../route/ports";
+import { routeEdges } from "../route/router";
 import type { TextMeasurer } from "../text";
+import { placeStructured } from "./engine";
 
 const FAKE: TextMeasurer = {
   lineWidth: (text, _font, size) => ([...text].length * size) / 2,
@@ -258,6 +262,110 @@ describe("figure.layout.straighten", () => {
     const [start, end] = points(on, 0);
     expect(end?.y).toBeCloseTo(rect(on, "b").y + 0.1 * rect(on, "b").height, 2);
     expect(start?.y).toBeCloseTo(end?.y ?? 0, 3);
+  });
+});
+
+/** Corners of a route. */
+function bends(route: readonly Point[]): number {
+  let n = 0;
+  for (let i = 1; i + 1 < route.length; i++) {
+    const [a, b, c] = [route[i - 1], route[i], route[i + 1]] as [Point, Point, Point];
+    if (Math.abs((b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x)) > 1e-6) n++;
+  }
+  return n;
+}
+
+/** The Figure IR and the placed (unrouted) layout. */
+function placed(doc: object) {
+  const ir = buildFigureIR(checkFigure(stringify(doc)));
+  return { ir, layout: placeStructured(ir, { measurer: FAKE }).layout };
+}
+
+/** The layout with `slide` forced on edge `index`, as if the straightening had accepted it. */
+const forceSlide = (layout: LayoutIR, index: number): LayoutIR => ({
+  ...layout,
+  edges: layout.edges.map((e, i) => (i === index ? { ...e, slide: true as const } : e)),
+});
+
+describe("figure.layout.straighten: sliding an end along its side", () => {
+  // b fills the row: nothing moves. Sliding b's end up to a's line would run into o.
+  const obstructed = (straighten: boolean) => ({
+    version: 1,
+    figure: {
+      id: "t",
+      theme: "paper",
+      layout: {
+        straighten,
+        arrange: {
+          row: {
+            gap: "30pt",
+            items: [
+              { stack: { gap: "20pt", items: ["a", "x"] } },
+              { stack: { gap: "40pt", items: ["o", "p"] } },
+              "b",
+            ],
+          },
+        },
+      },
+    },
+    nodes: [
+      box("a"),
+      box("x"),
+      { ...box("o", "10pt"), props: { width: "20pt", height: "10pt" } },
+      { ...box("p", "10pt"), props: { width: "20pt", height: "10pt" } },
+      box("b", "60pt"),
+    ],
+    edges: [{ from: "a", to: "b" }],
+  });
+
+  test("an obstructed slide is not taken: no more bends, the route kept, the figure no larger", () => {
+    const off = lay(obstructed(false));
+    const on = lay(obstructed(true));
+    const before = points(off, 0);
+    const after = points(on, 0);
+    expect(after.length).toBeGreaterThan(0);
+    expect(bends(after)).toBeLessThanOrEqual(bends(before));
+    expect(on.canvas.width).toBeLessThanOrEqual(off.canvas.width);
+    expect(on.canvas.height).toBeLessThanOrEqual(off.canvas.height);
+    expect(on.edges[0]?.slide).toBeUndefined();
+    // The slide itself would have hurt: forced, its route is not straight.
+    const { ir, layout } = placed(obstructed(true));
+    const forced = routeEdges(ir, forceSlide(layout, 0), { hintTrials: false });
+    expect(bends(forced.layout.edges[0]?.route?.points ?? [])).not.toBe(0);
+  });
+
+  test("never slides one branch of a fan, even with fanIn: spread", () => {
+    // s1 and s2 both enter t's west side, spread apart; s1's line meets t's side.
+    const fan = (straighten: boolean) => ({
+      version: 1,
+      figure: {
+        id: "t",
+        theme: "paper",
+        layout: {
+          straighten,
+          fanIn: "spread",
+          arrange: {
+            row: { gap: "40pt", items: [{ stack: { gap: "20pt", items: ["s1", "s2"] } }, "t"] },
+          },
+        },
+      },
+      nodes: [box("s1"), box("s2"), box("t", "60pt")],
+      edges: [
+        { from: "s1", to: "t" },
+        { from: "s2", to: "t" },
+      ],
+    });
+    const off = lay(fan(false));
+    const on = lay(fan(true));
+    for (const index of [0, 1]) {
+      expect(points(on, index)).toEqual(points(off, index));
+      expect(on.edges[index]?.slide).toBeUndefined();
+    }
+    // Port level: even marked to slide, a fan's end stays where the spread put it.
+    const { ir, layout } = placed(fan(true));
+    const plain = resolveEnds(ir, layout);
+    const marked = resolveEnds(ir, forceSlide(layout, 0));
+    expect(marked[0]).toEqual(plain[0]);
   });
 });
 

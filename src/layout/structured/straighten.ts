@@ -82,12 +82,16 @@ export interface StraightenStats {
   readonly layouts: number;
   /** The edges (indices) made straight. */
   readonly straightened: readonly number[];
+  /** The edges (indices) straight because an end slides along its side (`EdgeLayout.slide`). */
+  readonly slides: readonly number[];
   /** The shifts kept, by item (an element key, or `box:<first item>`). */
   readonly shifts: Readonly<Record<string, Point>>;
 }
 
 export interface StraightenResult {
   readonly trial: StraightenTrial;
+  /** The trial's layout with `slide` on the edges that slide. */
+  readonly layout: LayoutIR;
   readonly shifts: Shifts;
   readonly stats: StraightenStats;
 }
@@ -130,6 +134,8 @@ interface Candidate {
   readonly state: EdgeState;
   readonly shifts: Map<ArrangeItemIR, Point>;
   readonly moved: number;
+  /** The edges that slide with this candidate. */
+  readonly slides: ReadonlySet<number>;
 }
 
 /**
@@ -146,7 +152,9 @@ export function straightenLayout(
   let shifts = new Map<ArrangeItemIR, Point>();
   const straightened: number[] = [];
   const info = figureInfo(ir);
-  let state = edgeState(ir, current.layout);
+  /** Edges whose unanchored end may slide along its side (`EdgeLayout.slide`), checked by routing. */
+  let slides: ReadonlySet<number> = new Set<number>();
+  let state = edgeState(ir, current.layout, slides);
   /** The routes of `current`, once needed. */
   let routed: RouteSummary | undefined;
   let routings = 0;
@@ -158,6 +166,20 @@ export function straightenLayout(
       if (crooked === undefined) continue;
       if (state.fanEnds.has(`${index} from`) || state.fanEnds.has(`${index} to`)) continue;
       const found: Candidate[] = [];
+      const consider = (
+        trial: StraightenTrial,
+        trialShifts: Map<ArrangeItemIR, Point>,
+        moved: number,
+      ): void => {
+        const withSlide = new Set(slides).add(index);
+        const after = edgeState(ir, trial.layout, withSlide);
+        if (!after.straight.has(index)) return;
+        if (!includes(after.aligned, state.aligned) || !includes(after.straight, state.straight))
+          return;
+        // Lined up without sliding: the edge needs no slide.
+        const trialSlides = after.aligned.has(index) ? new Set(slides) : withSlide;
+        found.push({ trial, state: after, shifts: trialShifts, moved, slides: trialSlides });
+      };
       for (const which of ["to", "from"] as const) {
         const end = which === "to" ? crooked.to : crooked.from;
         const other = which === "to" ? crooked.from : crooked.to;
@@ -181,31 +203,29 @@ export function straightenLayout(
             const trial = layoutWith(trialShifts);
             layouts++;
             if (!keepsTheRest(info, current, trial, inside, crooked.axis, delta)) continue;
-            const after = edgeState(ir, trial.layout);
-            if (!after.straight.has(index)) continue;
-            if (
-              !includes(after.aligned, state.aligned) ||
-              !includes(after.straight, state.straight)
-            )
-              continue;
-            found.push({ trial, state: after, shifts: trialShifts, moved: inside.size });
+            consider(trial, trialShifts, inside.size);
           }
         }
       }
+      // Last resort: no node moves, an end slides along its side (ranked after every shift).
+      consider(current, shifts, Number.POSITIVE_INFINITY);
       // The best first (a stable sort keeps the earlier of equals); the first that harms no route wins.
       found.sort((a, b) => (better(a, b) ? -1 : better(b, a) ? 1 : 0));
       for (const candidate of found) {
         if (routings >= MAX_STRAIGHTEN_ROUTINGS) break;
         if (routed === undefined) {
-          routed = routeSummary(ir, current.layout);
+          routed = routeSummary(ir, withSlides(current.layout, slides));
           routings++;
         }
-        const next = routeSummary(ir, candidate.trial.layout);
+        const next = routeSummary(ir, withSlides(candidate.trial.layout, candidate.slides));
         routings++;
         if (!harmless(routed, next, index)) continue;
         current = candidate.trial;
-        state = candidate.state;
+        state = candidate.slides.has(index)
+          ? candidate.state
+          : edgeState(ir, candidate.trial.layout, candidate.slides);
         shifts = candidate.shifts;
+        slides = candidate.slides;
         routed = next;
         straightened.push(index);
         changed = true;
@@ -216,7 +236,25 @@ export function straightenLayout(
   }
   const record: Record<string, Point> = {};
   for (const [item, shift] of shifts) record[itemName(item)] = shift;
-  return { trial: current, shifts, stats: { layouts, straightened, shifts: record } };
+  return {
+    trial: current,
+    layout: withSlides(current.layout, slides),
+    shifts,
+    stats: { layouts, straightened, slides: [...slides].sort((a, b) => a - b), shifts: record },
+  };
+}
+
+/** `layout` with `slide` set on the edges `slides` (indices) and on no other (#618). */
+function withSlides(layout: LayoutIR, slides: ReadonlySet<number>): LayoutIR {
+  const marked = layout.edges.some((e, i) => (e.slide === true) !== slides.has(i));
+  if (!marked) return layout;
+  return {
+    ...layout,
+    edges: layout.edges.map((edge, i) => {
+      const { slide: _, ...rest } = edge;
+      return slides.has(i) ? { ...rest, slide: true as const } : rest;
+    }),
+  };
 }
 
 /** The most routings (of the current layout and of candidates) one figure's straightening runs. */
@@ -425,11 +463,10 @@ function routed(ir: FigureIR, index: number): boolean {
   );
 }
 
-function edgeState(ir: FigureIR, layout: LayoutIR): EdgeState {
-  // As resolved with no end moved along its side (`far` off), then as the router draws them.
-  const { straighten: far, ...meta } = ir.meta;
-  const fixed = far === true ? resolveEnds({ ...ir, meta }, layout) : resolveEnds(ir, layout);
-  const drawn = far === true ? resolveEnds(ir, layout) : fixed;
+function edgeState(ir: FigureIR, layout: LayoutIR, slides: ReadonlySet<number>): EdgeState {
+  // As resolved with no end moved along its side, then with the `slides` (as the router draws them).
+  const fixed = resolveEnds(ir, withSlides(layout, new Set()));
+  const drawn = slides.size === 0 ? fixed : resolveEnds(ir, withSlides(layout, slides));
   const rects = new Map<ElementKey, Rect>([
     ...layout.nodes.map((n) => [n.key, n.rect] as const),
     ...layout.groups.map((g) => [g.key, g.rect] as const),

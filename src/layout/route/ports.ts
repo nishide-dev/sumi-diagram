@@ -1179,28 +1179,43 @@ export const straightenable = (f: { aside: number; gapAside?: number }): boolean
  * back to a lip by `reresolve` is rejected. Edges are taken in document
  * order. Mutates `pairs`.
  *
- * `far` (`figure.layout.straighten`, #618): an end without an anchor also
- * moves farther than the tolerance, onto the other end's line, when that
- * line meets its side at least {@link STRAIGHT_MARGIN} inside the corners
- * (where a `straight` end may go). The layout first moves the nodes so the
- * ends line up (`structured/straighten.ts`); this is what is left when a node
- * cannot move all the way.
+ * `far` (`figure.layout.straighten`, #618): the edges (by key) the layout
+ * marked `slide` in the Layout IR, after checking their routes against the
+ * unslid ones (`structured/straighten.ts`). On them an end without an anchor
+ * also moves farther than the tolerance, onto the other end's line, when
+ * that line meets its side at least {@link STRAIGHT_MARGIN} inside the
+ * corners (where a `straight` end may go). Never an end of a fan: a side
+ * with two or more ends without an anchor (spread ones included), or a
+ * junction.
  */
 function straighten(
   pairs: ({ from: End; to: End } | { error: string })[],
-  choices: readonly { from: Choice | undefined; to: Choice | undefined }[],
+  choices: readonly {
+    edge: { readonly key: ElementKey };
+    from: Choice | undefined;
+    to: Choice | undefined;
+  }[],
   reresolve: (end: End, choice: Choice, port: Point) => End,
   element: (key: ElementKey) => Element,
-  far = false,
+  far: ReadonlySet<ElementKey> = new Set(),
 ): void {
   const pointKey = (key: ElementKey, p: Point) => `${key} ${p.x} ${p.y}`;
   const users = new Map<string, number>();
-  for (const pair of pairs) {
+  /** Ends without an anchor per side (`key side`): two or more make a fan (#618). */
+  const sideUsers = new Map<string, number>();
+  const sideKey = (end: End) => `${end.key} ${end.side}`;
+  for (const [index, pair] of pairs.entries()) {
     if ("error" in pair) continue;
-    for (const end of [pair.from, pair.to]) {
+    const choice = choices[index];
+    for (const [end, endChoice] of [
+      [pair.from, choice?.from],
+      [pair.to, choice?.to],
+    ] as const) {
       if (end.junction) continue;
       const k = pointKey(end.key, end.port);
       users.set(k, (users.get(k) ?? 0) + 1);
+      if (end.side !== undefined && endChoice?.anchored !== true)
+        sideUsers.set(sideKey(end), (sideUsers.get(sideKey(end)) ?? 0) + 1);
     }
   }
   for (const [index, pair] of pairs.entries()) {
@@ -1210,9 +1225,9 @@ function straighten(
     const f = facing(a, b);
     if (f === undefined) continue;
     const near = straightenable(f);
-    if (!near && !(far && f.aside !== 0)) continue;
+    const choice = choices[index] as (typeof choices)[number];
+    if (!near && !(far.has(choice.edge.key) && f.aside !== 0)) continue;
     const d = f.dir;
-    const choice = choices[index] as { from: Choice | undefined; to: Choice | undefined };
     const candidates = (
       [
         ["to", b, a, choice.to],
@@ -1240,9 +1255,16 @@ function straighten(
       const here = pointKey(end.key, end.port);
       const there = pointKey(end.key, port);
       if (!onSide || users.get(here) !== 1 || (users.get(there) ?? 0) > 0) continue;
-      // Far (#618): never onto a junction or a port other edges share — the branches of a
-      // fan keep their own ends, all alike.
-      if (!near && (other.junction || users.get(pointKey(other.key, other.port)) !== 1)) continue;
+      // Far (#618): never an end of a fan (a junction, a port other edges share, or a side
+      // with other ends without an anchor, spread apart or not): its branches stay alike.
+      if (
+        !near &&
+        (other.junction ||
+          users.get(pointKey(other.key, other.port)) !== 1 ||
+          (sideUsers.get(sideKey(end)) ?? 0) > 1 ||
+          (other.side !== undefined && (sideUsers.get(sideKey(other)) ?? 0) > 1))
+      )
+        continue;
       const moved = reresolve(end, endChoice, port);
       // Resolving a point inside the gap snaps back to a lip: that is not
       // a successful move. Try the neighbour instead, without changing users.
@@ -1755,7 +1777,7 @@ function resolveEndsWith(
     choices,
     (end, choice, port) => resolve(end.key, choice, port),
     element,
-    ir.meta.straighten === true,
+    new Set((layout.edges ?? []).filter((e) => e.slide === true).map((e) => e.key)),
   );
   return resolved.map((pair, index) => {
     if ("error" in pair) return pair;

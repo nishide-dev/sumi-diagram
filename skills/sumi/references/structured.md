@@ -1032,7 +1032,8 @@ edges:
 - **Anchors**: a written anchor stays where it is on its side, and the other box moves to
   meet it (`toAnchor: "east:0.2"` lines up with that point). When no box can move all the
   way, an end **without** an anchor may also slide along its side onto the other end's line
-  (at least 3pt from the corners); fans and shared ports never slide.
+  (at least 3pt from the corners), again only if the routes are no worse than without the
+  slide; fans (spread ones too), junctions and shared ports never slide.
 - **When to use it**: paper figures where boxes of different sizes sit in rows and stacks
   next to each other (a panel beside a column, a group beside a single box) and the preview
   shows small jogs or S-bends between neighbours. It leaves figures without such edges

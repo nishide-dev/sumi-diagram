@@ -266,7 +266,7 @@ export function placeStructured(
       const layout = run(struts, shifts);
       return { layout, slots: engine.slots(), footprints: engine.footprints() };
     });
-    return { ...placed, layout: straightened.trial.layout, straighten: straightened.stats };
+    return { ...placed, layout: straightened.layout, straighten: straightened.stats };
   };
   // Room before arrowheads in group padding (#171, design doc §6.42): widen
   // the sides of groups where an edge turns in the padding right before an
@@ -343,6 +343,10 @@ class StructuredLayout {
   #shifting = false;
   /** Where each arrange item was placed in the last pass (#618). */
   readonly #slots = new Map<ArrangeItemIR, Slot>();
+  readonly #placeCounts = new Map<
+    ArrangeBoxIR,
+    { x: Map<number, number>; y: Map<number, number> }
+  >();
   /** The slot items being placed, innermost last (#618). */
   readonly #slotStack: ArrangeItemIR[] = [];
   /** Above 0 while placing inside a tokens row, a matrix, a tilted plane or a chat (#618: nothing moves there). */
@@ -558,7 +562,8 @@ class StructuredLayout {
     this.#centerPaddings.clear();
     const root = this.#ir.arrange as ArrangeBoxIR;
     const size = this.#containerSize(ROOT, root);
-    this.#shifting = true;
+    // Slots are recorded (and shifts applied) only for `figure.layout.straighten` (#618).
+    this.#shifting = this.#ir.meta.straighten === true;
     try {
       this.#placeContainer(ROOT, root, { x: 0, y: 0, width: size.width, height: size.height });
     } finally {
@@ -608,7 +613,7 @@ class StructuredLayout {
   }
 
   /** Records `item`'s slot and applies its shift (#618); `frame` is its box's. */
-  #slot(box: ArrangeBoxIR, item: ArrangeItemIR, frame: Rect, rect: Rect, soft: Axes): Rect {
+  #slot(box: ArrangeBoxIR, item: ArrangeItemIR, frame: Rect, rect: Rect, soft: () => Axes): Rect {
     if (!this.#shifting || item === null) return rect;
     this.#slots.set(item, {
       box,
@@ -616,10 +621,24 @@ class StructuredLayout {
       frame,
       rect,
       parent: this.#slotStack.at(-1),
-      soft: this.#locked > 0 ? { x: false, y: false } : soft,
+      soft: this.#locked > 0 ? { x: false, y: false } : soft(),
     });
     const shift = this.#shifts.get(item);
     return shift === undefined ? rect : { ...rect, x: rect.x + shift.x, y: rect.y + shift.y };
+  }
+
+  /** How many items of a place box sit at each written x and y (#618). */
+  #coordinateCounts(box: ArrangeBoxIR): { x: Map<number, number>; y: Map<number, number> } {
+    let counts = this.#placeCounts.get(box);
+    if (counts === undefined) {
+      counts = { x: new Map(), y: new Map() };
+      for (const [x, y] of box.positionsPt ?? []) {
+        counts.x.set(x, (counts.x.get(x) ?? 0) + 1);
+        counts.y.set(y, (counts.y.get(y) ?? 0) + 1);
+      }
+      this.#placeCounts.set(box, counts);
+    }
+    return counts;
   }
 
   /** Places what is inside the slot `item` with `item` on the slot stack (#618). */
@@ -1018,10 +1037,11 @@ class StructuredLayout {
         y: frame.y + (frame.height - bounds.height) / 2 - bounds.y + local.y,
       };
       // #618: a coordinate another item shares is a line the author drew; it stays.
-      const at = box.positionsPt?.[i] ?? [0, 0];
-      const shared = (axis: 0 | 1) =>
-        (box.positionsPt ?? []).some((p, j) => j !== i && p[axis] === at[axis]);
-      const rect = this.#slot(box, item, frame, placed, { x: !shared(0), y: !shared(1) });
+      const rect = this.#slot(box, item, frame, placed, () => {
+        const [x, y] = box.positionsPt?.[i] ?? [0, 0];
+        const counts = this.#coordinateCounts(box);
+        return { x: (counts.x.get(x) ?? 0) < 2, y: (counts.y.get(y) ?? 0) < 2 };
+      });
       this.#within(item, () => {
         if (typeof item === "string") visit(item, this.#bodyRect(item, rect));
         else if (item !== null) this.#placeBox(item, rect, "center", visit);
@@ -1300,10 +1320,9 @@ class StructuredLayout {
       // #618: only centring leaves an item free across the axis (start, end and stretch line
       // items up on purpose), a flush box (gap 0) keeps its items touching in one line, and
       // cross-axis space (#545) was put there by `figure.layout.align`.
-      const free = align === "center" && !separator && box.gapPt !== 0 && margin === 0;
-      const rect = this.#slot(box, item, frame, placed, {
-        x: vertical && free,
-        y: !vertical && free,
+      const rect = this.#slot(box, item, frame, placed, () => {
+        const free = align === "center" && !separator && box.gapPt !== 0 && margin === 0;
+        return { x: vertical && free, y: !vertical && free };
       });
       this.#within(item, () => {
         if (typeof item === "string") visit(item, this.#bodyRect(item, rect));

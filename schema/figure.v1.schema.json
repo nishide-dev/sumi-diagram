@@ -305,7 +305,7 @@
               ]
             },
             "straighten": {
-              "description": "true: after placing, shift a node or group across its row or stack (or a place item off a coordinate no other item shares) within the free room of its box, so that an edge whose ends face each other but are out of line becomes straight. Never grows a box or the figure, never moves an align constraint's element, a written align (start, center, end, stretch) or one member of a fan. Omitted means false (structured layout only).",
+              "description": "true: after placing, shift a node or group across its row or stack (or a place item off a coordinate no other item shares) within the free room of its box, so that an edge whose ends face each other but are out of line becomes straight. Never grows a box or the figure; never moves an align constraint's element, an item of a box with align start, end or stretch (a written center counts as the default centring and leaves room), a coordinate shared with another place item, or one member of a fan. Omitted means false (structured layout only).",
               "type": "boolean"
             }
           },

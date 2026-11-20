@@ -306,6 +306,11 @@ export interface EdgeLayout {
   readonly toAnchor?: EdgeAnchor;
   /** The label measured but not placed (the router places it); omitted when the edge has none. */
   readonly labelMetrics?: TextMetrics;
+  /**
+   * `figure.layout.straighten` (#618): an end without an anchor may slide along its side onto
+   * the other end's line (checked against the routes without it). Omitted otherwise.
+   */
+  readonly slide?: true;
   /** Omitted until the edges are routed. */
   readonly route?: EdgeRoute;
 }
