@@ -101,7 +101,7 @@ describe("geometry/relocatable-node", () => {
     expect(layouts).toBeLessThanOrEqual(RELOCATE_TRIALS + 1);
   });
 
-  test("a grid with a span / align wrapper and a nested stack: the hint's edit round-trips", async () => {
+  test("the hint's edit round-trips: span / align and null wrappers, a reserved-word ID, a nested stack", async () => {
     const original = readFileSync(join(FIGURES, "color-use/request-states-a.sumi.yaml"), "utf8");
     const row1 = "items: [ start, null, c-invalid, null, null, null, null,";
     expect(original).toContain(row1);
@@ -115,6 +115,18 @@ describe("geometry/relocatable-node", () => {
         "items: [ { item: start, span: 2, align: start }, c-invalid, { stack: { gap: 1mm, items: [ note ] } }, null, null, null,",
       )
       .replace("\nnodes:\n", "\nnodes:\n  - { id: note, component: label, label: note }\n");
+    // An empty cell two columns wide: a wrapper around null, not a bare null.
+    const nullWrapped = original.replace(
+      row1,
+      "items: [ start, null, c-invalid, { item: null, span: 2 }, null, null,",
+    );
+    // An ID that YAML reads as a boolean unless quoted.
+    const reserved = original
+      .replace("{ id: start,", '{ id: "true",')
+      .replace("{ from: start,", '{ from: "true",')
+      .replace(row1, row1.replace("[ start,", '[ "true",'));
+    for (const old of ["{ id: start,", "{ from: start,", "[ start,"])
+      expect(reserved).not.toContain(old);
     /** The hint's swap and delete, done on the source's items. */
     const apply = (source: string, hint: string) => {
       const swap = /swap items\[(\d+)\] .*? with items\[(\d+)\]/.exec(hint);
@@ -128,19 +140,21 @@ describe("geometry/relocatable-node", () => {
       return { doc, items };
     };
     for (const [source, line] of [
-      [wrapped, true],
-      [nested, false],
+      [wrapped, "{ item: start, span: 2, align: start }"],
+      [nullWrapped, "{ item: null, span: 2 }"],
+      [reserved, '[ "true", null,'],
+      [nested, undefined],
     ] as const) {
       const before = await render(source);
       const [hint] = lintGeometry(before, { source }).filter((d) => d.code === RELOCATABLE_NODE);
       if (hint?.hint === undefined) throw new Error("no hint");
       const { doc, items } = apply(source, hint.hint);
       const written = /: items: (\[.*\])\. Nothing/.exec(hint.hint)?.[1];
-      if (line) {
-        // The items line is the same items as the edit, wrapper included.
+      if (line !== undefined) {
+        // The items line parses to the same items as the edit, wrappers and quoting included.
         expect(written).toBeDefined();
         expect(parse(written ?? "")).toEqual(items);
-        expect(written).toContain("{ item: start, span: 2, align: start }");
+        expect(written).toContain(line);
       } else {
         // A nested box cannot be written back: no items line, only the edit.
         expect(written).toBeUndefined();

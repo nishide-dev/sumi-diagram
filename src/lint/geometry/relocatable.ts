@@ -25,6 +25,7 @@
  * hint trial, so no other rule starts layouts inside it.
  */
 
+import { parse, stringify } from "yaml";
 import { loadFigureAssets } from "../../assets/load";
 import type { ArrangeBoxIR, ArrangeItemIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
@@ -300,30 +301,47 @@ function itemName(context: GeometryContext, item: ArrangeItemIR): string {
   return `a nested ${item.kind}`;
 }
 
-const yamlId = (id: string) => (/^[A-Za-z_][\w.-]*$/.test(id) ? id : JSON.stringify(id));
-
 /**
- * The box's `items` in YAML flow style, the same in meaning as written (a
- * grid cell wrapper `{ item, span, align }` is written back from its span and
- * align; one with span 1 and no align is the bare item), or `undefined` when
- * the IR cannot give an item back: a nested box, whose fields are not kept
- * as written.
+ * The box's `items` as data, the same in meaning as written: an ID, `null`,
+ * or a grid cell wrapper `{ item, span, align }` rebuilt from its span and
+ * align (a wrapper with span 1 and no align is the bare item; a wrapper
+ * around `null` stays a wrapper). `undefined` when the IR cannot give an
+ * item back: a nested box, whose fields are not kept as written.
  */
-function itemsYaml(context: GeometryContext, box: ArrangeBoxIR): string | undefined {
-  const out: string[] = [];
+function itemsData(context: GeometryContext, box: ArrangeBoxIR): unknown[] | undefined {
+  const out: unknown[] = [];
   for (const [i, item] of box.items.entries()) {
     if (item !== null && typeof item !== "string" && item.growFirst !== true) return undefined;
-    const name = itemName(context, item);
-    const text = item === null ? name : yamlId(name);
+    const value = item === null ? null : itemName(context, item);
     const span = box.kind === "grid" ? (box.spans?.[i] ?? 1) : 1;
     const align = box.kind === "grid" ? box.cellAligns?.[i] : undefined;
     out.push(
-      item !== null && (span !== 1 || align !== undefined)
-        ? `{ item: ${text}${span !== 1 ? `, span: ${span}` : ""}${align !== undefined ? `, align: ${align}` : ""} }`
-        : text,
+      span !== 1 || align !== undefined
+        ? {
+            item: value,
+            ...(span !== 1 && { span }),
+            ...(align !== undefined && { align }),
+          }
+        : value,
     );
   }
-  return `[ ${out.join(", ")} ]`;
+  return out;
+}
+
+/**
+ * The box's `items` as one YAML flow sequence, or `undefined` when they cannot
+ * be given back (`itemsData`) or the text does not parse back to the same
+ * data (then the hint gives only the index edit).
+ */
+function itemsYaml(context: GeometryContext, box: ArrangeBoxIR): string | undefined {
+  const data = itemsData(context, box);
+  if (data === undefined) return undefined;
+  const text = stringify(data, { collectionStyle: "flow", lineWidth: 0 }).trim();
+  try {
+    return Bun.deepEquals(parse(text), data, true) ? text : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 type RouteMap = ReturnType<typeof routesOf>;
