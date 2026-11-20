@@ -1,0 +1,104 @@
+version: 1
+figure:
+  id: lost-multiturn
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 6mm
+        items:
+          - row:
+              gap: 3mm
+              align: stretch
+              items:
+                - stack: {gap: 6mm, items: [pa, pb]}
+                - pc
+          - pd
+groups:
+  - id: pa
+    label: (a) Sharding an instruction
+    labelAt: top-left
+    variant: plain
+    arrange:
+      row: {gap: 4mm, items: [card, {stack: {gap: 1.5mm, items: [s1, s2, s3, s4, s5]}}]}
+  - id: pb
+    label: "(b) Full: one turn (baseline)"
+    labelAt: top-left
+    variant: plain
+    arrange:
+      stack:
+        gap: 5mm
+        items:
+          - chat:
+              width: 80mm
+              maxWidth: 0.85
+              speakers:
+                user: {side: right, tone: blue, variant: tinted}
+                assistant: {side: left}
+              items:
+                - {node: b_user, from: user, meta: User}
+                - {node: b_ans, from: assistant, meta: [Assistant, scored once]}
+  - id: pc
+    label: "(c) Sharded: one shard per turn"
+    labelAt: top-left
+    variant: plain
+    arrange:
+      stack:
+        gap: 4mm
+        items:
+          - chat:
+              width: 70mm
+              maxWidth: 0.92
+              speakers:
+                user: {side: right, tone: blue, variant: tinted}
+                assistant: {side: left}
+              items:
+                - {node: c_u1, from: user, meta: S1}
+                - {node: c_a1, from: assistant, meta: turn 1}
+                - {node: c_u2, from: user, meta: S2}
+                - {node: c_a2, from: assistant, meta: turn 2}
+                - divider: "turns 3–4: S3, S4"
+                - {node: c_u5, from: user, meta: S5}
+                - {node: c_a5, from: assistant, meta: turn 5 · end}
+          - c_note
+  - id: pd
+    label: (d) Each turn of the sharded simulation
+    labelAt: top-left
+    variant: plain
+    arrange:
+      row: {gap: 10mm, items: [usim, asst, cls, ext, ev, done]}
+nodes:
+  - id: card
+    component: box
+    textAlign: left
+    label: "Jay makes snowballs for a\nfight with his sister: 20 per\nhour, but 2 melt every 15 min.\nHow long until he has 60?"
+  - {id: card_t, component: label, variant: muted, label: fully-specified instruction, attach: {to: card, side: north, gap: 1.5mm}}
+  - {id: s1, component: box, tone: blue, variant: tinted, textAlign: left, label: "S1  How long until Jay's ready?", props: {width: 42mm}}
+  - {id: s2, component: box, tone: blue, variant: tinted, textAlign: left, label: "S2  Fight with his sister", props: {width: 42mm}}
+  - {id: s3, component: box, tone: blue, variant: tinted, textAlign: left, label: "S3  20 snowballs per hour", props: {width: 42mm}}
+  - {id: s4, component: box, tone: blue, variant: tinted, textAlign: left, label: "S4  Trying to get to 60", props: {width: 42mm}}
+  - {id: s5, component: box, tone: blue, variant: tinted, textAlign: left, label: "S5  2 melt every 15 minutes", props: {width: 42mm}}
+  - {id: b_user, component: bubble, label: "Full instruction: all details in one message"}
+  - {id: b_ans, component: bubble, tone: orange, variant: tinted, label: answer attempt}
+  - {id: c_u1, component: bubble, label: "How long before Jay's ready for the fight?"}
+  - {id: c_a1, component: bubble, label: clarification}
+  - {id: c_u2, component: bubble, label: "He's preparing for a fight with his sister."}
+  - {id: c_a2, component: bubble, tone: orange, variant: tinted, label: "answer attempt: wrong"}
+  - {id: c_u5, component: bubble, label: "The problem is that 2 melt every 15 minutes."}
+  - {id: c_a5, component: bubble, tone: orange, variant: tinted, label: "answer attempt: correct"}
+  - {id: c_note, component: label, variant: muted, label: "Sharded vs. Full: −39% on average\nover 15 LLMs and 6 tasks"}
+  - {id: usim, component: box, tone: blue, variant: tinted, label: User simulator, sublabel: sees all shards}
+  - {id: asst, component: box, variant: emphasis, label: Assistant, sublabel: LLM under test}
+  - {id: cls, component: box, variant: muted, label: "Strategy\nclassifier"}
+  - {id: ext, component: box, variant: muted, label: "Answer\nextractor"}
+  - {id: ev, component: box, variant: muted, label: Evaluator, sublabel: task-specific}
+  - {id: done, component: final}
+edges:
+  - {from: card, to: s3}
+  - {from: usim, to: asst, label: 1 shard}
+  - {from: asst, to: cls, label: reply}
+  - {from: cls, to: ext, label: if attempt}
+  - {from: ext, to: ev}
+  - {from: ev, to: done, label: correct}
+  - {from: ev, to: usim, fromAnchor: south, toAnchor: south, label: "else next turn (until no shards left)", labelAt: middle}

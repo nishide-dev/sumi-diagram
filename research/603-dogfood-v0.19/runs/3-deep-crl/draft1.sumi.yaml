@@ -1,0 +1,115 @@
+# Contrastive RL training loop and the residual block whose depth is scaled.
+# Source: "1000 Layer Networks for Self-Supervised RL" (arXiv 2503.14858), Sec. 3 and 4.1.
+version: 1
+figure:
+  id: deep-crl
+  theme: sumi
+  profile: presentation-16x9
+  themeOverrides:
+    textScale: 2
+  layout:
+    arrange:
+      row:
+        gap: 14mm
+        align: start
+        items: [loop, detail]
+groups:
+  - id: loop
+    variant: plain
+    caption: (a) Contrastive RL training loop
+    arrange:
+      stack:
+        gap: 10mm
+        items:
+          - place:
+              unit: 1mm
+              items:
+                - {item: actor, at: [40, 22]}
+                - {item: env, at: [125, 22]}
+                - {item: buffer, at: [210, 22]}
+                - {item: phi, at: [210, 72]}
+                - {item: psi, at: [210, 112]}
+                - {item: critic, at: [125, 86], origin: body}
+                - {item: loss, at: [40, 86]}
+          - key
+  - id: detail
+    variant: plain
+    caption: (b) Residual block
+    arrange:
+      stack:
+        direction: up
+        gap: 6mm
+        items: [h-in, block, h-out]
+  - id: block
+    arrange:
+      stack:
+        direction: up
+        gap: 6mm
+        items: [split, unit, add]
+  - id: unit
+    variant: dashed
+    arrange:
+      stack:
+        direction: up
+        gap: 6mm
+        align: stretch
+        items: [dense, norm, swish]
+nodes:
+  # (a) loop
+  - {id: actor, component: box, label: 'Actor $\pi_\theta(a\,|\,s,\,g)$', tone: blue, variant: tinted}
+  - {id: env, component: box, label: Environment, tone: gray, variant: tinted, matchWidth: side}
+  - {id: buffer, component: cylinder, label: Replay buffer, props: {width: 46mm, height: 16mm}}
+  - {id: phi, component: box, label: 'Encoder $\phi(s,\,a)$', tone: blue, variant: emphasis, matchWidth: enc}
+  - {id: psi, component: box, label: 'Encoder $\psi(g)$', tone: blue, variant: tinted, matchWidth: enc}
+  - id: critic
+    component: matrix
+    label: 'Critic $\|\phi-\psi\|_2$'
+    props:
+      cellWidth: 8mm
+      variant: outlined
+      classes:
+        p: {tone: blue, variant: tinted, label: positive (same trajectory)}
+        n: {tone: gray, label: negative (other trajectory)}
+      cells: [pnnn, npnn, nnpn, nnnp]
+  - {id: loss, component: box, label: InfoNCE loss, tone: orange, variant: tinted}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {tone: blue, variant: tinted}, label: residual network (b)}
+        - {class: critic.p}
+        - {class: critic.n}
+        - {edge: {variant: dashed}, label: actor objective}
+  # (b) residual block
+  - {id: h-in, component: label, label: '$h_i$'}
+  - {id: split, component: junction, variant: hidden}
+  - {id: dense, component: box, label: Dense, tone: blue, variant: tinted, props: {width: 40mm}}
+  - {id: norm, component: box, label: LayerNorm, tone: gray, variant: tinted}
+  - {id: swish, component: box, label: Swish, tone: gray, variant: tinted}
+  - {id: times4, component: label, label: ×4, attach: {to: unit, side: east, gap: 2mm}}
+  - {id: add, component: operator, props: {symbol: plus}}
+  - {id: h-out, component: label, label: '$h_{i+1}$'}
+  - {id: repeat, component: label, label: N×, attach: {to: block, side: east, gap: 2mm}}
+  - {id: depth, component: label, label: "depth = 4N Dense layers\n(up to 1024)", attach: {to: detail, side: south, gap: 1mm}}
+edges:
+  # (a) main loop, clockwise
+  - {from: actor, to: env, fromAnchor: "east:0.3", toAnchor: "west:0.3", label: action $a$}
+  - {from: env, to: actor, fromAnchor: "west:0.7", toAnchor: "east:0.7", label: 'state $s$, goal $g$'}
+  - {from: env, to: buffer, label: trajectories}
+  - {from: buffer, to: phi, label: '$(s,\,a)$'}
+  - {from: buffer, to: psi, fromAnchor: east, toAnchor: east, label: future $g$}
+  - {from: phi, to: critic, toAnchor: "east:0.2"}
+  - {from: psi, to: critic, toAnchor: south}
+  - {from: critic, to: loss}
+  - {from: critic, to: actor, fromAnchor: north, toAnchor: south, variant: dashed, label: maximize critic}
+  - {from: phi, to: block, component: zoom}
+  # (b)
+  - {from: h-in, to: split, component: line}
+  - {from: split, to: dense}
+  - {from: dense, to: norm}
+  - {from: norm, to: swish}
+  - {from: swish, to: add}
+  - {from: split, to: add, toAnchor: west}
+  - {from: add, to: h-out}

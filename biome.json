@@ -20,6 +20,7 @@
       "!research/574-3d-components/*.svg",
       "!research/509-dogfood-v0.17/runs",
       "!research/538-dogfood-v0.18/runs",
+      "!research/603-dogfood-v0.19/runs",
       "!docs/gallery",
       "!docs/assets/**/*.svg",
       "!tests/fixtures/lint-output",

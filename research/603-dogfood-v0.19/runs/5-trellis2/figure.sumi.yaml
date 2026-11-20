@@ -1,0 +1,149 @@
+# TRELLIS.2 (arXiv 2512.14692): mesh -> O-Voxel -> SC-VAE latents -> flow-matching generation -> 3D asset.
+version: 1
+figure:
+  id: trellis2-overview
+  theme: sumi
+  profile: paper-double
+  projection: {angle: 45, depthScale: 0.5}
+  themeOverrides: {groupFill: '#ffffff'}
+  layout:
+    arrange:
+      stack:
+        gap: 6mm
+        align: stretch
+        items:
+          - row: {gap: 3mm, align: stretch, items: [pa, flow1, pb]}
+          - pc
+groups:
+  - id: pa
+    caption: (a) O-Voxel
+    arrange:
+      row:
+        gap: 6mm
+        align: center
+        items:
+          - mesh-in
+          - stack: {gap: 5mm, align: center, items: [voxel, attrs]}
+  - id: pb
+    caption: (b) Sparse Compression VAE
+    arrange:
+      row:
+        gap: 6mm
+        align: center
+        items:
+          - vox-in
+          - enc
+          - stack: {gap: 3mm, align: center, items: [lat-shape, lat-mat]}
+          - dec
+          - vox-out
+  - id: pc
+    caption: (c) Flow-matching generation
+    props: {padding: 6mm}
+    arrange:
+      row:
+        gap: 5.5mm
+        align: center
+        items: [cond, dit-s, occ, dit-g, gen-shape, dit-m, gen-mat, decs, asset]
+nodes:
+  # (a)
+  - {id: mesh-in, component: label, icon: tabler/mesh, iconSize: 10mm}
+  - {id: mesh-in-l, component: label, label: mesh, attach: {to: mesh-in, side: south, gap: 1mm}}
+  - id: voxel
+    component: cuboid
+    variant: tinted
+    tone: gray
+    props:
+      width: 18mm
+      height: 18mm
+      depth: 18mm
+      cells: [6, 6, 6]
+      highlight:
+        - {name: a1, at: [0, 4, 0], tone: purple}
+        - {name: a2, at: [1, 3, 0], tone: purple}
+        - {name: a3, at: [2, 3, 0], tone: purple}
+        - {name: a4, at: [3, 2, 0], tone: purple}
+        - {name: a5, at: [4, 1, 0], tone: purple}
+        - {name: a6, at: [5, 1, 0], tone: purple}
+      dims: {width: "N³ sparse grid"}
+  - id: attrs
+    component: tokens
+    props:
+      component: square
+      width: 13pt
+      height: 13pt
+      gap: 1pt
+      lineGap: 2pt
+      lineAlign: start
+      lines:
+        - [{label: '$v$', tone: blue, variant: tinted}, {label: '$\delta$', tone: blue, variant: tinted}, {label: '$\gamma$', tone: blue, variant: tinted}]
+        - [{label: '$c$', tone: orange, variant: tinted}, {label: '$m$', tone: orange, variant: tinted}, {label: '$r$', tone: orange, variant: tinted}, {label: '$\alpha$', tone: orange, variant: tinted}]
+  - {id: attrs-shape, component: label, label: shape, attach: {to: attrs.3, side: east, gap: 2mm}}
+  - {id: attrs-mat, component: label, label: material, attach: {to: attrs.7, side: east, gap: 2mm}}
+  - {id: flow1, component: block-arrow}
+  # (b)
+  - id: vox-in
+    component: cuboid
+    variant: tinted
+    tone: gray
+    props:
+      width: 12mm
+      height: 12mm
+      depth: 12mm
+      cells: [4, 4, 4]
+      highlight:
+        - {name: a1, at: [0, 2, 0], tone: purple}
+        - {name: a2, at: [1, 1, 0], tone: purple}
+        - {name: a3, at: [2, 1, 0], tone: purple}
+        - {name: a4, at: [3, 0, 0], tone: purple}
+      dims: {height: "1024³"}
+  - {id: enc, component: trapezoid, label: Encoder, props: {narrow: east, width: 16mm, height: 16mm}}
+  - {id: enc-note, component: label, label: 16× down, variant: muted, attach: {to: enc, side: south, gap: 2mm}}
+  - {id: lat-shape, component: cuboid, variant: tinted, tone: blue, props: {width: 6mm, height: 6mm, depth: 6mm}}
+  - {id: lat-mat, component: cuboid, variant: tinted, tone: orange, props: {width: 6mm, height: 6mm, depth: 6mm, dims: {height: "≈9.6K tokens"}}}
+  - {id: dec, component: trapezoid, label: Decoder, props: {narrow: west, width: 16mm, height: 16mm}}
+  - id: vox-out
+    component: cuboid
+    variant: tinted
+    tone: gray
+    props:
+      width: 12mm
+      height: 12mm
+      depth: 12mm
+      cells: [4, 4, 4]
+      highlight:
+        - {name: a1, at: [0, 2, 0], tone: purple}
+        - {name: a2, at: [1, 1, 0], tone: purple}
+        - {name: a3, at: [2, 1, 0], tone: purple}
+        - {name: a4, at: [3, 0, 0], tone: purple}
+      dims: {height: O-Voxel}
+  # (c)
+  - {id: cond, component: label, icon: tabler/photo, iconSize: 10mm}
+  - {id: cond-l, component: label, label: image, attach: {to: cond, side: south, gap: 1mm}}
+  - {id: dit-s, component: box, label: "Structure\nDiT"}
+  - {id: occ, component: cuboid, variant: tinted, tone: gray, props: {width: 8mm, height: 8mm, depth: 8mm, dims: {height: occupancy}}}
+  - {id: dit-g, component: box, label: "Geometry\nDiT"}
+  - {id: gen-shape, component: cuboid, variant: tinted, tone: blue, props: {width: 6mm, height: 6mm, depth: 6mm, dims: {height: shape latent}}}
+  - {id: dit-m, component: box, label: "Material\nDiT"}
+  - {id: gen-mat, component: cuboid, variant: tinted, tone: orange, props: {width: 6mm, height: 6mm, depth: 6mm, dims: {height: material latent}}}
+  - {id: decs, component: box, label: "SC-VAE\ndecoders"}
+  - {id: asset, component: label, icon: tabler/mesh, iconSize: 10mm}
+  - {id: asset-l, component: label, label: "mesh + PBR", attach: {to: asset, side: south, gap: 1mm}}
+edges:
+  - {from: mesh-in, to: voxel, component: double-arrow}
+  - {from: voxel.a4, to: attrs, component: zoom, tone: purple}
+  - {from: enc, to: lat-shape}
+  - {from: enc, to: lat-mat}
+  - {from: lat-shape, to: dec}
+  - {from: lat-mat, to: dec}
+  - {from: vox-in, to: enc}
+  - {from: dec, to: vox-out}
+  - {from: dit-s, to: occ}
+  - {from: occ, to: dit-g}
+  - {from: dit-g, to: gen-shape}
+  - {from: gen-shape, to: dit-m}
+  - {from: dit-m, to: gen-mat}
+  - {from: gen-mat, to: decs}
+  - {from: decs, to: asset}
+  - {from: cond, to: dit-s}
+  - {from: cond, to: dit-g, fromAnchor: north, toAnchor: north}
+  - {from: cond, to: dit-m, fromAnchor: north, toAnchor: north}

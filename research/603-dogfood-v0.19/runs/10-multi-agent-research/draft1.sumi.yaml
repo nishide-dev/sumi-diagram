@@ -1,0 +1,54 @@
+# Orchestrator-worker research system, drawn from the text of
+# "How we built our multi-agent research system" (Anthropic engineering blog, 2025-06-13),
+# section "Architecture overview for Research". Adapted from the agent-loop base layout.
+version: 1
+figure:
+  id: multi-agent-research
+  theme: sumi
+  profile: presentation-16x9
+  themeOverrides:
+    textScale: 2
+  layout:
+    arrange:
+      stack:
+        gap: 24mm
+        align: start
+        items:
+          - row: {gap: 22mm, align: center, items: [user, lead]}
+          - row: {gap: 16mm, align: center, items: [memory, subagents, citation]}
+    align:
+      - {x: [memory, plan]}
+      - {x: [citation, decide]}
+groups:
+  - id: lead
+    label: Lead researcher
+    labelAt: above-left
+    arrange:
+      row: {gap: 18mm, align: center, items: [plan, spawn, synthesize, decide]}
+  - id: subagents
+    caption: "Subagents, 3–5 in parallel:\nweb search + interleaved thinking"
+    arrange:
+      row: {gap: 5mm, items: [sub1, sub2, sub3]}
+nodes:
+  - {id: user, component: label, icon: tabler/user, iconSize: 2.5}
+  - {id: user-name, component: label, label: User, attach: {to: user, side: north, gap: 1mm}}
+  - {id: plan, component: box, label: Plan, props: {width: 32mm, height: 16mm}}
+  - {id: spawn, component: box, label: "Spawn\nsubagents", props: {width: 44mm, height: 18mm}}
+  - {id: synthesize, component: box, label: "Synthesize\nresults", props: {width: 44mm, height: 18mm}}
+  - {id: decide, component: diamond, label: "More\nresearch?", props: {width: 50mm, height: 28mm}}
+  - {id: memory, component: cylinder, label: Memory, tone: blue, variant: tinted, props: {width: 32mm, height: 20mm}}
+  - {id: sub1, component: box, label: Subagent 1, tone: orange, variant: tinted, props: {width: 36mm, height: 16mm}}
+  - {id: sub2, component: box, label: Subagent 2, tone: orange, variant: tinted, props: {width: 36mm, height: 16mm}}
+  - {id: sub3, component: box, label: Subagent 3, tone: orange, variant: tinted, props: {width: 36mm, height: 16mm}}
+  - {id: citation, component: box, label: "Citation\nagent", tone: orange, variant: tinted, props: {width: 44mm, height: 18mm}}
+edges:
+  - {from: user, to: plan, label: query}
+  - {from: plan, to: spawn}
+  - {from: spawn, to: synthesize}
+  - {from: synthesize, to: decide}
+  - {from: decide, to: spawn, fromAnchor: north, toAnchor: north, label: "yes"}
+  - {from: plan, to: memory, label: save plan, labelAt: middle}
+  - {from: spawn, to: subagents, label: tasks, labelAt: middle}
+  - {from: subagents, to: synthesize, label: findings, labelAt: middle}
+  - {from: decide, to: citation, label: "no", labelAt: middle}
+  - {from: citation, to: user, fromAnchor: south, toAnchor: south, label: report with citations}

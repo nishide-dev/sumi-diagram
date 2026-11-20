@@ -1,0 +1,91 @@
+<!doctype html>
+<!-- Mockup for run 3 (deep-crl): 338 x 175 mm slide figure, sumi theme at textScale 2. -->
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  :root {
+    --canvas: #ffffff; --ink: #30364f; --panel: #efeddd;
+    --blue: #d9e4e6; --blue-line: #3d5d77;
+    --orange: #efdfce; --orange-line: #814b2d;
+    --gray: #e1dece; --gray-line: #4e566b;
+    --font: "Inter", "Helvetica Neue", Arial, sans-serif;
+    --fs-node: 16; --fs-group: 18; --fs-edge: 14;
+    --frame-w: 2; --edge-w: 2;
+    --arrow: #30364f;
+    --pt: 0.3528mm;
+  }
+  @page { size: 338mm 175mm; margin: 0 }
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 338mm; height: 175mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  .box { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center; flex-direction: column;
+         text-align: center; border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: #fff; border-radius: 1.4mm; transform: translate(-50%, -50%) }
+  .tb { background: var(--blue); border-color: var(--blue-line); color: var(--blue-line) }
+  .to { background: var(--orange); border-color: var(--orange-line); color: var(--orange-line) }
+  .tg { background: var(--gray); border-color: var(--gray-line) }
+  .em { border-width: calc(var(--frame-w) * 2 * var(--pt)) }
+  .sub { font-size: calc(14 * var(--pt)); opacity: .85 }
+  .lbl { position: absolute; transform: translate(-50%, -50%); white-space: nowrap }
+  .cap { position: absolute; transform: translate(-50%, -50%); font-size: calc(var(--fs-group) * var(--pt)) }
+  .group { position: absolute; box-sizing: border-box; background: var(--panel); border: calc(var(--frame-w) * var(--pt)) solid var(--ink); border-radius: 2mm }
+  .dash { position: absolute; box-sizing: border-box; border: calc(var(--frame-w) * var(--pt)) dashed var(--gray-line); border-radius: 2mm }
+  .cell { position: absolute; box-sizing: border-box; width: 8mm; height: 8mm; border: calc(1.5 * var(--pt)) solid var(--gray-line); background: #fff }
+  .cell.pos { background: var(--blue); border-color: var(--blue-line) }
+  .op { position: absolute; width: 9mm; height: 9mm; border-radius: 50%; border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: #fff; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center }
+  svg.edges { position: absolute; inset: 0; width: 338mm; height: 175mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: 0.7056 }
+  svg.edges path.d { stroke-dasharray: 2 1.5 }
+  svg.edges path.z { fill: none; stroke: var(--gray-line); stroke-width: 0.5; stroke-dasharray: 2 1.5 }
+  svg.edges text { font-size: 4.94px; fill: var(--ink); font-family: var(--font) }
+  svg.edges marker path { fill: var(--arrow) }
+</style>
+<div id="fig">
+  <!-- (a) training loop: clockwise Actor -> Env -> Buffer -> encoders -> critic -> Actor -->
+  <div class="box tb" style="left:40mm; top:22mm; width:52mm; height:13mm">Actor $\pi_\theta(a\mid s,g)$</div>
+  <div class="box tg" style="left:125mm; top:22mm; width:46mm; height:13mm">Environment</div>
+  <div class="box" style="left:210mm; top:22mm; width:46mm; height:16mm; border-radius: 8mm/3mm">Replay buffer</div>
+  <div class="box tb em" style="left:210mm; top:72mm; width:46mm; height:13mm">Encoder φ(s, a)</div>
+  <div class="box tb" style="left:210mm; top:112mm; width:46mm; height:13mm">Encoder ψ(g)</div>
+  <!-- critic matrix: rows phi_i, cols psi_j, diagonal positive -->
+  <div class="lbl" style="left:125mm; top:63mm">critic ‖φ − ψ‖₂</div>
+  <div class="cell pos" style="left:109mm; top:72mm"></div><div class="cell" style="left:117mm; top:72mm"></div><div class="cell" style="left:125mm; top:72mm"></div><div class="cell" style="left:133mm; top:72mm"></div>
+  <div class="cell" style="left:109mm; top:80mm"></div><div class="cell pos" style="left:117mm; top:80mm"></div><div class="cell" style="left:125mm; top:80mm"></div><div class="cell" style="left:133mm; top:80mm"></div>
+  <div class="cell" style="left:109mm; top:88mm"></div><div class="cell" style="left:117mm; top:88mm"></div><div class="cell pos" style="left:125mm; top:88mm"></div><div class="cell" style="left:133mm; top:88mm"></div>
+  <div class="cell" style="left:109mm; top:96mm"></div><div class="cell" style="left:117mm; top:96mm"></div><div class="cell" style="left:125mm; top:96mm"></div><div class="cell pos" style="left:133mm; top:96mm"></div>
+  <div class="box to" style="left:40mm; top:88mm; width:44mm; height:13mm">InfoNCE loss</div>
+  <!-- legend -->
+  <div class="lbl" style="left:118mm; top:145mm; font-size:calc(14*var(--pt))">■ residual network, see (b) &nbsp;&nbsp; □ positive pair (same trajectory) / negatives &nbsp;&nbsp; ⇢ actor maximizes critic</div>
+  <div class="cap" style="left:118mm; top:165mm">(a) Contrastive RL training loop</div>
+
+  <!-- (b) residual block, bottom-up -->
+  <div class="group" style="left:262mm; top:24mm; width:66mm; height:118mm"></div>
+  <div class="lbl" style="left:295mm; top:150mm">$h_i$</div>
+  <div class="dash" style="left:272mm; top:52mm; width:50mm; height:72mm"></div>
+  <div class="box tb" style="left:297mm; top:111mm; width:40mm; height:12mm">Dense</div>
+  <div class="box tg" style="left:297mm; top:89mm; width:40mm; height:12mm">LayerNorm</div>
+  <div class="box tg" style="left:297mm; top:67mm; width:40mm; height:12mm">Swish</div>
+  <div class="lbl" style="left:316mm; top:57mm; font-size:calc(14*var(--pt))">×4</div>
+  <div class="op" style="left:297mm; top:38mm">+</div>
+  <div class="lbl" style="left:297mm; top:12mm">$h_{i+1}$</div>
+  <div class="lbl" style="left:333mm; top:84mm">N×</div>
+  <div class="cap" style="left:295mm; top:165mm">(b) Residual block</div>
+
+  <svg class="edges" viewBox="0 0 338 175">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="3" markerHeight="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+    <path class="e" d="M66 19 H102" marker-end="url(#ah)"/><text x="72" y="15">action a</text>
+    <path class="e" d="M102 25 H66" marker-end="url(#ah)"/><text x="70" y="31">state s, goal g</text>
+    <path class="e" d="M148 22 H187" marker-end="url(#ah)"/><text x="150" y="18">trajectories</text>
+    <path class="e" d="M210 30 V65.5" marker-end="url(#ah)"/><text x="213" y="50">(s, a)</text>
+    <path class="e" d="M233 22 H245 V112 H233" marker-end="url(#ah)"/><text x="247" y="70">future g</text>
+    <path class="e" d="M187 72 H138" marker-end="url(#ah)"/>
+    <path class="e" d="M187 112 H125 V101" marker-end="url(#ah)"/>
+    <path class="e" d="M105 88 H62" marker-end="url(#ah)"/>
+    <path class="e d" d="M121 59 V45 H40 V29" marker-end="url(#ah)"/><text x="72" y="42">maximize critic</text>
+    <path class="z" d="M233 65.5 L262 24 M233 78.5 L262 142"/>
+    <path class="e" d="M297 145 V117" marker-end="url(#ah)"/>
+    <path class="e" d="M297 105 V95"  marker-end="url(#ah)"/>
+    <path class="e" d="M297 83 V73"  marker-end="url(#ah)"/>
+    <path class="e" d="M297 61 V42.5" marker-end="url(#ah)"/>
+    <path class="e" d="M297 138 H268 V38 H292.5" marker-end="url(#ah)"/>
+    <path class="e" d="M297 33.5 V16" marker-end="url(#ah)"/>
+  </svg>
+</div>

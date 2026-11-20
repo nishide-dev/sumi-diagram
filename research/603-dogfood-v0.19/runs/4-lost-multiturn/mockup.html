@@ -1,0 +1,75 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  :root {
+    --canvas:#ffffff; --ink:#30364f;
+    --blue:#d9e4e6; --blue-line:#3d5d77;
+    --orange:#efdfce; --orange-line:#814b2d;
+    --muted:#efeddd; --muted-line:#4e566b;
+    --font: Inter, "Helvetica Neue", Arial, sans-serif;
+    --fs-node:8; --fs-group:9; --fs-edge:7;
+    --frame-w:1; --edge-w:1; --arrow:#30364f; --pt:0.3528mm;
+  }
+  @page { size:180mm 116mm; margin:0 }
+  html,body{margin:0;background:var(--canvas)}
+  #fig{position:relative;width:180mm;height:116mm;overflow:hidden;font:calc(var(--fs-node)*var(--pt)) var(--font);color:var(--ink)}
+  .box{position:absolute;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;border:calc(var(--frame-w)*var(--pt)) solid var(--ink);background:#fff;border-radius:1mm;line-height:1.2}
+  .left{align-items:flex-start;text-align:left;padding:0 2mm}
+  .blue{background:var(--blue);border-color:var(--blue-line);color:var(--blue-line)}
+  .orange{background:var(--orange);border-color:var(--orange-line);color:var(--orange-line)}
+  .muted{background:var(--muted);border-color:var(--muted-line);color:var(--muted-line)}
+  .emph{background:var(--ink);color:#fff;font-weight:bold}
+  .bubble{border-radius:2.5mm}
+  .sub{font-size:calc(var(--fs-edge)*var(--pt));opacity:.85}
+  .title{position:absolute;font-weight:bold;font-size:calc(var(--fs-group)*var(--pt))}
+  .meta{position:absolute;font-size:calc(var(--fs-edge)*var(--pt));color:var(--muted-line)}
+  .div{position:absolute;border-radius:3mm;background:var(--muted);font-size:calc(var(--fs-edge)*var(--pt));color:var(--muted-line);padding:.6mm 2mm}
+  svg.edges{position:absolute;inset:0;width:180mm;height:116mm;overflow:visible}
+  svg.edges path.e{fill:none;stroke:var(--arrow);stroke-width:.3528}
+  svg.edges text{font-size:2.47px;fill:var(--ink);font-family:var(--font)}
+  svg.edges marker path{fill:var(--arrow)}
+</style>
+<div id="fig">
+  <!-- (a) -->
+  <div class="title" style="left:0;top:0">(a) Sharding an instruction</div>
+  <div class="box left" style="left:0;top:6mm;width:31mm;height:38mm"><b>Fully-specified<br>instruction</b><span style="margin-top:1mm">Jay is making snowballs for a fight with his sister. He builds 20 per hour, but 2 melt every 15 min. How long until he has 60?</span></div>
+  <div class="box left blue" style="left:37mm;top:6mm;width:43mm;height:5.6mm">S1 How long until Jay's ready?</div>
+  <div class="box left blue" style="left:37mm;top:12.4mm;width:43mm;height:5.6mm">S2 Fight with his sister</div>
+  <div class="box left blue" style="left:37mm;top:18.8mm;width:43mm;height:5.6mm">S3 20 snowballs per hour</div>
+  <div class="box left blue" style="left:37mm;top:25.2mm;width:43mm;height:5.6mm">S4 Trying to get to 60</div>
+  <div class="box left blue" style="left:37mm;top:31.6mm;width:43mm;height:5.6mm">S5 2 melt every 15 minutes</div>
+  <!-- (b) -->
+  <div class="title" style="left:0;top:44mm">(b) Full: one turn (baseline)</div>
+  <div class="box left blue bubble" style="left:20mm;top:50mm;width:60mm;height:10mm">Full instruction: all details in one message</div>
+  <div class="meta" style="left:8mm;top:56mm">User</div>
+  <div class="box left orange bubble" style="left:0mm;top:63mm;width:36mm;height:6mm">answer attempt</div>
+  <div class="meta" style="left:38mm;top:65mm">Assistant · scored</div>
+  <!-- (c) -->
+  <div class="title" style="left:88mm;top:0">(c) Sharded: one shard per turn</div>
+  <div class="box left blue bubble" style="left:120mm;top:6mm;width:60mm;height:6mm">How long before Jay's ready for the fight?</div><div class="meta" style="left:108mm;top:8mm">S1</div>
+  <div class="box left bubble" style="left:88mm;top:14.5mm;width:30mm;height:6mm">clarification</div><div class="meta" style="left:120mm;top:16mm">turn 1</div>
+  <div class="box left blue bubble" style="left:120mm;top:23mm;width:60mm;height:6mm">He's preparing for a fight with his sister.</div><div class="meta" style="left:108mm;top:25mm">S2</div>
+  <div class="box left orange bubble" style="left:88mm;top:31.5mm;width:30mm;height:6mm">answer attempt ✗</div><div class="meta" style="left:120mm;top:33mm">turn 2</div>
+  <div class="div" style="left:120mm;top:40mm">turns 3–4: S3, S4</div>
+  <div class="box left blue bubble" style="left:114mm;top:47mm;width:66mm;height:6mm">The problem is that 2 melt every 15 minutes.</div><div class="meta" style="left:108mm;top:49mm">S5</div>
+  <div class="box left orange bubble" style="left:88mm;top:55.5mm;width:30mm;height:6mm">answer attempt ✓</div><div class="meta" style="left:120mm;top:57mm">turn 5 · end</div>
+  <div class="meta" style="left:88mm;top:65mm">avg. −39% vs. Full over 15 LLMs, 6 tasks</div>
+  <!-- (d) -->
+  <div class="title" style="left:0;top:76mm">(d) Each turn of the sharded simulation</div>
+  <div class="box blue" style="left:0;top:86mm;width:28mm;height:11mm">User simulator<span class="sub">sees all shards</span></div>
+  <div class="box emph" style="left:40mm;top:86mm;width:28mm;height:11mm">Assistant<span class="sub" style="font-weight:normal">LLM under test</span></div>
+  <div class="box muted" style="left:82mm;top:86mm;width:26mm;height:11mm">Strategy<br>classifier</div>
+  <div class="box muted" style="left:120mm;top:86mm;width:24mm;height:11mm">Answer<br>extractor</div>
+  <div class="box muted" style="left:146mm;top:86mm;width:22mm;height:11mm">Evaluator<span class="sub">task-specific</span></div>
+  <svg class="edges" viewBox="0 0 180 116">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2" markerHeight="2" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+    <path class="e" d="M31 21.5 H37" marker-end="url(#ah)"/>
+    <path class="e" d="M28 91.5 H40" marker-end="url(#ah)"/><text x="29" y="90">1 shard</text>
+    <path class="e" d="M68 91.5 H82" marker-end="url(#ah)"/><text x="70" y="90">reply</text>
+    <path class="e" d="M108 91.5 H120" marker-end="url(#ah)"/><text x="109" y="90">attempt</text>
+    <path class="e" d="M144 91.5 H146" marker-end="url(#ah)"/>
+    <path class="e" d="M157 97 V106 H14 V97" marker-end="url(#ah)"/><path class="e" d="M95 97 V106"/><circle cx="176" cy="91.5" r="2.5" fill="none" stroke="#30364f" stroke-width=".35"/><circle cx="176" cy="91.5" r="1.5" fill="#30364f"/><path class="e" d="M168 91.5 H173.5" marker-end="url(#ah)"/><text x="96.5" y="104">no attempt</text><text x="40" y="110">otherwise: next turn (until no shards are left)</text>
+    <text x="166" y="89">correct</text>
+  </svg>
+</div>

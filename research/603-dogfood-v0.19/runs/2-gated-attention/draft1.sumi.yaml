@@ -1,0 +1,106 @@
+# Gated Attention for LLMs (arXiv 2505.06708): where a sigmoid gate can sit in a
+# softmax attention layer (G1-G5, Sec. 2.2 / Fig. 1 left) and how each position did
+# in the 15A2B MoE ablation (Table 1, elementwise sigmoid gates, avg PPL and MMLU).
+# The adopted gate (G1, after SDPA, head-specific) is the orange accent.
+version: 1
+figure:
+  id: gated-attention
+  theme: sumi
+  profile: paper-single
+  layout:
+    arrange:
+      row:
+        gap: 3mm
+        align: center
+        items: [positions, results]
+groups:
+  - id: positions
+    variant: plain
+    props: {padding: 1mm}
+    caption: (a) Gate positions
+    arrange:
+      stack:
+        direction: up
+        gap: 3mm
+        items:
+          - x
+          - split
+          - grid:
+              columns: 3
+              columnGap: 4.5mm
+              rowGap: 3mm
+              items:
+                [g4, g3, g2,
+                 wq, wk, wv]
+          - sdpa
+          - g1
+          - wo
+          - g5
+          - out
+  - id: results
+    variant: plain
+    props: {padding: 1mm}
+    caption: (b) 15A2B MoE ablation
+    arrange:
+      stack:
+        items: [table]
+nodes:
+  - {id: x, component: label, label: '$X$'}
+  - {id: split, component: junction, variant: hidden}
+  - {id: wq, component: box, label: '$W_Q$', props: {width: 8mm}}
+  - {id: wk, component: box, label: '$W_K$', props: {width: 8mm}}
+  - {id: wv, component: box, label: '$W_V$', props: {width: 8mm}}
+  - {id: g4, component: operator, props: {symbol: times}}
+  - {id: g3, component: operator, props: {symbol: times}}
+  - {id: g2, component: operator, props: {symbol: times}}
+  - {id: g4-label, component: label, label: G4, attach: {to: g4, side: east, gap: 0.5mm}}
+  - {id: g3-label, component: label, label: G3, attach: {to: g3, side: east, gap: 0.5mm}}
+  - {id: g2-label, component: label, label: G2, attach: {to: g2, side: east, gap: 0.5mm}}
+  - {id: sdpa, component: box, label: SDPA, tone: blue, variant: tinted, props: {width: 33mm}}
+  - {id: g1, component: operator, tone: orange, variant: emphasis, props: {symbol: times, size: large}}
+  - {id: g1-label, component: label, label: "G1\nper head", attach: {to: g1, side: east, gap: 0.5mm}}
+  - {id: gate-score, component: box, label: '$\sigma(XW_\theta)$', tone: orange, variant: tinted, attach: {to: g1, side: west, gap: 2mm}}
+  - {id: wo, component: box, label: 'Output proj. $W_O$', props: {width: 30mm}}
+  - {id: g5, component: operator, props: {symbol: times}}
+  - {id: g5-label, component: label, label: G5, attach: {to: g5, side: east, gap: 0.5mm}}
+  - {id: out, component: label, label: Output}
+  - id: table
+    component: matrix
+    props:
+      columns: [PPL, MMLU]
+      rows:
+        - {label: G1 SDPA, tone: orange}
+        - G2 value
+        - G3 key
+        - G4 query
+        - G5 output
+        - No gate
+      cellWidth: 24pt
+      cellHeight: 14pt
+      gap: 1.5pt
+      classes:
+        a: {tone: orange, variant: tinted, label: adopted}
+        o: {variant: outlined, label: other}
+      cells:
+        - [{class: a, text: "5.761"}, {class: a, text: "60.82"}]
+        - [{class: o, text: "5.820"}, {class: o, text: "59.17"}]
+        - [{class: o, text: "6.016"}, {class: o, text: "59.18"}]
+        - [{class: o, text: "5.981"}, {class: o, text: "58.74"}]
+        - [{class: o, text: "6.017"}, {class: o, text: "59.41"}]
+        - [{class: o, text: "6.026"}, {class: o, text: "58.79"}]
+edges:
+  - {from: x, to: split, component: line}
+  - {from: split, to: wq, toAnchor: south}
+  - {from: split, to: wk, toAnchor: south}
+  - {from: split, to: wv, toAnchor: south}
+  - {from: wq, to: g4}
+  - {from: wk, to: g3}
+  - {from: wv, to: g2}
+  - {from: g4, to: sdpa, toAnchor: "south:0.121"}
+  - {from: g3, to: sdpa, toAnchor: "south:0.5"}
+  - {from: g2, to: sdpa, toAnchor: "south:0.879"}
+  - {from: sdpa, to: g1}
+  - {from: gate-score, to: g1, component: line, fromAnchor: east, toAnchor: west}
+  - {from: g1, to: wo}
+  - {from: wo, to: g5}
+  - {from: g5, to: out}

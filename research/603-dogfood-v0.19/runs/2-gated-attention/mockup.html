@@ -1,0 +1,79 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  :root {
+    --canvas: #ffffff; --ink: #30364f;
+    --blue: #d9e4e6; --blue-line: #3d5d77;
+    --orange: #efdfce; --orange-line: #814b2d;
+    --muted: #4e566b;
+    --font: Inter, "Helvetica Neue", Arial, sans-serif;
+    --fs-node: 8; --fs-group: 9; --fs-edge: 7;
+    --frame-w: 0.75; --edge-w: 0.75;
+    --arrow: #30364f; --pt: 0.3528mm;
+  }
+  @page { size: 88mm 78mm; margin: 0 }
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 88mm; height: 78mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  .box { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center;
+         text-align: center; border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: #fff; border-radius: 0.8mm; transform: translate(-50%,-50%) }
+  .blue { background: var(--blue); border-color: var(--blue-line) }
+  .orange { background: var(--orange); border-color: var(--orange-line) }
+  .op { position:absolute; border-radius: 50%; box-sizing:border-box; border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background:#fff; transform: translate(-50%,-50%); display:flex; align-items:center; justify-content:center; width:4mm; height:4mm; font-size: 7pt }
+  .op.big { width:5.5mm; height:5.5mm; background: var(--orange); border-color: var(--orange-line); color: var(--orange-line) }
+  .t { position:absolute; transform: translate(-50%,-50%); white-space: nowrap }
+  .tl { position:absolute; transform: translate(0,-50%); white-space: nowrap }
+  .small { font-size: calc(var(--fs-edge) * var(--pt)) }
+  .cap { font-size: calc(var(--fs-group) * var(--pt)) }
+  .cell { position:absolute; box-sizing:border-box; transform: translate(-50%,-50%); border: calc(0.75 * var(--pt)) solid var(--muted); display:flex; align-items:center; justify-content:center; font-size: 7pt }
+  svg.edges { position: absolute; inset: 0; width: 88mm; height: 78mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: calc(var(--edge-w) * 0.3528) }
+  svg.edges marker path { fill: var(--arrow) }
+</style>
+<div id="fig">
+  <!-- (a) gate positions, bottom-up -->
+  <div class="t" style="left:22mm; top:3mm">Output</div>
+  <div class="op" style="left:22mm; top:10mm">×</div><div class="tl small" style="left:25mm; top:10mm">G5</div>
+  <div class="box" style="left:22mm; top:18mm; width:30mm; height:6mm"><span>Output proj. W<sub>O</sub></span></div>
+  <div class="op big" style="left:22mm; top:27mm">×</div><div class="tl small" style="left:25.5mm; top:27mm; color:#814b2d">G1</div>
+  <div class="box orange small" style="left:7mm; top:27mm; width:11mm; height:5mm"><span>σ(XW<sub>θ</sub>)</span></div>
+  <div class="box blue" style="left:22mm; top:37mm; width:36mm; height:7mm">SDPA</div>
+  <div class="op" style="left:11mm; top:47mm">×</div><div class="tl small" style="left:13.5mm; top:47mm">G4</div>
+  <div class="op" style="left:22mm; top:47mm">×</div><div class="tl small" style="left:24.5mm; top:47mm">G3</div>
+  <div class="op" style="left:33mm; top:47mm">×</div><div class="tl small" style="left:35.5mm; top:47mm">G2</div>
+  <div class="box" style="left:11mm; top:55mm; width:9mm; height:5.5mm"><span>W<sub>Q</sub></span></div>
+  <div class="box" style="left:22mm; top:55mm; width:9mm; height:5.5mm"><span>W<sub>K</sub></span></div>
+  <div class="box" style="left:33mm; top:55mm; width:9mm; height:5.5mm"><span>W<sub>V</sub></span></div>
+  <div class="t" style="left:22mm; top:64mm">X</div>
+  <div class="t cap" style="left:22mm; top:71mm">(a) Gate positions</div>
+  <!-- (b) table -->
+  <div class="t small" style="left:71mm; top:21mm">PPL ↓</div><div class="t small" style="left:81mm; top:21mm">MMLU ↑</div>
+  <div class="tl small" style="left:46mm; top:27mm; color:#814b2d">G1 SDPA</div>
+  <div class="cell" style="left:71mm; top:27mm; width:9.5mm; height:5mm; background:var(--orange); border-color:var(--orange-line)">5.761</div>
+  <div class="cell" style="left:81mm; top:27mm; width:9.5mm; height:5mm; background:var(--orange); border-color:var(--orange-line)">60.82</div>
+  <div class="tl small" style="left:46mm; top:32.5mm">G2 value</div><div class="cell" style="left:71mm; top:32.5mm; width:9.5mm; height:5mm">5.820</div><div class="cell" style="left:81mm; top:32.5mm; width:9.5mm; height:5mm">59.17</div>
+  <div class="tl small" style="left:46mm; top:38mm">G3 key</div><div class="cell" style="left:71mm; top:38mm; width:9.5mm; height:5mm">6.016</div><div class="cell" style="left:81mm; top:38mm; width:9.5mm; height:5mm">59.18</div>
+  <div class="tl small" style="left:46mm; top:43.5mm">G4 query</div><div class="cell" style="left:71mm; top:43.5mm; width:9.5mm; height:5mm">5.981</div><div class="cell" style="left:81mm; top:43.5mm; width:9.5mm; height:5mm">58.74</div>
+  <div class="tl small" style="left:46mm; top:49mm">G5 output</div><div class="cell" style="left:71mm; top:49mm; width:9.5mm; height:5mm">6.017</div><div class="cell" style="left:81mm; top:49mm; width:9.5mm; height:5mm">59.41</div>
+  <div class="tl small" style="left:46mm; top:54.5mm">No gate</div><div class="cell" style="left:71mm; top:54.5mm; width:9.5mm; height:5mm">6.026</div><div class="cell" style="left:81mm; top:54.5mm; width:9.5mm; height:5mm">58.79</div>
+  <div class="t cap" style="left:66mm; top:71mm">(b) 15A2B MoE results</div>
+  <!-- legend -->
+  <svg class="edges" viewBox="0 0 88 78">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="1.6" markerHeight="1.6" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+    <path class="e" d="M22 62 V60 M11 60 V58" />
+    <path class="e" d="M22 62.5 V59.5 H11 V57.8" marker-end="url(#ah)"/>
+    <path class="e" d="M22 62.5 V57.8" marker-end="url(#ah)"/>
+    <path class="e" d="M22 62.5 V59.5 H33 V57.8" marker-end="url(#ah)"/>
+    <path class="e" d="M11 52.2 V49" marker-end="url(#ah)"/>
+    <path class="e" d="M22 52.2 V49" marker-end="url(#ah)"/>
+    <path class="e" d="M33 52.2 V49" marker-end="url(#ah)"/>
+    <path class="e" d="M11 45 V40.5" marker-end="url(#ah)"/>
+    <path class="e" d="M22 45 V40.5" marker-end="url(#ah)"/>
+    <path class="e" d="M33 45 V40.5" marker-end="url(#ah)"/>
+    <path class="e" d="M22 33.5 V29.8" marker-end="url(#ah)"/>
+    <path class="e" d="M12.5 27 H19.2" />
+    <path class="e" d="M22 24.2 V21" marker-end="url(#ah)"/>
+    <path class="e" d="M22 15 V12" marker-end="url(#ah)"/>
+    <path class="e" d="M22 8 V4.5" marker-end="url(#ah)"/>
+  </svg>
+</div>

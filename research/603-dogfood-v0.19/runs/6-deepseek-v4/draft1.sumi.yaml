@@ -1,0 +1,259 @@
+# DeepSeek-V4 block (arXiv 2606.19348, Sec. 2, 4.2.1): mHC around each sublayer,
+# hybrid CSA / HCA attention, DeepSeekMoE. Drawn from the text; not a copy of the paper's figures.
+version: 1
+figure:
+  id: deepseek-v4-block
+  theme: sumi
+  profile: paper-double
+  themeOverrides:
+    lineWidth: 0.75pt
+    frameWidth: 0.75pt
+    arrowheadScale: 0.6
+  layout:
+    arrange:
+      row:
+        gap: 12mm
+        align: stretch
+        items:
+          - block
+          - stack: {gap: 5mm, align: stretch, items: [moe, attn, key]}
+
+groups:
+  - id: block
+    variant: plain
+    caption: (a) Block with mHC
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: x-out, at: [30, 7]}
+          - {item: add2, at: [30, 15]}
+          - {item: post2, at: [30, 22]}
+          - {item: ffn, at: [30, 33]}
+          - {item: res2, at: [9, 33]}
+          - {item: pre2, at: [30, 44]}
+          - {item: split2, at: [30, 50]}
+          - {item: add1, at: [30, 57]}
+          - {item: post1, at: [30, 64]}
+          - {item: mix, at: [30, 76]}
+          - {item: res1, at: [9, 76]}
+          - {item: pre1, at: [30, 88]}
+          - {item: split1, at: [30, 94]}
+          - {item: x-in, at: [30, 101]}
+  - id: moe
+    label: (c) DeepSeekMoE
+    labelAt: top-left
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: u, at: [0, 10]}
+          - {item: router, at: [16, 10]}
+          - {item: experts, at: [58, 2]}
+          - {item: shared, at: [58, 18]}
+          - {item: moe-add, at: [96, 10]}
+          - {item: h, at: [107, 10]}
+  - id: attn
+    label: (b) Hybrid attention, alternating
+    labelAt: top-left
+    arrange:
+      row: {gap: 8mm, align: end, items: [csa, hca]}
+  - id: csa
+    variant: plain
+    label: CSA
+    arrange:
+      stack:
+        direction: up
+        gap: 4mm
+        items:
+          - csa-tok
+          - row: {gap: 3mm, items: [csa-comp]}
+          - row: {gap: 3mm, align: center, items: [csa-idx, csa-kv]}
+          - csa-sel
+          - row: {gap: 3mm, align: center, items: [csa-q, csa-mqa]}
+  - id: hca
+    variant: plain
+    label: HCA
+    arrange:
+      stack:
+        direction: up
+        gap: 4mm
+        items:
+          - hca-tok
+          - hca-comp
+          - hca-kv
+          - hca-sel
+          - row: {gap: 3mm, align: center, items: [hca-q, hca-mqa]}
+
+nodes:
+  # (a) block: X_{l+1} = B_l X_l + C_l F_l(A_l X_l), n_hc = 4 streams
+  - id: x-in
+    component: tokens
+    tone: gray
+    props: {variant: tinted, width: 13pt, height: 13pt, gap: 2pt, cells: ["", "", "", ""]}
+  - {id: x-in-label, component: label, label: '$X_l$', attach: {to: x-in, side: east, gap: 2mm}}
+  - {id: split1, component: junction, variant: hidden}
+  - {id: pre1, component: box, label: '$A_l$', tone: gray, variant: tinted, matchWidth: map}
+  - {id: mix, component: box, label: "Attention\nCSA or HCA", tone: orange, variant: tinted, matchWidth: sub, props: {height: 9mm}}
+  - {id: post1, component: box, label: '$C_l$', tone: gray, variant: tinted, matchWidth: map}
+  - {id: res1, component: box, label: "$B_l$\nSinkhorn", tone: gray, variant: tinted, props: {height: 9mm}}
+  - {id: add1, component: operator, props: {symbol: plus}}
+  - {id: split2, component: junction, variant: hidden}
+  - {id: pre2, component: box, label: '$A_l$', tone: gray, variant: tinted, matchWidth: map}
+  - {id: ffn, component: box, label: MoE, tone: green, variant: tinted, matchWidth: sub, props: {height: 9mm}}
+  - {id: post2, component: box, label: '$C_l$', tone: gray, variant: tinted, matchWidth: map}
+  - {id: res2, component: box, label: "$B_l$\nSinkhorn", tone: gray, variant: tinted, props: {height: 9mm}}
+  - {id: add2, component: operator, props: {symbol: plus}}
+  - id: x-out
+    component: tokens
+    tone: gray
+    props: {variant: tinted, width: 13pt, height: 13pt, gap: 2pt, cells: ["", "", "", ""]}
+  - {id: x-out-label, component: label, label: '$X_{l+1}$', attach: {to: x-out, side: east, gap: 2mm}}
+  - {id: repeat, component: label, label: "×L", attach: {to: add1, side: east, gap: 12mm}}
+
+  # (c) DeepSeekMoE
+  - id: u
+    component: tokens
+    tone: gray
+    props: {variant: tinted, width: 13pt, height: 13pt, cells: [""]}
+  - {id: router, component: box, label: "Router\n√Softplus", tone: gray, variant: tinted}
+  - {id: hash-note, component: label, variant: muted, label: "first 3 MoE layers:\nhash routing", attach: {to: router, side: south, gap: 1.5mm}}
+  - id: experts
+    component: tokens
+    tone: green
+    props:
+      variant: tinted
+      width: 15pt
+      height: 13pt
+      gap: 2pt
+      cells:
+        - {id: e1, label: "1"}
+        - {label: "2", variant: muted, tone: gray}
+        - {label: "3"}
+        - {label: "4", variant: muted, tone: gray}
+        - {label: "5"}
+        - {label: "6", variant: muted, tone: gray}
+        - {label: "…", component: label}
+        - {id: elast, label: "384"}
+  - {id: experts-label, component: label, label: "384 routed experts, top-6 active", attach: {to: experts, side: north, gap: 1.5mm}}
+  - {id: shared, component: box, label: Shared expert, tone: green, variant: tinted, props: {width: 32mm}}
+  - {id: moe-add, component: operator, props: {symbol: plus}}
+  - id: h
+    component: tokens
+    tone: gray
+    props: {variant: tinted, width: 13pt, height: 13pt, cells: [""]}
+
+  # (b) CSA
+  - id: csa-tok
+    component: tokens
+    tone: gray
+    props:
+      variant: tinted
+      width: 7pt
+      height: 11pt
+      gap: 1.5pt
+      cells: ["", "", "", "", "", "", "", "", "", "", "", "", {id: w1, label: ""}, {id: w2, label: ""}, {id: w3, label: ""}, {id: w4, label: ""}]
+  - {id: csa-comp, component: box, label: "Compress ×1/4", tone: gray, variant: tinted}
+  - id: csa-kv
+    component: tokens
+    tone: blue
+    props:
+      variant: tinted
+      width: 14pt
+      height: 11pt
+      gap: 3pt
+      cells: [{id: k1, label: ""}, {id: k2, label: "", variant: muted, tone: gray}, {id: k3, label: ""}, {id: k4, label: "", variant: muted, tone: gray}]
+  - {id: csa-idx, component: box, label: "Indexer\ntop-k", tone: orange, variant: tinted}
+  - id: csa-sel
+    component: tokens
+    tone: blue
+    props:
+      variant: tinted
+      width: 11pt
+      height: 11pt
+      gap: 2pt
+      cells: [{id: s1, label: ""}, {id: s2, label: ""}, {separator: dotted}, {id: v1, label: "", tone: gray}, {label: "", tone: gray}, {label: "", tone: gray}, {id: v4, label: "", tone: gray}]
+  - {id: csa-q, component: label, label: '$q_t$'}
+  - {id: csa-mqa, component: box, label: Shared-KV MQA, tone: orange, variant: tinted, matchWidth: mqa}
+  # (b) HCA
+  - id: hca-tok
+    component: tokens
+    tone: gray
+    props:
+      variant: tinted
+      width: 7pt
+      height: 11pt
+      gap: 1.5pt
+      cells: ["", "", "", "", "", "", "", "", "", "", "", "", {id: w1, label: ""}, {id: w2, label: ""}, {id: w3, label: ""}, {id: w4, label: ""}]
+  - {id: hca-comp, component: box, label: "Compress ×1/128", tone: gray, variant: tinted}
+  - id: hca-kv
+    component: tokens
+    tone: blue
+    props: {variant: tinted, width: 14pt, height: 11pt, cells: [{id: k1, label: ""}]}
+  - {id: hca-all, component: label, variant: muted, label: all entries kept, attach: {to: hca-kv, side: east, gap: 2mm}}
+  - id: hca-sel
+    component: tokens
+    tone: blue
+    props:
+      variant: tinted
+      width: 11pt
+      height: 11pt
+      gap: 2pt
+      cells: [{id: s1, label: ""}, {separator: dotted}, {id: v1, label: "", tone: gray}, {label: "", tone: gray}, {label: "", tone: gray}, {id: v4, label: "", tone: gray}]
+  - {id: hca-q, component: label, label: '$q_t$'}
+  - {id: hca-mqa, component: box, label: Shared-KV MQA, tone: orange, variant: tinted, matchWidth: mqa}
+
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {tone: gray, variant: tinted}, label: token / residual stream / mHC map}
+        - {node: {tone: blue, variant: tinted}, label: compressed KV entry}
+        - {node: {tone: gray, variant: muted}, label: not selected}
+        - {node: {tone: orange, variant: tinted}, label: attention}
+        - {node: {tone: green, variant: tinted}, label: experts}
+
+edges:
+  # (a) attention sublayer
+  - {from: x-in, to: split1, component: line}
+  - {from: split1, to: pre1}
+  - {from: pre1, to: mix}
+  - {from: mix, to: post1}
+  - {from: post1, to: add1}
+  - {from: split1, to: res1, toAnchor: south}
+  - {from: res1, fromAnchor: north, to: add1, toAnchor: west}
+  - {from: add1, to: split2, component: line}
+  # (a) MoE sublayer
+  - {from: split2, to: pre2}
+  - {from: pre2, to: ffn}
+  - {from: ffn, to: post2}
+  - {from: post2, to: add2}
+  - {from: split2, to: res2, toAnchor: south}
+  - {from: res2, fromAnchor: north, to: add2, toAnchor: west}
+  - {from: add2, to: x-out}
+  - {from: ffn, to: moe, component: zoom}
+  - {from: mix, to: attn, component: zoom}
+  # (c)
+  - {from: u, to: router}
+  - {from: router, to: experts, toAnchor: west}
+  - {from: u, to: shared, fromAnchor: south, toAnchor: west}
+  - {from: experts, to: moe-add, fromAnchor: east, toAnchor: north}
+  - {from: shared, to: moe-add, fromAnchor: east, toAnchor: south}
+  - {from: moe-add, to: h}
+  # (b) CSA
+  - {from: csa-tok, to: csa-comp}
+  - {from: csa-comp, to: csa-kv}
+  - {from: csa-idx, to: csa-kv}
+  - {from: csa-kv, to: csa-sel.s1}
+  - {from: csa-tok.w3, to: csa-sel.v4, label: window}
+  - {from: csa-sel, to: csa-mqa}
+  - {from: csa-q, to: csa-mqa}
+  # (b) HCA
+  - {from: hca-tok, to: hca-comp}
+  - {from: hca-comp, to: hca-kv}
+  - {from: hca-kv, to: hca-sel.s1}
+  - {from: hca-tok.w3, to: hca-sel.v4, label: window}
+  - {from: hca-sel, to: hca-mqa}
+  - {from: hca-q, to: hca-mqa}
