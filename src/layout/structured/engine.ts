@@ -112,6 +112,7 @@ import { chatGeometry } from "./chat";
 import { fitSets } from "./sets";
 import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
 import { type StraightenStats, straightenLayout } from "./straighten";
+import type { WidthEntry } from "./width-tree";
 
 /** The engine name recorded in the Layout IR. */
 export const STRUCTURED_ENGINE = "sumi-structured";
@@ -179,7 +180,15 @@ interface GridTracks {
   columnGap: number;
   rowGap: number;
   size: Size;
-  cells: { item: ArrangeItemIR; span: number; column: number; row: number; size: Size }[];
+  cells: {
+    item: ArrangeItemIR;
+    span: number;
+    column: number;
+    row: number;
+    size: Size;
+    /** The width it needs of its columns (centring and `align` included). */
+    trackWidth: number;
+  }[];
 }
 
 /**
@@ -208,6 +217,34 @@ export interface PlacedStructured {
 export function placeStructured(
   ir: FigureIR,
   options: StructuredLayoutOptions = {},
+): PlacedStructured {
+  return placeWith(ir, options);
+}
+
+/**
+ * The natural widths behind the layout {@link placeStructured} returns (#607,
+ * `width-tree.ts`): the same steps (align struts, room before arrowheads),
+ * then one more pass with the final struts, whose measurements are read.
+ * Costs one placement more than `placeStructured`; for lint hints and
+ * `sumi render --explain-width` only.
+ */
+export function structuredWidthTree(
+  ir: FigureIR,
+  options: StructuredLayoutOptions = {},
+): WidthEntry {
+  let tree: WidthEntry | undefined;
+  placeWith(ir, options, (engine, struts) => {
+    engine.run(struts);
+    tree = engine.widthTree();
+  });
+  if (tree === undefined) throw new Error("internal error: no width tree");
+  return tree;
+}
+
+function placeWith(
+  ir: FigureIR,
+  options: StructuredLayoutOptions,
+  after?: (engine: StructuredLayout, struts: Struts) => void,
 ): PlacedStructured {
   if (ir.meta.engine !== "structured" || ir.arrange === undefined) {
     throw new Error("internal error: the structured layout needs a structured figure");
@@ -286,6 +323,7 @@ export function placeStructured(
     engine.growPadding(deficits);
     placed = place();
   }
+  after?.(engine, strutsOf.get(placed.layout) ?? NO_STRUTS);
   const diagnostics =
     inHintTrial() || placed.diagnostics.length === 0
       ? placed.diagnostics
@@ -614,6 +652,138 @@ class StructuredLayout {
       );
     }
     return out;
+  }
+
+  /**
+   * The natural widths behind the last pass (#607, `width-tree.ts`): read
+   * from the measurement caches of that pass, so they are exactly the sizes
+   * the placement used. Lengths in pt.
+   */
+  widthTree(): WidthEntry {
+    const pt = (units: number) => units / 2;
+    const nameOf = (element: NodeIR | GroupIR) =>
+      element.legend?.name ??
+      element.tokens?.name ??
+      element.matrix?.name ??
+      `${element.kind} "${element.id}"`;
+    const placed = (natural: number, rect: Rect | undefined, extra = 0) =>
+      rect !== undefined && rect.width + extra > natural + 1
+        ? { placedPt: pt(rect.width + extra) }
+        : {};
+    const item = (entry: ArrangeItemIR, path: string): WidthEntry | undefined => {
+      if (entry === null) return undefined;
+      if (typeof entry !== "string") return box(entry, path);
+      const width = this.#itemSize(entry).width;
+      const node = this.#nodes.get(entry);
+      if (node !== undefined) {
+        const extra = this.#badgeOverhangs.get(entry) ?? NO_OVERHANG;
+        const label = this.#labels.get(entry);
+        return {
+          name: nameOf(node),
+          kind: "node",
+          key: entry,
+          widthPt: pt(width),
+          ...placed(width, this.#rects.get(entry), extra.west + extra.east),
+          ...(node.width !== undefined && { fixedPt: node.width.pt }),
+          ...(label !== undefined && { labelPt: pt(label.width) }),
+          children: [],
+        };
+      }
+      const group = this.#group(entry);
+      const leaf =
+        group.plane !== undefined
+          ? ("plane" as const)
+          : group.legend?.id === group.id
+            ? ("legend" as const)
+            : group.tokens !== undefined
+              ? ("tokens" as const)
+              : group.matrix !== undefined
+                ? ("matrix" as const)
+                : undefined;
+      const base = {
+        name: nameOf(group),
+        kind: "group" as const,
+        key: entry,
+        widthPt: pt(width),
+        ...placed(width, this.#rects.get(entry)),
+      };
+      if (leaf !== undefined) return { ...base, leaf, children: [] };
+      const p = this.#padding(entry);
+      const content = this.#containerSize(entry, group.arrange).width;
+      const title = this.#labels.get(entry);
+      const titleWidth = title === undefined ? 0 : Math.ceil(title.width);
+      const inner =
+        group.arrange === undefined ? undefined : box(group.arrange, `group "${group.id}".arrange`);
+      return {
+        ...base,
+        padding: { west: pt(p.west), east: pt(p.east), written: group.paddingPt !== undefined },
+        contentPt: pt(content),
+        ...(titleWidth > content && { titlePt: pt(titleWidth) }),
+        ...this.#attachEntry(entry, group.arrange),
+        children: inner === undefined ? [] : [inner],
+      };
+    };
+    const box = (arrange: ArrangeBoxIR, path: string): WidthEntry => {
+      const name = `${path}.${arrange.kind}`;
+      const width = this.#boxSize(arrange).width;
+      const base = { name, kind: arrange.kind, box: arrange, widthPt: pt(width) };
+      const children = (): WidthEntry[] =>
+        arrange.items.flatMap((child, i) => {
+          const found = item(child, `${name}.items[${i}]`);
+          return found === undefined ? [] : [found];
+        });
+      if (arrange.kind === "row" && arrange.items.length > 1)
+        return {
+          ...base,
+          gap: {
+            pt: pt(this.#gap(arrange)),
+            count: arrange.items.length - 1,
+            field: "gap" as const,
+            written: arrange.gapPt !== undefined,
+          },
+          children: children(),
+        };
+      if (arrange.kind === "grid") {
+        const tracks = this.#gridTracks(arrange);
+        // Each child knows its column, so the widest of each column can be marked.
+        const placedChildren = arrange.items.flatMap((child, i) => {
+          const found = item(child, `${name}.items[${i}]`);
+          const cell = tracks.cells[i];
+          return found === undefined || cell === undefined
+            ? []
+            : [{ ...found, column: cell.column, span: cell.span, trackPt: pt(cell.trackWidth) }];
+        });
+        return {
+          ...base,
+          children: placedChildren,
+          columnsPt: tracks.widths.map(pt),
+          ...(tracks.widths.length > 1 && {
+            gap: {
+              pt: pt(tracks.columnGap),
+              count: tracks.widths.length - 1,
+              field: "columnGap" as const,
+              written: arrange.columnGapPt !== undefined,
+            },
+          }),
+        };
+      }
+      return { ...base, children: children() };
+    };
+    const root = this.#ir.arrange as ArrangeBoxIR;
+    return {
+      name: "figure",
+      kind: "figure",
+      widthPt: pt(this.#containerSize(ROOT, root).width),
+      ...this.#attachEntry(ROOT, root),
+      children: [box(root, "figure.layout.arrange")],
+    };
+  }
+
+  /** How far a container's attached nodes reach beyond its arrange tree (#607), if at all. */
+  #attachEntry(container: Container, arrange: ArrangeBoxIR | undefined): { attachPt?: number } {
+    const box = arrange === undefined ? 0 : this.#boxSize(arrange).width;
+    const reach = this.#containerSize(container, arrange).width - box;
+    return reach > 0 ? { attachPt: reach / 2 } : {};
   }
 
   /** Records `item`'s slot and applies its shift (#618); `frame` is its box's. */

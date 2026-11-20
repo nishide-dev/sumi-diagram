@@ -254,29 +254,50 @@ explicit `props`: those findings point at `label`; partial or explicit ones at `
 
 ## Too wide: the width breakdown
 
-`geometry/exceeds-page-width` (render / `lint --geometry`) keeps its hint short and
-in the order you act on it: **1.** `Width to remove` (the overflow in mm), **2.** `Sets
-the width`: the row, grid or auto footprint that sets the page width and its three
-widest items (a grid item names its column or span), **3.** `Verified layout edits`:
-concrete edits (row `gap`, grid `columnGap`, explicit node `width`, `attach.gap`; tried
-in order of their own size) recommended only if the trial shows a smaller width, ranked
-by mm saved (up to 3; trial reductions are independent, not additive), and **4.** the
-reminder that Sumi never shrinks a figure on its own. The fine-grained breakdown is not
-in the hint: it follows as `related` notes (and in `--json` under `related`): every
-item width and the total of observed gaps of the widest run, the descendant runs, the
-horizontal overhang of attached nodes beyond their container, the largest label
-overhang and the top-level span. **Auto:** only the top-level horizontal footprint and
-observed gaps, not ELK's internal layers or spacing; no trials run. Overlapping
-x-ranges and grid spans are merged, blank tracks cannot be reconstructed; margins,
-strokes, edges and labels can also widen the page. Lengths are printed mm;
-`geometry/heavy-scaling` shows the same headline for the natural, pre-scaling width,
-so it remains available under `fit: scale`.
+`geometry/exceeds-page-width` (render / `lint --geometry`) keeps its hint in the order
+you act on it:
 
-Procedure: apply the hint's edit (or shorten labels), re-run, repeat: a second
-row may become the widest. If it is still too wide, build candidates from the
-[options](layout-tips.md#when-width-runs-short) (auto: the other `direction`;
-structured: [rows](layout-tips.md#folding-a-flow-into-rows), smaller `gap`s, panels;
-`figure.fit: scale`) and compare them measured; a wider profile is the user's decision.
+1. `Width to remove`: the overflow in mm.
+2. `Width path` (structured): from the page (margins + arranged content) down to the item
+   that sets the width, in **natural widths** (what each needs before a parent stretches
+   it): a row's items and `n × gap`, a group's content and padding (`profile default` or
+   `props.padding`), a stack's widest item and the next widest. Under `align: stretch` all
+   items of a stack are drawn equally wide; the path still names the one that sets the
+   width, with the natural widths of the others. It ends at `Widest contributor`: a node,
+   a legend / tokens / matrix (sized by its own props: `perRow`, `cellWidth`), a group
+   whose title is wider than its content, or a `place` box (its written coordinates).
+3. `Fits <max>`: values that make the figure fit, each **tried**: the figure is laid out,
+   routed, drawn and linted with that one change, and it is shown only if the page then
+   fits and no new error or warning appears (`geometry/relocatable-node` counts only when
+   your config raises it to warning or error). One value at a time (a row's or grid's gap,
+   a group's `props.padding`, a node's explicit `width`; smallest change first, up to 3);
+   if none is enough alone, all of them together, each giving its share (`(together)`).
+   Apply one, re-run. `would fit but adds <code>` names a value that fits but breaks
+   something else (an edge label no longer fits, a cramped arrowhead): choose another.
+   When nothing fits, the hint says how much the path can give at most, and lists the
+   partial edits a trial verified (`Verified layout edits`, ranked by mm saved; not
+   additive).
+4. The reminder that Sumi never shrinks a figure on its own.
+
+The fine-grained breakdown of the painted geometry follows as `related` notes (and in
+`--json` under `related`): the widest painted run with its items and observed gaps, the
+descendant runs, the overhang of attached nodes, the largest label and the top-level
+span. For the whole tree, before or after it fits, run `sumi render --explain-width`
+(stderr; `--json` adds `widthTree`): every group, box and node with its natural width,
+padding, gaps, grid columns and stretched width, `*` marking what sets the width. It
+changes nothing in the output.
+
+**Auto:** only the top-level horizontal footprint and observed gaps, not ELK's internal
+layers or spacing; no trials run. Lengths are printed mm; `geometry/heavy-scaling` shows
+the same headline for the natural, pre-scaling width (values that fit without scaling).
+Trials need a figure of at most 240 elements without external or HTML assets; at most 8
+trial layouts run per diagnostic.
+
+Procedure: apply a `Fits` value (or shorten labels), re-run. If nothing fits, build
+candidates from the [options](layout-tips.md#when-width-runs-short) (auto: the other
+`direction`; structured: [rows](layout-tips.md#folding-a-flow-into-rows), panels, the
+[default sizes](sizes.md) to plan them; `figure.fit: scale`) and compare them measured; a
+wider profile is the user's decision.
 
 ## Density of paper figures
 

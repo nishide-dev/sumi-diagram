@@ -30,6 +30,9 @@ any theme.
   Load them with `@font-face`, else use the closest system face and judge widths with margin.
 - Text sizes come from the theme and profile (times `textScale`), in pt. A mockup text smaller
   than the profile minimum is a defect.
+- Box sizes, gaps and panel padding: draw them at Sumi's [default sizes](sizes.md) (a one-word
+  box is about 16 × 6mm on paper, an operator 5.6mm, a panel adds its padding on both sides), so
+  the `place` coordinates and the page width carry over to the YAML.
 
 Fill these CSS variables in [mockup-template.html](mockup-template.html) (a page at the real
 size, boxes positioned in mm, an inline SVG layer for arrows): `--canvas`; `--ink` and the

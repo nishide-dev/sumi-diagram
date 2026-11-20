@@ -73,6 +73,10 @@ stack traces for internal errors. If the reader of the output exits early
     .option("--background <mode>", "canvas or transparent; overrides figure.background")
     .option("--profile <name>", "use this built-in profile instead of figure.profile")
     .option("--no-geometry", "skip the geometry rules on the rendered SVG")
+    .option(
+      "--explain-width",
+      "print where the width goes: natural widths, paddings and gaps per group and box (structured layout)",
+    )
     .option("--json", "print a JSON report to stdout instead of text")
     .action(async (file: string, options, command: Command) => {
       setExitCode(

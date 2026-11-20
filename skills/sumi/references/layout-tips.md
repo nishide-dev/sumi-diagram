@@ -83,13 +83,15 @@ into panels. Measure candidates instead of applying a rule:
 ### When width runs short
 
 No option always wins; each spends something different. Combine them (shorter
-labels plus a small scale) and compare the results as above.
+labels plus a small scale) and compare the results as above. Estimate widths before
+rendering from the [default sizes, gaps and paddings](sizes.md); after rendering,
+`sumi render --explain-width` shows where each millimetre goes.
 
 | Option | Costs | Consider when |
 | --- | --- | --- |
 | shorten labels | detail (moves to caption or text) | labels set the box widths (width breakdown); symbols or abbreviations are defined in the text. Keep the meaning. A tall block can turn its title (`labelRotation: -90`) |
 | merge steps | content granularity | neighbouring steps are one sentence in the text and not the point of the figure. **Ask the user** |
-| tighten spacing (`density: compact`, smaller `gap`s) | separation of groups | gaps are a large share of the width; inside/between-group spacing stays distinct |
+| tighten spacing (`density: compact`, smaller `gap`s, a group's `props.padding`) | separation of groups | gaps or panel padding are a large share of the width (the hint's `Width path` shows both; `Fits` gives values a trial verified); inside/between-group spacing stays distinct |
 | scale (`figure.fit: scale`) | final text and line size | the scaled text keeps headroom over the venue minimum (easy at 5pt, rarely at 9pt or on slides). Unavailable when the minimum equals the theme's smallest text (`paper` 7pt edge labels and sublabels at a 7pt minimum) |
 | fold into rows | height (reserved area) and reading continuity | scaling would break the minimum; there is a natural break; the height budget has room; a long chain in a narrow column |
 | split into panels | cross-referencing between panels | there are two or more topics, each readable alone |
