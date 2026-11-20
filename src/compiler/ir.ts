@@ -144,11 +144,6 @@ export interface ArrangeBoxIR {
   /** Grid-only track count, spans (parallel to items), and gaps in pt. */
   readonly columns?: number;
   readonly spans?: readonly number[];
-  /**
-   * Grid-only: which items were written as a cell wrapper `{ item, span?, align? }`
-   * (#621: hints that name an item's path), parallel to items. Absent when none was.
-   */
-  readonly wrapped?: readonly boolean[];
   /** Grid-only per-cell horizontal alignment overrides (#517), parallel to items. */
   readonly cellAligns?: readonly (ArrangeAlign | undefined)[];
   readonly rowGapPt?: number;
@@ -1452,9 +1447,6 @@ function arrangeIR(
           c !== null && typeof c === "object" && "item" in c ? (c.span ?? 1) : 1,
         ),
       ),
-      ...(grid.items.some((c) => c !== null && typeof c === "object" && "item" in c) && {
-        wrapped: freeze(grid.items.map((c) => c !== null && typeof c === "object" && "item" in c)),
-      }),
       ...(grid.items.some((c) => c !== null && typeof c === "object" && "item" in c && c.align) && {
         cellAligns: freeze(
           grid.items.map((c) =>

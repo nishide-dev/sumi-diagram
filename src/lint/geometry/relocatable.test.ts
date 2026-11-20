@@ -91,7 +91,7 @@ describe("geometry/relocatable-node", () => {
 
   test("the trials lay the figure out at most RELOCATE_TRIALS + 1 times, the trials' own lint included", async () => {
     const source = readFileSync(join(FIGURES, "color-use/request-states-a.sumi.yaml"), "utf8");
-    const context = geometryContextFor(await render(source));
+    const context = { ...geometryContextFor(await render(source)), source };
     const start = placements.count;
     const found = relocatableNode.run(context, undefined);
     const layouts = placements.count - start;
@@ -101,7 +101,7 @@ describe("geometry/relocatable-node", () => {
     expect(layouts).toBeLessThanOrEqual(RELOCATE_TRIALS + 1);
   });
 
-  test("the hint's edit round-trips: span / align and null wrappers, a reserved-word ID, a nested stack", async () => {
+  test("the hint's edit and items line round-trip: span / align and null wrappers, a reserved-word ID, a nested stack", async () => {
     const original = readFileSync(join(FIGURES, "color-use/request-states-a.sumi.yaml"), "utf8");
     const row1 = "items: [ start, null, c-invalid, null, null, null, null,";
     expect(original).toContain(row1);
@@ -143,23 +143,18 @@ describe("geometry/relocatable-node", () => {
       [wrapped, "{ item: start, span: 2, align: start }"],
       [nullWrapped, "{ item: null, span: 2 }"],
       [reserved, '[ "true", null,'],
-      [nested, undefined],
+      // The nested box comes from the source as written, gap and all.
+      [nested, "{ stack: { gap: 1mm, items: [ note ] } }"],
     ] as const) {
       const before = await render(source);
       const [hint] = lintGeometry(before, { source }).filter((d) => d.code === RELOCATABLE_NODE);
       if (hint?.hint === undefined) throw new Error("no hint");
       const { doc, items } = apply(source, hint.hint);
       const written = /: items: (\[.*\])\. Nothing/.exec(hint.hint)?.[1];
-      if (line !== undefined) {
-        // The items line parses to the same items as the edit, wrappers and quoting included.
-        expect(written).toBeDefined();
-        expect(parse(written ?? "")).toEqual(items);
-        expect(written).toContain(line);
-      } else {
-        // A nested box cannot be written back: no items line, only the edit.
-        expect(written).toBeUndefined();
-        expect(hint.hint).not.toContain("…");
-      }
+      // The items line parses to the same items as the edit, wrappers, nested boxes and quoting included.
+      expect(written).toBeDefined();
+      expect(parse(written ?? "")).toEqual(items);
+      expect(written).toContain(line);
       const after = await render(stringify(doc));
       expect(bends(after, "e:#11")).toBe(0);
       expect(bends(after, "e:#12")).toBe(0);
@@ -167,35 +162,62 @@ describe("geometry/relocatable-node", () => {
     }
   });
 
-  test("a grid inside a cell wrapper of span 1: the hint names the path under `item`", async () => {
-    // `{ item: <grid> }` with no span or align: the wrapper is still written,
-    // so the inner grid's items are at …items[0].item.grid.items.
-    const doc = parse(readFileSync(join(FIGURES, "color-use/request-states-a.sumi.yaml"), "utf8"));
-    doc.groups[1].arrange = { grid: { columns: 1, items: [{ item: doc.groups[1].arrange }] } };
-    const source = stringify(doc);
-    const [hint] = lintGeometry(await render(source), { source }).filter(
-      (d) => d.code === RELOCATABLE_NODE,
-    );
-    expect(hint?.path).toEqual([
-      "groups",
-      1,
-      "arrange",
-      "grid",
-      "items",
-      0,
-      "item",
-      "grid",
-      "items",
-    ]);
-    expect(hint?.hint).toStartWith(
-      "In groups[1].arrange.grid.items[0].item.grid.items, swap items[33] (retrying) with items[26]",
-    );
-    // The location is the inner grid's items: the line after its `items:` key.
-    const lines = source.split("\n");
-    const line = hint?.location?.line ?? 0;
-    expect(lines[line - 2]?.trim()).toBe("items:");
-    expect(lines[line - 1]?.trim()).toBe("- start");
-    expect(lines.slice(0, line - 2).some((l) => l.trim() === "- item:")).toBe(true);
+  // The request-states-a grid nested in each kind of box that can hold one,
+  // directly or through a wrapper: the hint names the items where they are written.
+  const wrappers: [string, (grid: unknown) => unknown, (string | number)[]][] = [
+    ["stack", (grid) => ({ stack: { items: [grid] } }), ["stack", "items", 0]],
+    ["row", (grid) => ({ row: { items: [grid] } }), ["row", "items", 0]],
+    ["grid", (grid) => ({ grid: { columns: 1, items: [grid] } }), ["grid", "items", 0]],
+    [
+      "grid cell { item }",
+      (grid) => ({ grid: { columns: 1, items: [{ item: grid }] } }),
+      ["grid", "items", 0, "item"],
+    ],
+    [
+      "grid cell { item, span: 1 }",
+      (grid) => ({ grid: { columns: 1, items: [{ item: grid, span: 1 }] } }),
+      ["grid", "items", 0, "item"],
+    ],
+    [
+      "place { item, at }",
+      (grid) => ({ place: { unit: "1mm", items: [{ item: grid, at: [0, 0] }] } }),
+      ["place", "items", 0, "item"],
+    ],
+    [
+      "stack in a grid cell",
+      (grid) => ({ grid: { columns: 1, items: [{ item: { stack: { items: [grid] } } }] } }),
+      ["grid", "items", 0, "item", "stack", "items", 0],
+    ],
+  ];
+  for (const [name, wrap, between] of wrappers)
+    test(`the grid nested in a ${name}: the hint names the written path and location`, async () => {
+      const doc = parse(
+        readFileSync(join(FIGURES, "color-use/request-states-a.sumi.yaml"), "utf8"),
+      );
+      doc.groups[1].arrange = wrap(doc.groups[1].arrange);
+      const source = stringify(doc);
+      const [hint] = lintGeometry(await render(source), { source }).filter(
+        (d) => d.code === RELOCATABLE_NODE,
+      );
+      const path = ["groups", 1, "arrange", ...between, "grid", "items"];
+      expect(hint?.path).toEqual(path);
+      const text = path
+        .map((p, i) => (typeof p === "number" ? `[${p}]` : i === 0 ? p : `.${p}`))
+        .join("");
+      expect(hint?.hint).toStartWith(`In ${text}, swap items[33] (retrying) with items[26]`);
+      // The location is the inner grid's items: the line after its `items:` key.
+      const lines = source.split("\n");
+      const line = hint?.location?.line ?? 0;
+      expect(lines[line - 2]?.trim()).toBe("items:");
+      expect(lines[line - 1]?.trim()).toBe("- start");
+      expect(lines[line - 3]?.trim()).toBe("columnGap: 2.5mm");
+    });
+
+  test("no hint when the moved box's items cannot be found once in the source", async () => {
+    // Without the source text, nothing names where to edit.
+    const source = readFileSync(join(FIGURES, "color-use/request-states-a.sumi.yaml"), "utf8");
+    const figure = await render(source);
+    expect(relocatableNode.run(geometryContextFor(figure), undefined)).toEqual([]);
   });
 
   test("a move that lengthens another edge's detour by more than 1pt is turned down", () => {

@@ -30,6 +30,7 @@ import { loadFigureAssets } from "../../assets/load";
 import type { ArrangeBoxIR, ArrangeItemIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Diagnostic, DocPath } from "../../core/diagnostics";
+import { parseYaml } from "../../core/figure/yaml";
 import { getFontSet } from "../../core/theme/fonts";
 import { asHintTrial, HintTrials, hintLayoutOptions, mapBoxes } from "../../layout/hint-trials";
 import type { LayoutIR } from "../../layout/ir";
@@ -56,14 +57,10 @@ const REACH = 2;
 /** A shorter detour counts only from this much (1pt, in units). */
 const DETOUR_GAIN = 2;
 
-/** An item of an arrange box, with where the box is written. */
+/** An item of an arrange box. */
 interface Slot {
   readonly box: ArrangeBoxIR;
   readonly index: number;
-  /** The box's `items` field in the source. */
-  readonly itemsPath: DocPath;
-  /** `the grid of group "active"`, `figure.layout.arrange`, … for messages. */
-  readonly where: string;
 }
 
 export interface Candidate {
@@ -133,40 +130,32 @@ function excessEdges(context: GeometryContext): GeometryElement[] {
   return out;
 }
 
-/** The arrange boxes of the figure with where each is written; nested boxes know their slot. */
-function arrangeSlots(context: GeometryContext, ir: FigureIR) {
-  const boxes: { box: ArrangeBoxIR; itemsPath: DocPath; where: string }[] = [];
+/** The arrange boxes of the figure; nested boxes know their slot, a group's box its group. */
+function arrangeSlots(ir: FigureIR) {
+  const boxes: ArrangeBoxIR[] = [];
   /** A nested box → the slot holding it. */
-  const parent = new Map<ArrangeBoxIR, { box: ArrangeBoxIR; index: number }>();
+  const parent = new Map<ArrangeBoxIR, Slot>();
   /** A group's own arrange box → the group. */
   const owner = new Map<ArrangeBoxIR, ElementKey>();
-  const visit = (box: ArrangeBoxIR, path: DocPath, where: string) => {
-    boxes.push({ box, itemsPath: [...path, box.kind, "items"], where });
+  const visit = (box: ArrangeBoxIR) => {
+    boxes.push(box);
     box.items.forEach((item, index) => {
       if (item === null || typeof item === "string") return;
       parent.set(item, { box, index });
       // A caption stack (#130) stands for its group: not a box of its own.
-      if (item.growFirst === true) return;
-      // Written as a cell wrapper `{ item: … }`: the box sits under its `item` key.
-      const wrapped = box.kind === "grid" && box.wrapped?.[index] === true;
-      const at: DocPath = [...path, box.kind, "items", index, ...(wrapped ? ["item"] : [])];
-      visit(item, at, `the ${item.kind} at ${pathText(at)}`);
+      if (item.growFirst !== true) visit(item);
     });
   };
-  if (ir.arrange !== undefined)
-    visit(ir.arrange, ["figure", "layout", "arrange"], "figure.layout.arrange");
+  if (ir.arrange !== undefined) visit(ir.arrange);
   for (const group of ir.groups) {
     if (group.arrange === undefined) continue;
-    const element = context.get(group.key);
-    if (element === undefined) continue;
     owner.set(group.arrange, group.key);
-    visit(group.arrange, [...element.docPath, "arrange"], `group "${group.id}"`);
+    visit(group.arrange);
   }
-  const entry = (box: ArrangeBoxIR) => boxes.find((b) => b.box === box);
   /** The slot holding `key` directly (or as the group of a caption stack). */
   const slotOf = (key: ElementKey): Slot | undefined => {
-    for (const b of boxes) {
-      const index = b.box.items.findIndex(
+    for (const box of boxes) {
+      const index = box.items.findIndex(
         (item) =>
           item === key ||
           (item !== null &&
@@ -174,21 +163,103 @@ function arrangeSlots(context: GeometryContext, ir: FigureIR) {
             item.growFirst === true &&
             item.items[0] === key),
       );
-      if (index >= 0) return { box: b.box, index, itemsPath: b.itemsPath, where: b.where };
+      if (index >= 0) return { box, index };
     }
     return undefined;
   };
   /** The slot holding the box a slot is in: the next item out. */
   const outer = (slot: Slot): Slot | undefined => {
     const up = parent.get(slot.box);
-    if (up !== undefined) {
-      const e = entry(up.box);
-      return e === undefined ? undefined : { ...e, index: up.index };
-    }
+    if (up !== undefined) return up;
     const group = owner.get(slot.box);
     return group === undefined ? undefined : slotOf(group);
   };
-  return { slotOf, outer };
+  return { boxes, slotOf, outer };
+}
+
+const ARRANGE_KINDS = ["stack", "row", "grid", "place", "chat"] as const;
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** The kind of an arrange box as written, if `v` is one. */
+const boxKind = (v: unknown) => (isRecord(v) ? ARRANGE_KINDS.find((k) => k in v) : undefined);
+
+/** A cell or place wrapper `{ item, … }` as written: the item inside it. */
+const unwrap = (v: unknown): unknown => (isRecord(v) && "item" in v ? v.item : v);
+
+/** An `items` sequence of an arrange box in the source, where it is written. */
+interface SourceItems {
+  readonly kind: ArrangeBoxIR["kind"];
+  /** The `items` field. */
+  readonly path: DocPath;
+  readonly items: readonly unknown[];
+}
+
+/**
+ * Every `items` sequence of the arrange boxes written in the source: under
+ * `figure.layout.arrange` and each group's `arrange`, through nested boxes
+ * and the wrappers that hold them (a grid cell's or a place item's `item`).
+ * A chat's items are messages, not arrange items.
+ */
+function sourceItems(document: unknown): SourceItems[] {
+  const out: SourceItems[] = [];
+  const entry = (value: unknown, path: DocPath) => {
+    if (isRecord(value) && "item" in value) entry(value.item, [...path, "item"]);
+    else if (boxKind(value) !== undefined) box(value, path);
+  };
+  const box = (value: unknown, path: DocPath) => {
+    const kind = boxKind(value);
+    if (kind === undefined || kind === "chat" || !isRecord(value)) return;
+    const spec = value[kind];
+    if (!isRecord(spec) || !Array.isArray(spec.items)) return;
+    const at: DocPath = [...path, kind, "items"];
+    out.push({ kind, path: at, items: spec.items });
+    for (const [i, item] of spec.items.entries()) entry(item, [...at, i]);
+  };
+  if (!isRecord(document)) return out;
+  const figure = document.figure;
+  if (isRecord(figure) && isRecord(figure.layout))
+    box(figure.layout.arrange, ["figure", "layout", "arrange"]);
+  if (Array.isArray(document.groups))
+    document.groups.forEach((g, i) => {
+      if (isRecord(g)) box(g.arrange, ["groups", i, "arrange"]);
+    });
+  return out;
+}
+
+/** Whether a source item (unwrapped) is the IR item. */
+function sameItem(context: GeometryContext, ir: ArrangeItemIR, written: unknown): boolean {
+  if (ir === null) return written === null;
+  if (typeof ir === "string" || ir.growFirst === true) return written === itemName(context, ir);
+  const kind = boxKind(written);
+  if (kind !== ir.kind || !isRecord(written)) return false;
+  if (kind === "chat") return true;
+  const spec = written[kind];
+  return isRecord(spec) && Array.isArray(spec.items) && sameItems(context, ir, spec.items);
+}
+
+function sameItems(
+  context: GeometryContext,
+  box: ArrangeBoxIR,
+  items: readonly unknown[],
+): boolean {
+  return (
+    items.length === box.items.length &&
+    box.items.every((item, i) => sameItem(context, item, unwrap(items[i])))
+  );
+}
+
+/** The one `items` sequence in the source that is this box's, or `undefined` (none, or several alike). */
+function writtenItems(
+  context: GeometryContext,
+  box: ArrangeBoxIR,
+  document: unknown,
+): SourceItems | undefined {
+  const found = sourceItems(document).filter(
+    (s) => s.kind === box.kind && sameItems(context, box, s.items),
+  );
+  return found.length === 1 ? found[0] : undefined;
 }
 
 /** Whether `item` is `key` or holds it (a group around it, a box with it inside). */
@@ -231,7 +302,6 @@ function movedBox(box: ArrangeBoxIR, from: number, to: number): ArrangeBoxIR {
   let items = swap(box.items) as ArrangeItemIR[];
   let spans = swap(box.spans);
   let cellAligns = swap(box.cellAligns);
-  let wrapped = swap(box.wrapped);
   // The row the item left, if it was the last and is now empty, is dropped:
   // an empty row still takes a row gap.
   const cells = gridCells(box);
@@ -243,7 +313,6 @@ function movedBox(box: ArrangeBoxIR, from: number, to: number): ArrangeBoxIR {
       items = items.filter((_, i) => keep[i]);
       spans = spans?.filter((_, i) => keep[i]);
       cellAligns = cellAligns?.filter((_, i) => keep[i]);
-      wrapped = wrapped?.filter((_, i) => keep[i]);
     }
   }
   return {
@@ -251,7 +320,6 @@ function movedBox(box: ArrangeBoxIR, from: number, to: number): ArrangeBoxIR {
     items,
     ...(spans !== undefined && { spans }),
     ...(cellAligns !== undefined && { cellAligns }),
-    ...(wrapped !== undefined && { wrapped }),
   };
 }
 
@@ -304,41 +372,33 @@ function itemName(context: GeometryContext, item: ArrangeItemIR): string {
 }
 
 /**
- * The box's `items` as data, the same in meaning as written: an ID, `null`,
- * or a grid cell wrapper `{ item, span, align }` where one was written
- * (`ArrangeBoxIR.wrapped`), rebuilt from its span and align (a span of 1 is
- * left out). `undefined` when the IR cannot give an
- * item back: a nested box, whose fields are not kept as written.
+ * The written `items` with the move done, as the IR box did it: a grid's
+ * entry and the empty cell swap places (wrappers and all) and the emptied
+ * last entries are dropped; a stack's or row's entry moves.
  */
-function itemsData(context: GeometryContext, box: ArrangeBoxIR): unknown[] | undefined {
-  const out: unknown[] = [];
-  for (const [i, item] of box.items.entries()) {
-    if (item !== null && typeof item !== "string" && item.growFirst !== true) return undefined;
-    const value = item === null ? null : itemName(context, item);
-    const span = box.kind === "grid" ? (box.spans?.[i] ?? 1) : 1;
-    const align = box.kind === "grid" ? box.cellAligns?.[i] : undefined;
-    const written = box.kind === "grid" && box.wrapped?.[i] === true;
-    out.push(
-      written || span !== 1 || align !== undefined
-        ? {
-            item: value,
-            ...(span !== 1 && { span }),
-            ...(align !== undefined && { align }),
-          }
-        : value,
-    );
+function editedItems(
+  written: readonly unknown[],
+  kind: ArrangeBoxIR["kind"],
+  from: number,
+  to: number,
+  dropped: number,
+): unknown[] {
+  const items = [...written];
+  if (kind === "grid") {
+    [items[from], items[to]] = [items[to], items[from]];
+    if (dropped > 0) items.splice(items.length - dropped, dropped);
+  } else {
+    const [item] = items.splice(from, 1);
+    items.splice(to, 0, item);
   }
-  return out;
+  return items;
 }
 
 /**
- * The box's `items` as one YAML flow sequence, or `undefined` when they cannot
- * be given back (`itemsData`) or the text does not parse back to the same
- * data (then the hint gives only the index edit).
+ * The items as one YAML flow sequence, or `undefined` when the text does not
+ * parse back to the same data (then the hint gives only the index edit).
  */
-function itemsYaml(context: GeometryContext, box: ArrangeBoxIR): string | undefined {
-  const data = itemsData(context, box);
-  if (data === undefined) return undefined;
+function itemsYaml(data: readonly unknown[]): string | undefined {
   const text = stringify(data, { collectionStyle: "flow", lineWidth: 0 }).trim();
   try {
     return Bun.deepEquals(parse(text), data, true) ? text : undefined;
@@ -464,7 +524,7 @@ export function relocationTrials(context: GeometryContext): RelocationOutcome[] 
   if (context.html?.size || original.nodes.some((n) => n.image !== undefined)) return [];
   if ([...(original.assets?.values() ?? [])].some((a) => a.src !== undefined)) return [];
 
-  const { slotOf, outer } = arrangeSlots(context, original);
+  const { boxes, slotOf, outer } = arrangeSlots(original);
   // Candidate moves, per end of each edge: its own slot, then the next item out.
   const candidates = new Map<string, Candidate>();
   let order = 0;
@@ -519,7 +579,7 @@ export function relocationTrials(context: GeometryContext): RelocationOutcome[] 
               if (t >= 0 && t < box.items.length) targets.push({ target: t, distance: d });
         }
         for (const { target, distance } of targets) {
-          const id = `${slot.itemsPath.join("/")}#${index}>${target}`;
+          const id = `${boxes.indexOf(box)}#${index}>${target}`;
           const known = candidates.get(id);
           if (known !== undefined) {
             if (!known.edges.includes(edge.key))
@@ -637,7 +697,10 @@ export const relocatableNode = defineGeometryRule({
   fixable: false,
   run(context) {
     const rendered = context.layout;
-    if (rendered === undefined) return [];
+    // The hint names where to edit in the source: without it, nothing to say.
+    if (rendered === undefined || context.source === undefined) return [];
+    const document = parseYaml(context.source).source?.value;
+    if (document === undefined) return [];
     const { width, height } = rendered.canvas;
     let best: (RelocationOutcome & { verdict: { ok: true } }) | undefined;
     const gainOf = (o: { verdict: { bends: [number, number] } }) =>
@@ -684,11 +747,20 @@ export const relocatableNode = defineGeometryRule({
     });
     const name = itemName(context, item);
     const who = moved?.name ?? name;
-    // A nested box is named by its path ("the row at …"); a group's or the figure's by its owner.
-    const where = slot.where.startsWith("the ")
-      ? slot.where
-      : `the ${slot.box.kind} of ${slot.where}`;
-    const field = pathText(slot.itemsPath);
+    // Where the box's items are written: the one sequence in the source that
+    // holds exactly its items (through any wrapper), or no hint at all.
+    const written = writtenItems(context, slot.box, document);
+    if (written === undefined) return [];
+    const boxPath = written.path.slice(0, -2);
+    const group = context.placed?.ir.groups.find((g) => g.arrange === slot.box);
+    const owner = group === undefined ? undefined : context.get(group.key)?.name;
+    const where =
+      boxPath.length === 3 && boxPath[0] === "figure"
+        ? `the ${slot.box.kind} of figure.layout.arrange`
+        : owner !== undefined
+          ? `the ${slot.box.kind} of ${owner}`
+          : `the ${slot.box.kind} at ${pathText(boxPath)}`;
+    const field = pathText(written.path);
     let move: string;
     let edit: string;
     if (slot.box.kind === "grid") {
@@ -714,7 +786,15 @@ export const relocatableNode = defineGeometryRule({
       move = `from place ${slot.index + 1} to place ${target + 1} of ${where}`;
       edit = `move items[${slot.index}] (${name}) to items[${target}], so the order becomes ${box.items.map((i) => itemName(context, i)).join(", ")}`;
     }
-    const yaml = itemsYaml(context, box);
+    const yaml = itemsYaml(
+      editedItems(
+        written.items,
+        slot.box.kind,
+        slot.index,
+        target,
+        slot.box.items.length - box.items.length,
+      ),
+    );
     const list = edges.map((e) => e.text).join(" and ");
     const times = (n: number) => `${n} ${n === 1 ? "time" : "times"}`;
     const [b0, b1] = won.verdict.bends;
@@ -731,7 +811,7 @@ export const relocatableNode = defineGeometryRule({
     return [
       {
         message: `${capitalize(who)} could move ${move}: then ${effect}${size.length > 0 ? `, and the figure is ${size.join(" and ")}` : ""} (checked by laying the figure out and routing it again: no other edge bends more or has its detour grow by more than 1pt, the figure does not grow and the geometry lint finds no new error or warning).`,
-        path: slot.itemsPath,
+        path: written.path,
         ...(moved !== undefined && { subject: moved.subject }),
         hint: `In ${field}, ${edit}${yaml === undefined ? "" : `: items: ${yaml}`}. Nothing is moved for you: keep the current place if it carries meaning (such as failures below the main flow).`,
         related: edges.map(({ element }) => ({

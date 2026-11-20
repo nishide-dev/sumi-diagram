@@ -88,6 +88,11 @@ export interface GeometryContext {
    * (`geometry/relocatable-node`, #621).
    */
   readonly lintConfig?: import("../config").ResolvedLintConfig;
+  /**
+   * The `*.sumi.yaml` text that was rendered, when the caller has it, for
+   * hints that name where to edit (`geometry/relocatable-node`, #621).
+   */
+  readonly source?: string;
   readonly ir: FigureIR;
   readonly inspection: SvgInspection;
   /** The canvas (viewBox of `svg.d2-svg`) in element coordinates. */
