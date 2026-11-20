@@ -33,6 +33,7 @@ figure:                    # required
     # arrange: …           # optional: switches to the structured layout (structured.md)
     # align: […]¹, alignGrowth: allow¹, fanIn: merge | spread¹   (structured.md)
     # density: compact¹    # optional: tighter default gaps and padding (layout-tips)
+    # straighten: true¹    # optional: move boxes within their room so facing ends line up (structured.md)
 groups: []                 # optional
 nodes: []                  # optional (an empty figure gets a lint warning)
 edges: []                  # optional

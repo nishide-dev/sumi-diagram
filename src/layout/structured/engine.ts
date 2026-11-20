@@ -111,9 +111,36 @@ import { verifiedAlignHints } from "./align-hint";
 import { chatGeometry } from "./chat";
 import { fitSets } from "./sets";
 import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
+import { type StraightenStats, straightenLayout } from "./straighten";
 
 /** The engine name recorded in the Layout IR. */
 export const STRUCTURED_ENGINE = "sumi-structured";
+
+/** Translations of arrange items in the final placement (#618, `straighten.ts`), in units. */
+export type Shifts = ReadonlyMap<ArrangeItemIR, Point>;
+
+export const NO_SHIFTS: Shifts = new Map();
+
+/** Per axis: whether an item may move along it (#618). */
+export interface Axes {
+  readonly x: boolean;
+  readonly y: boolean;
+}
+
+/** Where an arrange item was placed in a pass (#618), before its shift. */
+export interface Slot {
+  /** The box that placed it (a stack, row or place box). */
+  readonly box: ArrangeBoxIR;
+  readonly item: ArrangeItemIR;
+  /** The box's frame: the item must stay inside it. */
+  readonly frame: Rect;
+  /** The item's footprint (its badges included) before its shift. */
+  readonly rect: Rect;
+  /** The slot item it is inside (a nested box, or a group whose tree holds it); `undefined` at the root tree. */
+  readonly parent: ArrangeItemIR | undefined;
+  /** The axes along which its box leaves it free: see `straighten.ts`. */
+  readonly soft: Axes;
+}
 
 export interface StructuredLayoutOptions {
   /** Defaults to the figure's profile (`ir.meta.profileId`). */
@@ -169,6 +196,8 @@ export interface PlacedStructured {
   readonly diagnostics: readonly Diagnostic[];
   /** Present when the figure has `figure.layout.align`: how the constraints were solved. */
   readonly align?: AlignStats;
+  /** Present with `figure.layout.straighten` (#618): what was moved. */
+  readonly straighten?: StraightenStats;
 }
 
 /**
@@ -206,12 +235,14 @@ export function placeStructured(
   // The solver may return an earlier candidate after running rejected trials
   // or diagnostic probes. Snapshot footprints while each layout owns the caches.
   const placementDiagnostics = new WeakMap<LayoutIR, readonly Diagnostic[]>();
-  const run = (struts?: Struts): LayoutIR => {
-    const layout = engine.run(struts);
+  const strutsOf = new WeakMap<LayoutIR, Struts>();
+  const run = (struts?: Struts, shifts?: Shifts): LayoutIR => {
+    const layout = engine.run(struts, shifts);
     placementDiagnostics.set(layout, engine.placementDiagnostics());
+    strutsOf.set(layout, struts ?? NO_STRUTS);
     return layout;
   };
-  const place = (): PlacedStructured => {
+  const solve = (): PlacedStructured => {
     if (ir.align === undefined || ir.align.length === 0) {
       return { layout: run(), diagnostics: [] };
     }
@@ -225,6 +256,20 @@ export function placeStructured(
       diagnostics: solved.diagnostics,
       align: { ...solved.stats, layouts: spent },
     };
+  };
+  // `figure.layout.straighten` (#618): shift items within their room on top of the solved struts.
+  const place = (): PlacedStructured => {
+    const placed = solve();
+    if (ir.meta.straighten !== true) return placed;
+    const struts = strutsOf.get(placed.layout) ?? NO_STRUTS;
+    const straightened = straightenLayout(ir, (shifts) => {
+      const layout = run(struts, shifts);
+      return { layout, slots: engine.slots(), footprints: engine.footprints() };
+    });
+    // The slide marks make a new layout object: it keeps its pass's placement diagnostics.
+    const pass = placementDiagnostics.get(straightened.trial.layout);
+    if (pass !== undefined) placementDiagnostics.set(straightened.layout, pass);
+    return { ...placed, layout: straightened.layout, straighten: straightened.stats };
   };
   // Room before arrowheads in group padding (#171, design doc §6.42): widen
   // the sides of groups where an edge turns in the padding right before an
@@ -295,6 +340,20 @@ class StructuredLayout {
   readonly #centerPaddings = new Map<ArrangeBoxIR, { before: number; after: number }>();
   /** `layout/set-size-too-small` of the last pass (#545). */
   #setDiagnostics: Diagnostic[] = [];
+  /** Translations of arrange items in the final placement (#618, `straighten.ts`). */
+  #shifts: Shifts = NO_SHIFTS;
+  /** Whether the pass is placing the figure (not measuring a local layout): shifts and slots apply. */
+  #shifting = false;
+  /** Where each arrange item was placed in the last pass (#618). */
+  readonly #slots = new Map<ArrangeItemIR, Slot>();
+  readonly #placeCounts = new Map<
+    ArrangeBoxIR,
+    { x: Map<number, number>; y: Map<number, number> }
+  >();
+  /** The slot items being placed, innermost last (#618). */
+  readonly #slotStack: ArrangeItemIR[] = [];
+  /** Above 0 while placing inside a tokens row, a matrix, a tilted plane or a chat (#618: nothing moves there). */
+  #locked = 0;
 
   constructor(ir: FigureIR, profile: Profile, measurer: TextMeasurer) {
     this.#ir = ir;
@@ -484,9 +543,15 @@ class StructuredLayout {
     };
   }
 
-  /** One pass; `struts` add main-axis space around items (#132, `align.ts`). */
-  run(struts: Struts = NO_STRUTS): LayoutIR {
+  /**
+   * One pass; `struts` add main-axis space around items (#132, `align.ts`);
+   * `shifts` translate arrange items once the sizes are known (#618,
+   * `straighten.ts`): they never change a size.
+   */
+  run(struts: Struts = NO_STRUTS, shifts: Shifts = NO_SHIFTS): LayoutIR {
     this.#struts = struts;
+    this.#shifts = shifts;
+    this.#slots.clear();
     this.#overhangs.clear();
     this.#itemSizes.clear();
     this.#rects.clear();
@@ -500,8 +565,97 @@ class StructuredLayout {
     this.#centerPaddings.clear();
     const root = this.#ir.arrange as ArrangeBoxIR;
     const size = this.#containerSize(ROOT, root);
-    this.#placeContainer(ROOT, root, { x: 0, y: 0, width: size.width, height: size.height });
+    // Slots are recorded (and shifts applied) only for `figure.layout.straighten` (#618).
+    this.#shifting = this.#ir.meta.straighten === true;
+    try {
+      this.#placeContainer(ROOT, root, { x: 0, y: 0, width: size.width, height: size.height });
+    } finally {
+      this.#shifting = false;
+    }
     return this.#result();
+  }
+
+  /** Runs `fn` as a local layout (a measurement): no shifts, no slots (#618). */
+  #local<T>(fn: () => T): T {
+    const shifting = this.#shifting;
+    this.#shifting = false;
+    try {
+      return fn();
+    } finally {
+      this.#shifting = shifting;
+    }
+  }
+
+  /** Where each arrange item was placed in the last pass, before its shift (#618). */
+  slots(): ReadonlyMap<ArrangeItemIR, Slot> {
+    return new Map(this.#slots);
+  }
+
+  /**
+   * The footprint of every node and group in the last pass (#618), in the
+   * pass's coordinates (before the margin): a node's body with its badge,
+   * glyphs, caption and self-loops; a group's frame with a title above it.
+   */
+  footprints(): Map<ElementKey, Rect> {
+    const out = new Map<ElementKey, Rect>();
+    for (const node of this.#ir.nodes) {
+      const body = this.#rects.get(node.key);
+      if (body === undefined) continue;
+      out.set(node.key, unionRects([body, ...this.#decorations(node, body)]));
+    }
+    for (const group of this.#ir.groups) {
+      const rect = this.#rects.get(group.key);
+      if (rect === undefined) continue;
+      const above = this.#titleAbove(group);
+      out.set(
+        group.key,
+        above > 0 ? { ...rect, y: rect.y - above, height: rect.height + above } : rect,
+      );
+    }
+    return out;
+  }
+
+  /** Records `item`'s slot and applies its shift (#618); `frame` is its box's. */
+  #slot(box: ArrangeBoxIR, item: ArrangeItemIR, frame: Rect, rect: Rect, soft: () => Axes): Rect {
+    if (!this.#shifting || item === null) return rect;
+    this.#slots.set(item, {
+      box,
+      item,
+      frame,
+      rect,
+      parent: this.#slotStack.at(-1),
+      soft: this.#locked > 0 ? { x: false, y: false } : soft(),
+    });
+    const shift = this.#shifts.get(item);
+    return shift === undefined ? rect : { ...rect, x: rect.x + shift.x, y: rect.y + shift.y };
+  }
+
+  /** How many items of a place box sit at each written x and y (#618). */
+  #coordinateCounts(box: ArrangeBoxIR): { x: Map<number, number>; y: Map<number, number> } {
+    let counts = this.#placeCounts.get(box);
+    if (counts === undefined) {
+      counts = { x: new Map(), y: new Map() };
+      for (const [x, y] of box.positionsPt ?? []) {
+        counts.x.set(x, (counts.x.get(x) ?? 0) + 1);
+        counts.y.set(y, (counts.y.get(y) ?? 0) + 1);
+      }
+      this.#placeCounts.set(box, counts);
+    }
+    return counts;
+  }
+
+  /** Places what is inside the slot `item` with `item` on the slot stack (#618). */
+  #within(item: ArrangeItemIR, place: () => void): void {
+    if (!this.#shifting) {
+      place();
+      return;
+    }
+    this.#slotStack.push(item);
+    try {
+      place();
+    } finally {
+      this.#slotStack.pop();
+    }
   }
 
   // --- Measuring -----------------------------------------------------------
@@ -697,10 +851,12 @@ class StructuredLayout {
         item.items[0] === box.centerOn
       ) {
         // Caption expansion wraps a direct group item in a generated stack.
-        this.#placeBox(item, { x: 0, y: 0, ...size }, "center", (key, rect) => {
-          if (key === box.centerOn)
-            center = cursor + (vertical ? rect.y + rect.height / 2 : rect.x + rect.width / 2);
-        });
+        this.#local(() =>
+          this.#placeBox(item, { x: 0, y: 0, ...size }, "center", (key, rect) => {
+            if (key === box.centerOn)
+              center = cursor + (vertical ? rect.y + rect.height / 2 : rect.x + rect.width / 2);
+          }),
+        );
       }
       cursor += length + this.#trail(item) + this.#gap(box);
     }
@@ -803,7 +959,9 @@ class StructuredLayout {
       const frame = { x: 0, y: 0, width: box.width, height: box.height };
       const local = new Map<ElementKey, Rect>();
       if (arrange !== undefined) {
-        this.#placeBox(arrange, frame, "center", (key, rect) => local.set(key, rect));
+        this.#local(() =>
+          this.#placeBox(arrange, frame, "center", (key, rect) => local.set(key, rect)),
+        );
       }
       this.#placeAttached(container, local);
       overhang = overhangOf(frame, this.#attachedRects(container, local));
@@ -855,9 +1013,11 @@ class StructuredLayout {
       }
     } else if (item?.growFirst === true) {
       const key = item.items[0];
-      this.#placeBox(item, body, "center", (k, rect) => {
-        if (k === key) body = rect;
-      });
+      this.#local(() =>
+        this.#placeBox(item, body, "center", (k, rect) => {
+          if (k === key) body = rect;
+        }),
+      );
     }
     return { x: x * 2 - body.x - body.width / 2, y: y * 2 - body.y - body.height / 2, ...size };
   }
@@ -874,13 +1034,21 @@ class StructuredLayout {
         box.positionsPt?.[i] ?? [0, 0],
         box.bodyCentered?.[i] === true,
       );
-      const rect = {
+      const placed = {
         ...local,
         x: frame.x + (frame.width - bounds.width) / 2 - bounds.x + local.x,
         y: frame.y + (frame.height - bounds.height) / 2 - bounds.y + local.y,
       };
-      if (typeof item === "string") visit(item, this.#bodyRect(item, rect));
-      else if (item !== null) this.#placeBox(item, rect, "center", visit);
+      // #618: a coordinate another item shares is a line the author drew; it stays.
+      const rect = this.#slot(box, item, frame, placed, () => {
+        const [x, y] = box.positionsPt?.[i] ?? [0, 0];
+        const counts = this.#coordinateCounts(box);
+        return { x: (counts.x.get(x) ?? 0) < 2, y: (counts.y.get(y) ?? 0) < 2 };
+      });
+      this.#within(item, () => {
+        if (typeof item === "string") visit(item, this.#bodyRect(item, rect));
+        else if (item !== null) this.#placeBox(item, rect, "center", visit);
+      });
     });
   }
 
@@ -1013,21 +1181,12 @@ class StructuredLayout {
     visit: (key: ElementKey, rect: Rect) => void,
   ): void {
     if (box.kind === "chat") {
-      const geometry = this.#chatGeometry(box);
-      this.#chatFrames.set(box, {
-        x: frame.x + (frame.width - geometry.size.width) / 2,
-        y: frame.y + (frame.height - geometry.size.height) / 2,
-        ...geometry.size,
-      });
-      for (const [key, local] of geometry.rects)
-        visit(
-          key,
-          this.#bodyRect(key, {
-            ...local,
-            x: frame.x + (frame.width - geometry.size.width) / 2 + local.x,
-            y: frame.y + (frame.height - geometry.size.height) / 2 + local.y,
-          }),
-        );
+      this.#locked++;
+      try {
+        this.#placeChat(box, frame, visit);
+      } finally {
+        this.#locked--;
+      }
       return;
     }
     if (box.kind === "place") {
@@ -1038,6 +1197,34 @@ class StructuredLayout {
       this.#placeGrid(box, frame, visit);
       return;
     }
+    this.#placeLine(box, frame, inherited, visit);
+  }
+
+  #placeChat(box: ArrangeBoxIR, frame: Rect, visit: (key: ElementKey, rect: Rect) => void): void {
+    const geometry = this.#chatGeometry(box);
+    this.#chatFrames.set(box, {
+      x: frame.x + (frame.width - geometry.size.width) / 2,
+      y: frame.y + (frame.height - geometry.size.height) / 2,
+      ...geometry.size,
+    });
+    for (const [key, local] of geometry.rects)
+      visit(
+        key,
+        this.#bodyRect(key, {
+          ...local,
+          x: frame.x + (frame.width - geometry.size.width) / 2 + local.x,
+          y: frame.y + (frame.height - geometry.size.height) / 2 + local.y,
+        }),
+      );
+  }
+
+  /** Places the items of a stack or row. */
+  #placeLine(
+    box: ArrangeBoxIR,
+    frame: Rect,
+    inherited: Align,
+    visit: (key: ElementKey, rect: Rect) => void,
+  ): void {
     const align = box.align ?? inherited;
     const vertical = box.kind === "stack";
     const reversed = box.direction === "up" || box.direction === "left";
@@ -1130,11 +1317,20 @@ class StructuredLayout {
       }
       offset += crossLead;
       cursor += this.#lead(item);
-      const rect: Rect = vertical
+      const placed: Rect = vertical
         ? { x: frame.x + offset, y: cursor, width: cross, height: size.height }
         : { x: cursor, y: frame.y + offset, width: size.width, height: cross };
-      if (typeof item === "string") visit(item, this.#bodyRect(item, rect));
-      else this.#placeBox(item, rect, item.kind === box.kind ? align : "center", visit);
+      // #618: only centring leaves an item free across the axis (start, end and stretch line
+      // items up on purpose), a flush box (gap 0) keeps its items touching in one line, and
+      // cross-axis space (#545) was put there by `figure.layout.align`.
+      const rect = this.#slot(box, item, frame, placed, () => {
+        const free = align === "center" && !separator && box.gapPt !== 0 && margin === 0;
+        return { x: vertical && free, y: !vertical && free };
+      });
+      this.#within(item, () => {
+        if (typeof item === "string") visit(item, this.#bodyRect(item, rect));
+        else this.#placeBox(item, rect, item.kind === box.kind ? align : "center", visit);
+      });
       cursor += (vertical ? size.height : size.width) + gap + this.#trail(item);
     }
   }
@@ -1288,7 +1484,12 @@ class StructuredLayout {
   #placeElement(key: ElementKey, rect: Rect): void {
     const planar = this.#groups.get(key);
     if (planar?.plane !== undefined) {
-      this.#placePlane(planar, planar.plane, rect);
+      this.#locked++;
+      try {
+        this.#placePlane(planar, planar.plane, rect);
+      } finally {
+        this.#locked--;
+      }
       return;
     }
     this.#rects.set(key, rect);
@@ -1306,7 +1507,14 @@ class StructuredLayout {
       height: rect.height - p.north - p.south - band,
     };
     this.#contents.set(key, content);
-    this.#placeContainer(key, group.arrange, content);
+    // The cells of a tokens row or a matrix are one drawing (#618: they never move apart).
+    const rigid = group.tokens !== undefined || group.matrix !== undefined;
+    if (rigid) this.#locked++;
+    try {
+      this.#placeContainer(key, group.arrange, content);
+    } finally {
+      if (rigid) this.#locked--;
+    }
   }
 
   /** Places the attached nodes of `container` into `rects`, each after its target. */
@@ -1794,6 +2002,17 @@ function decorationRects(node: NodeIR, body: Rect): Rect[] {
 }
 
 /** How far `rects` reach beyond `frame` on each side (0 where they stay inside). */
+function unionRects(rects: readonly Rect[]): Rect {
+  const x = Math.min(...rects.map((r) => r.x));
+  const y = Math.min(...rects.map((r) => r.y));
+  return {
+    x,
+    y,
+    width: Math.max(...rects.map((r) => r.x + r.width)) - x,
+    height: Math.max(...rects.map((r) => r.y + r.height)) - y,
+  };
+}
+
 function overhangOf(frame: Rect, rects: readonly Rect[]): Overhang {
   const overhang = { ...NO_OVERHANG };
   for (const r of rects) {
