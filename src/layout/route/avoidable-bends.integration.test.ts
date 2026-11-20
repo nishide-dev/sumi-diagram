@@ -1,7 +1,8 @@
 /**
  * The three routes the #603 dogfooding study complained about (#604), cut
  * down to the elements involved, and what `geometry/avoidable-bend` says
- * about them. Needs no D2.
+ * about them. Needs no D2. The figures keep the placement the study had
+ * (`straighten: false`; #620 made moving nodes into line the default).
  */
 import { describe, expect, test } from "bun:test";
 import { getFontSet } from "../../core/theme/fonts";
@@ -57,6 +58,7 @@ figure:
   themeOverrides:
     textScale: 2
   layout:
+    straighten: false
     arrange:
       place:
         unit: 1mm
@@ -90,6 +92,7 @@ figure:
   themeOverrides:
     textScale: 2
   layout:
+    straighten: false
     arrange:
       stack:
         direction: up
@@ -149,6 +152,7 @@ figure:
     frameWidth: 0.75pt
     arrowheadScale: 0.6
   layout:
+    straighten: false
     arrange:
       place:
         unit: 1mm
@@ -237,6 +241,7 @@ figure:
   id: pair
   theme: sumi
   layout:
+    straighten: false
     arrange:
       place:
         unit: 1mm
@@ -269,6 +274,7 @@ figure:
   id: offset
   theme: sumi
   layout:
+    straighten: false
     arrange:
       place:
         unit: 1mm
@@ -306,6 +312,7 @@ figure:
   id: blocked
   theme: sumi
   layout:
+    straighten: false
     arrange:
       place:
         unit: 1mm
@@ -380,6 +387,7 @@ figure:
   id: titled
   theme: sumi
   layout:
+    straighten: false
     arrange: {row: {items: [outer]}}
 groups:
   - {id: outer, label: Outer title, arrange: {row: {items: [inner]}}}
@@ -411,6 +419,7 @@ figure:
   id: shared
   theme: sumi
   layout:
+    straighten: false
     arrange:
       place:
         unit: 1mm
@@ -447,6 +456,7 @@ figure:
   id: junction
   theme: sumi
   layout:
+    straighten: false
     arrange:
       place:
         unit: 1mm
@@ -490,6 +500,7 @@ figure:
   id: fanout
   theme: sumi
   layout:
+    straighten: false
     arrange:
       place:
         unit: 1mm
