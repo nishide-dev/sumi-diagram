@@ -1381,7 +1381,8 @@ hidden junctions, extra padding or `route: curve`:
   lane, the farthest of theirs, and one trunk; give each `outside: <its target>` to run
   the trunk just beside a column of targets. The shared end must be one point: different
   anchors there (`"east:0.3"` and `"east:0.7"`) split the bus into separate lines,
-  `layout/lane-bus-split` (warning).
+  `layout/lane-bus-split` (warning), and a lane that would then run along another's is
+  routed without it (`layout/lane-blocked`).
 - An anchor on the lane's side keeps its position (`toAnchor: "west:0.3"`); one on
   another side, or `straight`, conflicts. Lanes are drawn first; the other edges keep
   clear of them, and a run drawn beside a lane is moved a lane gap away; nothing moves a lane (no separation, no `straighten`, no

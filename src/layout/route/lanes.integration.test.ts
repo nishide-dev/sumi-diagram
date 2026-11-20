@@ -269,6 +269,24 @@ edges:
     expect(split).toHaveLength(1);
     expect(split[0]?.severity).toBe("warning");
     expect(split[0]?.message).toContain("fromAnchors differ");
+    expect(split[0]?.message).toContain("cannot share a trunk");
+    // What happens: the first edge takes the lane; the second would run along it, so it is
+    // routed without its lane, and says so.
+    const blocked = laneWarnings(diagnostics);
+    expect(blocked).toHaveLength(1);
+    expect(blocked[0]?.subject?.id).toBe("edges[1]");
+    expect(blocked[0]?.message).toContain("run along edges[0]");
+    const at = Math.min(rect(value, "n:t2").x, rect(value, "n:t3").x) - (8 * 72) / 25.4 / 0.5;
+    expect(
+      route(value, "q", "t2")
+        .slice(1, -1)
+        .every((p) => Math.abs(p.x - at) < 0.01),
+    ).toBe(true);
+    expect(
+      route(value, "q", "t3")
+        .slice(1, -1)
+        .some((p) => Math.abs(p.x - at) < 0.01),
+    ).toBe(false);
     // Drawn as said: separate nets.
     const nets = new Set(
       value.layout.edges.filter((e) => e.from === "n:q").map((e) => e.route?.net),

@@ -893,7 +893,9 @@ class Router {
    * side sharing a source or a target) whose shared end resolved to
    * different points, so they are separate nets and share no trunk: written
    * anchors that differ, or ends shared out or split apart by the end
-   * resolution. Each lane is still drawn on the bus's line.
+   * resolution. Said from the resolved ends, before routing: each edge is
+   * then drawn on its lane, or, where it would run along another's, routed
+   * without it (`layout/lane-blocked`).
    */
   #reportSplitBuses(edges: readonly Edge[]): void {
     const byKey = new Map(edges.map((e) => [e.ir.key, e] as const));
@@ -930,7 +932,7 @@ class Router {
           this.#diagnostics.push({
             code: "layout/lane-bus-split",
             severity: "warning",
-            message: `Edges ${names} ${which === "from" ? "leave" : "enter"} "${this.#id(element)}" with lanes on its ${plan.side} side (one bus), but at different points${written ? ` (their ${field}s differ)` : ""}, so they share no trunk: each runs its own line on the lane.`,
+            message: `Edges ${names} ${which === "from" ? "leave" : "enter"} "${this.#id(element)}" with lanes on its ${plan.side} side (one bus), but their ends meet it at different points${written ? ` (their ${field}s differ)` : ""}, so they are separate lines and cannot share a trunk. Where one of their lanes would run along another, the later edge is routed without its lane (layout/lane-blocked).`,
             path: [...(source?.path ?? ["edges", first.ir.index]), "lane"],
             ...(source?.location !== undefined && { location: source.location }),
             subject: { kind: "edge", id: first.ir.id ?? `edges[${first.ir.index}]` },

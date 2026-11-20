@@ -363,6 +363,64 @@ function crossingCount(a: readonly Point[], b: readonly Point[]): number {
   return count;
 }
 
+/** Where two orthogonal routes cross or touch at right angles, as `x y` keys. */
+function crossingPoints(a: readonly Point[], b: readonly Point[]): Set<string> {
+  const out = new Set<string>();
+  for (let i = 1; i < a.length; i++) {
+    const p = a[i - 1] as Point;
+    const q = a[i] as Point;
+    for (let j = 1; j < b.length; j++) {
+      const r = b[j - 1] as Point;
+      const t = b[j] as Point;
+      const pv = p.x === q.x;
+      if (pv === (r.x === t.x)) continue;
+      const [v0, v1, h0, h1] = pv ? [p, q, r, t] : [r, t, p, q];
+      if (
+        v0.x >= Math.min(h0.x, h1.x) &&
+        v0.x <= Math.max(h0.x, h1.x) &&
+        h0.y >= Math.min(v0.y, v1.y) &&
+        h0.y <= Math.max(v0.y, v1.y)
+      )
+        out.add(`${roundUnits(v0.x)} ${roundUnits(h0.y)}`);
+    }
+  }
+  return out;
+}
+
+/**
+ * Whether a moved route may stand beside a fixed lane route (#609): none of
+ * its segments runs along a lane segment (collinear, or parallel closer than
+ * `distance`, over any length), and it crosses the lane only where the route
+ * before the move did (the crossing points as a set, not their count).
+ */
+function laneSafe(
+  moved: readonly Point[],
+  before: readonly Point[],
+  lane: readonly Point[],
+  distance: number,
+): boolean {
+  for (let i = 1; i < moved.length; i++) {
+    const p = moved[i - 1] as Point;
+    const q = moved[i] as Point;
+    for (let j = 1; j < lane.length; j++) {
+      const r = lane[j - 1] as Point;
+      const t = lane[j] as Point;
+      const vertical = p.x === q.x && p.y !== q.y;
+      if (vertical !== (r.x === t.x && r.y !== t.y)) continue;
+      const [at, other] = vertical ? [p.x, r.x] : [p.y, r.y];
+      if (Math.abs(at - other) >= distance - EPSILON) continue;
+      const [a0, a1] = vertical ? [p.y, q.y] : [p.x, q.x];
+      const [b0, b1] = vertical ? [r.y, t.y] : [r.x, t.x];
+      const overlap =
+        Math.min(Math.max(a0, a1), Math.max(b0, b1)) - Math.max(Math.min(a0, a1), Math.min(b0, b1));
+      if (overlap > EPSILON) return false;
+    }
+  }
+  const old = crossingPoints(before, lane);
+  for (const point of crossingPoints(moved, lane)) if (!old.has(point)) return false;
+  return true;
+}
+
 const spanOverlap = (a: SideLane, b: SideLane) => Math.min(a.to, b.to) - Math.max(a.from, b.from);
 const sideSpacing = (a: SideLane, b: SideLane) => (a.edge.width + b.edge.width) / 2 + LANE_GAP;
 
@@ -637,11 +695,14 @@ export function keepClearOfLanes(
           [f[current.axis], f[current.axis] + f[size]].some((border) => border > lo && border < hi),
       );
       if (crossesFrame) continue;
-      const lanes = [...fixed].flatMap((key) => {
+      const unsafe = [...fixed].some((key) => {
         const route = routes.get(key);
-        return route === undefined ? [] : [route];
+        const lane = byKey.get(key);
+        return (
+          route !== undefined && lane !== undefined && !laneSafe(moved, points, route, gap(lane))
+        );
       });
-      if (lanes.some((lane) => crossingCount(moved, lane) > crossingCount(points, lane))) continue;
+      if (unsafe) continue;
       const crowded = edges.some((other) => {
         if (other.key === edge.key || fixed.has(other.key) || shares(edge.key, other.key))
           return false;
