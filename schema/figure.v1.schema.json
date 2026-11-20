@@ -391,7 +391,7 @@
             "minLength": 1
           },
           "contentAlign": {
-            "description": "Structured layout: where the group's content (its arrange tree and attached nodes) sits when the group is taller than the content, e.g. a panel stretched to its neighbours' height by align: stretch or justify: stretch. top puts the content right under the title and leaves the room at the bottom, bottom leaves it at the top, center (the default) splits it above and below. Sibling panels with top share the line their first rows start on. A root box that fills the height itself (a stack with justify: stretch or space-between, a row with align: stretch) keeps it, and contentAlign then has nothing to move. No effect on a group at its natural height or on a tilted plane. Omitted means center.",
+            "description": "Structured layout: where the group's content (its arrange tree and attached nodes) sits when the group is taller than the content, e.g. a panel stretched to its neighbours' height by align: stretch or justify: stretch. top puts the content right under the title and leaves the room at the bottom, bottom leaves it at the top, center (the default) splits it above and below. Sibling panels with top share the line their first rows start on. A root box that fills the height itself (a stack whose justify: stretch grows an item or whose justify: space-between spreads two or more, a row whose align: stretch stretches an item) keeps it, and contentAlign then has nothing to move. No effect on a group at its natural height or on a tilted plane. Omitted means center.",
             "type": "string",
             "enum": [
               "top",

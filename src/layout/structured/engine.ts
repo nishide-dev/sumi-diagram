@@ -1433,10 +1433,7 @@ class StructuredLayout {
     // caption's stack (#130) gives it to its group instead (`growFirst`).
     const extra = vertical ? frame.height - natural.height : frame.width - natural.width;
     let grow = box.growFirst === true ? Math.max(0, extra) : 0;
-    const growers =
-      box.justify === "stretch" && grow === 0
-        ? order.filter((item) => this.#growable(item, vertical))
-        : [];
+    const growers = grow === 0 ? this.#justifyGrowers(box, order) : [];
     const rawWeight = (item: ArrangeItemIR) =>
       typeof item === "string" ? (this.#nodes.get(item)?.grow ?? 1) : 1;
     // Normalize first so even very small positive YAML weights stay finite.
@@ -1454,7 +1451,7 @@ class StructuredLayout {
     const ranked = [...shares].sort((a, b) => b.remainder - a.remainder || a.index - b.index);
     for (const share of ranked.slice(0, remainder)) share.units++;
     const additions = new Map(shares.map(({ item, units }) => [item, units]));
-    const between = box.justify === "space-between" && order.length > 1 && grow === 0;
+    const between = grow === 0 && this.#spreads(box);
     if (between) gap += Math.max(0, extra) / (order.length - 1);
     let cursor =
       (vertical ? frame.y : frame.x) +
@@ -1490,7 +1487,7 @@ class StructuredLayout {
       const crossLead = separator ? 0 : this.#crossLead(item);
       const crossTrail = separator ? 0 : this.#crossTrail(item);
       const margin = crossLead + crossTrail;
-      const stretched = separator || (align === "stretch" && this.#stretchable(item, vertical));
+      const stretched = this.#crossStretched(item, align, vertical);
       const cross = stretched ? crossAvailable - margin : crossNatural;
       let offset =
         separator || align === "start" || (align === "stretch" && stretched)
@@ -1542,6 +1539,46 @@ class StructuredLayout {
       this.#defaultGap,
       (key, rect) => this.#bodyRect(key, rect),
     );
+  }
+
+  /** The items of a stack / row (in `order`) that `justify: stretch` grows; none without it. */
+  #justifyGrowers(box: ArrangeBoxIR, order: readonly ArrangeItemIR[]): ArrangeItemIR[] {
+    const vertical = box.kind === "stack";
+    return box.justify === "stretch" ? order.filter((item) => this.#growable(item, vertical)) : [];
+  }
+
+  /** Whether `justify: space-between` spreads a stack / row's items (it needs two). */
+  #spreads(box: ArrangeBoxIR): boolean {
+    return box.justify === "space-between" && box.items.length > 1;
+  }
+
+  /** Whether an item of a stack / row placed with `align` takes the whole cross axis. */
+  #crossStretched(item: ArrangeItemIR, align: Align, vertical: boolean): boolean {
+    const separator = typeof item === "string" && this.#nodes.get(item)?.component === SEPARATOR_ID;
+    return separator || (align === "stretch" && this.#stretchable(item, vertical));
+  }
+
+  /**
+   * Whether a group's root box uses spare height itself (#613), decided by the
+   * helpers {@link #placeLine} distributes it with: a stack that grows items
+   * (`justify: stretch`, `growFirst`) or spreads them (`space-between`), or a
+   * row with an item (not a separator) stretched across it.
+   */
+  #fillsHeight(box: ArrangeBoxIR | undefined): boolean {
+    if (box?.kind === "stack")
+      return (
+        box.growFirst === true ||
+        this.#justifyGrowers(box, box.items).length > 0 ||
+        this.#spreads(box)
+      );
+    if (box?.kind === "row")
+      // A separator spans any row; it leaves the other items centred.
+      return box.items.some(
+        (item) =>
+          !(typeof item === "string" && this.#nodes.get(item)?.component === SEPARATOR_ID) &&
+          this.#crossStretched(item, box.align ?? "center", false),
+      );
+    return false;
   }
 
   /** Main-axis growth is opt-in; badged boxes retain their reserved footprint. */
@@ -1722,20 +1759,13 @@ class StructuredLayout {
    * that edge instead, so the room is one band on the other side. The area
    * reported as the group's content stays the whole area, and the arrange
    * tree's box gets no room across it to centre or straighten (#618) in.
-   * A root box that fills the height itself keeps the whole area, so nothing is
-   * left to move: a stack with `justify: stretch` / `space-between`, a row with
-   * `align: stretch`.
+   * A root box that really fills the height itself ({@link #fillsHeight}) keeps
+   * the whole area, so nothing is left to move.
    */
   #alignedContent(group: GroupIR, content: Rect): Rect {
     const align = group.contentAlign;
     if (align === undefined || align === "center") return content;
-    const root = group.arrange;
-    if (
-      (root?.kind === "stack" &&
-        (root.justify === "stretch" || root.justify === "space-between")) ||
-      (root?.kind === "row" && root.align === "stretch")
-    )
-      return content;
+    if (this.#fillsHeight(group.arrange)) return content;
     const natural = this.#containerSize(group.key, group.arrange).height;
     const spare = content.height - natural;
     if (spare <= 0) return content;

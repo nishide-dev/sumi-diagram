@@ -190,6 +190,53 @@ nodes:
     }
   });
 
+  test("a root box that cannot fill the height does not keep it: contentAlign applies", () => {
+    const panel = (field: string, box: string, nodes: string) => `version: 1
+figure:
+  id: content-align-nofill
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 4mm, align: stretch, items: [a, b]}
+groups:
+  - id: a
+    label: (a) Short
+    ${field}
+    arrange: ${box}
+  - id: b
+    label: (b) Tall
+    arrange: {stack: {items: [b1, b2, b3, b4, b5]}}
+nodes:
+${nodes}
+  - {id: b1, component: box, label: One}
+  - {id: b2, component: box, label: Two}
+  - {id: b3, component: box, label: Three}
+  - {id: b4, component: box, label: Four}
+  - {id: b5, component: box, label: Five}
+`;
+    const box = "  - {id: a1, component: box, label: Input}";
+    const circles =
+      "  - {id: a1, component: circle, label: x}\n  - {id: a2, component: circle, label: y}";
+    for (const [root, nodes] of [
+      // One item: space-between has nothing to spread it between, it stays centred.
+      ["{stack: {justify: space-between, items: [a1]}}", box],
+      // No item can grow (circles keep their size).
+      ["{stack: {justify: stretch, items: [a1, a2]}}", circles],
+      // No item can stretch across the row.
+      ["{row: {align: stretch, items: [a1, a2]}}", circles],
+    ] as const) {
+      const centred = layout(panel("", root, nodes));
+      const c = group(centred, "a").content;
+      const a1 = node(centred, "a1");
+      // Centred today: a band above.
+      expect(a1.y - c.y).toBeGreaterThan(20);
+      const top = layout(panel("contentAlign: top", root, nodes));
+      const t = group(top, "a").content;
+      const ys = ["a1", ...(nodes === circles ? ["a2"] : [])].map((id) => node(top, id).y);
+      expect(Math.min(...ys)).toBeCloseTo(t.y, 2);
+    }
+  });
+
   test("written with the auto engine it is an error", () => {
     const source = `version: 1
 figure: {id: auto-content-align, layout: {engine: auto}}

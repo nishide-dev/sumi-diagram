@@ -18,7 +18,7 @@
 - 縦だけにした。横に伸ばされた group（stack の `align: stretch`）では、根の stack の `align: start` で左に寄せられ、根の row なら `justify` で埋められる。また横は中身を `stretch` で領域いっぱいに広げたい場合が多く、領域を縮めるとそれを壊す。軸の名前を値に入れた（`top` / `bottom`）のも、`start` / `end` だと横にも効くように読めるため。
 - `spread`（中身を領域いっぱいに散らす）は足さない。根の stack の `justify: space-between`（間を広げる）と `justify: stretch`（item を伸ばす）が既にあり、`contentAlign` はそれらと組み合わせて使える（伸ばした group の根に `justify` を書けば余りは item 側に行き、`contentAlign` には余りが残らない）。
 - 自然な高さの group、tilted plane（`#placePlane` は自然な大きさで置く）には効かない。tokens / matrix は根が固定の描画なので実質効かない。
-- **根の箱が自分で高さを埋めるときはそちらが優先する**: 根が `justify: stretch` / `space-between` の stack、または `align: stretch` の row なら、領域を縮めずにそのまま渡す（item が伸びる・両端まで広がる）。このとき空き帯は残らないので `contentAlign` は何も動かさない。縮めると、作者が明示した埋め方を `contentAlign` が黙って打ち消し、伸びるはずの item が自然な高さに戻って空き帯ができる（レビューの指摘: 2 つの item の高さが 119 → 34 unit になった）。テストで、3 つの書き方それぞれで `top` / `bottom` を書いても Layout IR が変わらないことを確かめる。
+- **根の箱が実際に高さを埋めるときはそちらが優先する**: 根が、伸ばせる item を持つ `justify: stretch` の stack（または見出しを展開した `growFirst` の stack）、item が 2 つ以上ある `justify: space-between` の stack、区切り線でない item を交差軸いっぱいに伸ばす `align: stretch` の row なら、領域を縮めずにそのまま渡す（item が伸びる・両端まで広がる）。書いた設定だけでは決めない: 1 つだけの item の `space-between`、伸ばせる item のない `justify: stretch`・`align: stretch`（円など）は中央に置くので、そのときは `contentAlign` を効かせる。判定はエンジンが余りを配るのと同じ関数（`#justifyGrowers`・`#spreads`・`#crossStretched`）で行い、ずれないようにする（2 回目のレビューの指摘）。このとき空き帯は残らないので `contentAlign` は何も動かさない。縮めると、作者が明示した埋め方を `contentAlign` が黙って打ち消し、伸びるはずの item が自然な高さに戻って空き帯ができる（レビューの指摘: 2 つの item の高さが 119 → 34 unit になった）。テストで、3 つの書き方それぞれで `top` / `bottom` を書いても Layout IR が変わらないことを確かめる。
 - 既定（省略）と `center` は今までとバイト単位で同じ（`#alignedContent` が領域をそのまま返す。テストで省略と `center` の Layout IR が一致することを確かめる）。
 
 ### 2. 列の見出しを揃える: `contentAlign: top` と `groups[].matchLabelHeight: <name>`
