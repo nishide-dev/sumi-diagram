@@ -41,6 +41,7 @@ import type {
   GlyphKind,
   GlyphPosition,
   GroupLabelPosition,
+  IconPlacement,
   LabelRotation,
   LayoutDensity,
   LayoutEngine,
@@ -69,6 +70,7 @@ import {
   type OutlineRender,
   type ResolvedComponent,
 } from "../core/registry/manifest";
+import { isBlankForD2 } from "../core/registry/resolve";
 import { getTheme } from "../core/theme/builtin";
 import { cuboidColors, cuboidShadeOf, mixColors } from "../core/theme/cuboid-shade";
 import { dimmedElements } from "../core/theme/dim";
@@ -359,6 +361,12 @@ export interface NodeIR extends ObjectIRBase {
    * absent means one em (the font size), so existing figures are unchanged.
    */
   readonly iconSize?: number;
+  /**
+   * Where the icon sits beside the node's label (#605, design doc
+   * `605-icon-label-nodes`): `left` (the default) or `top`. Set only for a node
+   * with both an icon and a visible label; absent means the icon is drawn alone.
+   */
+  readonly iconAt?: IconPlacement;
   readonly badge?: { readonly icon: IconIR; readonly corner: Corner };
   /** Small marks over the node's border (#408), already coloured and sized in units. */
   readonly glyphs?: readonly GlyphIR[];
@@ -885,6 +893,8 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           n.iconSize !== undefined && {
             iconSize: iconSizeUnits(n.iconSize, style.fontSize.units),
           }),
+        ...(n.icon !== undefined &&
+          !isBlankForD2(n.label) && { iconAt: n.iconAt ?? ("left" as const) }),
         ...(n.badge !== undefined && {
           badge: freeze({ icon: iconIR(n.badge.icon), corner: n.badge.corner }),
         }),

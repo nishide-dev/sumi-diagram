@@ -468,7 +468,10 @@ export function resolveComponents(
     // a node without a visible label should write its text as the label.
     const sublabelUnsupported =
       element.sublabel !== undefined &&
-      (mark !== undefined || embed !== undefined || bracket || element.icon !== undefined);
+      (mark !== undefined ||
+        embed !== undefined ||
+        bracket ||
+        (element.icon !== undefined && isBlankForD2(element.label)));
     const sublabelWithoutLabel =
       !sublabelUnsupported && element.sublabel !== undefined && isBlankForD2(element.label);
     if (sublabelUnsupported) {

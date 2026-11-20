@@ -242,6 +242,8 @@ export const iconEnclosure = defineRule({
       // sizes it: a category marker, not a stand-in for a bigger icon.
       if (
         node.icon === undefined ||
+        // An icon beside a label (#605) is a labelled node, not a bare icon in a frame.
+        node.label.trim() !== "" ||
         node.iconSize !== undefined ||
         node.tone !== undefined ||
         node.variant !== "default" ||

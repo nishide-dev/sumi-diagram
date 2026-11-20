@@ -43,7 +43,7 @@
  * in the design doc.
  */
 
-import { badgeRect, iconBox } from "../../assets/draw";
+import { badgeRect, iconBox, iconLabelBox, iconLabelTextShift } from "../../assets/draw";
 import { glyphRects } from "../../assets/glyphs";
 import type {
   ArrangeBoxIR,
@@ -327,10 +327,13 @@ class StructuredLayout {
       // sublabel (#184) stacks under the label; a turned label (#178) takes
       // its turned box.
       const text = label === undefined ? undefined : textBlock(label, sublabel);
+      // An icon beside the label (#605): the box holds both.
       const box =
         text !== undefined && node.labelRotation !== undefined
           ? { width: text.height, height: text.width }
-          : (text ?? iconBox(node));
+          : text !== undefined && node.icon !== undefined
+            ? iconLabelBox(node, text)
+            : (text ?? iconBox(node));
       // A separator contributes no size: siblings determine its span and gap
       // supplies the whitespace on either side. This avoids sizing feedback.
       let size =
@@ -1447,12 +1450,14 @@ class StructuredLayout {
     center: { x: number; y: number },
     metrics: TextMetrics,
     sublabel: TextMetrics | undefined,
+    /** The width of the aligned group when it is wider than the text: icon, gap and text (#605). */
+    groupWidth?: number,
   ): { x: number; y: number } {
     const side = node.textAlign;
     const plain = node.shape === "rectangle" || node.shape === "text" || node.shape === "square";
     if ((side !== "left" && side !== "right") || !plain || node.render !== undefined) return center;
     if (node.labelRotation !== undefined || this.#captions.has(node.key)) return center;
-    const block = Math.max(metrics.width, sublabel?.width ?? 0);
+    const block = groupWidth ?? Math.max(metrics.width, sublabel?.width ?? 0);
     const inset = node.shape === "text" ? 0 : this.#nodePaddingX;
     // A node only as wide as its text (the size is rounded up to a whole unit) keeps its center.
     if (rect.width - (block + 2 * inset) <= 1) return center;
@@ -1480,7 +1485,15 @@ class StructuredLayout {
               y: rect.y + rect.height + caption.gap + caption.height / 2,
             };
       const sublabel = this.#sublabels.get(node.key);
-      const anchored = this.#alignedCenter(node, rect, center, metrics, sublabel);
+      // An icon beside the label (#605): the icon, the gap and the text are aligned as one group
+      // (`textAlign` included), then the text block sits away from the icon.
+      let anchored: { x: number; y: number };
+      if (node.icon !== undefined && node.iconAt !== undefined) {
+        const group = iconLabelBox(node, textBlock(metrics, sublabel));
+        const placedGroup = this.#alignedCenter(node, rect, center, metrics, sublabel, group.width);
+        const shift = iconLabelTextShift(node);
+        anchored = { x: placedGroup.x + shift.x, y: placedGroup.y + shift.y };
+      } else anchored = this.#alignedCenter(node, rect, center, metrics, sublabel);
       if (sublabel === undefined) {
         labels.set(node.key, placeText(metrics, anchored, node.labelRotation, node.textAlign));
         continue;

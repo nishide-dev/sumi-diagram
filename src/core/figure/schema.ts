@@ -528,6 +528,10 @@ export type GlyphPosition = (typeof GLYPH_POSITIONS)[number];
 export const GLYPH_KINDS = ["vector", "dot", "pill"] as const;
 export type GlyphKind = (typeof GLYPH_KINDS)[number];
 
+/** Where an icon sits next to a node's label (#605). */
+export const ICON_PLACEMENTS = ["left", "top"] as const;
+export type IconPlacement = (typeof ICON_PLACEMENTS)[number];
+
 /** Smallest and largest `iconSize` as a multiple of the font size (#424). */
 export const ICON_SIZE_EM_RANGE = { min: 0.25, max: 24 } as const;
 
@@ -1088,11 +1092,17 @@ export const NodeSchema = z.strictObject({
     .regex(ICON_REF_PATTERN)
     .optional()
     .describe(
-      "A bundled icon drawn in place of the label, e.g. tabler/wave-sine (text color) or emoji/fire (original multicolour palette).",
+      "A bundled icon, drawn alone when the node has no label, or beside the label (see iconAt), e.g. tabler/wave-sine (text color) or emoji/fire (original multicolour palette).",
     ),
   iconSize: IconSize.optional().describe(
-    'Side of the icon square (needs icon): a number is a multiple of the node\'s font size ("em", e.g. 2), a string is a length with a unit (e.g. "12mm"). Omitted means 1 em. Draws a larger icon without an enclosing shape; a label node is sized to the icon.',
+    'Side of the icon square (needs icon): a number is a multiple of the node\'s font size ("em", e.g. 2), a string is a length with a unit (e.g. "12mm"). Omitted means 1 em for an icon alone, 1.2 em beside a label with iconAt left and 1.8 em with iconAt top. Draws a larger icon without an enclosing shape; a label node is sized to the icon.',
   ),
+  iconAt: z
+    .enum(ICON_PLACEMENTS)
+    .optional()
+    .describe(
+      "Where the icon sits when the node has both icon and label (#605): left (icon, then the text, on one line block; the default) or top (icon above the text). The node grows to hold both. Structured layout only; without a label the icon is drawn alone.",
+    ),
   badge: z
     .strictObject({
       icon: z

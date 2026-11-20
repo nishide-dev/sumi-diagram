@@ -92,7 +92,7 @@ Pick each component from `components` by its `description` (`diamond` for a deci
 concat (`props.symbol: plus | times | minus | dot | concat`), `junction` a branch dot. Use only listed variants and props; `engines`, when present, lists the only layout engines it works in. The theme's
 `compatibleProfiles` must include the profile, else labels fail with `profile/font-too-small`: `textScaleFor.<profile>`
 is the `figure.themeOverrides.textScale` that fixes it (`sumi`: 2 for slides, 1.5 for `screen-doc`, a README); never lower
-`target.minFontSize` or draw small and enlarge ([text scale](references/figure-format.md#text-scale)). Icons:
+`target.minFontSize` or draw small and enlarge ([text scale](references/figure-format.md#text-scale)). Icons (with a label: `iconAt`):
 [assets](references/assets.md#icons).
 
 ### 4. Write the figure
@@ -221,7 +221,7 @@ Tell the user: files written (YAML, SVG), size and profile, placement constraint
 Paper figures are structured, theme `paper`, built to the [design principles](references/layout-tips.md#design-principles).
 With **content only** (the usual case), first [plan the visual language](references/layout-tips.md#plan-the-visual-language-before-drawing)
 (a table: each kind of thing, one visual form and tone), then [plan the layout](references/layout-tips.md#plan-the-layout-before-writing-yaml): roles, placement constraints, candidates rendered and compared.
-Objects and data are pictures (icons, glyphs, `sets`), operations arrows; minimal text; one vocabulary and tone meaning in every panel; one legend; numbered stage columns. With **a reference figure**, map each look to a field ([recipe](references/layout-tips.md#paper-figure-recipe))
+Objects and data are pictures (icons, glyphs, `sets`), operations arrows; icons only for concrete actors and objects (user, agent, database, document, tool, GPU), one family, not on every box, with the label in the same node (`iconAt: left | top`, [when to use an icon](references/assets.md#when-to-use-an-icon)); minimal text; one vocabulary and tone meaning in every panel; one legend; numbered stage columns. With **a reference figure**, map each look to a field ([recipe](references/layout-tips.md#paper-figure-recipe))
 and keep its arrangement unless it breaks the placement or the principles (say so). Read as needed:
 
 1. [Example 6](references/examples.md#6-success-a-paper-figure) (three panels, zoom, dimmed variant).

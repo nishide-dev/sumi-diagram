@@ -43,7 +43,7 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
-| node | **`id`**, **`component`**, `label`, `sublabel`¹, `sublabelInk`¹, `text`¹, `weight`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `matchWidth`¹, `variant`, `tone`, `mono`, `icon`, `iconSize`, `badge`, `glyphs`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
+| node | **`id`**, **`component`**, `label`, `sublabel`¹, `sublabelInk`¹, `text`¹, `weight`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `matchWidth`¹, `variant`, `tone`, `mono`, `icon`, `iconSize`, `iconAt`¹, `badge`, `glyphs`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
 | set¹ | **`id`**, **`members`**, `label`, `labelAt`, `shape`, `angle`, `padding`, `width`, `height`, `minWidth`, `minHeight`, `enclose`, `variant`, `tone`, `fillOpacity` | shape `circle`, labelAt `top`, enclose `body`, variant `default`, no tone (gray), padding = the profile's group padding |
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `route`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
@@ -721,7 +721,7 @@ Per-code fixes: [diagnostics](diagnostics.md). The ones agents repeat:
 | `label: $\gamma_1,\beta_1$` inside `{…}` | `schema/unknown-field` | single-quote it: `'$\gamma_1,\,\beta_1$'` |
 | `label: 'Scale\n$\gamma$'` | `lint/literal-newline` | `"Scale\n$\\gamma$"` or a `\|-` block |
 | math, `toAnchor`, edge `labelAt`, `align`, `legend`… in an auto figure | `component/unsupported-in-auto`, `layout/structured-only` | make the figure structured, or remove it |
-| `label:` and `icon:` on one node | `asset/icon-with-label` | keep one; attach a `label` node |
+| `label:` and `icon:` on one node in an auto figure | `asset/icon-with-label` | make the figure structured (`iconAt: left \| top` then places both), or attach a `label` node |
 | an icon wrapped in a `circle` to make it bigger | none (looks bad) | `component: label` with `icon` and `iconSize: 2` |
 | `labelAt: top-center` (group), `labelSide: above` | `schema/invalid-value` | group: `top-left`, `top`, `top-right`, `bottom-left`, `bottom`, `bottom-right`; edge `labelAt`: `start` / `middle` / `end`; `labelSide`: `left` / `right` |
 | `width: 10px`; `label: 2024`; `label: Step 1: parse` | `component/invalid-prop`, `schema/invalid-type`, `yaml/syntax` | `pt` / `mm` units; quote the label |

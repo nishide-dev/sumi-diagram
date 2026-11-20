@@ -521,13 +521,13 @@
             ]
           },
           "icon": {
-            "description": "A bundled icon drawn in place of the label, e.g. tabler/wave-sine (text color) or emoji/fire (original multicolour palette).",
+            "description": "A bundled icon, drawn alone when the node has no label, or beside the label (see iconAt), e.g. tabler/wave-sine (text color) or emoji/fire (original multicolour palette).",
             "type": "string",
             "maxLength": 80,
             "pattern": "^([a-z][a-z0-9]*)\\/([a-z0-9]+(?:-[a-z0-9]+)*)$"
           },
           "iconSize": {
-            "description": "Side of the icon square (needs icon): a number is a multiple of the node's font size (\"em\", e.g. 2), a string is a length with a unit (e.g. \"12mm\"). Omitted means 1 em. Draws a larger icon without an enclosing shape; a label node is sized to the icon.",
+            "description": "Side of the icon square (needs icon): a number is a multiple of the node's font size (\"em\", e.g. 2), a string is a length with a unit (e.g. \"12mm\"). Omitted means 1 em for an icon alone, 1.2 em beside a label with iconAt left and 1.8 em with iconAt top. Draws a larger icon without an enclosing shape; a label node is sized to the icon.",
             "anyOf": [
               {
                 "type": "number",
@@ -546,6 +546,14 @@
                 ],
                 "description": "A length with a unit (mm, cm, in or pt), e.g. \"3mm\"; 0 needs no unit."
               }
+            ]
+          },
+          "iconAt": {
+            "description": "Where the icon sits when the node has both icon and label (#605): left (icon, then the text, on one line block; the default) or top (icon above the text). The node grows to hold both. Structured layout only; without a label the icon is drawn alone.",
+            "type": "string",
+            "enum": [
+              "left",
+              "top"
             ]
           },
           "badge": {
