@@ -263,6 +263,11 @@ export const MAX_STRAIGHTEN_ROUTINGS = 40;
 /** What the router makes of a layout: each edge's bends (routed edges only) and the errors. */
 interface RouteSummary {
   readonly bends: ReadonlyMap<number, number>;
+  /**
+   * The other edges (`route: straight` / `curve`, zoom): whether each has a route, and whether
+   * that route is one horizontal or vertical line.
+   */
+  readonly direct: ReadonlyMap<number, { readonly drawn: boolean; readonly level: boolean }>;
   readonly errors: number;
   /** The canvas once routed: routes and edge labels can widen it. */
   readonly canvas: { readonly width: number; readonly height: number };
@@ -271,13 +276,23 @@ interface RouteSummary {
 function routeSummary(ir: FigureIR, layout: LayoutIR): RouteSummary {
   const result = routeEdges(ir, layout, { hintTrials: false });
   const bends = new Map<number, number>();
+  const direct = new Map<number, { drawn: boolean; level: boolean }>();
   for (const [index, edge] of result.layout.edges.entries()) {
     const points = edge.route?.points;
-    if (points === undefined || !routed(ir, index)) continue;
-    bends.set(index, bendCount(points));
+    if (!routed(ir, index)) {
+      const [a, b] = points ?? [];
+      const level =
+        points?.length === 2 &&
+        a !== undefined &&
+        b !== undefined &&
+        (Math.abs(a.x - b.x) < EPS || Math.abs(a.y - b.y) < EPS);
+      direct.set(index, { drawn: edge.route !== undefined, level });
+      continue;
+    }
+    if (points !== undefined) bends.set(index, bendCount(points));
   }
   const errors = result.diagnostics.filter((d) => d.severity === "error").length;
-  return { bends, errors, canvas: result.layout.canvas };
+  return { bends, direct, errors, canvas: result.layout.canvas };
 }
 
 /** Corners of a polyline: points that are not on the line through their neighbours. */
@@ -295,8 +310,9 @@ function bendCount(points: readonly Point[]): number {
 
 /**
  * A move is kept only if the edge is routed straight and the move does no
- * harm to the routes: no edge gains a bend or loses its route, and the
- * routed figure is no larger.
+ * harm to the routes: no edge gains a bend or loses its route (a `route:
+ * straight` / `curve` or zoom edge keeps its route, and a level one stays
+ * level), and the routed figure is no larger.
  */
 function harmless(before: RouteSummary, after: RouteSummary, index: number): boolean {
   if (after.errors > before.errors) return false;
@@ -305,6 +321,11 @@ function harmless(before: RouteSummary, after: RouteSummary, index: number): boo
   for (const [i, bends] of before.bends) {
     const now = after.bends.get(i);
     if (now === undefined || now > bends) return false;
+  }
+  // A straight, curved or zoom edge keeps its route, and a level one stays level.
+  for (const [i, was] of before.direct) {
+    const now = after.direct.get(i);
+    if (now === undefined || (was.drawn && !now.drawn) || (was.level && !now.level)) return false;
   }
   return after.bends.get(index) === 0;
 }
@@ -482,8 +503,11 @@ function edgeState(ir: FigureIR, layout: LayoutIR, slides: ReadonlySet<number>):
   const crooked = new Map<number, Crooked>();
   const bySide = new Map<string, { end: string; other: ElementKey; key: ElementKey }[]>();
   for (const [index, pair] of fixed.entries()) {
-    if (pair === undefined || "error" in pair || !routed(ir, index)) continue;
-    const edge = ir.edges[index] as FigureIR["edges"][number];
+    const edge = ir.edges[index];
+    if (pair === undefined || "error" in pair || edge === undefined || edge.from === edge.to)
+      continue;
+    // Every edge counts toward a fan (`route: straight` / `curve` and zoom too): moving a hub
+    // changes all its branches, whatever they are drawn with.
     for (const [which, end, other, anchor] of [
       ["from", pair.from, pair.to, edge.fromAnchor],
       ["to", pair.to, pair.from, edge.toAnchor],
@@ -496,6 +520,7 @@ function edgeState(ir: FigureIR, layout: LayoutIR, slides: ReadonlySet<number>):
       list.push({ end: `${index} ${which}`, other: other.key, key: end.key });
       bySide.set(side, list);
     }
+    if (!routed(ir, index)) continue;
     if (inLine(drawn[index])?.line === true) straight.add(index);
     const here = inLine(pair);
     if (here === undefined) continue;

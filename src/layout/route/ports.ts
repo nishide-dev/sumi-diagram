@@ -1186,7 +1186,10 @@ export const straightenable = (f: { aside: number; gapAside?: number }): boolean
  * that line meets its side at least {@link STRAIGHT_MARGIN} inside the
  * corners (where a `straight` end may go). Never an end of a fan: a side
  * with two or more ends without an anchor (spread ones included), or a
- * junction.
+ * junction. The straightening resolves every edge of the figure (`route:
+ * straight` / `curve` and zoom included) before it marks one; the router
+ * resolves the ports of its orthogonal edges only, so there this guard sees
+ * those alone and the mark carries the rest.
  */
 function straighten(
   pairs: ({ from: End; to: End } | { error: string })[],

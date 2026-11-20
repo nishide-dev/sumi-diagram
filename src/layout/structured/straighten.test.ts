@@ -251,6 +251,26 @@ describe("figure.layout.straighten", () => {
     for (const id of ["h", "b1", "b2"]) expect(rect(on, id)).toEqual(rect(plain, id));
   });
 
+  test("a hub stays when one of its branches is drawn with route: straight", () => {
+    // h feeds b1 (routed) and b2 (straight): moving h up for b1 would tilt h → b2.
+    const { plain, on } = both(
+      {
+        arrange: {
+          row: { gap: "40pt", items: ["h", { stack: { gap: "20pt", items: ["b1", "b2"] } }] },
+        },
+      },
+      [box("h"), box("b1"), box("b2")],
+      {
+        edges: [
+          { from: "h", to: "b1" },
+          { from: "h", to: "b2", route: "straight" },
+        ],
+      },
+    );
+    for (const id of ["h", "b1", "b2"]) expect(rect(on, id)).toEqual(rect(plain, id));
+    expect(points(on, 1)).toEqual(points(plain, 1));
+  });
+
   test("lines the end up with a written anchor", () => {
     const { plain, on } = both(
       { arrange: { row: { gap: "40pt", items: [column, "b"] } } },
