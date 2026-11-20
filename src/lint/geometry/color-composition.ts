@@ -263,7 +263,7 @@ export const colorOnPanel = defineGeometryRule({
  */
 function panelHint(panel: PaintItem): string {
   const own = [
-    ...(panel.tone !== undefined ? [`its \`tone: ${panel.tone}\``] : []),
+    ...(panel.tone !== undefined ? [`\`tone: ${panel.tone}\``] : []),
     ...(panel.variant === "filled"
       ? ["`variant: filled`"]
       : panel.variant === "filled-dashed"
