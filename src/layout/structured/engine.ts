@@ -196,7 +196,7 @@ export interface PlacedStructured {
   readonly diagnostics: readonly Diagnostic[];
   /** Present when the figure has `figure.layout.align`: how the constraints were solved. */
   readonly align?: AlignStats;
-  /** Present with `figure.layout.straighten` (#618): what was moved. */
+  /** Present unless `figure.layout.straighten: false` (#618, #620): what was moved. */
   readonly straighten?: StraightenStats;
 }
 
@@ -260,7 +260,7 @@ export function placeStructured(
   // `figure.layout.straighten` (#618): shift items within their room on top of the solved struts.
   const place = (): PlacedStructured => {
     const placed = solve();
-    if (ir.meta.straighten !== true) return placed;
+    if (ir.meta.straighten === false) return placed;
     const struts = strutsOf.get(placed.layout) ?? NO_STRUTS;
     const straightened = straightenLayout(ir, (shifts) => {
       const layout = run(struts, shifts);
@@ -565,8 +565,8 @@ class StructuredLayout {
     this.#centerPaddings.clear();
     const root = this.#ir.arrange as ArrangeBoxIR;
     const size = this.#containerSize(ROOT, root);
-    // Slots are recorded (and shifts applied) only for `figure.layout.straighten` (#618).
-    this.#shifting = this.#ir.meta.straighten === true;
+    // Slots are recorded (and shifts applied) unless `figure.layout.straighten: false` (#618, #620).
+    this.#shifting = this.#ir.meta.straighten !== false;
     try {
       this.#placeContainer(ROOT, root, { x: 0, y: 0, width: size.width, height: size.height });
     } finally {

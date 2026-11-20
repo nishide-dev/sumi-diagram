@@ -51,10 +51,16 @@ function run(text: string, options: LayoutFigureOptions = {}) {
 }
 
 /** A structured figure in the minimal theme (1-unit strokes: 8-unit arrowheads). */
-function figure(arrange: unknown, nodes: unknown[], edges: unknown[], groups: unknown[] = []) {
+function figure(
+  arrange: unknown,
+  nodes: unknown[],
+  edges: unknown[],
+  groups: unknown[] = [],
+  layout: object = {},
+) {
   return stringify({
     version: 1,
-    figure: { id: "t", theme: "academic", layout: { arrange } },
+    figure: { id: "t", theme: "academic", layout: { arrange, ...layout } },
     groups,
     nodes,
     edges,
@@ -568,6 +574,9 @@ describe("facing ends out of line by little, in a short gap (#169)", () => {
           toAnchor: `${SIDES[direction]}:${(0.5 + delta / (kind === "stack" ? W : H)).toFixed(7)}`,
         },
       ],
+      [],
+      // The ends stay out of line on purpose: moving a box (#620) would hide the router's S.
+      { straighten: false },
     );
   describe.each([
     ["stack", "down"],

@@ -123,8 +123,8 @@ export interface FigureMetaIR {
   readonly fanIn?: FanInMode;
   /** Structured layout: `figure.layout.density` (#182). Absent when not written (normal). */
   readonly density?: LayoutDensity;
-  /** Structured layout: `figure.layout.straighten: true` (#618). Absent when not written or false. */
-  readonly straighten?: true;
+  /** Structured layout: `figure.layout.straighten: false` (#618, #620). Absent when not written or true (straighten, the default). */
+  readonly straighten?: false;
   readonly fontSetId: FontSetId;
 }
 
@@ -1042,7 +1042,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         }),
         ...(figure.layout.fanIn !== undefined && { fanIn: figure.layout.fanIn }),
         ...(figure.layout.density !== undefined && { density: figure.layout.density }),
-        ...(figure.layout.straighten === true && { straighten: true as const }),
+        ...(figure.layout.straighten === false && { straighten: false as const }),
         fontSetId: theme.fontSet.id,
       }),
       ...(figure.assets !== undefined &&

@@ -4,7 +4,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { stringify } from "yaml";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { parse, stringify } from "yaml";
 import { buildFigureIR } from "../../compiler/ir";
 import { checkFigure } from "../../core/check";
 import { layoutStructuredFigure } from "../index";
@@ -25,7 +27,10 @@ function lay(doc: object): LayoutIR {
   return result.value.layout;
 }
 
-/** The figure laid out as written and with `straighten: true`. */
+/**
+ * The figure laid out without straightening (`plain`, `straighten: false`), with it written
+ * (`on`) and with it omitted (`omitted`, the default since #620).
+ */
 function both(layout: object, nodes: object[], extra: object = {}) {
   const make = (straighten?: boolean) => ({
     version: 1,
@@ -37,7 +42,8 @@ function both(layout: object, nodes: object[], extra: object = {}) {
     nodes,
     ...extra,
   });
-  return { plain: lay(make()), off: lay(make(false)), on: lay(make(true)) };
+  const off = lay(make(false));
+  return { plain: off, off, on: lay(make(true)), omitted: lay(make()) };
 }
 
 function rect(layout: LayoutIR, id: string): Rect {
@@ -82,13 +88,15 @@ describe("figure.layout.straighten", () => {
     expect(on.canvas).toEqual(plain.canvas);
   });
 
-  test("off (or omitted) lays the figure out exactly as before", () => {
-    const { plain, off } = both(
+  test("is on by default: omitted lays the figure out as true, false as solved (#620)", () => {
+    const { off, on, omitted } = both(
       { arrange: { row: { gap: "40pt", items: [column, "b"] } } },
       [box("a"), box("x"), box("b")],
       { edges: [{ from: "a", to: "b" }] },
     );
-    expect(off).toEqual(plain);
+    expect(omitted).toEqual(on);
+    expect(off).not.toEqual(on);
+    expect(straight(off, 0)).toBe(false);
   });
 
   test("does not move a node without room", () => {
@@ -389,6 +397,35 @@ describe("figure.layout.straighten: sliding an end along its side", () => {
   });
 });
 
+describe("figure.layout.straighten: an end on a group without a frame (#620)", () => {
+  // g (a + x) is taller than b, and align: start keeps b at the top: nothing can shift, so the
+  // only way to straighten g -> b is to slide g's end up its side to b's line.
+  const doc = (variant: string) => ({
+    version: 1,
+    figure: {
+      id: "t",
+      theme: "paper",
+      layout: { arrange: { row: { gap: "40pt", align: "start", items: ["g", "b"] } } },
+    },
+    groups: [{ id: "g", variant, arrange: { stack: { gap: "20pt", items: ["a", "x"] } } }],
+    nodes: [box("a"), box("x"), box("b")],
+    edges: [{ from: "g", to: "b", toAnchor: "west" }],
+  });
+
+  test("a framed group's end slides along its side", () => {
+    const layout = lay(doc("default"));
+    expect(layout.edges[0]?.slide).toBe(true);
+    expect(straight(layout, 0)).toBe(true);
+  });
+
+  test("a plain group's end stays at the middle of its unpainted side", () => {
+    const layout = lay(doc("plain"));
+    expect(layout.edges[0]?.slide).toBeUndefined();
+    const g = rect(layout, "g");
+    expect(points(layout, 0)[0]?.y).toBeCloseTo(centerY(g), 3);
+  });
+});
+
 describe("figure.layout.straighten: placement diagnostics", () => {
   test("a figure whose edge slides still reports its placement diagnostics", () => {
     // b fills the row (nothing moves), so b's end slides up to a's line; p1 and p2 overlap.
@@ -431,13 +468,36 @@ describe("figure.layout.straighten: placement diagnostics", () => {
 });
 
 describe("figure.layout.straighten with the auto engine", () => {
-  test("is layout/structured-only", () => {
-    const doc = {
-      version: 1,
-      figure: { id: "t", layout: { straighten: true } },
-      nodes: [box("a")],
-    };
-    const codes = checkFigure(stringify(doc)).state.diagnostics.map((d) => d.code);
-    expect(codes).toContain("layout/structured-only");
+  const codes = (layout: object) =>
+    checkFigure(
+      stringify({ version: 1, figure: { id: "t", layout }, nodes: [box("a")] }),
+    ).state.diagnostics.map((d) => d.code);
+
+  test("is layout/structured-only when written", () => {
+    expect(codes({ straighten: true })).toContain("layout/structured-only");
+  });
+
+  test("omitted, the structured default reports nothing (#620)", () => {
+    expect(codes({})).not.toContain("layout/structured-only");
+  });
+});
+
+describe("figure.layout.straighten is the default (#620)", () => {
+  const fixture = join(
+    import.meta.dir,
+    "../../../tests/fixtures/figures/color-use/train-infer-a.sumi.yaml",
+  );
+  const layoutOf = (straighten?: boolean) => {
+    const doc = parse(readFileSync(fixture, "utf8"));
+    if (straighten !== undefined) doc.figure.layout.straighten = straighten;
+    return lay(doc);
+  };
+
+  test("a fixture that moves: omitted and true give the same layout, false the old one", () => {
+    const omitted = layoutOf();
+    expect(omitted).toEqual(layoutOf(true));
+    const off = layoutOf(false);
+    expect(off).not.toEqual(omitted);
+    expect(off.canvas).toEqual(omitted.canvas);
   });
 });
