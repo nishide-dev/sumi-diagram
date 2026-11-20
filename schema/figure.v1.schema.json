@@ -883,6 +883,43 @@
               "right"
             ]
           },
+          "lane": {
+            "description": "The lane of a loop, skip or bus (structured layout only): the edge leaves and enters on the lane's side and its long segment runs `offset` beyond both ends (or beyond the frame of `outside`). Edges with lanes on one side that share a source (or a target) share one lane, the farthest: a bus with one trunk. Omitted means the router's own route.",
+            "type": "object",
+            "properties": {
+              "side": {
+                "type": "string",
+                "enum": [
+                  "north",
+                  "east",
+                  "south",
+                  "west"
+                ],
+                "description": "The side the lane runs on: the edge leaves its source and enters its target on this side (an end beyond the lane uses the side facing it), and the long segment runs beyond both ends."
+              },
+              "offset": {
+                "description": "Distance from the farthest face on that side (of both ends, or of the outside element) to the lane, e.g. \"4mm\". Omitted means 6pt, or more where an arrowhead needs the room.",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                  },
+                  {
+                    "const": 0
+                  }
+                ]
+              },
+              "outside": {
+                "description": "A group or node the lane runs just outside of (offset beyond its frame on that side) instead of beyond both ends: the frame a skip goes around, the panel a loop goes over, or the target beside which a bus's trunk runs.",
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+              }
+            },
+            "required": [
+              "side"
+            ],
+            "additionalProperties": false
+          },
           "component": {
             "default": "arrow",
             "description": "Component reference (kind: edge).",

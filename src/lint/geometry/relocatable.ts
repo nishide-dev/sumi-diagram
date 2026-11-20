@@ -101,6 +101,8 @@ function excessEdges(context: GeometryContext): GeometryElement[] {
     const edge = element.ir;
     if (edge.kind !== "edge" || !isDrawnEdge(element) || element.route === undefined) continue;
     if (edge.routing === "zoom" || edge.route === "curve" || edge.route === "straight") continue;
+    // A lane (#609) is the author's route: its bends are asked for.
+    if (edge.lane !== undefined) continue;
     if (edge.from === edge.to) continue;
     if (context.isAncestor(edge.from, edge.to) || context.isAncestor(edge.to, edge.from)) continue;
     const line = element.route[0];

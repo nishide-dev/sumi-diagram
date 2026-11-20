@@ -183,12 +183,15 @@ export function separateParallelRuns(
   edges: readonly ParallelEdge[],
   obstacles: readonly Rect[],
   shares: (a: ElementKey, b: ElementKey) => boolean,
+  /** Routes that never move (edges on a written lane, #609); the others still keep clear of them. */
+  fixed: ReadonlySet<ElementKey> = new Set(),
 ): void {
   const lanes: Lane[] = [];
   for (const edge of edges) {
     const points = routes.get(edge.key);
     if (
       !points ||
+      fixed.has(edge.key) ||
       points.length < 4 ||
       edges.some((other) => other !== edge && shares(edge.key, other.key))
     )
@@ -397,8 +400,11 @@ export function separateSameSideRuns(
   obstacles: readonly Rect[],
   frames: readonly Rect[],
   shares: (a: ElementKey, b: ElementKey) => boolean,
+  /** Routes that never move (edges on a written lane, #609). */
+  fixed: ReadonlySet<ElementKey> = new Set(),
 ): void {
   const lanes = edges.flatMap((edge) => {
+    if (fixed.has(edge.key)) return [];
     const lane = sideLane(edge, routes.get(edge.key));
     return lane === undefined ? [] : [lane];
   });
