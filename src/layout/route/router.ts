@@ -99,7 +99,7 @@ import { requestedLabelDiagnostics } from "./label-diagnostics";
 import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
 import { type LanePlan, laneDiagnostics, planLanes } from "./lanes";
 import { groupArrowheadStems } from "./padding";
-import { separateParallelRuns, separateSameSideRuns } from "./parallel";
+import { keepClearOfLanes, separateParallelRuns, separateSameSideRuns } from "./parallel";
 import { routeWithPlanes } from "./planes";
 import {
   bottomOf,
@@ -659,6 +659,7 @@ class Router {
     for (const edge of routable) this.#reportUnaligned(edge);
 
     const routes = new Map<ElementKey, Point[]>();
+    this.#reportSplitBuses(routable);
     // Lanes first (#609): they are the author's routes, and the others keep clear of them.
     const onLanes = new Set<ElementKey>();
     for (const edge of routable) {
@@ -729,6 +730,14 @@ class Router {
       sharable(byKey.get(a) as Edge, byKey.get(b) as Edge);
     separateParallelRuns(routes, parallelEdges, obstacles, shares, onLanes);
     separateSameSideRuns(
+      routes,
+      parallelEdges,
+      obstacles,
+      this.#layout.groups.map((g) => g.rect),
+      shares,
+      onLanes,
+    );
+    keepClearOfLanes(
       routes,
       parallelEdges,
       obstacles,
@@ -877,6 +886,69 @@ class Router {
     if (short !== undefined)
       return fail(`the straight segment at the ${short} would be shorter than its arrowhead`);
     return { cells, points };
+  }
+
+  /**
+   * `layout/lane-bus-split` (warning, #609): edges of one bus (lanes on one
+   * side sharing a source or a target) whose shared end resolved to
+   * different points, so they are separate nets and share no trunk: written
+   * anchors that differ, or ends shared out or split apart by the end
+   * resolution. Each lane is still drawn on the bus's line.
+   */
+  #reportSplitBuses(edges: readonly Edge[]): void {
+    const byKey = new Map(edges.map((e) => [e.ir.key, e] as const));
+    const seen = new Set<string>();
+    for (const edge of edges) {
+      const plan = this.#lanes.get(edge.ir.key);
+      if (plan === undefined || plan.problem !== undefined || plan.bus.length < 2) continue;
+      const id = plan.bus.join(" ");
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const members = plan.bus.flatMap((key) => {
+        const member = byKey.get(key);
+        const memberPlan = this.#lanes.get(key);
+        return member === undefined || memberPlan?.problem !== undefined ? [] : [member];
+      });
+      for (const which of ["from", "to"] as const) {
+        const ends = new Map<ElementKey, Edge[]>();
+        for (const member of members) {
+          const list = ends.get(member[which].key) ?? [];
+          list.push(member);
+          ends.set(member[which].key, list);
+        }
+        for (const [element, list] of ends) {
+          if (list.length < 2) continue;
+          const point = (e: Edge) => `${e[which].port.x} ${e[which].port.y} ${e[which].dir}`;
+          if (list.every((e) => point(e) === point(list[0] as Edge))) continue;
+          const field = which === "from" ? "fromAnchor" : "toAnchor";
+          const names = list
+            .map((e) => (e.ir.id === undefined ? `edges[${e.ir.index}]` : `"${e.ir.id}"`))
+            .join(", ");
+          const written = list.some((e) => e.ir[field] !== undefined);
+          const first = list[0] as Edge;
+          const source = this.#ir.sourceMap.get(first.ir.key);
+          this.#diagnostics.push({
+            code: "layout/lane-bus-split",
+            severity: "warning",
+            message: `Edges ${names} ${which === "from" ? "leave" : "enter"} "${this.#id(element)}" with lanes on its ${plan.side} side (one bus), but at different points${written ? ` (their ${field}s differ)` : ""}, so they share no trunk: each runs its own line on the lane.`,
+            path: [...(source?.path ?? ["edges", first.ir.index]), "lane"],
+            ...(source?.location !== undefined && { location: source.location }),
+            subject: { kind: "edge", id: first.ir.id ?? `edges[${first.ir.index}]` },
+            hint: written
+              ? `Write the same ${field} on each of them (or none) so the bus shares one trunk, or give them lanes on different sides.`
+              : "Anchor the shared end at one point on each of them so the bus shares one trunk.",
+            related: list.slice(1).map((e) => {
+              const at = this.#ir.sourceMap.get(e.ir.key);
+              return {
+                ...(at !== undefined && { path: at.path }),
+                ...(at?.location !== undefined && { location: at.location }),
+                message: "Another edge of the bus.",
+              };
+            }),
+          });
+        }
+      }
+    }
   }
 
   /** `layout/lane-blocked` (warning, #609): the lane is not drawn, and why. */

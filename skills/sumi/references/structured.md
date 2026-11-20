@@ -1379,10 +1379,12 @@ hidden junctions, extra padding or `route: curve`:
   the left of a `west` lane) uses the side facing it, so a bus can run beside its targets.
 - **Bus**: edges with lanes on one side that share a source (or a target) share one
   lane, the farthest of theirs, and one trunk; give each `outside: <its target>` to run
-  the trunk just beside a column of targets.
+  the trunk just beside a column of targets. The shared end must be one point: different
+  anchors there (`"east:0.3"` and `"east:0.7"`) split the bus into separate lines,
+  `layout/lane-bus-split` (warning).
 - An anchor on the lane's side keeps its position (`toAnchor: "west:0.3"`); one on
-  another side, or `straight`, conflicts. Lanes are drawn first and the other edges keep
-  clear of them; nothing else moves a lane (no separation, no `straighten`, no
+  another side, or `straight`, conflicts. Lanes are drawn first; the other edges keep
+  clear of them, and a run drawn beside a lane is moved a lane gap away; nothing moves a lane (no separation, no `straighten`, no
   `geometry/avoidable-bend`).
 - A lane that cannot be drawn as asked (it would run through or along a node, through a
   title or caption, on a group's frame or along another edge, an end sticks out across it,

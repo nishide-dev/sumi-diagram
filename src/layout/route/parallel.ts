@@ -173,6 +173,58 @@ function newConflict(
   );
 }
 
+/** A facing three-segment connector's middle run and the corridor it may move in. */
+function facingLane(edge: ParallelEdge, points: Point[]): Lane | undefined {
+  if (points.length < 4) return undefined;
+  const a = points[0] as Point,
+    first = points[1] as Point;
+  const last = points[points.length - 2] as Point,
+    d = points[points.length - 1] as Point;
+  const axis = a.x === first.x ? "y" : "x";
+  const along = axis === "y" ? "x" : "y";
+  if (last[along] !== d[along]) return undefined;
+  const sign = Math.sign(d[axis] - a[axis]);
+  if (!sign || (first[axis] - a[axis]) * sign <= 0 || (d[axis] - last[axis]) * sign <= 0)
+    return undefined;
+  const start = a[axis] + sign * edge.fromRoom;
+  const end = d[axis] - sign * edge.toRoom;
+  const low = Math.min(start, end);
+  const high = Math.max(start, end);
+  if ((end - start) * sign < 0) return undefined;
+  const at = Math.max(low, Math.min(high, first[axis]));
+  const b = { ...a, [axis]: at },
+    c = { ...d, [axis]: at };
+  return {
+    edge,
+    points: [a, b, c, d],
+    original: points,
+    axis,
+    at: b[axis],
+    low,
+    high,
+    from: Math.min(b[along], c[along]),
+    to: Math.max(b[along], c[along]),
+  };
+}
+
+/** Whether a segment of `points` runs into the interior of one of `obstacles`. */
+function reachesObstacle(points: readonly Point[], obstacles: readonly Rect[]): boolean {
+  return points.slice(1).some((b, i) => {
+    const a = points[i] as Point;
+    return obstacles.some((r) =>
+      a.x === b.x
+        ? a.x > r.x &&
+          a.x < r.x + r.width &&
+          Math.max(a.y, b.y) > r.y &&
+          Math.min(a.y, b.y) < r.y + r.height
+        : a.y > r.y &&
+          a.y < r.y + r.height &&
+          Math.max(a.x, b.x) > r.x &&
+          Math.min(a.x, b.x) < r.x + r.width,
+    );
+  });
+}
+
 /**
  * Only move the middle run, inside the original facing-port corridor. Keep
  * endpoints, stub/arrow room and shared trunks. Unaffected routes
@@ -183,7 +235,7 @@ export function separateParallelRuns(
   edges: readonly ParallelEdge[],
   obstacles: readonly Rect[],
   shares: (a: ElementKey, b: ElementKey) => boolean,
-  /** Routes that never move (edges on a written lane, #609); the others still keep clear of them. */
+  /** Routes that never move (edges on a written lane, #609; `keepClearOfLanes` moves their neighbours). */
   fixed: ReadonlySet<ElementKey> = new Set(),
 ): void {
   const lanes: Lane[] = [];
@@ -192,41 +244,11 @@ export function separateParallelRuns(
     if (
       !points ||
       fixed.has(edge.key) ||
-      points.length < 4 ||
       edges.some((other) => other !== edge && shares(edge.key, other.key))
     )
       continue;
-    const a = points[0] as Point,
-      first = points[1] as Point;
-    const last = points[points.length - 2] as Point,
-      d = points[points.length - 1] as Point;
-    const axis = a.x === first.x ? "y" : "x";
-    const along = axis === "y" ? "x" : "y";
-    if (last[along] !== d[along]) continue;
-    const sign = Math.sign(d[axis] - a[axis]);
-    if (!sign || (first[axis] - a[axis]) * sign <= 0 || (d[axis] - last[axis]) * sign <= 0)
-      continue;
-    const start = a[axis] + sign * edge.fromRoom;
-    const end = d[axis] - sign * edge.toRoom;
-    const low = Math.min(start, end);
-    const high = Math.max(start, end);
-    if ((end - start) * sign < 0) continue;
-    const at = Math.max(low, Math.min(high, first[axis]));
-    const b = { ...a, [axis]: at },
-      c = { ...d, [axis]: at };
-    const from = Math.min(b[along], c[along]);
-    const to = Math.max(b[along], c[along]);
-    lanes.push({
-      edge,
-      points: [a, b, c, d],
-      original: points,
-      axis,
-      at: b[axis],
-      low,
-      high,
-      from,
-      to,
-    });
+    const lane = facingLane(edge, points);
+    if (lane !== undefined) lanes.push(lane);
   }
   const related = (a: Lane, b: Lane) =>
     a.axis === b.axis &&
@@ -515,5 +537,124 @@ export function separateSameSideRuns(
     );
     if (crowded) continue;
     for (const [key, points] of moved) routes.set(key, points);
+  }
+}
+
+/**
+ * Routes on a written lane (#609) never move, so a movable run beside one
+ * moves instead: a facing connector's middle run (within its corridor) or a
+ * same-side skip's run (not nearer the boxes than its stubs) that lies closer
+ * than a lane gap to a lane's parallel run, over at least 3mm, takes the
+ * nearest position a gap away from every lane run. A move that would reach
+ * into a node, cross a group border or a lane, or crowd another edge is
+ * dropped. Run after the other separations.
+ */
+export function keepClearOfLanes(
+  routes: Map<ElementKey, Point[]>,
+  edges: readonly ParallelEdge[],
+  obstacles: readonly Rect[],
+  frames: readonly Rect[],
+  shares: (a: ElementKey, b: ElementKey) => boolean,
+  fixed: ReadonlySet<ElementKey>,
+): void {
+  if (fixed.size === 0) return;
+  const byKey = new Map(edges.map((e) => [e.key, e] as const));
+  const runs = [...fixed].flatMap((key) => {
+    const points = routes.get(key);
+    const edge = byKey.get(key);
+    return points === undefined || edge === undefined
+      ? []
+      : paintedRuns(points).map((run) => ({ ...run, edge, points }));
+  });
+  for (const edge of edges) {
+    const points = routes.get(edge.key);
+    if (points === undefined || fixed.has(edge.key)) continue;
+    if ([...fixed].some((key) => shares(edge.key, key))) continue;
+    // The run that may move: its axis (the coordinate that moves), position and span.
+    type Movable = {
+      axis: "x" | "y";
+      at: number;
+      from: number;
+      to: number;
+      ok: (v: number) => boolean;
+      move: (v: number) => Point[];
+    };
+    let run: Movable | undefined;
+    const facing = facingLane(edge, points);
+    if (facing !== undefined && facing.at === (points[1] as Point)[facing.axis]) {
+      run = {
+        axis: facing.axis,
+        at: facing.at,
+        from: facing.from,
+        to: facing.to,
+        ok: (v) => v >= facing.low - EPSILON && v <= facing.high + EPSILON,
+        move: (v) =>
+          facing.points.map((p, j) => (j === 1 || j === 2 ? { ...p, [facing.axis]: v } : p)),
+      };
+    } else {
+      const side = sideLane(edge, points);
+      if (side !== undefined) {
+        const a = points[0] as Point;
+        const d = points[points.length - 1] as Point;
+        run = {
+          axis: side.axis,
+          at: side.sign * side.at,
+          from: side.from,
+          to: side.to,
+          ok: (v) => side.sign * v >= side.min - EPSILON,
+          move: (v) => [a, { ...a, [side.axis]: v }, { ...d, [side.axis]: v }, d],
+        };
+      }
+    }
+    if (run === undefined) continue;
+    const current = run;
+    const orientation = current.axis === "x" ? "v" : "h";
+    const gap = (other: ParallelEdge) => (edge.width + other.width) / 2 + LANE_GAP;
+    const crowding = (at: number) =>
+      runs.filter(
+        (r) =>
+          r.axis === orientation &&
+          Math.abs(r.at - at) < gap(r.edge) - EPSILON &&
+          Math.min(r.to, current.to) - Math.max(r.from, current.from) >= MIN_RUN,
+      );
+    const near = crowding(current.at);
+    if (near.length === 0) continue;
+    const options = near
+      .flatMap((r) => [r.at - gap(r.edge), r.at + gap(r.edge)])
+      .map((v) => roundUnits(v))
+      .sort((p, q) => Math.abs(p - current.at) - Math.abs(q - current.at) || p - q);
+    const along = current.axis === "x" ? "y" : "x";
+    const size = current.axis === "x" ? "width" : "height";
+    const sizeAlong = current.axis === "x" ? "height" : "width";
+    for (const v of options) {
+      if (!current.ok(v) || crowding(v).length > 0) continue;
+      const moved = current.move(v);
+      if (reachesObstacle(moved, obstacles)) continue;
+      const [lo, hi] = [Math.min(v, current.at), Math.max(v, current.at)];
+      const crossesFrame = frames.some(
+        (f) =>
+          Math.max(f[along], current.from) < Math.min(f[along] + f[sizeAlong], current.to) &&
+          [f[current.axis], f[current.axis] + f[size]].some((border) => border > lo && border < hi),
+      );
+      if (crossesFrame) continue;
+      const lanes = [...fixed].flatMap((key) => {
+        const route = routes.get(key);
+        return route === undefined ? [] : [route];
+      });
+      if (lanes.some((lane) => crossingCount(moved, lane) > crossingCount(points, lane))) continue;
+      const crowded = edges.some((other) => {
+        if (other.key === edge.key || fixed.has(other.key) || shares(edge.key, other.key))
+          return false;
+        const theirs = routes.get(other.key);
+        return (
+          theirs !== undefined &&
+          (crossingCount(moved, theirs) > crossingCount(points, theirs) ||
+            newConflict(moved, theirs, points, theirs, gap(other)))
+        );
+      });
+      if (crowded) continue;
+      routes.set(edge.key, moved);
+      break;
+    }
   }
 }

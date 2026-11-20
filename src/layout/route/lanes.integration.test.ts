@@ -212,6 +212,112 @@ describe("lane: buses (#609)", () => {
   });
 });
 
+describe("lane: buses share a trunk (#609)", () => {
+  // q level with the top target: the branches to t2 and t3 run down one trunk.
+  const TOP = (anchors: [string, string]) => `
+version: 1
+figure:
+  id: bus-top
+  theme: sumi
+  layout:
+    straighten: false
+    arrange:
+      row:
+        gap: 24mm
+        align: start
+        items: [q, {stack: {gap: 6mm, items: [t1, t2, t3]}}]
+nodes:
+  - {id: q, component: box, label: q}
+  - {id: t1, component: box, label: T1}
+  - {id: t2, component: box, label: T2}
+  - {id: t3, component: box, label: T3}
+edges:
+  - {from: q, to: t2${anchors[0]}, lane: {side: west, outside: t2, offset: 8mm}}
+  - {from: q, to: t3${anchors[1]}, lane: {side: west, outside: t3, offset: 8mm}}
+`;
+  /** The vertical pieces of a route on the line x = `at`, as [top, bottom]. */
+  const onLine = (points: readonly Point[], at: number): [number, number][] =>
+    points.slice(1).flatMap((q, i) => {
+      const p = points[i] as Point;
+      return Math.abs(p.x - at) < 0.01 && Math.abs(q.x - at) < 0.01
+        ? [[Math.min(p.y, q.y), Math.max(p.y, q.y)] as [number, number]]
+        : [];
+    });
+
+  test("the branches' trunk segments overlap on the lane", async () => {
+    const { value, diagnostics } = await render(TOP(["", ""]));
+    expect(diagnostics.filter((d) => d.code.startsWith("layout/lane"))).toEqual([]);
+    const at = Math.min(rect(value, "n:t2").x, rect(value, "n:t3").x) - (8 * 72) / 25.4 / 0.5;
+    const [two] = onLine(route(value, "q", "t2"), at);
+    const [three] = onLine(route(value, "q", "t3"), at);
+    expect(two).toBeDefined();
+    expect(three).toBeDefined();
+    if (two === undefined || three === undefined) return;
+    // The shared stretch runs from q's level down to t2's, the whole t2 branch.
+    const shared = Math.min(two[1], three[1]) - Math.max(two[0], three[0]);
+    expect(shared).toBeGreaterThan(0);
+    close(shared, two[1] - two[0]);
+    // Both leave q at one point.
+    expect(route(value, "q", "t2")[0]).toEqual(route(value, "q", "t3")[0] as Point);
+  });
+
+  test("anchors that split the shared end are said: no trunk", async () => {
+    const { value, diagnostics } = await render(
+      TOP([', fromAnchor: "east:0.3"', ', fromAnchor: "east:0.7"']),
+    );
+    const split = diagnostics.filter((d) => d.code === "layout/lane-bus-split");
+    expect(split).toHaveLength(1);
+    expect(split[0]?.severity).toBe("warning");
+    expect(split[0]?.message).toContain("fromAnchors differ");
+    // Drawn as said: separate nets.
+    const nets = new Set(
+      value.layout.edges.filter((e) => e.from === "n:q").map((e) => e.route?.net),
+    );
+    expect(nets.size).toBe(2);
+  });
+});
+
+describe("lane: other routes keep their distance (#609)", () => {
+  test("a route beside a lane is moved a lane gap away", async () => {
+    const source = `
+version: 1
+figure:
+  id: near
+  theme: sumi
+  layout:
+    straighten: false
+    arrange:
+      stack: {gap: 6mm, items: [a, b, c, d]}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+  - {id: c, component: box, label: C}
+  - {id: d, component: box, label: D}
+edges:
+  - {from: a, to: b}
+  - {from: b, to: c}
+  - {from: c, to: d}
+  - {from: a, to: d, lane: {side: east, offset: 10pt}}
+  - {from: b, to: d, fromAnchor: east, toAnchor: "east:0.7"}
+`;
+    const { value, diagnostics } = await render(source);
+    expect(laneWarnings(diagnostics)).toEqual([]);
+    const lane = route(value, "a", "d");
+    const other = route(value, "b", "d");
+    const laneX = (lane[1] as Point).x;
+    const otherX = (other[1] as Point).x;
+    close((lane[2] as Point).x, laneX);
+    close((other[2] as Point).x, otherX);
+    // The lane stays where it was asked (10pt = 20 units beyond D's east side).
+    const d = rect(value, "n:d");
+    close(laneX, d.x + d.width + 20);
+    // 1pt lines: half of each stroke plus the 1.5pt lane gap (3.02 units with rounding room).
+    expect(Math.abs(otherX - laneX)).toBeGreaterThanOrEqual(2 + 3.02 - 0.01);
+    // Not a stroke overlap any more.
+    expect(lintGeometry(value).filter((x) => x.code === "geometry/edge-near-edge")).toEqual([]);
+  });
+});
+
 describe("lane: what cannot be drawn is said (#609)", () => {
   test("a node in the way: a warning naming it, and the edge is still routed", async () => {
     const source = `
