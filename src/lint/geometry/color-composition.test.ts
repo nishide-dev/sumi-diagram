@@ -376,18 +376,38 @@ edges: []
     expect(await count(panelOf("sumi", "gray", "gray"))).toBe(0);
   });
 
-  test("a toned panel's hint removes the tone; sumi's default panel is white and not reported (#608)", async () => {
-    const [finding] = panelFindings(
-      analyze(paintItems(await contextOf(panelOf("sumi", "blue", "green")))),
-    );
-    expect(finding?.hint).toContain("Remove the group's tone (blue)");
-    const untoned = panelOf("sumi", "gray", "green")
-      .replace("    tone: gray\n", "")
-      .replace("    variant: filled\n", "");
-    expect(await count(untoned)).toBe(0);
-    // sumi-dark's panel is its navy canvas, measured against that canvas.
-    const dark = await contextOf(untoned.replace("theme: sumi", "theme: sumi-dark"));
-    expect(panelFindings(analyze(paintItems(dark), "#30364f"))).toEqual([]);
+  // Following the hint makes the finding go away, whichever source paints the panel (#608).
+  const hintOf = async (source: string, canvas?: string) =>
+    panelFindings(analyze(paintItems(await contextOf(source)), canvas)).map((f) => f.hint);
+  const TONE_LINE = "    tone: blue\n";
+  const FILLED_LINE = "    variant: filled\n";
+
+  test("a panel's own tone and variant: filled are both named, and removing them clears it", async () => {
+    const both = panelOf("sumi", "blue", "green");
+    const cases: [string, string[]][] = [
+      [both, ["`tone: blue`", "`variant: filled`"]],
+      [both.replace(FILLED_LINE, ""), ["`tone: blue`"]],
+      [both.replace(TONE_LINE, ""), ["`variant: filled`"]],
+    ];
+    for (const [source, named] of cases) {
+      const [hint] = await hintOf(source);
+      for (const part of named) expect(hint, part).toContain(part);
+      if (named.length === 1)
+        expect(hint).not.toContain(named[0]?.includes("tone") ? "variant: filled" : "tone: blue");
+      // Applying the advice: the group without its tone and filled variant is sumi's white panel.
+      const fixed = source.replace(TONE_LINE, "").replace(FILLED_LINE, "");
+      expect(await hintOf(fixed)).toEqual([]);
+      // sumi-dark's panel is its navy canvas, measured against that canvas.
+      expect(await hintOf(fixed.replace("theme: sumi", "theme: sumi-dark"), "#30364f")).toEqual([]);
+    }
+  });
+
+  test("a theme-filled panel's hint sets groupFill, and setting it clears it", async () => {
+    // The paper trial's gray panel is the figure's group fill: no tone or variant of its own.
+    const [hint] = await hintOf(trial());
+    expect(hint).toContain("themeOverrides.groupFill: '#ffffff'");
+    expect(hint).not.toContain("Remove");
+    expect(await hintOf(trial("'#ffffff'"))).toEqual([]);
   });
 
   test("neutral boxes (default outlined, white) on a colored panel are not colored, in any theme", async () => {

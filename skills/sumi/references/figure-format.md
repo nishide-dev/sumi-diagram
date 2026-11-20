@@ -273,11 +273,13 @@ groups:
   `filled`). An undrawn border is not geometry-linted, and an edge label inside a
   `plain` group gets the background beneath it. To make a whole panel pale use
   [`dim: true`](#dimmed-groups).
-- The default (and `muted`) group fill is the theme's: white in `paper` and `sumi`
-  (`sumi-dark`: its navy canvas), a pale panel in `minimal`, `color`, `slides` and `llama`,
-  none in `academic`. `figure.themeOverrides.groupFill: '#rrggbb'` sets it for every group
-  without a tone in one place (`'#ffffff'` whitens them; `'#efeddd'` brings back `sumi`'s
-  sand panel from before v0.20.0); a sand panel for one group is `variant: filled`.
+- The default group fill is the theme's: white in `paper` and `sumi` (`sumi-dark`: its
+  navy canvas), a pale panel in `minimal`, `color`, `slides` and `llama`, none in
+  `academic`. A `muted` group is the canvas (white; `sumi-dark`: navy) in every theme but
+  `academic` (no fill). `figure.themeOverrides.groupFill: '#rrggbb'` sets the fill of every
+  group without a tone in one place, `muted` and `filled` ones included (`'#ffffff'` whitens
+  them; `'#efeddd'` brings back `sumi`'s sand panel from before v0.20.0); a sand panel for
+  one `sumi` group is `variant: filled`.
 
 ## Edges and the connection table
 

@@ -257,14 +257,24 @@ export const colorOnPanel = defineGeometryRule({
 });
 
 /**
- * Where the panel's color comes from decides the one place that makes it white (#608): a tone on
- * the group, or the theme's group fill (`themeOverrides.groupFill` whitens every untoned panel).
+ * Where the panel's color comes from decides what makes it white (#608): the group's own `tone`
+ * and `variant: filled` both paint it (a tone wins over `groupFill`); without them the panel is
+ * the theme's group fill, which `themeOverrides.groupFill` sets for every untoned group at once.
  */
 function panelHint(panel: PaintItem): string {
+  const own = [
+    ...(panel.tone !== undefined ? [`its \`tone: ${panel.tone}\``] : []),
+    ...(panel.variant === "filled"
+      ? ["`variant: filled`"]
+      : panel.variant === "filled-dashed"
+        ? ["`variant: filled-dashed` (use `dashed`)"]
+        : []),
+  ];
+  const groupFill = "`figure.themeOverrides.groupFill: '#ffffff'`";
   const white =
-    panel.tone !== undefined
-      ? `Remove the group's tone (${panel.tone}) to give it the theme's panel`
-      : "Set `figure.themeOverrides.groupFill: '#ffffff'` to make every untoned panel white (the default groups of paper and sumi already are), or drop the group's `variant: filled`";
+    own.length > 0
+      ? `Remove the group's ${own.join(" and ")}, so it takes the theme's panel (white in paper and sumi; elsewhere also set ${groupFill})`
+      : `Set ${groupFill} to make every untoned panel white at once (the default groups of paper and sumi already are)`;
   return `${white}, or color only what carries meaning: at most 2-3 hues and one accent on a white ground.`;
 }
 
