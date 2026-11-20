@@ -85,9 +85,16 @@
     checkOverflow();
     const resized = new ResizeObserver(checkOverflow);
     for (const el of document.querySelectorAll(".box, .op")) resized.observe(el);
-    new MutationObserver(() => {
+    // Class changes count too (a class can change the font), except the script's own `overflow`:
+    // a record whose class list differs from its old value only by `overflow` is skipped.
+    const withoutOverflow = (value) => (value ?? "").split(/\s+/).filter((c) => c && c !== "overflow").sort().join(" ");
+    new MutationObserver((records) => {
+      const relevant = records.some((r) => r.attributeName !== "class" ||
+        withoutOverflow(r.oldValue) !== withoutOverflow(r.target.getAttribute("class")));
+      if (!relevant) return;
       for (const el of document.querySelectorAll(".box, .op")) resized.observe(el);
       checkOverflow();
-    }).observe(document.getElementById("fig"), { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["style"] });
+    }).observe(document.getElementById("fig"), { subtree: true, childList: true, characterData: true,
+      attributes: true, attributeOldValue: true, attributeFilter: ["style", "class"] });
   });
 </script>

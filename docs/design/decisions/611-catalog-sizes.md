@@ -43,7 +43,7 @@
 | `--json` | `{ version: 1, settings: [...] }` |
 | `--css` | 下絵テンプレートの寸法の変数（`--profile` 1 つが必要） |
 
-- 表の出力は設定ごとに、見出し（profile・density・theme・textScale）、文字・線・間隔の 3 行、部品の表（COMPONENT・WIDTH・HEIGHT・PROPS・LABEL）。
+- 表の出力は設定ごとに、見出し（profile・density・theme・textScale）、文字・線・間隔の 3 行、部品の表（COMPONENT・WIDTH・HEIGHT・MIN WIDTH・PROPS・LABEL）と、2 つの幅の意味の 1 行。
 - ラベルのある行は幅を 2 つ出す。
   - **自然な幅**（WIDTH）: ラベル + 左右のノードの余白。`width` を書かないときに Sumi が描く幅。
   - **最小の幅**（MIN WIDTH、`minWidth`）: `geometry/label-overflow` にならない最も狭い `props.width`（0.5pt の倍数）。この規則は文字が枠の線に掛からないことだけを見るので、余白の分だけ自然な幅より狭い（paper の「Encoder」の箱は自然な幅 16.05mm、最小 11.11mm）。値は推定ではなく、その幅でノードを描いて SVG を書き、規則そのもの（`ALL_LINT_RULES` の `geometry/label-overflow`）をかけて二分探索で求める。最後に試した 2 つの幅（収まる m と、m − 0.5pt で溢れる）は実際に評価したもの。自然な幅で溢れる、またはどんな幅でも溢れない（枠のない `label`）、`width` を取らない部品は `null`。1 回の試しは数 ms で、既定の 3 設定でも 1 秒程度。sizes.md の表には足さない（生成を軽く保ち、表の列を増やさない）。
@@ -57,7 +57,7 @@
 - `--css` は `@font-face`（同梱フォントの `file:` URL。Latin は Inter、その他は BIZ UDPGothic）も出す。描画と同じフォントで下絵の幅が出る。テンプレートに貼るブロックには機械ごとのパスを入れないので、`@font-face` はテンプレートに含めず、貼るときに一緒に入る。
 - `.box` は幅を書かなければ「ラベル + `--node-pad-x`」、高さは `--box-h` 以上になり、Sumi の自然な大きさに近づく。`.op` は `--op` / `--op-large` / `--op-xlarge`。グループの余白は `--group-pad`。
 - 位置は `left` / `top` を中心にした（`translate: -50% -50%`）。`place` の `at`（ノードの中心）と 1 対 1 に対応する。
-- 小さなスクリプトが、文字が枠に掛かる箱に赤い破線を付ける。規則と同じく余白は使ってよく、枠を越えたら印を付ける（文字の範囲の幅・高さ > 枠の内側）。`@font-face` のフォントが読み込まれた後（`document.fonts.ready`）に調べ、箱の大きさや中身が変わるたびに調べ直す（`ResizeObserver`、`MutationObserver`）。ブラウザの字幅による近似で、正確な値は `--label` の MIN WIDTH で聞く。
+- 小さなスクリプトが、文字が枠に掛かる箱に赤い破線を付ける。規則と同じく余白は使ってよく、枠を越えたら印を付ける（文字の範囲の幅・高さ > 枠の内側）。`@font-face` のフォントが読み込まれた後（`document.fonts.ready`）に調べ、箱の大きさ・中身・`style`・`class` が変わるたびに調べ直す（`ResizeObserver`、`MutationObserver`）。class が変われば箱の大きさが同じでも字の大きさや太さが変わりうるので、class も見る。スクリプト自身が付け外しする `overflow` だけが違う変更は無視し（古い値と新しい値の class を `overflow` を除いて比べる）、印の付け外しで調べ直しが繰り返されないようにする。ブラウザの字幅による近似で、正確な値は `--label` の MIN WIDTH で聞く。
 
 `skills/sumi/references/mockup.md` の手順 1 は、寸法を手で書かずに `--css` の出力を貼る、実際のラベルの幅は `--label` で聞く、に書き換えた。sizes.md にも CLI への案内を足した。
 
