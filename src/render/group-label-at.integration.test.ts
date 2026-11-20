@@ -97,8 +97,9 @@ describe("structured", () => {
   test("the router goes around a moved title in the straight path of an edge", async () => {
     // a → out: straight down from a would cross the bottom title of g1.
     // top → c: straight down into c would cross the top-right title of g2.
-    // The router keeps top → c off the title, but not clear of its letters
-    // (#156): it runs along the title's right end and just below it.
+    // The router keeps top → c off the title; after routing (#604) the
+    // staircase around the title's right end becomes an L into c's free east
+    // side, clear of the letters.
     const rendered = await render(
       `version: 1
 figure:
@@ -130,10 +131,6 @@ edges:
           code: "geometry/arrowhead-cramped",
           message:
             "The target arrowhead of edge edges[1] has only 0pt of visible straight stem before a bend (less than 1pt).",
-        },
-        {
-          code: "geometry/edge-touches-label",
-          message: 'Edge edges[1] touches the label of group "g2" (0.27mm from the letters).',
         },
       ],
     );

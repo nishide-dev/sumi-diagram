@@ -181,6 +181,8 @@ Geometry errors exit 1 but **the SVG is still written**. It prints `Wrote figure
   `geometry/placement-usage` (reserved area: compare candidates by it).
 - Geometry warnings (`edge-crosses-label`, `label-collision`, …): try the
   [layout-tips](references/layout-tips.md) workarounds once or twice, then keep and report them.
+- `geometry/avoidable-bend`: apply the hint's anchor value (e.g. `toAnchor "east:0.15"`) or drop
+  the anchor, or move the nodes it names. Write anchors only where a side matters.
 - Structured: `layout/no-route` (no SVG written): an edge has no room; widen that `gap`
   or move an attached node out of it ([spacing](references/structured.md#spacing-that-routes)).
   Also `layout/unsatisfied-align`, `layout/edge-label-overlap` (warnings),

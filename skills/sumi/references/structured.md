@@ -610,11 +610,12 @@ frame**, attached members included, even with `variant: plain`: an input
 attached west widens the frame and the title moves left of the body's centre.
 To title only the body give it an inner group and attach the input to that
 group (a sibling); an untitled outer group holds both as one panel. This centers
-the input on the titled frame, so its edge jogs to the block's content center
-(`layout/group-title-offset`); use an untitled body or a caption for a straight input:
+the input on the titled frame, not on the block: the edge stays straight only because
+the router slides its unanchored ends along their sides (#604), so it meets the input
+off its centre; with anchors at both centres it jogs (`layout/group-title-offset`). Use
+an untitled body or a caption to centre the input on the block:
 
 ```yaml
-# expect-render: layout/group-title-offset
 version: 1
 figure:
   id: body-title
@@ -1151,6 +1152,15 @@ edges:
   to the nearest painted lip (left on ties), explicit anchors too; an unshared,
   unanchored neighbour follows the lip's line if the ends were aligned before,
   otherwise `layout/unaligned-ends` reports the remaining step.
+- **Write anchors only where the side or position matters.** After routing, an end
+  without an anchor slides along its side into line with the other end, and a
+  staircase or a route hugging a frame or node turns to another free side of an end
+  or moves its middle into the clear (#604); an anchored end never moves. An anchor
+  just off the span two facing sides share leaves an S that a straight line would
+  replace: `geometry/avoidable-bend` (warning) gives the value that fits (e.g.
+  `toAnchor "east:0.15"`), or says which nodes (often attached labels) block a
+  single step. Write that value or drop the anchor; do not chase the line with
+  more anchors.
 - **`straight`** (`toAnchor: straight` / `fromAnchor: straight`): the end sits in line
   with the other end on the side facing it, so the line has no jog. Use it for narrow
   boxes in a row feeding a wide one (patches into a projection, models into an

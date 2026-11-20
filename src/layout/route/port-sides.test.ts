@@ -171,9 +171,10 @@ describe("default sides from the arrange tree", () => {
 
   test("an attached node takes its target's place in the tree", () => {
     // x hangs far east of a, b is below a: the centers say west, the stack south.
+    // The gap leaves the S room to keep off a (#604 would mend a hugging S with an L).
     const value = run(
       figure(
-        { stack: { items: ["a", "b"] } },
+        { stack: { gap: "24pt", items: ["a", "b"] } },
         [box("a"), { ...box("x"), attach: { to: "a", side: "east", gap: "150pt" } }, box("b")],
         [{ from: "x", to: "b" }],
       ),

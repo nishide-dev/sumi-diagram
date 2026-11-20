@@ -14,7 +14,9 @@ const source = (title: boolean, align: boolean) =>
     },
     groups: [{ id: "g", ...(title && { label: "Encoder" }), arrange: { stack: { items: ["b"] } } }],
     nodes: ["a", "b"].map((id) => ({ id, component: "box", label: id })),
-    edges: [{ from: "a", to: "b" }],
+    // Anchored at both centres: without anchors the router slides an end
+    // into line after routing (#604) and there is no jog to explain.
+    edges: [{ from: "a", to: "b", fromAnchor: "east", toAnchor: "west" }],
   });
 
 test("a titled frame's center alignment explains the jog and supplies a working remedy", () => {

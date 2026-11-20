@@ -68,7 +68,7 @@
  * (`labels.ts`) and the content and canvas grow to hold the routes.
  */
 
-import type { ArrangeBoxIR, EdgeIR, FigureIR } from "../../compiler/ir";
+import type { ArrangeBoxIR, EdgeIR, FigureIR, NodeIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Diagnostic, hasErrors } from "../../core/diagnostics";
 import type { Side } from "../../core/figure/schema";
@@ -91,7 +91,7 @@ import { deepFreeze } from "../structured/engine";
 import { arrowheadLength, edgeArrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
 import { addDirectRoutes, isDirectEdge } from "./diagonal";
-import { endpointRects } from "./endpoint-rects";
+import { endpointRects, makeInside } from "./endpoint-rects";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
 import { groupTitleDiagnostics } from "./group-title-diagnostics";
 import { PairHeap } from "./heap";
@@ -101,18 +101,28 @@ import { groupArrowheadStems } from "./padding";
 import { separateParallelRuns, separateSameSideRuns } from "./parallel";
 import { routeWithPlanes } from "./planes";
 import {
+  anchorPoint,
   bottomOf,
   DIRS,
   type End,
   facing,
   isJunction,
+  nodeBoundaryEntry,
   opposite,
   resolveEnds,
   rightOf,
+  SIDE_DIR,
   STRAIGHT_MARGIN,
   straightenable,
   straightPlacement,
 } from "./ports";
+import {
+  type SideRange,
+  type SimplifyEdge,
+  type SimplifyEnd,
+  simplifyRoutes,
+  type Terminal,
+} from "./simplify";
 import { addZoomRoutes, isZoomEdge, withoutZoomEdges, withoutZoomLayouts } from "./zoom";
 
 /** Router parameters in units (0.5pt) and costs (in units of length). */
@@ -150,6 +160,20 @@ export const ROUTE = Object.freeze({
   /** Extra grid lines beside a same-side skip's ends, for nested skips to take separate lanes. */
   sideLanes: 3,
 });
+
+/** Shapes whose ends may slide along a side or move to another (#604): sides drawn straight. */
+const SLIDING_SHAPES: ReadonlySet<string> = new Set(["rectangle", "square", "text", "cylinder"]);
+
+/** Where a line into `port` along the side's inward normal meets the drawn shape (as `resolveEnds`). */
+function outlineOf(node: NodeIR, rect: Rect, side: Side, port: Point): Point {
+  const outward = SIDE_DIR[side];
+  const depth = outward % 2 === 0 ? rect.width : rect.height;
+  const d = DIRS[opposite(outward)] as Point;
+  const far = { x: port.x + d.x * depth, y: port.y + d.y * depth };
+  const t = nodeBoundaryEntry(port, far, node, rect);
+  if (t === undefined || t <= 0) return port;
+  return { x: roundUnits(port.x + d.x * depth * t), y: roundUnits(port.y + d.y * depth * t) };
+}
 
 /** Stroke-to-stroke gap between lanes of nested same-side skips (1.5pt, with rounding room). */
 const SIDE_LANE_GAP = 3.02;
@@ -195,6 +219,8 @@ export interface RouteOptions {
    * whole layout routed each way need not match once a tie appears.
    */
   verifyLowerBound?: boolean;
+  /** Replace routes with simpler ones after routing (#604; default `true`). */
+  simplify?: boolean;
 }
 
 export function routeEdges(
@@ -253,6 +279,7 @@ function routeWithoutZoom(ir: FigureIR, layout: LayoutIR, options: RouteOptions)
         options.lowerBound ?? true,
         options.verifyLowerBound ?? false,
         stubLines,
+        options.simplify ?? true,
       ).run(),
     );
   const result = routeFigure(ir);
@@ -538,6 +565,8 @@ class Router {
 
   /** Also a grid line at the end of each stub that has a room beyond it (see `routeEdges`). */
   readonly #stubLines: boolean;
+  /** Simplify routes after routing (`#simplify`, #604). */
+  readonly #simplifyRoutes: boolean;
 
   constructor(
     ir: FigureIR,
@@ -545,7 +574,9 @@ class Router {
     lowerBound: boolean,
     verify: boolean,
     stubLines: boolean,
+    simplifyRoutes = true,
   ) {
+    this.#simplifyRoutes = simplifyRoutes;
     this.#ir = ir;
     this.#layout = layout;
     this.#lowerBound = lowerBound;
@@ -680,7 +711,9 @@ class Router {
       this.#occupy(cells, edge);
       routes.set(edge.ir.key, points);
     }
-    const parallelEdges = routable.map((e) => ({
+    // Avoidable bends (#604): simpler shapes where they keep every rule.
+    const final = this.#simplifyRoutes ? this.#simplify(routable, routes) : routable;
+    const parallelEdges = final.map((e) => ({
       key: e.ir.key,
       width: e.ir.style.strokeWidth.units,
       fromRoom: Math.max(e.fromLane, e.fromRoom),
@@ -691,7 +724,7 @@ class Router {
       ...this.#layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
       ...captionBoxes(this.#ir, this.#layout),
     ];
-    const byKey = new Map(routable.map((e) => [e.ir.key, e] as const));
+    const byKey = new Map(final.map((e) => [e.ir.key, e] as const));
     const shares = (a: ElementKey, b: ElementKey) =>
       sharable(byKey.get(a) as Edge, byKey.get(b) as Edge);
     separateParallelRuns(routes, parallelEdges, obstacles, shares);
@@ -702,7 +735,222 @@ class Router {
       this.#layout.groups.map((g) => g.rect),
       shares,
     );
-    return { layout: this.#result(routable, routes), diagnostics: this.#diagnostics };
+    return { layout: this.#result(final, routes), diagnostics: this.#diagnostics };
+  }
+
+  /**
+   * Replaces routes with simpler ones where that keeps every rule
+   * (`simplify.ts`, #604) and returns the edges with their ends moved. Only
+   * an edge that is a net of its own between two ports (no junction, no
+   * shared port, no self-loop, neither end inside the other) is looked at;
+   * an end moves only if it has no written anchor and sits on a straight
+   * side of a plain node.
+   */
+  #simplify(edges: Edge[], routes: Map<ElementKey, Point[]>): Edge[] {
+    const ir = this.#ir;
+    const layout = this.#layout;
+    const rects = endpointRects(ir, layout);
+    const nodeIR = new Map(ir.nodes.map((n) => [n.key, n]));
+    const parents = new Map(
+      [...layout.nodes, ...layout.groups].map((n) => [n.key, n.parent] as const),
+    );
+    const tokenFrames = new Set(ir.groups.filter((g) => g.tokens !== undefined).map((g) => g.key));
+    const inside = makeInside(rects, parents, tokenFrames);
+    const netSize = new Map<number, number>();
+    for (const edge of edges) netSize.set(edge.net, (netSize.get(edge.net) ?? 0) + 1);
+    /** The ends on each side of each element (`key|side`). */
+    const users = new Map<string, End[]>();
+    for (const edge of edges) {
+      for (const end of [edge.from, edge.to]) {
+        if (end.junction || end.side === undefined) continue;
+        const id = `${end.key}|${end.side}`;
+        users.set(id, [...(users.get(id) ?? []), end]);
+      }
+    }
+    /** The ends at each point of each element. */
+    const pointUsers = new Map<string, number>();
+    for (const edge of edges) {
+      for (const end of [edge.from, edge.to]) {
+        if (end.junction) continue;
+        const id = `${end.key} ${end.port.x} ${end.port.y}`;
+        pointUsers.set(id, (pointUsers.get(id) ?? 0) + 1);
+      }
+    }
+    const SIDES: readonly Side[] = ["north", "east", "south", "west"];
+    const along = (p: Point, side: Side) => (side === "north" || side === "south" ? p.x : p.y);
+    const freeEnd = (end: End, written: boolean): SimplifyEnd["free"] => {
+      const node = nodeIR.get(end.key);
+      const rect = rects.get(end.key);
+      if (
+        written ||
+        node === undefined ||
+        rect === undefined ||
+        end.side === undefined ||
+        end.beforeGap !== undefined ||
+        end.dir !== SIDE_DIR[end.side] ||
+        node.render !== undefined ||
+        node.image?.layers !== undefined ||
+        node.legend !== undefined ||
+        node.tokens !== undefined ||
+        node.matrix !== undefined ||
+        node.captionOf !== undefined ||
+        !SLIDING_SHAPES.has(node.shape) ||
+        // `fanIn: spread` (#134) set these ends side by side on purpose.
+        (ir.meta.fanIn === "spread" &&
+          (users.get(`${end.key}|${end.side}`) ?? []).some((e) => e !== end))
+      )
+        return undefined;
+      const straightSide = (side: Side) =>
+        node.shape !== "cylinder" || side === "east" || side === "west";
+      const sides: SideRange[] = [];
+      for (const side of [end.side, ...SIDES.filter((s) => s !== end.side)]) {
+        if (!straightSide(side) || (side === "south" && node.labelBelow === true)) continue;
+        const others = (users.get(`${end.key}|${side}`) ?? []).filter((e) => e !== end);
+        // Another side only if no other end uses it.
+        if (side !== end.side && others.length > 0) continue;
+        const vertical = side === "north" || side === "south";
+        const start = vertical ? rect.x : rect.y;
+        const span = vertical ? rect.width : rect.height;
+        const margin = Math.min(STRAIGHT_MARGIN, span / 2);
+        let lo = start + margin;
+        let hi = start + span - margin;
+        const here = along(end.port, side);
+        for (const other of others) {
+          const at = along(other.port, side);
+          if (at <= here) lo = Math.max(lo, at + 2 * ROUTE.clearance);
+          if (at >= here) hi = Math.min(hi, at - 2 * ROUTE.clearance);
+        }
+        if (side === end.side && (here < lo - 1e-9 || here > hi + 1e-9)) {
+          lo = here;
+          hi = here;
+        }
+        if (hi >= lo) sides.push({ side, lo, hi });
+      }
+      if (sides[0]?.side !== end.side) return undefined;
+      return {
+        sides,
+        at: (side, at) => {
+          const port = anchorPoint(rect, {
+            side,
+            offset:
+              side === "north" || side === "south"
+                ? (at - rect.x) / rect.width
+                : (at - rect.y) / rect.height,
+          });
+          const exact =
+            side === "north" || side === "south" ? { ...port, x: at } : { ...port, y: at };
+          return {
+            port: exact,
+            outline: outlineOf(node, rect, side, exact),
+            dir: SIDE_DIR[side],
+            side,
+          };
+        },
+      };
+    };
+    const simplifyEdges: SimplifyEdge[] = [];
+    const rooms = new Map<ElementKey, { from: number; to: number }>();
+    for (const edge of edges) {
+      const arrow = edgeArrowheadLength(edge.ir.style);
+      rooms.set(edge.ir.key, {
+        from:
+          edge.ir.sourceArrowhead === undefined
+            ? 0
+            : Math.max(edge.from.junction ? arrow : edge.fromLane, edge.fromRoom),
+        to:
+          edge.ir.targetArrowhead === undefined
+            ? 0
+            : Math.max(edge.to.junction ? arrow : edge.toLane, edge.toRoom),
+      });
+      if (!routes.has(edge.ir.key)) continue;
+      // An anchor at a corner (offset 0 or 1) draws a deliberate shape, such
+      // as a zoom callout's lines: left as routed (as `geometry/avoidable-bend`).
+      const corner = (a: EdgeIR["fromAnchor"]) =>
+        typeof a === "object" && (a.offset <= 0.001 || a.offset >= 0.999);
+      if (corner(edge.ir.fromAnchor) || corner(edge.ir.toAnchor)) continue;
+      const { from, to } = edge;
+      // A net of its own between two ports; or a line between a junction and
+      // a port no other edge uses, which may only be straightened (#604).
+      const junctions = Number(from.junction) + Number(to.junction);
+      if (junctions === 2 || (junctions === 0 && netSize.get(edge.net) !== 1)) continue;
+      if (junctions === 1) {
+        const port = from.junction ? to : from;
+        if (
+          port.dir < 0 ||
+          (pointUsers.get(`${port.key} ${port.port.x} ${port.port.y}`) ?? 0) !== 1
+        )
+          continue;
+      } else if (from.dir < 0 || to.dir < 0) continue;
+      if (edge.ir.from === edge.ir.to || inside(from.key, to.key) || inside(to.key, from.key))
+        continue;
+      const fromRect = rects.get(from.key);
+      const toRect = rects.get(to.key);
+      if (fromRect === undefined || toRect === undefined) continue;
+      const end = (e: End, rect: Rect, lane: number, room: number, written: boolean) => {
+        const free = freeEnd(e, written);
+        return {
+          key: e.key,
+          rect,
+          current: {
+            port: e.port,
+            outline: e.outline,
+            dir: e.dir,
+            ...(e.side && { side: e.side }),
+          },
+          lane,
+          room,
+          ...(free !== undefined && { free }),
+        };
+      };
+      simplifyEdges.push({
+        key: edge.ir.key,
+        from: end(from, fromRect, edge.fromLane, edge.fromRoom, edge.ir.fromAnchor !== undefined),
+        to: end(to, toRect, edge.toLane, edge.toRoom, edge.ir.toAnchor !== undefined),
+      });
+    }
+    if (simplifyEdges.length === 0) return edges;
+    const netOf = new Map(edges.map((e) => [e.ir.key, e.net]));
+    const changed = simplifyRoutes(simplifyEdges, {
+      nodes: this.#obstacles,
+      boxes: [
+        ...layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
+        ...captionBoxes(ir, layout),
+      ],
+      groups: layout.groups.map((g) => {
+        const element = ir.elements.get(g.key);
+        const group = element?.kind === "group" ? element : undefined;
+        return {
+          key: g.key,
+          rect: group === undefined ? g.rect : groupFrontRect(group, g.rect),
+          drawn:
+            group !== undefined &&
+            group.style.strokeWidth.units > 0 &&
+            group.style.stroke !== "transparent",
+        };
+      }),
+      routes,
+      rooms,
+      shares: (a, b) => netOf.get(a) === netOf.get(b),
+      inside,
+    });
+    if (changed.size === 0) return edges;
+    const moved = (e: End, t: Terminal): End => {
+      if (t.port.x === e.port.x && t.port.y === e.port.y && t.dir === e.dir) return e;
+      const { beforeGap: _, ...rest } = e;
+      return {
+        ...rest,
+        port: t.port,
+        outline: t.outline,
+        dir: t.dir,
+        ...(t.side && { side: t.side }),
+      };
+    };
+    return edges.map((edge) => {
+      const c = changed.get(edge.ir.key);
+      return c === undefined
+        ? edge
+        : { ...edge, from: moved(edge.from, c.from), to: moved(edge.to, c.to) };
+    });
   }
 
   /** Try all directions at arrowed junctions, with the same hard stub as a port. */

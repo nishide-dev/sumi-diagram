@@ -192,7 +192,9 @@ export function routeWithPlanes(
       nodes,
       edges: layout.edges.filter((e) => edges.some((x) => x.key === e.key)),
     };
-    const result = route(flatIR, flatLayout, options);
+    // Inside a plane the drawn result is the flat route skewed: removing
+    // bends there (#604) is left for later, so planes keep their drawing.
+    const result = route(flatIR, flatLayout, { ...options, simplify: false });
     diagnostics.push(...result.diagnostics);
     const frameMap = planeFrameOf(plane);
     const map = (p: Point): Point => {

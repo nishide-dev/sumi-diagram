@@ -129,7 +129,7 @@ describe("structured: #167 figures B and C on paper-double", () => {
     expect(diagnostics[4]?.message).toContain("(0.49mm between the lines)");
   });
 
-  test("C reports its existing micro-jogs and reports its scripts once, as information", async () => {
+  test("C reports its scripts once, as information (its micro-jog is routed away, #604)", async () => {
     const c = await render(readFileSync(join(FIT, "c-h3world.sumi.yaml"), "utf8"));
     const all = lintGeometry(c);
     expect(
@@ -149,7 +149,6 @@ describe("structured: #167 figures B and C on paper-double", () => {
       ["geometry/heavy-scaling", "info", "stage-c-h3world"],
       ["geometry/script-too-small", "info", "stage-c-h3world"],
       ["geometry/text-heavy-nodes", "info", "stage-c-h3world"],
-      ["geometry/edge-jog", "info", "edges[17]"],
       ["geometry/edge-label-on-corner", "info", "edges[19]"],
     ]);
     expect(diagnostics[1]?.message).toContain("down to 4.34pt (5.6pt shrunk to 77.4%");

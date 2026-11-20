@@ -29,6 +29,7 @@ import { strokePattern } from "../../render/stroke";
 import { arrowheadInset } from "../../render/structured";
 import { defineGeometryRule, type GeometryRule, type LintFinding } from "../rule";
 import { arrowheadStraightRun, paintedHeadLength } from "./arrowheads";
+import { avoidableBend } from "./avoidable";
 import { colorOnPanel, muddyColor, translucentOverColor } from "./color-composition";
 import { colorHarmony } from "./color-harmony";
 import { themeColorUse } from "./color-use";
@@ -2195,6 +2196,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   dashHidden,
   arrowheadCramped,
   edgeJog,
+  avoidableBend,
   zoomCrossesNode,
   edgeOnBorder,
   edgeNearBorder,
