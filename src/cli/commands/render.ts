@@ -30,6 +30,11 @@
  *   is written even when they contain errors (e.g. the figure is wider than
  *   the profile allows), so it can be inspected; the exit code is still 1.
  *   A failed conversion (`pdf/*` or `pptx/*` errors) writes no output.
+ * - `--explain-width` (#607): the natural-width tree of a structured figure
+ *   (`width-fit.ts`): every group's padding and content, every row's and
+ *   grid's gaps, the natural width of stretched items, `*` marking what sets
+ *   the width. Text to stderr; `--json` adds `widthTree` (`null` for an auto
+ *   figure or a failed render). One extra placement; the output is unchanged.
  * - exit: 0 rendered without errors (warnings allowed); 1 errors (including
  *   geometry errors, with the SVG written); 2 usage errors.
  */
@@ -51,6 +56,13 @@ import {
   lintGeometry,
   summarize,
 } from "../../lint";
+import { geometryContextFor } from "../../lint/geometry/lint";
+import {
+  explainWidth,
+  type WidthTreeJson,
+  widthTreeJson,
+  widthTreeLines,
+} from "../../lint/geometry/width-fit";
 import { type OutputSize, outputSize, printedSize, renderFigure } from "../../render";
 import { svgToPdf } from "../../render/pdf";
 import { type PptxConnectors, svgToEditablePptx, svgToPptx } from "../../render/pptx";
@@ -86,6 +98,8 @@ export interface RenderCommandOptions {
   json?: boolean;
   /** Run the geometry rules on the rendered figure (default; `--no-geometry` turns it off). */
   geometry?: boolean;
+  /** `--explain-width` (#607): report the natural-width tree. */
+  explainWidth?: boolean;
   color: boolean;
 }
 
@@ -105,6 +119,8 @@ export interface RenderJson extends LintJson {
    * the rendered figure uses any.
    */
   notices?: ThirdPartyNotice[];
+  /** With `--explain-width` (#607): the natural-width tree, or `null` (auto figure, failed render). */
+  widthTree?: WidthTreeJson | null;
 }
 
 /** Default output: the input's YAML suffix replaced by the output format. */
@@ -289,6 +305,9 @@ export async function renderCommand(
   }
   diagnostics.sort(compareDiagnostics);
   const summary = summarize(diagnostics);
+  const explained =
+    options.explainWidth && result.ok ? geometryContextFor(result.value) : undefined;
+  const tree = explained === undefined ? undefined : explainWidth(explained);
   if (options.json) {
     const json: RenderJson = {
       version: LINT_JSON_VERSION,
@@ -301,6 +320,7 @@ export async function renderCommand(
       format,
       ...(result.ok &&
         result.value.metadata.notices !== undefined && { notices: result.value.metadata.notices }),
+      ...(options.explainWidth && { widthTree: tree === undefined ? null : widthTreeJson(tree) }),
     };
     context.stdout.write(`${JSON.stringify(json, null, 2)}\n`);
   } else {
@@ -324,6 +344,18 @@ export async function renderCommand(
       );
     }
     if (d2Written !== null) log.write(`Wrote ${d2Written}.\n`);
+    if (options.explainWidth)
+      context.stderr.write(
+        tree === undefined
+          ? "Width: --explain-width needs a rendered structured figure.\n"
+          : `Width (natural widths before stretch; * sets the width):\n${widthTreeLines(
+              tree,
+              explained?.inspection.canvas.width.pt,
+              explained?.placed?.layout.margin,
+            )
+              .map((line) => `  ${line}\n`)
+              .join("")}`,
+      );
   }
   return result.ok && summary.errors === 0 ? EXIT.ok : EXIT.failed;
 }

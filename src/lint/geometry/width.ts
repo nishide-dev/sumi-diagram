@@ -7,6 +7,7 @@ import { printedSize } from "../../render/size";
 import type { GeometryContext, GeometryElement } from "./context";
 import { unionOf } from "./measure";
 import { verifyHints } from "./verified";
+import { describeFits, describeWidthPath, explainWidth, fitHints } from "./width-fit";
 
 interface Footprint {
   name: string;
@@ -175,10 +176,20 @@ export function widthBreakdown(context: GeometryContext): WidthBreakdown {
       if (nested) descend(nested);
     }
   };
+  // Structured: the natural widths the layout used (#607), so a stretched stack
+  // names the item that sets it rather than painting every item as wide.
+  const tree = structured ? explainWidth(context) : undefined;
+  const naturalPt = context.inspection.canvas.width.pt;
+  const layoutMargin = (context.placed?.layout ?? context.layout)?.margin;
+  if (tree)
+    head.push(
+      describeWidthPath(tree, naturalPt, layoutMargin === undefined ? undefined : layoutMargin / 2),
+    );
   if (widest) {
     descend(widest);
     const top = describeRun(widest, 3);
-    head.push(`Sets the width: ${widest.name} = ${mm(widest.rect.width)}; items ${top.items}.`);
+    if (!tree)
+      head.push(`Sets the width: ${widest.name} = ${mm(widest.rect.width)}; items ${top.items}.`);
     details.push(`Widest horizontal run: ${top.text}. Items: ${describeRun(widest, 6).items}.`);
   }
   for (const run of contributing.slice(1, 6)) {
@@ -257,7 +268,12 @@ export function widthBreakdown(context: GeometryContext): WidthBreakdown {
         `Legend "${widestLegend.id}" sets the width of the figure (${mm(widestLegend.rect.width)}, wider than everything else); flow: row with props.perRow wraps its entries onto more lines, and fewer or shorter entries narrow it.`,
       );
   }
-  head.push(verifyHints(context, "width", (trial) => trial.canvas.width));
+  const maxWidth = context.profile.maxWidthPt;
+  const fit =
+    tree && maxWidth !== undefined ? fitHints(context, tree, naturalPt - maxWidth) : undefined;
+  if (fit && maxWidth !== undefined) head.push(describeFits(fit, maxWidth));
+  // Edits that only narrow the figure (gap 0, …), when none was verified to fit.
+  if (!fit?.fits.length) head.push(verifyHints(context, "width", (trial) => trial.canvas.width));
   if (!structured)
     details.push(
       "Auto reports observed geometry only; overlapping x-ranges are merged, and ELK layer spacing is not exposed.",

@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { printedSize } from "../../render/size";
-import { lintGeometry, lintRenderedFigure } from "./lint";
+import { geometryContextFor, lintGeometry, lintRenderedFigure } from "./lint";
 import { compile, label, lintSpec } from "./testing";
+import { verifyHints } from "./verified";
 
 const source = (arrange: string, extra = "") => `version: 1
 figure:
@@ -92,9 +93,12 @@ describe("page width attribution (#307)", () => {
       expect(fullText(found)).toContain(`Descendant run: group "g".arrange.${kind}`);
       expect(fullText(found)).toContain('node "a" 52.92mm');
       expect(fullText(found)).toContain('node "b" 52.92mm');
+      // No single value can remove 47mm: the gap, the padding and the widths together (#607).
       expect(fullText(found)).toContain(
-        `set group "g".arrange.${kind}.${kind === "grid" ? "columnGap" : "gap"} to 0mm (page width reduced by 20.11mm)`,
+        `set group "g".arrange.${kind}.${kind === "grid" ? "columnGap" : "gap"} to `,
       );
+      expect(fullText(found)).toContain('set props.padding of group "g" to ');
+      expect(fullText(found)).toMatch(/\(together\) → 8\d\.\d+mm/);
       const reduction =
         printedSize(before.rendered.inspection).widthPt -
         printedSize(tighter.rendered.inspection).widthPt;
@@ -188,9 +192,14 @@ describe("page width attribution (#307)", () => {
     expect(printedSize(shorter.rendered.inspection).widthPt).toBe(width);
     expect(width - printedSize(tighter.rendered.inspection).widthPt).toBeGreaterThan(56);
     const found = before.diagnostics.find((d) => d.code === "geometry/exceeds-page-width");
+    // The gap alone cannot remove the overflow; node "a" cannot get narrower than its label.
     expect(fullText(found)).toContain(
-      "set figure.layout.arrange.row.gap to 0mm (page width reduced by",
+      'set props.width of node "b" to 11mm (now 52.92mm) → 87.84mm',
     );
+    expect(fullText(found)).not.toContain('node "a" to');
+    expect(
+      verifyHints(geometryContextFor(before.rendered), "width", (c) => c.canvas.width),
+    ).toContain("set figure.layout.arrange.row.gap to 0mm (page width reduced by");
     expect(fullText(found)).not.toContain("shorten or wrap the label");
   });
 
@@ -322,7 +331,7 @@ nodes:
     expect(fullText(found)).toContain("figure.layout.arrange.row = 107.25mm");
     expect(fullText(found)).toContain("12mm observed gaps");
     expect(fullText(found)).toContain('node "b" 52.92mm');
-    expect(fullText(found)).toContain("Verified layout edits");
+    expect(fullText(found)).toContain("Fits 88mm");
     expect(report.exitCode).toBe(1);
   });
 
@@ -346,8 +355,10 @@ nodes:
     const hint = found?.hint ?? "";
     const order = [
       "Width to remove: ",
-      "Sets the width: figure.layout.arrange.stack.items[0].row = ",
-      "Verified layout edits",
+      "Width path (natural widths, before stretch): ",
+      "figure.layout.arrange.stack.items[0].row 130.42mm",
+      "Widest contributor: ",
+      "Fits 88mm",
       "Sumi never shrinks",
     ].map((part) => hint.indexOf(part));
     expect(order.every((i) => i >= 0)).toBe(true);
@@ -360,7 +371,7 @@ nodes:
       "Grid spans and overlapping",
     ])
       expect(hint).not.toContain(detail);
-    expect(hint.length).toBeLessThan(900);
+    expect(hint.length).toBeLessThan(1400);
     const notes = (found?.related ?? []).map((r) => r.message).join("\n");
     expect(notes).toContain("Widest horizontal run: figure.layout.arrange.stack.items[0].row");
     expect(notes).toContain(
