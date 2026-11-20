@@ -356,4 +356,62 @@ describe("not simpler", () => {
       if (points !== undefined) expect(points).not.toHaveLength(2);
     });
   });
+
+  test("a side one edge takes is not free for the next (sides are read in turn)", () => {
+    // Two sources above-left of t, each in a staircase into t's west side; an
+    // L into t's free north side would mend either, but only one may take it.
+    const T: Rect = { x: 200, y: 100, width: 80, height: 40 };
+    const A1: Rect = { x: 0, y: 0, width: 40, height: 20 };
+    const A2: Rect = { x: 60, y: 30, width: 40, height: 20 };
+    const taken = new Map<string, number[]>(); // side → positions in use on t
+    // Each would take its own stretch of the north side (kept apart, as the
+    // router keeps ports spaced), so the two L's do not meet.
+    const tEnd = (name: string, along: number, lo: number, hi: number): SimplifyEnd => ({
+      ...end(name, T, "west", along),
+      key: key("t"),
+      free: {
+        get sides() {
+          const used = taken.get("north") ?? [];
+          const sides: { side: Side; lo: number; hi: number }[] = [
+            { side: "west", lo: along, hi: along },
+          ];
+          if (used.length === 0) sides.push({ side: "north", lo, hi });
+          return sides;
+        },
+        at: (s: Side, at: number) => terminal(T, s, at),
+      },
+    });
+    const stairs = (from: Rect, y: number): Point[] => [
+      { x: from.x + from.width, y: from.y + 10 },
+      { x: from.x + from.width + 10, y: from.y + 10 },
+      { x: from.x + from.width + 10, y: y - 4 },
+      { x: 150, y: y - 4 },
+      { x: 150, y },
+      { x: 200, y },
+    ];
+    const edges: SimplifyEdge[] = [
+      { key: key("e1"), from: end("a1", A1, "east", 10), to: tEnd("t1", 110, 250, 274) },
+      { key: key("e2"), from: end("a2", A2, "east", 40), to: tEnd("t2", 130, 206, 230) },
+    ];
+    const s = scene({ e1: stairs(A1, 110), e2: stairs(A2, 130) }, { a1: A1, a2: A2, t: T });
+    const sidesTaken: string[] = [];
+    const changed = simplifyRoutes(edges, s, (_k, result) => {
+      if (result.to.side === "north") {
+        sidesTaken.push(result.to.side);
+        taken.set("north", [...(taken.get("north") ?? []), result.to.port.x]);
+      }
+    });
+    expect(changed.size).toBeGreaterThan(0);
+    // Only the first edge takes the north side.
+    expect(sidesTaken).toEqual(["north"]);
+    expect(changed.get(key("e1"))?.to.side).toBe("north");
+    expect(changed.get(key("e2"))?.to.side ?? "west").toBe("west");
+    // Without the update both would take it: the case is a real contest.
+    taken.clear();
+    const stale = simplifyRoutes(
+      edges,
+      scene({ e1: stairs(A1, 110), e2: stairs(A2, 130) }, { a1: A1, a2: A2, t: T }),
+    );
+    expect([...stale.values()].map((r) => r.to.side)).toEqual(["north", "north"]);
+  });
 });

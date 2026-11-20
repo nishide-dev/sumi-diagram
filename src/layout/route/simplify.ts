@@ -88,6 +88,10 @@ export interface SimplifyEnd {
    * sides). The current side comes first.
    */
   readonly free?: {
+    /**
+     * Read when the edge's turn comes: the caller keeps it up to date with
+     * the ends earlier edges moved (`simplifyRoutes`' `onChange`).
+     */
     readonly sides: readonly SideRange[];
     /** The end at `along` on `side`. */
     readonly at: (side: Side, along: number) => Terminal;
@@ -628,6 +632,12 @@ function clearanceOf(
 export function simplifyRoutes(
   edges: readonly SimplifyEdge[],
   scene: SimplifyScene,
+  /**
+   * Called after each replaced route, before the next edge: the caller moves
+   * the edge's ends in what it knows (the sides and points ends use), which
+   * the next edges' `free.sides` read.
+   */
+  onChange?: (key: ElementKey, result: Simplified) => void,
 ): Map<ElementKey, Simplified> {
   const changed = new Map<ElementKey, Simplified>();
   // Every route's segments and bounding box, kept up to date as routes change.
@@ -652,6 +662,7 @@ export function simplifyRoutes(
     scene.routes.set(edge.key, result.points);
     cached(edge.key, result.points);
     changed.set(edge.key, result);
+    onChange?.(edge.key, result);
   }
   return changed;
 }

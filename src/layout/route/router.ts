@@ -118,6 +118,7 @@ import {
 } from "./ports";
 import {
   type SideRange,
+  type Simplified,
   type SimplifyEdge,
   type SimplifyEnd,
   simplifyRoutes,
@@ -816,33 +817,40 @@ class Router {
         return undefined;
       const straightSide = (side: Side) =>
         node.shape !== "cylinder" || side === "east" || side === "west";
-      const sides: SideRange[] = [];
-      for (const side of [end.side, ...SIDES.filter((s) => s !== end.side)]) {
-        if (!straightSide(side) || (side === "south" && node.labelBelow === true)) continue;
-        const others = (users.get(`${end.key}|${side}`) ?? []).filter((e) => e !== end);
-        // Another side only if no other end uses it.
-        if (side !== end.side && others.length > 0) continue;
-        const vertical = side === "north" || side === "south";
-        const start = vertical ? rect.x : rect.y;
-        const span = vertical ? rect.width : rect.height;
-        const margin = Math.min(STRAIGHT_MARGIN, span / 2);
-        let lo = start + margin;
-        let hi = start + span - margin;
-        const here = along(end.port, side);
-        for (const other of others) {
-          const at = along(other.port, side);
-          if (at <= here) lo = Math.max(lo, at + 2 * ROUTE.clearance);
-          if (at >= here) hi = Math.min(hi, at - 2 * ROUTE.clearance);
+      // The sides and positions free now: read when the edge's turn comes,
+      // after the edges before it may have moved their ends (`moveEnds`).
+      const freeSides = (): SideRange[] => {
+        const sides: SideRange[] = [];
+        for (const side of [end.side as Side, ...SIDES.filter((s) => s !== end.side)]) {
+          if (!straightSide(side) || (side === "south" && node.labelBelow === true)) continue;
+          const others = (users.get(`${end.key}|${side}`) ?? []).filter((e) => e !== end);
+          // Another side only if no other end uses it.
+          if (side !== end.side && others.length > 0) continue;
+          const vertical = side === "north" || side === "south";
+          const start = vertical ? rect.x : rect.y;
+          const span = vertical ? rect.width : rect.height;
+          const margin = Math.min(STRAIGHT_MARGIN, span / 2);
+          let lo = start + margin;
+          let hi = start + span - margin;
+          const here = along(end.port, side);
+          for (const other of others) {
+            const at = along(other.port, side);
+            if (at <= here) lo = Math.max(lo, at + 2 * ROUTE.clearance);
+            if (at >= here) hi = Math.min(hi, at - 2 * ROUTE.clearance);
+          }
+          if (side === end.side && (here < lo - 1e-9 || here > hi + 1e-9)) {
+            lo = here;
+            hi = here;
+          }
+          if (hi >= lo) sides.push({ side, lo, hi });
         }
-        if (side === end.side && (here < lo - 1e-9 || here > hi + 1e-9)) {
-          lo = here;
-          hi = here;
-        }
-        if (hi >= lo) sides.push({ side, lo, hi });
-      }
-      if (sides[0]?.side !== end.side) return undefined;
+        return sides[0]?.side === end.side ? sides : [];
+      };
+      if (freeSides().length === 0) return undefined;
       return {
-        sides,
+        get sides() {
+          return freeSides();
+        },
         at: (side, at) => {
           const port = anchorPoint(rect, {
             side,
@@ -924,39 +932,8 @@ class Router {
     }
     if (simplifyEdges.length === 0) return edges;
     const netOf = new Map(edges.map((e) => [e.ir.key, e.net]));
-    const changed = simplifyRoutes(simplifyEdges, {
-      nodes: this.#obstacles.map((o) => {
-        const node = nodeIR.get(o.key);
-        // Annotation text: a label attached to a node, or a caption.
-        const soft =
-          node !== undefined &&
-          ((node.attach !== undefined && node.shape === "text") || node.captionOf !== undefined);
-        if (!soft) return o;
-        const label = this.#layout.nodes.find((n) => n.key === o.key)?.label;
-        return { ...o, soft, ...(label !== undefined && { lines: textLines(label) }) };
-      }),
-      boxes: [
-        ...layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
-        ...captionBoxes(ir, layout),
-      ],
-      groups: layout.groups.map((g) => {
-        const element = ir.elements.get(g.key);
-        const group = element?.kind === "group" ? element : undefined;
-        return {
-          key: g.key,
-          rect: group === undefined ? g.rect : groupFrontRect(group, g.rect),
-          drawn:
-            group !== undefined &&
-            group.style.strokeWidth.units > 0 &&
-            group.style.stroke !== "transparent",
-        };
-      }),
-      routes,
-      rooms,
-      shares: (a, b) => netOf.get(a) === netOf.get(b),
-      inside,
-    });
-    if (changed.size === 0) return edges;
+    /** The ends of each edge as they are now. */
+    const ends = new Map(edges.map((e) => [e.ir.key, { from: e.from, to: e.to }] as const));
     const moved = (e: End, t: Terminal): End => {
       if (t.port.x === e.port.x && t.port.y === e.port.y && t.dir === e.dir) return e;
       const { beforeGap: _, ...rest } = e;
@@ -968,11 +945,70 @@ class Router {
         ...(t.side && { side: t.side }),
       };
     };
+    /** After an edge's ends move: the sides and points they leave are free, the new ones taken. */
+    const moveEnds = (key: ElementKey, result: Simplified) => {
+      const before = ends.get(key);
+      if (before === undefined) return;
+      const after = { from: moved(before.from, result.from), to: moved(before.to, result.to) };
+      for (const [old, now] of [
+        [before.from, after.from],
+        [before.to, after.to],
+      ] as const) {
+        if (old === now || old.junction) continue;
+        const was = `${old.key}|${old.side}`;
+        users.set(
+          was,
+          (users.get(was) ?? []).filter((e) => e !== old),
+        );
+        const id = `${now.key}|${now.side}`;
+        users.set(id, [...(users.get(id) ?? []), now]);
+        const oldPoint = `${old.key} ${old.port.x} ${old.port.y}`;
+        pointUsers.set(oldPoint, (pointUsers.get(oldPoint) ?? 1) - 1);
+        const newPoint = `${now.key} ${now.port.x} ${now.port.y}`;
+        pointUsers.set(newPoint, (pointUsers.get(newPoint) ?? 0) + 1);
+      }
+      ends.set(key, after);
+    };
+    const changed = simplifyRoutes(
+      simplifyEdges,
+      {
+        nodes: this.#obstacles.map((o) => {
+          const node = nodeIR.get(o.key);
+          // Annotation text: a label attached to a node, or a caption.
+          const soft =
+            node !== undefined &&
+            ((node.attach !== undefined && node.shape === "text") || node.captionOf !== undefined);
+          if (!soft) return o;
+          const label = this.#layout.nodes.find((n) => n.key === o.key)?.label;
+          return { ...o, soft, ...(label !== undefined && { lines: textLines(label) }) };
+        }),
+        boxes: [
+          ...layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
+          ...captionBoxes(ir, layout),
+        ],
+        groups: layout.groups.map((g) => {
+          const element = ir.elements.get(g.key);
+          const group = element?.kind === "group" ? element : undefined;
+          return {
+            key: g.key,
+            rect: group === undefined ? g.rect : groupFrontRect(group, g.rect),
+            drawn:
+              group !== undefined &&
+              group.style.strokeWidth.units > 0 &&
+              group.style.stroke !== "transparent",
+          };
+        }),
+        routes,
+        rooms,
+        shares: (a, b) => netOf.get(a) === netOf.get(b),
+        inside,
+      },
+      moveEnds,
+    );
+    if (changed.size === 0) return edges;
     return edges.map((edge) => {
-      const c = changed.get(edge.ir.key);
-      return c === undefined
-        ? edge
-        : { ...edge, from: moved(edge.from, c.from), to: moved(edge.to, c.to) };
+      const now = ends.get(edge.ir.key);
+      return now === undefined || !changed.has(edge.ir.key) ? edge : { ...edge, ...now };
     });
   }
 

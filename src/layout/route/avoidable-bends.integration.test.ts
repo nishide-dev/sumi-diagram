@@ -313,7 +313,10 @@ edges:
     const hint = avoidable(value)[0]?.hint ?? "";
     const from = /fromAnchor "(east:[\d.]+|east)"/.exec(hint)?.[1];
     const to = /toAnchor "(west:[\d.]+|west)"/.exec(hint)?.[1];
-    if (from !== undefined && to !== undefined) {
+    // The span has a clear line the decimals can name: the hint gives it.
+    expect(from).toBeDefined();
+    expect(to).toBeDefined();
+    {
       const fixed = await render(
         source(`{from: a, to: b, fromAnchor: "${from}", toAnchor: "${to}"}`),
       );
