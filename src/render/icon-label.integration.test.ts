@@ -5,11 +5,15 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { iconGap, iconSize } from "../assets/draw";
 import { compileFigure } from "../compiler/compile";
-import { lintGeometry } from "../lint";
+import { lintFigure, lintGeometry } from "../lint";
+import { geometryContextFor } from "../lint/geometry/lint";
 import { svgToPdf } from "./pdf";
+import { inspectPdf } from "./pdf/testing";
 import { svgToPptx } from "./pptx";
+import { svgToEditablePptx } from "./pptx/editable";
 import { readPptx } from "./pptx/testing";
 import { renderFigure } from "./render";
 
@@ -212,43 +216,179 @@ nodes:
     expect(lintGeometry(out, { source: PAIR }).filter((d) => d.severity !== "info")).toEqual([]);
   });
 
-  test("an icon-label node too small for both is reported by label-overflow", async () => {
+  // SHA-256 of the SVG (input hash and version attributes stripped) that origin/main (e0fd373b)
+  // drew for this icon-only figure: icon-only nodes must keep drawing exactly that.
+  test("icon-only nodes are drawn exactly as origin/main drew them", async () => {
+    const out = await render(`version: 1
+figure:
+  id: icon-only
+  theme: color
+  profile: paper-single
+  layout: { arrange: { row: { gap: 8mm, align: center, items: [a, b, c] } } }
+nodes:
+  - { id: a, component: box, icon: tabler/database }
+  - { id: b, component: label, icon: tabler/robot, iconSize: 2, tone: blue }
+  - { id: c, component: box, label: Plain }
+`);
+    const hash = createHash("sha256")
+      .update(
+        out.svg
+          .replace(/input-sha256="[^"]*"/, "")
+          .replace(/(sumi-version|backend-version)="[^"]*"/g, '$1="X"'),
+      )
+      .digest("hex");
+    expect(hash).toBe("cd9e81c4405526682997be2382e6abfe4f01b133d1e3988a9c23d0504f6448be");
+    expect(out.compiled.ir.nodes.map((n) => n.iconAt)).toEqual([undefined, undefined, undefined]);
+  });
+});
+
+describe("alignment and one shared geometry", () => {
+  const wide = (at: string, align: string, label = "Database") =>
+    figure(
+      `  - { id: a, component: box, label: ${JSON.stringify(label)}, icon: tabler/database, iconAt: ${at}, textAlign: ${align}, props: { width: 60mm } }\n  - { id: b, component: box, label: B }`,
+    );
+
+  test.each([
+    ["left", "left"],
+    ["left", "right"],
+    ["left", "center"],
+    ["top", "left"],
+    ["top", "right"],
+    ["top", "center"],
+  ])(
+    "iconAt %s with textAlign %s keeps icon and text inside the node, as one group",
+    async (at, align) => {
+      const source = wide(at, align);
+      const out = await render(source);
+      const node = out.layout.nodes.find((n) => n.key === "n:a");
+      const ir = out.compiled.ir.nodes[0];
+      if (node?.label === undefined || ir === undefined) throw new Error("no node");
+      const icon = iconGroups(out.svg)[0];
+      const side = iconSize(ir);
+      const iconRect = { x: icon?.x ?? 0, y: icon?.y ?? 0, width: side, height: side };
+      const l = node.label.box;
+      const r = node.rect;
+      for (const box of [iconRect, l]) {
+        expect(box.x).toBeGreaterThanOrEqual(r.x);
+        expect(box.x + box.width).toBeLessThanOrEqual(r.x + r.width);
+      }
+      if (align === "left") {
+        // The group starts at the left inset: the icon (left) or the wider of icon and text (top).
+        expect(Math.min(iconRect.x, l.x)).toBeLessThan(r.x + r.width / 4);
+      }
+      if (align === "right") {
+        expect(Math.max(iconRect.x + side, l.x + l.width)).toBeGreaterThan(r.x + (3 * r.width) / 4);
+      }
+      expect(lintGeometry(out, { source }).map((d) => d.code)).not.toContain(
+        "geometry/label-overflow",
+      );
+    },
+  );
+
+  test.each([
+    ["one line", "Database"],
+    ["two lines", "Data\nbase"],
+    ["a blank line", "Data\n\nbase"],
+  ])("the lint places the icon where the SVG draws it: %s", async (_name, label) => {
+    for (const at of ["left", "top"]) {
+      const out = await render(
+        figure(
+          `  - { id: a, component: box, label: ${JSON.stringify(label)}, sublabel: sub, icon: tabler/database, iconAt: ${at} }\n  - { id: b, component: box, label: B }`,
+        ),
+      );
+      const context = geometryContextFor(out as never);
+      const element = context.elements.find((e) => e.key === "n:a");
+      const linted = element?.labels.at(-1)?.box;
+      const icon = iconGroups(out.svg)[0];
+      const side = iconSize(out.compiled.ir.nodes[0] as never);
+      // The SVG writes the translation to 0.1 unit.
+      expect(Math.abs((linted?.x ?? Number.NaN) - (icon?.x ?? 0))).toBeLessThan(0.06);
+      expect(Math.abs((linted?.y ?? Number.NaN) - (icon?.y ?? 0))).toBeLessThan(0.06);
+      expect(linted?.width).toBeCloseTo(side, 2);
+    }
+  });
+});
+
+describe("lint sees the icon", () => {
+  test("text that fits but an icon that does not is label-overflow", async () => {
     const source = figure(
-      "  - { id: a, component: box, label: Database, icon: tabler/database, props: { width: 20pt, height: 14pt } }\n  - { id: b, component: box, label: B }",
+      "  - { id: a, component: box, label: Hi, icon: tabler/database, iconSize: 6, props: { width: 40mm, height: 8mm } }\n  - { id: b, component: box, label: B }",
     );
     const out = await render(source);
-    expect(lintGeometry(out, { source }).map((d) => d.code)).toContain("geometry/label-overflow");
+    const text = lintGeometry(out, { source }).find((d) => d.code === "geometry/label-overflow");
+    expect(text).toBeDefined();
+    // Without the icon the same box holds its label.
+    const plain = figure(
+      "  - { id: a, component: box, label: Hi, props: { width: 40mm, height: 8mm } }\n  - { id: b, component: box, label: B }",
+    );
+    expect(lintGeometry(await render(plain), { source: plain }).map((d) => d.code)).not.toContain(
+      "geometry/label-overflow",
+    );
   });
 
-  test("an icon-only node keeps its size, so existing figures are unchanged", async () => {
-    const out = await render(
-      figure(
-        "  - { id: a, component: box, icon: tabler/database }\n  - { id: b, component: box, label: B }",
-      ),
+  test("an icon that sticks out of its node over a neighbour's label is label-collision", async () => {
+    const source = `version: 1
+figure:
+  id: collide
+  theme: color
+  profile: paper-single
+  layout: { arrange: { row: { gap: 0mm, align: center, items: [b, a] } } }
+nodes:
+  - { id: b, component: label, label: Neighbour }
+  - { id: a, component: box, label: Hi, icon: tabler/database, iconSize: 4, props: { width: 12mm, height: 20mm } }
+`;
+    const out = await render(source);
+    const codes = lintGeometry(out, { source }).map((d) => d.code);
+    expect(codes).toContain("geometry/label-collision");
+  });
+
+  test("lint/icon-enclosure: an icon-only plain box is reported, a labelled one is not", () => {
+    const codes = (node: string) =>
+      lintFigure(`version: 1\nfigure: { id: s }\nnodes: [${node}]\n`).diagnostics.map(
+        (d) => d.code,
+      );
+    expect(codes("{ id: a, component: box, icon: tabler/flame }")).toContain("lint/icon-enclosure");
+    expect(codes("{ id: a, component: box, label: Fire, icon: tabler/flame }")).not.toContain(
+      "lint/icon-enclosure",
     );
-    const em = out.compiled.ir.nodes[0]?.style.fontSize.units as number;
-    const rect = out.layout.nodes[0]?.rect;
-    expect(rect?.width).toBeGreaterThan(em);
-    expect(out.compiled.ir.nodes[0]?.iconAt).toBeUndefined();
+    expect(
+      codes("{ id: a, component: box, label: Fire, icon: tabler/flame, iconAt: top }"),
+    ).not.toContain("lint/icon-enclosure");
   });
 });
 
 describe("formats", () => {
-  test("PDF and picture PPTX are built from the same SVG, emoji keep their colours", async () => {
-    const source = figure(`  - { id: a, component: box, label: Store, icon: emoji/fire }
+  const source = figure(`  - { id: a, component: box, label: Store, icon: emoji/fire }
   - { id: b, component: box, label: Tool, icon: tabler/tool }`);
+
+  test("PDF carries the icon paths and picture PPTX the colours", async () => {
     const out = await render(source);
-    expect(out.svg).toContain('class="sumi-icon"');
+    const bare = await render(
+      figure(
+        `  - { id: a, component: box, label: Store }\n  - { id: b, component: box, label: Tool }`,
+      ),
+    );
     const pdf = svgToPdf(out.svg);
+    const pdfBare = svgToPdf(bare.svg);
     const pptx = svgToPptx(out.svg);
-    if (!pdf.ok || !pptx.ok) throw new Error("conversion failed");
-    expect(pdf.value.length).toBeGreaterThan(0);
+    if (!pdf.ok || !pdfBare.ok || !pptx.ok) throw new Error("conversion failed");
+    // The Tabler icon strokes its lines: more stroked paths than the same figure without icons.
+    expect(inspectPdf(pdf.value).strokes.length).toBeGreaterThan(
+      inspectPdf(pdfBare.value).strokes.length,
+    );
     const picture = [...readPptx(pptx.value).entries()].find(([name]) => name.endsWith(".svg"));
     const text = new TextDecoder().decode(picture?.[1]);
-    // The emoji keep fill colours of their own in the picture too; the Tabler icon strokes the text colour.
+    // The emoji keep fill colours of their own; the Tabler icon strokes the text colour.
     expect(text).toContain("#ff6723");
     expect(text).toContain('stroke="#1f2328"');
     expect(out.svg).toContain("#ff6723");
+  });
+
+  test("the editable PPTX refuses the icon like an icon-only node", async () => {
+    const out = await render(source);
+    const result = svgToEditablePptx(out.svg, out.compiled.ir);
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((d) => d.code)).toContain("pptx/unsupported-asset");
   });
 });
 
@@ -285,5 +425,43 @@ ${nodes(specs)}
     expect(await codes(["tabler/user", "tabler/user", "tabler/user", ""])).not.toContain(
       "geometry/icon-overuse",
     );
+  });
+
+  test("the 80% share is inclusive and the minimum is six nodes", async () => {
+    const icons = (n: number, total: number) =>
+      Array.from({ length: total }, (_, i) => (i < n ? "tabler/user" : ""));
+    // 8 of 10 is exactly 80%.
+    expect(await codes(icons(8, 10))).toContain("geometry/icon-overuse");
+    expect(await codes(icons(7, 10))).not.toContain("geometry/icon-overuse");
+    // Six nodes are enough; five are not, even when all draw icons.
+    expect(await codes(icons(5, 6))).toContain("geometry/icon-overuse");
+    expect(await codes(icons(5, 5))).not.toContain("geometry/icon-overuse");
+  });
+
+  test("badges and legend samples are not node icons", async () => {
+    const badged = `version: 1
+figure: { id: s, theme: color, profile: paper-double, layout: { arrange: { row: { gap: 3mm, items: [n0, n1, n2, n3, n4, n5] } } } }
+nodes:
+${Array.from({ length: 6 }, (_, i) => `  - { id: n${i}, component: box, label: L${i}, badge: { icon: emoji/fire, corner: north-east }${i === 0 ? ", icon: tabler/user" : ""} }`).join("\n")}
+`;
+    const out = await render(badged);
+    const found = lintGeometry(out, { source: badged }).map((d) => d.code);
+    expect(found).not.toContain("geometry/icon-overuse");
+    expect(found).not.toContain("geometry/icon-family-mix");
+    const legend = `version: 1
+figure: { id: lg, theme: paper, profile: paper-double, layout: { arrange: { stack: { gap: 5mm, align: start, items: [a, b, key] } } } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      entries:
+${["tabler/database", "tabler/cpu", "emoji/fire", "tabler/user", "tabler/flame", "tabler/brain"].map((n) => `        - { icon: ${n}, label: ${n.split("/")[1]} }`).join("\n")}
+`;
+    const legendFound = lintGeometry(await render(legend), { source: legend }).map((d) => d.code);
+    expect(legendFound).not.toContain("geometry/icon-overuse");
+    expect(legendFound).not.toContain("geometry/icon-family-mix");
   });
 });

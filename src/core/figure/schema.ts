@@ -1095,7 +1095,7 @@ export const NodeSchema = z.strictObject({
       "A bundled icon, drawn alone when the node has no label, or beside the label (see iconAt), e.g. tabler/wave-sine (text color) or emoji/fire (original multicolour palette).",
     ),
   iconSize: IconSize.optional().describe(
-    'Side of the icon square (needs icon): a number is a multiple of the node\'s font size ("em", e.g. 2), a string is a length with a unit (e.g. "12mm"). Omitted means 1 em. Draws a larger icon without an enclosing shape; a label node is sized to the icon.',
+    'Side of the icon square (needs icon): a number is a multiple of the node\'s font size ("em", e.g. 2), a string is a length with a unit (e.g. "12mm"). Omitted means 1 em for an icon alone, 1.2 em beside a label with iconAt left and 1.8 em with iconAt top. Draws a larger icon without an enclosing shape; a label node is sized to the icon.',
   ),
   iconAt: z
     .enum(ICON_PLACEMENTS)

@@ -112,9 +112,10 @@ An icon names a **concrete actor or object**; it does not decorate a step.
 - **One family per figure**: Tabler (outline, takes the text colour or a tone; the
   quiet default) or emoji (full colour, friendly). Do not mix them
   (`geometry/icon-family-mix`, info) unless the mix is the point.
-- Size and placement: the default 1 em next to the text reads best; use `iconSize`
-  1.25 to 2 for a card, never a frame around the icon. `iconAt: left` for a column
-  or row of components, `top` for a card or an actor with a short label.
+- Size and placement: beside a label the default is 1.2 em for
+  `iconAt: left` (a column or row of components) and 1.8 em for `top` (a card or an
+  actor with a short label); set `iconSize` only to change that, never wrap the icon in
+  a frame to enlarge it.
 - Search the name with `sumi catalog --icons`; these exist in the bundle:
 
 | Concept | Tabler icon |

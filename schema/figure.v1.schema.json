@@ -527,7 +527,7 @@
             "pattern": "^([a-z][a-z0-9]*)\\/([a-z0-9]+(?:-[a-z0-9]+)*)$"
           },
           "iconSize": {
-            "description": "Side of the icon square (needs icon): a number is a multiple of the node's font size (\"em\", e.g. 2), a string is a length with a unit (e.g. \"12mm\"). Omitted means 1 em. Draws a larger icon without an enclosing shape; a label node is sized to the icon.",
+            "description": "Side of the icon square (needs icon): a number is a multiple of the node's font size (\"em\", e.g. 2), a string is a length with a unit (e.g. \"12mm\"). Omitted means 1 em for an icon alone, 1.2 em beside a label with iconAt left and 1.8 em with iconAt top. Draws a larger icon without an enclosing shape; a label node is sized to the icon.",
             "anyOf": [
               {
                 "type": "number",

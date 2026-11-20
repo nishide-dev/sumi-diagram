@@ -16,7 +16,7 @@ import type { FontSet } from "../../core/theme/fonts";
 import { sampleCubic } from "../../layout/route/cubic";
 import type { Point, Rect } from "../../render/geometry";
 import type { ProfileLimits, SetGeometry, SvgInspection } from "../../render/inspect";
-import { type MeasuredLabel, measureLabel, unionOf } from "./measure";
+import { layoutBoxOf, type MeasuredLabel, measureLabel, unionOf } from "./measure";
 import { outlineRegions } from "./outlines";
 import { type DrawnShape, flattenPath, labelArea, type Region, shapeOutline } from "./shapes";
 
@@ -120,7 +120,10 @@ function nameOf(element: ElementIR): string {
 /** An icon's square as a one-line label without text (1 em or `iconSize`, where `iconRect()` draws it). */
 function iconAsLabel(node: NodeIR, box: Rect, texts: readonly MeasuredLabel[] = []): MeasuredLabel {
   // Beside the label (#605) the icon sits next to the measured text block, as `assetMarkup()` draws it.
-  const boxes = texts.flatMap((t) => (t.box === undefined ? [] : [t.box]));
+  const boxes = texts.flatMap((t) => {
+    const layout = layoutBoxOf(t);
+    return layout === undefined ? [] : [layout];
+  });
   const block = unionOf(boxes);
   const rect =
     node.iconAt !== undefined && block !== undefined
