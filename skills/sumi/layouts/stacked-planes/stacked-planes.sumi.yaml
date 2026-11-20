@@ -15,8 +15,7 @@
 #   30 flattens the planes, `depthScale` their depth). Keep twins at the same (x, y) in every plane
 #   so the lines are parallel, then run `lint --geometry`: a line must still clear the nodes it
 #   passes (floors stacked one above the other do here; `plane: wall` does not).
-# Lint: `lint --geometry` 0 errors, 0 warnings; the two `color-on-panel` infos are expected (tinted nodes
-#   on the plane's shaded sumi fill, the look the sumi theme is made for).
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:
   id: stacked-planes

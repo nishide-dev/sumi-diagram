@@ -15,8 +15,7 @@
 #   a larger `depthScale` or `angle` makes the planes taller and the shapes less flat, which also
 #   makes room for labels); the plane count. A node with a written `width` / `height` does not grow:
 #   its label must fit by itself.
-# Lint: `lint --geometry` 0 errors, 0 warnings; the two `color-on-panel` infos are expected (tinted nodes
-#   on the plane's shaded sumi fill, the look the sumi theme is made for).
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
 version: 1
 figure:
   id: projected-planes

@@ -13,6 +13,8 @@ version: 1
 figure:
   id: fan
   theme: sumi
+  # The sand panel (white since #608) marks the frames these tests measure.
+  themeOverrides: {groupFill: "#efeddd"}
   profile: paper-double
   layout:
     arrange:
@@ -38,6 +40,8 @@ version: 1
 figure:
   id: skips
   theme: sumi
+  # The sand panel (white since #608) marks the frames these tests measure.
+  themeOverrides: {groupFill: "#efeddd"}
   profile: paper-single
   layout:
     arrange: {stack: {direction: up, gap: 4mm, align: stretch, items: [a1, a2, a3, m, b3, b2, b1]}}
@@ -136,6 +140,8 @@ version: 1
 figure:
   id: fan-in
   theme: sumi
+  # The sand panel (white since #608) marks the frames these tests measure.
+  themeOverrides: {groupFill: "#efeddd"}
   profile: paper-double
   layout:
     arrange:
@@ -175,6 +181,8 @@ version: 1
 figure:
   id: u-turn
   theme: sumi
+  # The sand panel (white since #608) marks the frames these tests measure.
+  themeOverrides: {groupFill: "#efeddd"}
   profile: paper-double
   layout:
     arrange:
@@ -362,9 +370,10 @@ edges:
             const text = source
               .replace(/profile: [\w-]+/, `profile: ${profile}`)
               .replace(
-                "  layout:\n",
-                `  themeOverrides: {textScale: ${textScale}}\n  layout:\n    density: ${density}\n`,
-              );
+                'themeOverrides: {groupFill: "#efeddd"}',
+                `themeOverrides: {groupFill: "#efeddd", textScale: ${textScale}}`,
+              )
+              .replace("  layout:\n", `  layout:\n    density: ${density}\n`);
             expect(await nearBorder(text)).toEqual([]);
           }
         }

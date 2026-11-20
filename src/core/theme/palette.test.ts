@@ -279,8 +279,11 @@ describe("withPalette", () => {
         expect(style("sumi/box", "solid").fill, `${theme.id} ${id} solid`).toBe(roles.strong);
         const group = style("sumi/container");
         // A theme whose groups have no fill (academic) keeps them open.
-        // `paper`'s default groups are white (#440): a palette does not tint them.
-        if (group.fill !== "transparent" && theme.id !== "paper")
+        // `paper`'s default groups are white (#440), `sumi`'s the canvas (#608): a palette does
+        // not tint them.
+        if (group.fill === theme.canvas)
+          expect(theme.id, `${theme.id} ${id} canvas panel`).toMatch(/^(paper|sumi|sumi-dark)$/);
+        else if (group.fill !== "transparent")
           expect(group.fill, `${theme.id} ${id} panel`).toBe(roles.panel);
         if (theme.id === "paper") {
           expect(group.fill, `${id} paper default group`).toBe("#ffffff");

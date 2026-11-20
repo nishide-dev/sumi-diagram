@@ -256,6 +256,18 @@ export const colorOnPanel = defineGeometryRule({
   run: (context) => panelFindings(analysisOf(context)),
 });
 
+/**
+ * Where the panel's color comes from decides the one place that makes it white (#608): a tone on
+ * the group, or the theme's group fill (`themeOverrides.groupFill` whitens every untoned panel).
+ */
+function panelHint(panel: PaintItem): string {
+  const white =
+    panel.tone !== undefined
+      ? `Remove the group's tone (${panel.tone}) to give it the theme's panel`
+      : "Set `figure.themeOverrides.groupFill: '#ffffff'` to make every untoned panel white (the default groups of paper and sumi already are), or drop the group's `variant: filled`";
+  return `${white}, or color only what carries meaning: at most 2-3 hues and one accent on a white ground.`;
+}
+
 /** The findings of `geometry/color-on-panel` on an analysis. */
 export function panelFindings(analysis: readonly Analysis[]): LintFinding[] {
   const byPanel = new Map<PaintItem, PaintItem[]>();
@@ -277,7 +289,7 @@ export function panelFindings(analysis: readonly Analysis[]): LintFinding[] {
       message: `${capitalize(panel.name.replace(/ fill$/, ""))} is filled ${panel.color} and holds ${items.length} colored ${items.length === 1 ? "element" : "elements"} (${namesOf(items)}): the colors compete with the panel's.`,
       path: panel.docPath,
       subject: panel.subject,
-      hint: "Make the panel white with a thin frame (the paper theme's default group), or color only what carries meaning: at most 2-3 hues and one accent on a white ground.",
+      hint: panelHint(panel),
     }));
   return limited(findings, "panels with colored elements");
 }

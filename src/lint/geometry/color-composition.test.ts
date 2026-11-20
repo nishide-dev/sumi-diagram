@@ -130,6 +130,8 @@ nodes:
     expect(findings).toHaveLength(1);
     expect(findings[0]?.message).toContain("#f3f3f3");
     expect(findings[0]?.message).toContain("colored elements");
+    // The panel's color is the figure's groupFill: one override whitens every panel (#608).
+    expect(findings[0]?.hint).toContain("themeOverrides.groupFill: '#ffffff'");
     expect(colorOnPanel.defaultSeverity).toBe("info");
   });
 
@@ -372,6 +374,20 @@ edges: []
       expect(await count(panelOf("sumi", tone, tone)), `${tone} on ${tone}`).toBe(1);
     }
     expect(await count(panelOf("sumi", "gray", "gray"))).toBe(0);
+  });
+
+  test("a toned panel's hint removes the tone; sumi's default panel is white and not reported (#608)", async () => {
+    const [finding] = panelFindings(
+      analyze(paintItems(await contextOf(panelOf("sumi", "blue", "green")))),
+    );
+    expect(finding?.hint).toContain("Remove the group's tone (blue)");
+    const untoned = panelOf("sumi", "gray", "green")
+      .replace("    tone: gray\n", "")
+      .replace("    variant: filled\n", "");
+    expect(await count(untoned)).toBe(0);
+    // sumi-dark's panel is its navy canvas, measured against that canvas.
+    const dark = await contextOf(untoned.replace("theme: sumi", "theme: sumi-dark"));
+    expect(panelFindings(analyze(paintItems(dark), "#30364f"))).toEqual([]);
   });
 
   test("neutral boxes (default outlined, white) on a colored panel are not colored, in any theme", async () => {
