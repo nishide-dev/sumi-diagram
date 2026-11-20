@@ -4,6 +4,7 @@
  * what `geometry/avoidable-bend` says about the rest. Needs no D2.
  */
 import { describe, expect, test } from "bun:test";
+import type { ElementKey } from "../../core/check-state";
 import { lintGeometry } from "../../lint/geometry/lint";
 import { renderFigure } from "../../render/render";
 import { layoutStructuredFigure } from "../index";
@@ -354,5 +355,37 @@ ${extra}`;
     // A straight edge from c also ends on b's west side: a → b stays as routed.
     const shared = source("  - {from: c, to: b, route: straight}\n");
     expect(points(shared, true)).toEqual(points(shared, false));
+  });
+
+  test("a replacement that meets a curve drawn with the final routes is given back", () => {
+    // A stand-in for a curve into a junction, whose tangent comes from the
+    // orthogonal routes: it crosses a → b only once a → b is straight.
+    const text = source("");
+    const placed = layoutStructuredFigure(text, { route: false });
+    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+    const key = placed.value.layout.edges[0]?.key as ElementKey;
+    const routed = routeEdges(placed.value.ir, placed.value.layout, {
+      foreignOf: (routes) => {
+        const p = routes.get(key);
+        if (p === undefined || p.length !== 2) return [];
+        const a = p[0] as Point;
+        const b = p[1] as Point;
+        const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        return [
+          {
+            key: "e:curve" as ElementKey,
+            lines: [
+              [
+                { x: mid.x, y: mid.y - 3 },
+                { x: mid.x, y: mid.y + 3 },
+              ],
+            ],
+            ends: [],
+          },
+        ];
+      },
+    });
+    const after = routed.layout.edges.find((e) => e.key === key)?.route?.points;
+    expect(after).toEqual(points(text, false));
   });
 });

@@ -118,10 +118,12 @@ import {
   straightPlacement,
 } from "./ports";
 import {
+  lineContacts,
   type SideRange,
   type Simplified,
   type SimplifyEdge,
   type SimplifyEnd,
+  type SimplifyScene,
   simplifyRoutes,
   type Terminal,
 } from "./simplify";
@@ -237,6 +239,11 @@ export interface RouteOptions {
   verifyLowerBound?: boolean;
   /** Replace routes with simpler ones after routing (#604; default `true`). */
   simplify?: boolean;
+  /**
+   * For tests: how the straight, curved and zoom edges are drawn given the
+   * orthogonal routes (default: as `routeEdges` draws them).
+   */
+  foreignOf?: ForeignOf;
 }
 
 /**
@@ -250,12 +257,27 @@ export interface ForeignEdge {
   readonly ends: readonly { readonly key: ElementKey; readonly point: Point }[];
 }
 
+/** How straight, curved and zoom edges are drawn given the orthogonal routes. */
+export type ForeignOf = (routes: ReadonlyMap<ElementKey, readonly Point[]>) => ForeignEdge[];
+
 /**
- * The straight, curved and zoom edges of `ir` drawn on `layout` before the
- * orthogonal routes exist: their geometry depends on the elements only.
+ * The straight, curved and zoom edges of `ir` drawn on `layout` with the
+ * orthogonal `routes` (a curve into a junction takes its tangent from an
+ * orthogonal route there, `junctionTangents`).
  */
-function foreignEdges(ir: FigureIR, layout: LayoutIR): ForeignEdge[] {
+function foreignEdges(
+  ir: FigureIR,
+  placed: LayoutIR,
+  routes: ReadonlyMap<ElementKey, readonly Point[]>,
+): ForeignEdge[] {
   if (!ir.edges.some((e) => isDirectEdge(e) || isZoomEdge(e))) return [];
+  const layout: LayoutIR = {
+    ...placed,
+    edges: placed.edges.map((e) => {
+      const points = routes.get(e.key);
+      return points === undefined ? e : { ...e, route: { points } };
+    }),
+  };
   const direct = addDirectRoutes(ir, layout, layout).layout;
   const zoom = addZoomRoutes(ir, layout, direct).layout;
   const kinds = new Map(ir.edges.map((e) => [e.key, e]));
@@ -300,7 +322,9 @@ export function routeEdges(
     withoutZoomEdges(orthogonalIR),
     withoutZoomLayouts(orthogonalIR, orthogonalLayout),
     options,
-    options.simplify === false ? [] : foreignEdges(ir, layout),
+    options.simplify === false
+      ? () => []
+      : (options.foreignOf ?? ((routes) => foreignEdges(ir, layout, routes))),
   );
   const routed =
     options.hintTrials === false
@@ -331,7 +355,7 @@ function routeWithoutZoom(
   ir: FigureIR,
   layout: LayoutIR,
   options: RouteOptions,
-  foreign: readonly ForeignEdge[] = [],
+  foreign: ForeignOf = () => [],
 ): RouteResult {
   const routeFigure = (figure: FigureIR) =>
     chooseRouting(figure, (stubLines: boolean) =>
@@ -631,7 +655,7 @@ class Router {
   /** Simplify routes after routing (`#simplify`, #604). */
   readonly #simplifyRoutes: boolean;
   /** Straight, curved and zoom edges, which the simplification keeps clear of (#604). */
-  readonly #foreign: readonly ForeignEdge[];
+  readonly #foreignOf: ForeignOf;
 
   constructor(
     ir: FigureIR,
@@ -640,10 +664,10 @@ class Router {
     verify: boolean,
     stubLines: boolean,
     simplifyRoutes = true,
-    foreign: readonly ForeignEdge[] = [],
+    foreign: ForeignOf = () => [],
   ) {
     this.#simplifyRoutes = simplifyRoutes;
-    this.#foreign = foreign;
+    this.#foreignOf = foreign;
     this.#ir = ir;
     this.#layout = layout;
     this.#lowerBound = lowerBound;
@@ -836,7 +860,9 @@ class Router {
     }
     // The ends of straight, curved and zoom edges use a side too (a zoom
     // line's corner: both sides it touches).
-    for (const f of this.#foreign) {
+    // Drawn with the routes as the grid search left them (#604).
+    const foreign = this.#foreignOf(routes);
+    for (const f of foreign) {
       for (const { key, point } of f.ends) {
         const rect = rects.get(key);
         if (rect === undefined) continue;
@@ -1059,43 +1085,77 @@ class Router {
       }
       ends.set(key, after);
     };
-    const changed = simplifyRoutes(
-      simplifyEdges,
-      {
-        nodes: this.#obstacles.map((o) => {
-          const node = nodeIR.get(o.key);
-          // Annotation text: a label attached to a node, or a caption.
-          const soft =
-            node !== undefined &&
-            ((node.attach !== undefined && node.shape === "text") || node.captionOf !== undefined);
-          if (!soft) return o;
-          const label = this.#layout.nodes.find((n) => n.key === o.key)?.label;
-          return { ...o, soft, ...(label !== undefined && { lines: textLines(label) }) };
-        }),
-        boxes: [
-          ...layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
-          ...captionBoxes(ir, layout),
-        ],
-        groups: layout.groups.map((g) => {
-          const element = ir.elements.get(g.key);
-          const group = element?.kind === "group" ? element : undefined;
-          return {
-            key: g.key,
-            rect: group === undefined ? g.rect : groupFrontRect(group, g.rect),
-            drawn:
-              group !== undefined &&
-              group.style.strokeWidth.units > 0 &&
-              group.style.stroke !== "transparent",
-          };
-        }),
-        routes,
-        rooms,
-        foreign: this.#foreign.map((f) => ({ key: f.key, lines: f.lines })),
-        shares: (a, b) => netOf.get(a) === netOf.get(b),
-        inside,
-      },
-      moveEnds,
-    );
+    const scene: SimplifyScene = {
+      nodes: this.#obstacles.map((o) => {
+        const node = nodeIR.get(o.key);
+        // Annotation text: a label attached to a node, or a caption.
+        const soft =
+          node !== undefined &&
+          ((node.attach !== undefined && node.shape === "text") || node.captionOf !== undefined);
+        if (!soft) return o;
+        const label = this.#layout.nodes.find((n) => n.key === o.key)?.label;
+        return { ...o, soft, ...(label !== undefined && { lines: textLines(label) }) };
+      }),
+      boxes: [
+        ...layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
+        ...captionBoxes(ir, layout),
+      ],
+      groups: layout.groups.map((g) => {
+        const element = ir.elements.get(g.key);
+        const group = element?.kind === "group" ? element : undefined;
+        return {
+          key: g.key,
+          rect: group === undefined ? g.rect : groupFrontRect(group, g.rect),
+          drawn:
+            group !== undefined &&
+            group.style.strokeWidth.units > 0 &&
+            group.style.stroke !== "transparent",
+        };
+      }),
+      routes,
+      rooms,
+      foreign: foreign.map((f) => ({ key: f.key, lines: f.lines })),
+      shares: (a, b) => netOf.get(a) === netOf.get(b),
+      inside,
+    };
+    // A curve into a junction takes its tangent from an orthogonal route
+    // there: after simplifying, redraw the straight, curved and zoom edges
+    // with the final routes and give back any replacement that meets one of
+    // them more often than its routed line did; then simplify again without
+    // it (a few rounds at most, else nothing is replaced).
+    const original = new Map(routes);
+    const startUsers = new Map([...users].map(([k, v]) => [k, [...v]] as const));
+    const startEnds = new Map(ends);
+    const excluded = new Set<ElementKey>();
+    let changed = new Map<ElementKey, Simplified>();
+    for (let round = 0; round < 3; round++) {
+      for (const [k, v] of original) routes.set(k, v);
+      users.clear();
+      for (const [k, v] of startUsers) users.set(k, [...v]);
+      ends.clear();
+      for (const [k, v] of startEnds) ends.set(k, v);
+      changed = simplifyRoutes(
+        simplifyEdges.filter((e) => !excluded.has(e.key)),
+        scene,
+        moveEnds,
+      );
+      const final = this.#foreignOf(routes);
+      const worse = [...changed.keys()].filter((key) =>
+        final.some((f) =>
+          f.lines.some(
+            (line) =>
+              lineContacts(routes.get(key) ?? [], line) >
+              lineContacts(original.get(key) ?? [], line),
+          ),
+        ),
+      );
+      if (worse.length === 0) break;
+      for (const key of worse) excluded.add(key);
+      if (round === 2) {
+        for (const [k, v] of original) routes.set(k, v);
+        changed = new Map();
+      }
+    }
     if (changed.size === 0) return edges;
     return edges.map((edge) => {
       const now = ends.get(edge.ir.key);

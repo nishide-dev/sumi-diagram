@@ -305,6 +305,15 @@ function meetsSegment(g: Seg, p: Point, q: Point): boolean {
   return true;
 }
 
+/** How many segments of the orthogonal `points` meet segments of the polyline `line` (within half a unit). */
+export function lineContacts(points: readonly Point[], line: readonly Point[]): number {
+  let n = 0;
+  for (const g of segments(straightened(points)))
+    for (let k = 1; k < line.length; k++)
+      if (meetsSegment(g, line[k - 1] as Point, line[k] as Point)) n++;
+  return n;
+}
+
 /** Proper crossings of the polyline with the border of `r` (ends on the border do not count). */
 function borderCrossings(s: readonly Seg[], r: Rect): number {
   let n = 0;
