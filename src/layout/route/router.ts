@@ -802,30 +802,73 @@ class Router {
       this.#occupy(cells, edge);
       routes.set(edge.ir.key, points);
     }
-    // Avoidable bends (#604): simpler shapes where they keep every rule.
-    const final = this.#simplifyRoutes ? this.#simplify(routable, routes) : routable;
-    const parallelEdges = final.map((e) => ({
-      key: e.ir.key,
-      width: e.ir.style.strokeWidth.units,
-      fromRoom: Math.max(e.fromLane, e.fromRoom),
-      toRoom: Math.max(e.toLane, e.toRoom),
-    }));
     const obstacles = [
       ...this.#obstacles.map((o) => o.rect),
       ...this.#layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
       ...captionBoxes(this.#ir, this.#layout),
     ];
-    const byKey = new Map(final.map((e) => [e.ir.key, e] as const));
-    const shares = (a: ElementKey, b: ElementKey) =>
-      sharable(byKey.get(a) as Edge, byKey.get(b) as Edge);
-    separateParallelRuns(routes, parallelEdges, obstacles, shares);
-    separateSameSideRuns(
-      routes,
-      parallelEdges,
-      obstacles,
-      this.#layout.groups.map((g) => g.rect),
-      shares,
-    );
+    /** Separates parallel runs (#329, #512) of `r` in place, for the edges as they are. */
+    const separate = (current: Edge[], r: Map<ElementKey, Point[]>) => {
+      const parallelEdges = current.map((e) => ({
+        key: e.ir.key,
+        width: e.ir.style.strokeWidth.units,
+        fromRoom: Math.max(e.fromLane, e.fromRoom),
+        toRoom: Math.max(e.toLane, e.toRoom),
+      }));
+      const byKey = new Map(current.map((e) => [e.ir.key, e] as const));
+      const shares = (a: ElementKey, b: ElementKey) =>
+        sharable(byKey.get(a) as Edge, byKey.get(b) as Edge);
+      separateParallelRuns(r, parallelEdges, obstacles, shares);
+      separateSameSideRuns(
+        r,
+        parallelEdges,
+        obstacles,
+        this.#layout.groups.map((g) => g.rect),
+        shares,
+      );
+    };
+    // Avoidable bends (#604): simpler shapes where they keep every rule.
+    // Straight, curved and zoom edges are drawn from the orthogonal routes (a
+    // curve into a junction takes its tangent from one), and the separation
+    // can move segments: so the check against them runs on the routes as
+    // returned, after separating. A replacement that meets one of them more
+    // often than its routed line does (after separating, unsimplified) is
+    // given back and the rest simplified again (three rounds at most, else
+    // nothing is replaced).
+    let final = routable;
+    if (!this.#simplifyRoutes) {
+      separate(routable, routes);
+    } else {
+      const grid = new Map(routes);
+      const base = new Map(grid);
+      separate(routable, base);
+      const excluded = new Set<ElementKey>();
+      let result: { edges: Edge[]; routes: Map<ElementKey, Point[]> } | undefined;
+      for (let round = 0; round < 3 && result === undefined; round++) {
+        const r = new Map(grid);
+        const simplified = this.#simplify(routable, r, excluded);
+        separate(simplified.edges, r);
+        if (simplified.changed.size === 0) {
+          result = { edges: simplified.edges, routes: r };
+          break;
+        }
+        const foreign = this.#foreignOf(r);
+        const worse = [...simplified.changed].filter((key) =>
+          foreign.some((f) =>
+            f.lines.some(
+              (line) =>
+                lineContacts(r.get(key) ?? [], line) > lineContacts(base.get(key) ?? [], line),
+            ),
+          ),
+        );
+        if (worse.length === 0) result = { edges: simplified.edges, routes: r };
+        for (const key of worse) excluded.add(key);
+      }
+      const chosen = result ?? { edges: routable, routes: base };
+      routes.clear();
+      for (const [k, v] of chosen.routes) routes.set(k, v);
+      final = chosen.edges;
+    }
     return { layout: this.#result(final, routes), diagnostics: this.#diagnostics };
   }
 
@@ -837,7 +880,11 @@ class Router {
    * neither end inside the other) is looked at; an end moves only if it has
    * no written anchor and sits on a straight side of a plain node.
    */
-  #simplify(edges: Edge[], routes: Map<ElementKey, Point[]>): Edge[] {
+  #simplify(
+    edges: Edge[],
+    routes: Map<ElementKey, Point[]>,
+    excluded: ReadonlySet<ElementKey>,
+  ): { edges: Edge[]; changed: Set<ElementKey> } {
     const ir = this.#ir;
     const layout = this.#layout;
     const rects = endpointRects(ir, layout);
@@ -1050,7 +1097,7 @@ class Router {
         ),
       });
     }
-    if (simplifyEdges.length === 0) return edges;
+    if (simplifyEdges.length === 0) return { edges, changed: new Set() };
     const netOf = new Map(edges.map((e) => [e.ir.key, e.net]));
     /** The ends of each edge as they are now. */
     const ends = new Map(edges.map((e) => [e.ir.key, { from: e.from, to: e.to }] as const));
@@ -1118,49 +1165,19 @@ class Router {
       shares: (a, b) => netOf.get(a) === netOf.get(b),
       inside,
     };
-    // A curve into a junction takes its tangent from an orthogonal route
-    // there: after simplifying, redraw the straight, curved and zoom edges
-    // with the final routes and give back any replacement that meets one of
-    // them more often than its routed line did; then simplify again without
-    // it (a few rounds at most, else nothing is replaced).
-    const original = new Map(routes);
-    const startUsers = new Map([...users].map(([k, v]) => [k, [...v]] as const));
-    const startEnds = new Map(ends);
-    const excluded = new Set<ElementKey>();
-    let changed = new Map<ElementKey, Simplified>();
-    for (let round = 0; round < 3; round++) {
-      for (const [k, v] of original) routes.set(k, v);
-      users.clear();
-      for (const [k, v] of startUsers) users.set(k, [...v]);
-      ends.clear();
-      for (const [k, v] of startEnds) ends.set(k, v);
-      changed = simplifyRoutes(
-        simplifyEdges.filter((e) => !excluded.has(e.key)),
-        scene,
-        moveEnds,
-      );
-      const final = this.#foreignOf(routes);
-      const worse = [...changed.keys()].filter((key) =>
-        final.some((f) =>
-          f.lines.some(
-            (line) =>
-              lineContacts(routes.get(key) ?? [], line) >
-              lineContacts(original.get(key) ?? [], line),
-          ),
-        ),
-      );
-      if (worse.length === 0) break;
-      for (const key of worse) excluded.add(key);
-      if (round === 2) {
-        for (const [k, v] of original) routes.set(k, v);
-        changed = new Map();
-      }
-    }
-    if (changed.size === 0) return edges;
-    return edges.map((edge) => {
-      const now = ends.get(edge.ir.key);
-      return now === undefined || !changed.has(edge.ir.key) ? edge : { ...edge, ...now };
-    });
+    const changed = simplifyRoutes(
+      simplifyEdges.filter((e) => !excluded.has(e.key)),
+      scene,
+      moveEnds,
+    );
+    if (changed.size === 0) return { edges, changed: new Set() };
+    return {
+      edges: edges.map((edge) => {
+        const now = ends.get(edge.ir.key);
+        return now === undefined || !changed.has(edge.ir.key) ? edge : { ...edge, ...now };
+      }),
+      changed: new Set(changed.keys()),
+    };
   }
 
   /** Try all directions at arrowed junctions, with the same hard stub as a port. */

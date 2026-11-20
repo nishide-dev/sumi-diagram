@@ -388,4 +388,67 @@ ${extra}`;
     const after = routed.layout.edges.find((e) => e.key === key)?.route?.points;
     expect(after).toEqual(points(text, false));
   });
+
+  test("the check runs on the routes as returned, after the parallel runs are separated", () => {
+    // Nested skips on one side are moved into lanes of their own after
+    // routing (#512); x → y is simplified. The straight, curved and zoom
+    // edges are compared with the separated routes, the ones returned.
+    const text = `
+version: 1
+figure:
+  id: order
+  theme: sumi
+  layout:
+    fanIn: merge
+    arrange:
+      row:
+        gap: 12mm
+        align: start
+        items:
+          - stack: {direction: up, gap: 4mm, align: stretch, items: [a1, a2, a3, m, b3, b2, b1]}
+          - x
+          - y
+nodes:
+  - {id: a1, component: box, label: A1}
+  - {id: a2, component: box, label: A2}
+  - {id: a3, component: box, label: A3}
+  - {id: m, component: box, label: M}
+  - {id: b3, component: box, label: B3}
+  - {id: b2, component: box, label: B2}
+  - {id: b1, component: box, label: B1}
+  - {id: x, component: box, label: X, props: {height: 20mm}}
+  - {id: y, component: box, label: Y, props: {height: 8mm}}
+edges:
+  - {from: a3, to: b3, fromAnchor: east, toAnchor: east}
+  - {from: a2, to: b2, fromAnchor: east, toAnchor: east}
+  - {from: a1, to: b1, fromAnchor: east, toAnchor: east}
+  - {from: x, to: y}
+`;
+    const placed = layoutStructuredFigure(text, { route: false });
+    if (!placed.ok) throw new Error(JSON.stringify(placed.diagnostics));
+    let seen: Map<ElementKey, readonly Point[]> | undefined;
+    const routed = routeEdges(placed.value.ir, placed.value.layout, {
+      foreignOf: (routes) => {
+        seen = new Map(routes);
+        return [];
+      },
+    });
+    const xy = routed.layout.edges.find((e) => e.from === "n:x" && e.to === "n:y");
+    expect(xy?.route?.points).toHaveLength(2);
+    expect(seen).toBeDefined();
+    // The last routes the check saw are the returned ones (up to the shift
+    // that puts the content at the margin).
+    const first = routed.layout.edges[0];
+    const shown = (seen as Map<ElementKey, readonly Point[]>).get(first?.key as ElementKey) ?? [];
+    const out = first?.route?.points ?? [];
+    const dx = (out[0] as Point).x - (shown[0] as Point).x;
+    const dy = (out[0] as Point).y - (shown[0] as Point).y;
+    for (const e of routed.layout.edges) {
+      const a = (seen as Map<ElementKey, readonly Point[]>).get(e.key) ?? [];
+      const b = e.route?.points ?? [];
+      expect(b.map((p) => ({ x: p.x - dx, y: p.y - dy }))).toEqual(
+        a.map((p) => ({ x: expect.closeTo(p.x, 2), y: expect.closeTo(p.y, 2) })),
+      );
+    }
+  });
 });
