@@ -1226,6 +1226,14 @@ edges:
   no two-bend route fits between the current ends. Write those values
   or drop the anchor; do not chase the line with more anchors. To move nodes into
   line instead, use `figure.layout.straighten: true`.
+- **A Z where an L would do, because of where a node sits**: `straighten` only shifts
+  items within their room. When moving an end to a nearby empty grid cell or another
+  place in its stack / row would remove bends, `geometry/relocatable-node` (info) says
+  so, after laying the figure out and routing it again with the move (no other edge
+  worse, no growth, no new warning). Its hint names the `items` field, the row and
+  column (1-based) and gives the rewritten `items` line, e.g. `row 4, columns 5–7
+  become c-backoff, retrying, c-error`. Apply it unless the current place means
+  something (failures kept below the main flow).
 - **`straight`** (`toAnchor: straight` / `fromAnchor: straight`): the end sits in line
   with the other end on the side facing it, so the line has no jog. Use it for narrow
   boxes in a row feeding a wide one (patches into a projection, models into an

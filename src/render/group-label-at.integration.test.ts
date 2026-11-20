@@ -100,7 +100,8 @@ describe("structured", () => {
     // The router keeps top → c off the title, but not clear of its letters
     // (#156): it runs along the title's right end and just below it, with a
     // 0.4mm step: geometry/avoidable-bend (#604) names the title as what
-    // keeps a two-bend route out.
+    // keeps a two-bend route out, and geometry/relocatable-node (#621) finds
+    // that putting c first in g2, away from the title, saves two bends.
     const rendered = await render(
       `version: 1
 figure:
@@ -128,6 +129,11 @@ edges:
   - { from: top, to: c }
 `,
       [
+        {
+          code: "geometry/relocatable-node",
+          message:
+            'Node "c" could move from place 2 to place 1 of the row of group "g2": then edge edges[1] (top → c) bends 4 times instead of 6 (checked by laying the figure out and routing it again: no other edge bends more, the figure does not grow and no new error or warning appears).',
+        },
         {
           code: "geometry/arrowhead-cramped",
           message:

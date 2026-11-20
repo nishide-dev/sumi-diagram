@@ -55,7 +55,7 @@ const OPPOSITE: Readonly<Record<Side, Side>> = {
 };
 
 /** Drops repeated points and points on a straight line between their neighbours. */
-function corners(points: readonly Point[]): Point[] {
+export function corners(points: readonly Point[]): Point[] {
   const out: Point[] = [];
   for (const p of points) {
     const last = out.at(-1);
@@ -73,7 +73,7 @@ function corners(points: readonly Point[]): Point[] {
   return out;
 }
 
-const orthogonal = (points: readonly Point[]) =>
+export const orthogonal = (points: readonly Point[]) =>
   points
     .slice(1)
     .every(
@@ -172,7 +172,7 @@ const writtenAnchor = (edge: EdgeIR, field: "fromAnchor" | "toAnchor"): Anchor |
 };
 
 /** The box an element is routed to: its shape's, or its text's for a label. */
-function boxOf(element: GeometryElement | undefined): Rect | undefined {
+export function boxOf(element: GeometryElement | undefined): Rect | undefined {
   if (element === undefined) return undefined;
   // A layered group's edges end on its front frame, not its whole footprint.
   if (element.ir.kind === "group" && element.bbox !== undefined)
@@ -662,7 +662,7 @@ function staircaseBlockers(
  * of its ends shares its element's side with another edge's end (a fan-out,
  * fan-in, spread fan-in or multi-edge).
  */
-function inGroup(
+export function inGroup(
   context: GeometryContext,
   element: GeometryElement,
   points: readonly Point[],

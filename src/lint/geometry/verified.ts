@@ -13,7 +13,7 @@ import { spacedProfile } from "../../core/profile/schema";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import { getFontSet } from "../../core/theme/fonts";
 import { formatMm } from "../../core/units";
-import { HintTrials, MAX_HINT_TRIALS, mapBoxes } from "../../layout/hint-trials";
+import { HintTrials, inHintTrial, MAX_HINT_TRIALS, mapBoxes } from "../../layout/hint-trials";
 import { unitsToPt } from "../../render/geometry";
 import { inspectSvg } from "../../render/inspect";
 import { writeStructuredSvg } from "../../render/structured";
@@ -57,6 +57,8 @@ export function verifyHints(
   const original = context.ir;
   if (original.meta.engine !== "structured")
     return "Observed geometry only; no trial layouts were run.";
+  // Inside another rule's trial layout (`geometry/relocatable-node`, #621): no nested trials.
+  if (inHintTrial()) return "Observed geometry only; no trial layouts were run.";
   const trials = new HintTrials(original);
   const skipped = (reason: string) =>
     `Layout trials skipped: ${reason}; the measurements describe the current figure.`;
