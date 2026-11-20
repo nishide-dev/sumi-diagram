@@ -660,7 +660,9 @@ puts it right under the title and leaves one band at the bottom, `bottom` leaves
 the top, `center` (default) splits it. No effect at natural height, on widths, or on a
 tilted plane. Sibling panels with `top` start their first rows on one line, so column
 headings (the panels' titles, or a heading node first in each tree) line up. To *fill*
-the height instead, use the tree's `justify: stretch` / `space-between` (above).
+the height instead, use the tree's `justify: stretch` / `space-between` (above); a root
+box that fills the height (those, or a root `row` with `align: stretch`) wins and leaves
+`contentAlign` nothing to move.
 `geometry/content-band` (info) names a stretched panel with at least 4mm empty above and
 below its content, with `contentAlign: top` checked by a trial layout. With
 `figure.layout.straighten` (default) an item may still move to straighten an edge, but

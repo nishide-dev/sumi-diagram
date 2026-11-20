@@ -1722,10 +1722,20 @@ class StructuredLayout {
    * that edge instead, so the room is one band on the other side. The area
    * reported as the group's content stays the whole area, and the arrange
    * tree's box gets no room across it to centre or straighten (#618) in.
+   * A root box that fills the height itself keeps the whole area, so nothing is
+   * left to move: a stack with `justify: stretch` / `space-between`, a row with
+   * `align: stretch`.
    */
   #alignedContent(group: GroupIR, content: Rect): Rect {
     const align = group.contentAlign;
     if (align === undefined || align === "center") return content;
+    const root = group.arrange;
+    if (
+      (root?.kind === "stack" &&
+        (root.justify === "stretch" || root.justify === "space-between")) ||
+      (root?.kind === "row" && root.align === "stretch")
+    )
+      return content;
     const natural = this.#containerSize(group.key, group.arrange).height;
     const spare = content.height - natural;
     if (spare <= 0) return content;

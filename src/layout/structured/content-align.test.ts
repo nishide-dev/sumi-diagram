@@ -105,14 +105,88 @@ describe("contentAlign (#613)", () => {
     expect(layout(top)).toEqual(layout(plain));
   });
 
-  test("a row's items stay free across it within their own band, but not the whole area", () => {
-    // Straighten (#618) shifts items within their slack: with top, the slack is the row's own.
-    const l = layout(figure({ c: "contentAlign: top" }));
-    const c = group(l, "c").content;
-    for (const id of ["c1", "c2"]) {
-      const r = node(l, id);
-      expect(r.y).toBeGreaterThanOrEqual(c.y - 0.01);
-      expect(r.y - c.y).toBeLessThan(5);
+  test("straighten (#618) moves an item within its own box, never into the band", () => {
+    // b5 → x is crooked while x sits in the middle of (a): straighten moves x down to b5's line.
+    const source = (field: string) => `version: 1
+figure:
+  id: content-align-straighten
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 8mm, align: stretch, items: [b, a]}
+groups:
+  - id: a
+    label: (a) One
+    ${field}
+    arrange: {row: {items: [x]}}
+  - id: b
+    label: (b) Tall
+    arrange: {stack: {items: [b1, b2, b3, b4, b5]}}
+nodes:
+  - {id: x, component: box, label: X}
+  - {id: b1, component: box, label: One}
+  - {id: b2, component: box, label: Two}
+  - {id: b3, component: box, label: Three}
+  - {id: b4, component: box, label: Four}
+  - {id: b5, component: box, label: Five}
+edges:
+  - {from: b5, to: x}
+`;
+    const centred = layout(source(""));
+    const centre = (r: { y: number; height: number }) => r.y + r.height / 2;
+    // Centred, the band is straighten's slack: x lines up with b5.
+    expect(centre(node(centred, "x"))).toBeCloseTo(centre(node(centred, "b5")), 1);
+    for (const [field, edge] of [
+      ["contentAlign: top", "top"],
+      ["contentAlign: bottom", "bottom"],
+    ] as const) {
+      const l = layout(source(field));
+      const c = group(l, "a").content;
+      const x = node(l, "x");
+      const natural = x.height;
+      if (edge === "top") expect(x.y).toBeCloseTo(c.y, 2);
+      else expect(x.y + natural).toBeCloseTo(c.y + c.height, 2);
+    }
+  });
+
+  test("a root box that fills the height keeps it: contentAlign has no band to move", () => {
+    const fill = (field: string, box: string) => `version: 1
+figure:
+  id: content-align-fill
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 4mm, align: stretch, items: [a, b]}
+groups:
+  - id: a
+    label: (a) Filled
+    ${field}
+    arrange: ${box}
+  - id: b
+    label: (b) Tall
+    arrange: {stack: {items: [b1, b2, b3, b4, b5]}}
+nodes:
+  - {id: a1, component: box, label: Input}
+  - {id: a2, component: box, label: Encoder}
+  - {id: b1, component: box, label: One}
+  - {id: b2, component: box, label: Two}
+  - {id: b3, component: box, label: Three}
+  - {id: b4, component: box, label: Four}
+  - {id: b5, component: box, label: Five}
+`;
+    for (const box of [
+      "{stack: {justify: stretch, items: [a1, a2]}}",
+      "{stack: {justify: space-between, items: [a1, a2]}}",
+      "{row: {align: stretch, items: [a1, a2]}}",
+    ]) {
+      const plain = layout(fill("", box));
+      // The root box uses the spare height (items grow, or spread to both edges)...
+      const a2 = node(plain, "a2");
+      const content = group(plain, "a").content;
+      expect(Math.abs(a2.y + a2.height - (content.y + content.height))).toBeLessThan(1);
+      // ...and contentAlign leaves it so.
+      for (const align of ["top", "bottom"])
+        expect(layout(fill(`contentAlign: ${align}`, box))).toEqual(plain);
     }
   });
 
