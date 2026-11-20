@@ -182,7 +182,7 @@ function boxOf(element: GeometryElement | undefined): Rect | undefined {
 }
 
 /** Things a suggested line must keep clear of: other nodes and group titles. */
-function obstacles(
+export function obstacles(
   context: GeometryContext,
   edge: EdgeIR,
 ): { rect: Rect; element: GeometryElement }[] {
@@ -193,12 +193,17 @@ function obstacles(
   for (const element of context.elements) {
     if (element.kind === "edge") continue;
     if (element.kind === "group") {
-      // A group's title (the frame itself is crossed or kept as routed).
-      if (related(element.key)) continue;
+      // Every group's title, the ends' own and their ancestors' too: the
+      // router keeps routes off all of them (the frame itself is crossed or
+      // kept as routed).
       for (const label of element.labels)
         if (label.box !== undefined) out.push({ rect: label.box, element });
       continue;
     }
+    // A caption drawn below a node's frame (#491): the router keeps off it too.
+    if (element.ir.kind === "node" && element.ir.labelBelow === true)
+      for (const label of element.labels)
+        if (label.box !== undefined) out.push({ rect: label.box, element });
     if (related(element.key)) continue;
     if (element.ir.kind === "node" && element.ir.mark?.type === "point") continue;
     const box = boxOf(element);
@@ -411,35 +416,92 @@ function anchorFix(
 }
 
 /**
- * The two-bend routes from `p` (leaving `fromSide`) to `q` on the facing
- * side, their middle segment at 33 columns between the stubs; `undefined`
- * if one of them keeps the clearance from every rectangle (nothing blocks a
- * single step).
+ * Whether some two-bend route from `p` (leaving `fromSide`) to `q` on the
+ * facing side keeps the clearance from every rectangle, exactly: the middle
+ * segment's position `m` must keep both stubs, the first leg must stop
+ * before anything across `p`'s line, the last leg start after anything
+ * across `q`'s line, and the middle segment must miss everything across its
+ * span. Each condition is an interval of `m`; the free positions are what
+ * is left of the stubs' range.
  */
-export function twoBendColumns(
-  p: Point,
-  q: Point,
-  fromSide: Side,
-  rects: readonly Rect[],
-): Point[][] | undefined {
+export function twoBendFits(p: Point, q: Point, fromSide: Side, rects: readonly Rect[]): boolean {
+  const horizontal = fromSide === "east" || fromSide === "west";
+  // Work as if the route leaves along x: swap the axes otherwise.
+  const along = (pt: Point) => (horizontal ? pt.x : pt.y);
+  const across = (pt: Point) => (horizontal ? pt.y : pt.x);
+  const box = (r: Rect) =>
+    horizontal
+      ? {
+          a0: r.x - CLEARANCE,
+          a1: r.x + r.width + CLEARANCE,
+          c0: r.y - CLEARANCE,
+          c1: r.y + r.height + CLEARANCE,
+        }
+      : {
+          a0: r.y - CLEARANCE,
+          a1: r.y + r.height + CLEARANCE,
+          c0: r.x - CLEARANCE,
+          c1: r.x + r.width + CLEARANCE,
+        };
+  const a = along(p);
+  const b = along(q);
+  const s = Math.sign(b - a);
+  if (s === 0) return false;
+  // Positions in the direction of travel: t = s × m, so the legs run upwards.
+  let lo = s * a + CLEARANCE;
+  let hi = s * b - CLEARANCE;
+  const cp = across(p);
+  const cq = across(q);
+  const c0 = Math.min(cp, cq);
+  const c1 = Math.max(cp, cq);
+  const blocked: [number, number][] = [];
+  for (const r of rects) {
+    const k = box(r);
+    // In travel coordinates, the rectangle's open interval along the route.
+    const t0 = Math.min(s * k.a0, s * k.a1);
+    const t1 = Math.max(s * k.a0, s * k.a1);
+    // The first leg runs from s·a to t on p's line: it must end at t0 at the latest.
+    if (cp > k.c0 && cp < k.c1 && t1 > s * a) hi = Math.min(hi, t0);
+    // The last leg runs from t to s·b on q's line: it must start at t1 at the earliest.
+    if (cq > k.c0 && cq < k.c1 && t0 < s * b) lo = Math.max(lo, t1);
+    // The middle segment, across from p's line to q's, must not be inside it.
+    if (c1 > k.c0 && c0 < k.c1) blocked.push([t0, t1]);
+  }
+  if (hi < lo) return false;
+  // The free positions in [lo, hi] outside every open blocked interval.
+  blocked.sort((x, y) => x[0] - y[0]);
+  let at = lo;
+  for (const [t0, t1] of blocked) {
+    if (t1 <= at) continue;
+    if (t0 >= at) return true;
+    at = t1;
+    if (at > hi) return false;
+  }
+  return at <= hi;
+}
+
+/**
+ * Two-bend routes from `p` to `q` with their middle segment at 33 positions
+ * between the stubs, for naming what is in the way (the claim that none
+ * fits is `twoBendFits`).
+ */
+function twoBendSamples(p: Point, q: Point, fromSide: Side): Point[][] {
   const horizontal = fromSide === "east" || fromSide === "west";
   const lo = (horizontal ? Math.min(p.x, q.x) : Math.min(p.y, q.y)) + CLEARANCE;
   const hi = (horizontal ? Math.max(p.x, q.x) : Math.max(p.y, q.y)) - CLEARANCE;
-  const paths = Array.from({ length: 33 }, (_, i) => {
+  return Array.from({ length: 33 }, (_, i) => {
     const m = lo + ((hi - lo) * i) / 32;
     return horizontal
       ? [p, { x: m, y: p.y }, { x: m, y: q.y }, q]
       : [p, { x: p.x, y: m }, { x: q.x, y: m }, q];
   });
-  return paths.some((path) => clear(path, rects)) ? undefined : paths;
 }
 
 /**
  * For a route of three or more bends between sides that face each other,
- * with a step under 4mm, when no two-bend route between its ports (its middle
- * segment at any of 33 columns between the stubs) is clear of the other
- * elements by the clearance: the elements that block those routes. Empty
- * otherwise.
+ * with a step under 4mm, when no two-bend route between its ports is clear
+ * of the other elements by the clearance (`twoBendFits`): the elements in
+ * the way of those routes. Empty otherwise.
  */
 function staircaseBlockers(
   context: GeometryContext,
@@ -469,13 +531,9 @@ function staircaseBlockers(
   };
   if (!steps.some(short)) return [];
   const all = obstacles(context, edge);
-  const columns = twoBendColumns(
-    p,
-    q,
-    fromSide,
-    all.map((o) => o.rect),
-  );
-  if (columns === undefined) return [];
+  const rects = all.map((o) => o.rect);
+  if (twoBendFits(p, q, fromSide, rects)) return [];
+  const columns = twoBendSamples(p, q, fromSide);
   // Every column is blocked: the elements that block some of them.
   const seen = new Set<GeometryElement>();
   for (const path of columns) {
@@ -569,7 +627,7 @@ export const avoidableBend = defineGeometryRule({
           return printed >= MICRO_JOG_UNITS - 0.002 && printed < JUNCTION_STEP_UNITS;
         });
         findings.push({
-          message: `${capitalize(element.name)} bends ${bends} times, with steps of ${short.map((l) => mmText(context, l)).join(", ")}, where its ends face each other: ${blockers.map((b) => b.name).join(" and ")} ${blockers.length === 1 ? "stands" : "stand"} between them, so no single step fits.`,
+          message: `${capitalize(element.name)} bends ${bends} times, with steps of ${short.map((l) => mmText(context, l)).join(", ")}, where its ends face each other: ${blockers.map((b) => (b.kind === "group" ? `the title of ${b.name}` : b.name)).join(" and ")} ${blockers.length === 1 ? "stands" : "stand"} between them, so no single step fits.`,
           path: element.docPath,
           subject: element.subject,
           hint: `Move ${blockers.length === 1 ? "it" : "them"} out of the way (an attached label to another side or with a larger gap, the arrange order or a gap), or move the ends so they face each other in line; the edge then needs at most two bends.`,

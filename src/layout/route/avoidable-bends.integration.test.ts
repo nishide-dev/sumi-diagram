@@ -4,7 +4,9 @@
  * about them. Needs no D2.
  */
 import { describe, expect, test } from "bun:test";
-import { twoBendColumns } from "../../lint/geometry/avoidable";
+import { getFontSet } from "../../core/theme/fonts";
+import { obstacles, twoBendFits } from "../../lint/geometry/avoidable";
+import { createGeometryContext } from "../../lint/geometry/context";
 import { lintGeometry } from "../../lint/geometry/lint";
 import { renderFigure } from "../../render/render";
 import type { Point } from "../ir";
@@ -349,10 +351,54 @@ describe("only what is verified is claimed (review of #617)", () => {
     // Ports at (0, 0) and (100, 100), facing; a box near the source: a Z
     // with its middle at x = 50 passes it.
     const near = { x: 8, y: 8, width: 4, height: 4 };
-    expect(twoBendColumns({ x: 0, y: 0 }, { x: 100, y: 100 }, "east", [near])).toBeUndefined();
+    expect(twoBendFits({ x: 0, y: 0 }, { x: 100, y: 100 }, "east", [near])).toBe(true);
     // A wall across the whole channel blocks every column.
     const wall = { x: 0, y: 40, width: 100, height: 20 };
-    expect(twoBendColumns({ x: 0, y: 0 }, { x: 100, y: 100 }, "east", [wall])).toBeDefined();
+    expect(twoBendFits({ x: 0, y: 0 }, { x: 100, y: 100 }, "east", [wall])).toBe(false);
+  });
+
+  test("a gap narrower than any sampling step is found", () => {
+    // Two walls with a gap: after the clearance, columns 50.5 to 51.5 are
+    // free, between where 33 evenly spaced samples would fall.
+    const left = { x: 0, y: 40, width: 44.5, height: 20 };
+    const right = { x: 57.5, y: 40, width: 42.5, height: 20 };
+    expect(twoBendFits({ x: 0, y: 0 }, { x: 100, y: 100 }, "east", [left, right])).toBe(true);
+    // Closed: the clearances overlap, no column is left.
+    const closer = { x: 56, y: 40, width: 44, height: 20 };
+    expect(twoBendFits({ x: 0, y: 0 }, { x: 100, y: 100 }, "east", [left, closer])).toBe(false);
+    // The legs count too: a box across the source's line before any free column.
+    const onLeg = { x: 20, y: -2, width: 4, height: 4 };
+    expect(twoBendFits({ x: 0, y: 0 }, { x: 100, y: 100 }, "east", [left, right, onLeg])).toBe(
+      false,
+    );
+  });
+
+  test("the titles of the ends' own groups and their ancestors are obstacles", async () => {
+    const value = await render(`
+version: 1
+figure:
+  id: titled
+  theme: sumi
+  layout:
+    arrange: {row: {items: [outer]}}
+groups:
+  - {id: outer, label: Outer title, arrange: {row: {items: [inner]}}}
+  - {id: inner, label: Inner title, arrange: {row: {gap: 12mm, items: [a, b]}}}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+edges:
+  - {from: a, to: b, fromAnchor: east}
+`);
+    const ir = value.compiled.ir;
+    const fonts = getFontSet(ir.meta.fontSetId);
+    if (fonts === undefined) throw new Error("no fonts");
+    const context = createGeometryContext(ir, value.inspection, fonts);
+    const edge = ir.edges[0];
+    if (edge === undefined) throw new Error("no edge");
+    const keys = obstacles(context, edge).map((o) => o.element.key);
+    expect(keys).toContain("g:outer");
+    expect(keys).toContain("g:inner");
   });
 
   test("no L is suggested for one anchor when the other end's port may move", async () => {
@@ -380,6 +426,14 @@ edges:
   - {from: a, to: b, fromAnchor: north}
   - {from: c, to: b}
 `);
+    // The conditions for an L are met: two bends or more, the boxes apart on both axes.
+    expect(bendCount(routeOf(value, "n:a", "n:b"))).toBeGreaterThanOrEqual(2);
+    const box = (key: string) => value.layout.nodes.find((n) => n.key === key)?.rect;
+    const a = box("n:a");
+    const b = box("n:b");
+    if (a === undefined || b === undefined) throw new Error("no boxes");
+    expect(a.x + a.width).toBeLessThan(b.x);
+    expect(a.y + a.height).toBeLessThan(b.y);
     for (const d of avoidable(value)) expect(d.message).not.toContain("one bend would do");
   });
 });
