@@ -1,38 +1,75 @@
 <!doctype html>
-<!-- Mockup template: edit the variables from the theme (see mockup.md), set the page size, draw in the <svg>. -->
+<!-- Mockup template: paste the sizes from Sumi, set the colours from the theme (see mockup.md), set the page size, draw. -->
 <meta charset="utf-8">
 <title>mockup</title>
 <style>
-  /* Fonts: @font-face for the theme's font files if you have them; else a close system face. */
+  /* Sizes: replace this block with `sumi catalog --sizes --css --profile <id> --theme <id>` (its @font-face
+     lines load the theme's bundled fonts). Never edit the values by hand. */
+  /* BEGIN SUMI SIZES */
+/* sumi catalog --sizes --css --profile paper-double --theme sumi --text-scale 1 */
+:root {
+  --font: "Sumi Latin", "Sumi", "Inter", "BIZ UDPGothic", sans-serif;  /* font set sumi/inter-biz-ud-gothic */
+  --fs-node: 8;          /* pt: node text */
+  --fs-group: 9;         /* pt: group title */
+  --fs-edge: 7;          /* pt: edge label (profile minimum 7pt) */
+  --frame-w: 1;          /* pt: a node's frame */
+  --group-frame-w: 1;    /* pt: a group's frame */
+  --edge-w: 1;           /* pt: an edge */
+  --radius: 0pt;         /* a node's corners */
+  --gap: 4mm;            /* between the items of a row, stack or grid */
+  --group-pad: 2.82mm;   /* a group's padding, each side */
+  --node-pad-x: 2.47mm;  /* a box's padding left and right of its label */
+  --node-pad-y: 1.23mm;  /* a box's padding above and below its label */
+  --box-h: 6mm;          /* a one-line box's height */
+  --op: 5.64mm;          /* an operator */
+  --op-large: 8.47mm;    /* an operator, size: large */
+  --op-xlarge: 11.29mm;  /* an operator, size: xlarge */
+  --margin: 1.94mm;      /* around the figure */
+  --page-w: 180mm;       /* the profile's page width */
+}
+  /* END SUMI SIZES */
   :root {
     --canvas: #ffffff; --ink: #000000; --panel: #f4f4f4;       /* theme canvas, text/line colour, group fill */
     --blue: #dde6f0; --blue-line: #3d5d77;                     /* one fill + one line per tone you use */
     --gray: #e6e6e6; --gray-line: #555555;
-    --font: "Helvetica Neue", Arial, sans-serif;               /* theme fonts */
-    --fs-node: 8; --fs-group: 9; --fs-edge: 7;                 /* pt: fontSizePt.base x textScale */
-    --frame-w: 0.75; --edge-w: 0.75;                           /* pt: theme line widths (paper: 1 and 0.5) */
     --arrow: #000000;                                          /* arrowhead / edge colour */
     --pt: 0.3528mm;                                            /* 1pt */
   }
   @page { size: 160mm 100mm; margin: 0 }                       /* the real figure size */
   html, body { margin: 0; background: var(--canvas) }
   #fig { position: relative; width: 160mm; height: 100mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
-  /* Everything is positioned in mm so it maps 1:1 to `place` with unit: 1mm, origin: body. */
-  .box { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
-         text-align: center; border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: var(--gray); border-radius: 0.5mm }
+  /* left/top are the element's centre in mm: they map 1:1 to `place` with unit: 1mm (origin: body for groups).
+     Without a width a box takes Sumi's natural size: its label plus --node-pad-x, at least --box-h high. */
+  .box, .op, .group { position: absolute; box-sizing: border-box; translate: -50% -50% }
+  .box { display: flex; align-items: center; justify-content: center; text-align: center; white-space: pre;
+         min-height: var(--box-h); padding: var(--node-pad-y) var(--node-pad-x);
+         border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: var(--gray); border-radius: var(--radius) }
   .tinted-blue { background: var(--blue); border-color: var(--blue-line) }
-  .group { position: absolute; box-sizing: border-box; background: var(--panel); border: calc(var(--frame-w) * var(--pt)) solid var(--ink) }
+  .op { width: var(--op); height: var(--op); border-radius: 50%; border: calc(var(--frame-w) * var(--pt)) solid var(--ink);
+        display: flex; align-items: center; justify-content: center }      /* .large: --op-large, .xlarge: --op-xlarge */
+  .op.large { width: var(--op-large); height: var(--op-large) }
+  .op.xlarge { width: var(--op-xlarge); height: var(--op-xlarge) }
+  .group { padding: var(--group-pad); background: var(--panel); border: calc(var(--group-frame-w) * var(--pt)) solid var(--ink) }
   .group > .title { position: absolute; left: 0; bottom: 100%; font-weight: bold; font-size: calc(var(--fs-group) * var(--pt)) }  /* title above the border */
+  .overflow { outline: 0.6mm dashed red }                       /* set by the script below: Sumi would report geometry/label-overflow */
   svg.edges { position: absolute; inset: 0; width: 160mm; height: 100mm; overflow: visible }
   svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: calc(var(--edge-w) * 0.3528) }  /* inside the svg 1 unit = 1mm */
   svg.edges text { font-size: calc(var(--fs-edge) * 0.3528px); fill: var(--ink) }  /* edge labels, in mm units */
   svg.edges marker path { fill: var(--arrow) }
 </style>
 <div id="fig">
-  <div class="box tinted-blue" style="left:20mm; top:20mm; width:30mm; height:10mm">Input</div>
-  <div class="box" style="left:80mm; top:20mm; width:30mm; height:10mm">Model</div>
+  <div class="box tinted-blue" style="left:35mm; top:25mm; width:30mm">Input</div>
+  <div class="box" style="left:95mm; top:25mm; width:30mm">Model</div>
+  <div class="op" style="left:95mm; top:45mm">+</div>
   <svg class="edges" viewBox="0 0 160 100" role="img" aria-label="edges">
     <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2" markerHeight="2" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
     <path class="e" d="M50 25 H80" marker-end="url(#ah)"/>
   </svg>
 </div>
+<script>
+  // A box drawn narrower or lower than its label needs: Sumi would report geometry/label-overflow.
+  // Check the exact width with `sumi catalog --sizes --profile <id> --component box --label "<label>"`.
+  for (const el of document.querySelectorAll(".box, .op")) {
+    if (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) el.classList.add("overflow");
+  }
+</script>

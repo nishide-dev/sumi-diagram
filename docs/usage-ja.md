@@ -135,6 +135,7 @@ sumi doctor                                      # D2・同梱フォントなど
 sumi catalog                                     # 使える部品・Theme・Profile の一覧
 sumi catalog --kind node                         # 部品（node）だけの一覧
 sumi catalog --json --section themes --section profiles   # Theme と Profile を JSON で
+sumi catalog --sizes --profile paper-double --label "Multi-Head Attention"   # 既定の寸法・余白・文字の大きさ
 ```
 
 | コマンド | 内容 | 主なオプション |
@@ -144,7 +145,7 @@ sumi catalog --json --section themes --section profiles   # Theme と Profile �
 | `fmt <files...>` | YAML を意味を変えずに整形する（コメント・引用符・キー順は保つ）。YAML として不正なファイルは整形しない。flow の括弧の内側に空白を入れず（`{a: 1}`、`[a, b]`）、flow 形式の grid の `items` が複数 row なら 1 row（`columns` セル、`span` 込み）ごとに改行する | `--check`（書き込まずに未整形のファイルを列挙）、`--stdout`、`--canonical-order`（既知のキーを schema の順に並べる） |
 | `doctor` | Sumi / Bun のバージョン、D2 の有無とバージョン、同梱フォントの sha256、幾何 lint 用のフォントの metrics を読めるかを確認する。新しいリリースがあれば 1 行で知らせる | `--json`、`--no-update-check`、`--skill-version <版>`（[更新](#更新)） |
 | `update` | インストール先を最新リリース（または `--version`）に差し替える | `--check`（確認のみ）、`--version <版>`（[更新](#更新)） |
-| `catalog` | 部品・Theme・Profile の一覧、同梱アイコンの検索 | `--json`、`--section components\|themes\|profiles\|icons\|targets\|sets`（繰り返し可）、`--kind node\|group\|edge`（`--section` なしでは部品だけを出す）、`--icons <語>`（アイコンを検索）、`--icons ""`（全アイコン名） |
+| `catalog` | 部品・Theme・Profile の一覧、同梱アイコンの検索 | `--json`、`--section components\|themes\|profiles\|icons\|targets\|sets`（繰り返し可）、`--kind node\|group\|edge`（`--section` なしでは部品だけを出す）、`--icons <語>`（アイコンを検索）、`--icons ""`（全アイコン名）、`--sizes`（既定の寸法。下記） |
 
 `--background canvas|transparent` は `figure.background`（既定 `canvas`）を上書きします。SVG・PDF・両 PPTX 方式と `--json` で使えます。透明にするのは外側の地だけで、ノードの塗りやラベルの下地は残り、コントラストと lint はテーマの地の色を想定します。`sumi lint --geometry` も同じフラグを受け付けますが、lint は常にテーマの地の色に対して測るので結果は変わりません。
 
@@ -177,6 +178,10 @@ v0.3.0 から、台形 `trapezoid` と重なった矩形 `stack` を使えます
 - 使い方の誤りはスタックトレースを出さず 1 行で報告します。内部エラーのスタックトレースは `SUMI_DEBUG=1` で表示します。
 - 出力の読み手が先に終了した場合（`sumi catalog | head -1` など。EPIPE）は、残りの出力を捨てて何も表示せず、コマンド自身の終了コードで終わります。`render` の SVG や `fmt` の書き換えは最後まで行います。
 - 出力は同じ入力・Sumi・バックエンド・フォント・オプションに対して決定的です。JSON の形式は `version` で版を管理します。同じ版のうちはフィールドの追加だけを行うので、未知のフィールドは無視してください（[設計 §6.10](design/phase1.md)）。
+
+### 既定の寸法
+
+`sumi catalog --sizes` は、structured の図で寸法を書く前の値を出します。Profile ごとに、フォントセット・文字の大きさ（ノード・グループの見出し・線のラベル）・線の太さ、間隔（`gap`）・グループとノードの余白・外側の余白・ページ幅、そして 1 語のラベルを入れた各ノード部品の自然な幅 × 高さ（operator は `size` ごと）です。`--profile` を省くと `paper-double`・`screen-doc`・`presentation-16x9` を、それぞれテーマが必要とする文字の倍率で出します。オプションは `--profile`、`--theme`（既定 `sumi`）、`--density normal|compact`、`--text-scale <n>`（`figure.themeOverrides.textScale`）、`--label <文字>` と `--component <id>`（どちらも繰り返し可。実際のラベルでの自然な大きさで、これより狭く描いた箱は `geometry/label-overflow` になります）、`--json`（`{ version: 1, settings: [{ profile, density, theme, textScale, text, lines, radiusPt, spacing, components: [{ component, props, label, width: { pt, mm }, height }], sizedByProps }] }`）、`--css`（`--profile` を 1 つ指定。Skill の[下絵テンプレート](../skills/sumi/references/mockup-template.html)の寸法の変数と `@font-face`）です。値は Skill の[寸法の表](../skills/sumi/references/sizes.md)と同じコードが、実際のレイアウトエンジンとフォントで測ります。設計記録: [#611](design/decisions/611-catalog-sizes.md)。
 
 ### 機械可読な出力（JSON）
 

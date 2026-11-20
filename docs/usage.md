@@ -69,6 +69,7 @@ sumi fmt figure.sumi.yaml
 sumi doctor
 sumi catalog --kind node
 sumi catalog --json --section themes --section profiles
+sumi catalog --sizes --profile paper-double --label "Multi-Head Attention"
 ```
 
 | Command | Behavior and options |
@@ -78,7 +79,7 @@ sumi catalog --json --section themes --section profiles
 | `fmt <files...>` | Format YAML without changing meaning; preserve comments, quotes, and key order. Invalid YAML is not rewritten. `--check` lists unformatted files without writing; `--stdout` prints YAML; `--canonical-order` sorts known keys into schema order. Flow collections print without inner padding (`{a: 1}`, `[a, b]`); a flow `grid` `items` with several rows prints one grid row per line (`columns` cells, counting `span`). |
 | `doctor` | Check Sumi/runtime versions, D2, bundled font hashes and geometry metrics. `--json`; `--no-update-check`; `--skill-version <x>` (see [Updating](#updating)). |
 | `update` | Replace the install with the latest release (or `--version <x>`). `--check` only reports. See [Updating](#updating). |
-| `catalog` | List components, themes, profiles, icon sets, placement targets and set enclosures. `--json`; repeated `--section components\|themes\|profiles\|icons\|targets\|sets`; `--kind node\|group\|edge` (without a section, returns only components); `--icons <words>` searches bundled icons, `--icons ""` lists all icon names. |
+| `catalog` | List components, themes, profiles, icon sets, placement targets and set enclosures. `--json`; repeated `--section components\|themes\|profiles\|icons\|targets\|sets`; `--kind node\|group\|edge` (without a section, returns only components); `--icons <words>` searches bundled icons, `--icons ""` lists all icon names. `--sizes` prints a structured figure's default sizes instead (below). |
 
 `--background canvas|transparent` overrides `figure.background` (default `canvas`) for SVG, PDF and both PPTX modes, including `--json`. Transparent removes only the outer canvas; label backgrounds and node fills remain. Contrast and lint still assume the theme canvas. `sumi lint --geometry` accepts the same flag; its findings do not change, since lint always measures against the theme canvas.
 
@@ -108,6 +109,10 @@ Auto layout uses D2/ELK and `figure.layout.direction`. Structured layout uses Su
 Color is terminal-only; `--no-color` or `NO_COLOR=1` disables it, `FORCE_COLOR=1` forces it. Usage errors are one line without a stack trace; set `SUMI_DEBUG=1` for internal-error stacks. If a downstream reader closes a pipe (EPIPE), remaining output is silently discarded and the command retains its own exit status. Rendering and file formatting still finish.
 
 Output is deterministic for the same input, Sumi version, layout backend, fonts, and options. JSON is versioned; within a version fields may be added, so ignore unknown fields.
+
+## Default sizes
+
+`sumi catalog --sizes` prints what a structured figure is made of before any size is written: per profile the font set, text sizes (node, group title, edge label) and line widths, the gap, group and node paddings, margin and page width, and the natural width × height of each node component with a one-word label (operators at each `size`). Without `--profile` it prints `paper-double`, `screen-doc` and `presentation-16x9`, each at the text scale the theme needs for it. Options: `--profile`, `--theme` (default `sumi`), `--density normal|compact`, `--text-scale <n>` (`figure.themeOverrides.textScale`), `--label <text>` and `--component <id>` (both repeatable: the natural size of your own labels; a box drawn narrower is a `geometry/label-overflow`), `--json` (`{ version: 1, settings: [{ profile, density, theme, textScale, text, lines, radiusPt, spacing, components: [{ component, props, label, width: { pt, mm }, height }], sizedByProps }] }`), and `--css` (one `--profile`: the size variables and `@font-face` rules of the Skill's [mockup template](../skills/sumi/references/mockup-template.html)). The numbers come from the same code as the Skill's [size tables](../skills/sumi/references/sizes.md), laid out with the real engine and fonts. Design record: [#611](design/decisions/611-catalog-sizes.md).
 
 ## JSON output
 

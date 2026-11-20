@@ -27,27 +27,34 @@ any theme.
   `sumi render probe.sumi.yaml`) and copy the fills and strokes from the SVG
   (`grep -o '\(fill\|stroke\)="#[0-9a-f]*"'`). Palettes: `sumi catalog --section palettes`.
 - Fonts: `fonts.id` names a bundled set (the font files ship in the release tarball's fonts directory).
-  Load them with `@font-face`, else use the closest system face and judge widths with margin.
-- Text sizes come from the theme and profile (times `textScale`), in pt. A mockup text smaller
-  than the profile minimum is a defect.
-- Box sizes, gaps and panel padding: draw them at Sumi's [default sizes](sizes.md) (a one-word
-  box is about 16 × 6mm on paper, an operator 5.6mm, a panel adds its padding on both sides), so
-  the `place` coordinates and the page width carry over to the YAML.
+  The `--css` output below loads them with `@font-face`; without the files, the closest system face
+  is used, so judge widths with margin.
+- Sizes come from Sumi too: `sumi catalog --sizes --css --profile <id> --theme <id>` prints the
+  template's size block (font sizes and line widths in pt, gaps, paddings, a one-line box's
+  height and the operators in mm, at the text scale the theme needs for the profile; add
+  `--text-scale` / `--density compact` when the figure sets them) and `@font-face` lines for
+  the theme's bundled fonts. Paste it over the block between `BEGIN SUMI SIZES` and
+  `END SUMI SIZES` in [mockup-template.html](mockup-template.html); never type these values.
+  A mockup text smaller than the profile minimum is a defect.
+- Label widths: `sumi catalog --sizes --profile <id> --theme <id> --component box --label "Multi-Head Attention"`
+  (`--label` and `--component` repeatable, `--json` for numbers) gives each box's natural
+  width and height with your real labels. Draw boxes at least that size, or leave out `width`
+  so the template sizes them like Sumi; a box drawn narrower is a `geometry/label-overflow`
+  in the render (the template outlines it in red). Operators are `--op` (5.6mm on paper,
+  8.5mm at `size: large`), not the size of the symbol you would draw by hand.
+  [Default sizes](sizes.md) has the same numbers as tables.
 
-Fill these CSS variables in [mockup-template.html](mockup-template.html) (a page at the real
-size, boxes positioned in mm, an inline SVG layer for arrows): `--canvas`; `--ink` and the
-tone fills and lines from the probe; `--font`; `--fs-node`, `--fs-group`, `--fs-edge` in pt
-(`fontSizePt.base` times `figure.themeOverrides.textScale`, rounded to 0.5pt as Sumi does; the
-catalog's `textScaleFor` gives the scale a profile needs);
-`--frame-w` and `--edge-w` in pt (the theme's line widths: `themeOverrides` `frameWidth` / `lineWidth` when set, else
-measure the probe SVG's `stroke-width` against its width in mm; `paper` draws 1pt frames and 0.5pt edges);
-`--arrow` (the arrowhead's colour: the edge colour). Nothing in the page uses a literal colour.
+Then fill the colour variables of the template (`--canvas`; `--ink` and the tone fills and lines
+from the probe; `--arrow`, the edge colour). Nothing in the page uses a literal colour or a size
+typed by hand: everything is positioned in mm, so the `place` coordinates and the page width
+carry over to the YAML.
 
 ## 2. Draw only what Sumi can draw
 
 Real size: the page is the figure's width and height in CSS `mm` (`@page` and a `#fig` box), text
-in `pt` via the `--fs-*` variables, lines via `--frame-w` / `--edge-w`. Position everything in mm so a
-coordinate maps to `place` (`unit: 1mm`). Inside inline SVG one user unit is 1mm (1pt = 0.3528mm), and
+in `pt` via the `--fs-*` variables, lines via `--frame-w` / `--group-frame-w` / `--edge-w`. Position
+everything by its centre in mm (`left` / `top` of `.box`, `.op`, `.group`), so a coordinate maps to
+`place` (`unit: 1mm`); space neighbours by `--gap` and pad panels by `--group-pad`. Inside inline SVG one user unit is 1mm (1pt = 0.3528mm), and
 use `markerUnits="userSpaceOnUse"` for arrowheads.
 
 Vocabulary (confirm names with `sumi catalog --json`, never invent):
