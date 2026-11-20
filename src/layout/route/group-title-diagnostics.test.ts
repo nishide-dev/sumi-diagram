@@ -8,6 +8,8 @@ const source = (title: boolean, align: boolean) =>
     figure: {
       id: "titled",
       layout: {
+        // The jog is the subject: moving a box (#620) would line the ends up without align.
+        straighten: false,
         arrange: { row: { gap: "12mm", items: ["a", "g"] } },
         ...(align && { align: [{ y: ["a", "b"] }] }),
       },

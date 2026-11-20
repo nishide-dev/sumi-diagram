@@ -749,11 +749,14 @@ export const LayoutFieldsSchema = z.strictObject({
     .describe(
       "compact: the profile's tighter default gap, group padding and node padding, for dense paper figures (usually with fit: scale); gaps written in the figure stay as written. Omitted means normal (structured layout only).",
     ),
+  // The JSON Schema states the default; the parsed value stays absent when omitted, so an auto
+  // layout that does not write it gets no layout/structured-only (#620).
   straighten: z
     .boolean()
     .optional()
+    .meta({ default: true })
     .describe(
-      "true: after placing, shift a node or group across its row or stack (or a place item off a coordinate no other item shares) within the free room of its box, so that an edge whose ends face each other but are out of line becomes straight. Never grows a box or the figure; never moves an align constraint's element, an item of a box with align start, end or stretch (a written center counts as the default centring and leaves room), a coordinate shared with another place item, or one member of a fan. Omitted means false (structured layout only).",
+      "true (the default): after placing, shift a node or group across its row or stack (or a place item off a coordinate no other item shares) within the free room of its box, so that an edge whose ends face each other but are out of line becomes straight. Never grows a box or the figure; never moves an align constraint's element, an item of a box with align start, end or stretch (a written center counts as the default centring and leaves room), a coordinate shared with another place item, or one member of a fan. Omitted means true; false keeps the placement as solved (structured layout only).",
     ),
 });
 

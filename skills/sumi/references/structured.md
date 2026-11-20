@@ -981,8 +981,9 @@ skips are single horizontal lines. The `key` legend is [below](#legends).
 
 An edge between two boxes that face each other but sit at slightly different heights
 gets a jog (or a staircase around a label). Drawing by hand you would **move one of the
-boxes** a little so the line runs straight. `figure.layout.straighten: true` (opt-in,
-structured only) does that after placing:
+boxes** a little so the line runs straight. `figure.layout.straighten` (structured only,
+**on by default** since #620) does that after placing; write `straighten: false` to keep
+the placement exactly as solved:
 
 ```yaml
 # expect-render: fits
@@ -992,7 +993,7 @@ figure:
   theme: paper
   profile: paper-single
   layout:
-    straighten: true             # the left column moves up: both arrows run straight
+    # straighten: false          # default true: the left column moves up, both arrows run straight
     arrange:
       row:
         gap: 10mm
@@ -1025,7 +1026,9 @@ edges:
   item shares (a line you drew), cells of `tokens` / `matrix`, anything on a tilted plane or
   in a chat, and **part of a fan**: an element with two or more unanchored ends on one side
   (or a junction with two or more edges leaving, or entering) keeps its branches alike, so
-  neither the hub nor one branch moves alone.
+  neither the hub nor one branch moves alone. An end on a `plain` group (no frame) is not
+  slid far along its unpainted side to meet the other end (the line keeps starting near the
+  group's middle); the router's own sub-point (1pt) straightening still applies to it.
 - **Kept only if it helps**: the edge must then be routed straight, no edge may gain a bend
   or lose its route, every edge that was straight stays straight, and the routed figure must
   not grow. Otherwise nothing moves.
