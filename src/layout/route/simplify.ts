@@ -49,6 +49,8 @@ export const TINY_JOG = ptToD2Units(mmToPt(2));
 export const HUG_GAP = ptToD2Units(mmToPt(1.5));
 /** …along at least this much (3mm). */
 export const HUG_RUN = ptToD2Units(mmToPt(3));
+/** The clearance kept from annotation text where that saves a bend (1.5pt). */
+const SOFT_CLEARANCE = 3;
 /** The clearance kept from nodes (the router's `ROUTE.clearance`). */
 const CLEARANCE = 6;
 /** How far a centred middle segment is still worth moving for (beyond this, any place is clear). */
@@ -99,8 +101,18 @@ export interface SimplifyEdge {
 }
 
 export interface SimplifyScene {
-  /** Nodes routes keep clear of (junctions included). */
-  readonly nodes: readonly { readonly key: ElementKey; readonly rect: Rect }[];
+  /**
+   * Nodes routes keep clear of (junctions included). `soft`: annotation text
+   * (a label attached to a node, a caption), which a line may pass at half
+   * the clearance from its text lines (`lines`, each as wide as the line)
+   * where that saves a bend.
+   */
+  readonly nodes: readonly {
+    readonly key: ElementKey;
+    readonly rect: Rect;
+    readonly soft?: boolean;
+    readonly lines?: readonly Rect[];
+  }[];
   /** Text routes keep clear of: group titles and captions. */
   readonly boxes: readonly Rect[];
   /** Group frames: crossings are counted, and a drawn one is not run beside. */
@@ -349,17 +361,31 @@ function hugGapOf(segs: readonly Seg[], lines: readonly Line[]): number {
   return gap;
 }
 
-/** Everything a route is measured by, against the same scene for the current route and a candidate. */
+/** A rectangle routes keep a clearance from: a node (not an end), a title or caption. */
+interface Obstacle {
+  readonly rect: Rect;
+  /** The clearance it needs, in units. */
+  readonly need: number;
+}
+
+/** The scene of one edge: only what lies near it, and the obstacles with their clearances. */
+interface LocalScene extends SimplifyScene {
+  readonly obstacles: readonly Obstacle[];
+}
+
+/**
+ * Everything a route is measured by, per thing it meets (in the order of the
+ * scene's groups and obstacles and of `others`), so that a candidate can be
+ * held to "no worse than the routed line" thing by thing.
+ */
 interface Measure {
-  crossings: number;
-  overlaps: number;
-  near: number;
+  /** Per other route: crossings and touches, overlaps, close parallels. */
+  contacts: Contacts[];
   groupCrossings: number[];
-  groupRuns: number;
-  /**
-   * How far the route comes inside the clearance of a node that is not an
-   * end (or half of it around a title or caption): the largest shortfall.
-   */
+  groupRuns: number[];
+  /** Per obstacle: how far the route comes inside its clearance (≤ 0: clear). */
+  shortfalls: number[];
+  /** The sum of the positive shortfalls (for ranking). */
   shortfall: number;
 }
 
@@ -382,44 +408,43 @@ function rectDistance(g: Seg, r: Rect): number {
   return -Math.max(0, Math.min(x1 - r.x, r.x + r.width - x0, y1 - r.y, r.y + r.height - y0));
 }
 
-/** Measures a route (`core`: port to port; `points`: as drawn) against the scene. */
+/**
+ * Measures a route (`core`: port to port; `points`: as drawn) against the
+ * scene. With `limit` (the routed line's measure), `undefined` as soon as the
+ * route is worse than it on any one thing: a group border crossed or run
+ * beside more often, an obstacle the line kept clear of now within its
+ * clearance (or one it was already too close to, closer), a route of another
+ * net crossed, touched, overlapped or run beside more often than the routed
+ * line did (a route it never met may not be met at all).
+ */
 function measure(
   edge: SimplifyEdge,
   core: readonly Point[],
   points: readonly Point[],
-  scene: SimplifyScene,
+  scene: LocalScene,
   others: readonly Other[],
   limit?: Measure,
 ): Measure | undefined {
   const s = segments(straightened(points));
-  const result: Measure = {
-    crossings: 0,
-    overlaps: 0,
-    near: 0,
-    groupCrossings: scene.groups.map((g) => borderCrossings(s, g.rect)),
-    groupRuns: 0,
-    shortfall: 0,
-  };
-  if (
-    limit !== undefined &&
-    result.groupCrossings.some((n, i) => n > (limit.groupCrossings[i] as number))
-  )
+  const groupCrossings = scene.groups.map((g) => borderCrossings(s, g.rect));
+  if (limit !== undefined && groupCrossings.some((n, i) => n > (limit.groupCrossings[i] as number)))
     return undefined;
-  for (const g of scene.groups) {
-    if (!g.drawn || g.key === edge.from.key || g.key === edge.to.key) continue;
-    result.groupRuns += borderRuns(s, g.rect);
-  }
-  if (limit !== undefined && result.groupRuns > limit.groupRuns) return undefined;
-  // `scene.nodes` holds no node of the ends (`simplifyEdge`).
-  const allowed = limit === undefined ? Number.POSITIVE_INFINITY : Math.max(0, limit.shortfall);
-  for (const g of segments(core)) {
-    for (const n of scene.nodes) {
-      result.shortfall = Math.max(result.shortfall, CLEARANCE - rectDistance(g, n.rect));
-    }
-    for (const box of scene.boxes) {
-      result.shortfall = Math.max(result.shortfall, CLEARANCE / 2 - rectDistance(g, box));
-    }
-    if (result.shortfall > allowed + EPS) return undefined;
+  const groupRuns = scene.groups.map((g) =>
+    !g.drawn || g.key === edge.from.key || g.key === edge.to.key ? 0 : borderRuns(s, g.rect),
+  );
+  if (limit !== undefined && groupRuns.some((n, i) => n > (limit.groupRuns[i] as number)))
+    return undefined;
+  // `scene.obstacles` holds nothing of the ends (`simplifyEdge`).
+  const coreSegs = segments(core);
+  const shortfalls: number[] = [];
+  let shortfall = 0;
+  for (const [i, o] of scene.obstacles.entries()) {
+    let worst = Number.NEGATIVE_INFINITY;
+    for (const g of coreSegs) worst = Math.max(worst, o.need - rectDistance(g, o.rect));
+    if (limit !== undefined && worst > Math.max(0, limit.shortfalls[i] as number) + EPS)
+      return undefined;
+    shortfalls.push(worst);
+    if (worst > 0) shortfall += worst;
   }
   // Lines farther than the clearance cannot meet or run beside the route.
   const b = boxOf(points);
@@ -429,21 +454,20 @@ function measure(
     width: b.width + 2 * CLEARANCE,
     height: b.height + 2 * CLEARANCE,
   };
-  for (const o of others) {
-    if (!meets(o.box, near)) continue;
-    const c = contacts(s, o.segs, near);
-    result.crossings += c.crossings;
-    result.overlaps += c.overlaps;
-    result.near += c.near;
+  const all: Contacts[] = [];
+  for (const [i, o] of others.entries()) {
+    const c = meets(o.box, near)
+      ? contacts(s, o.segs, near)
+      : { crossings: 0, overlaps: 0, near: 0 };
+    const was = limit?.contacts[i];
     if (
-      limit !== undefined &&
-      (result.crossings > limit.crossings ||
-        result.overlaps > limit.overlaps ||
-        result.near > limit.near)
+      was !== undefined &&
+      (c.crossings > was.crossings || c.overlaps > was.overlaps || c.near > was.near)
     )
       return undefined;
+    all.push(c);
   }
-  return result;
+  return { contacts: all, groupCrossings, groupRuns, shortfalls, shortfall };
 }
 
 /**
@@ -685,13 +709,24 @@ function simplifyEdge(
     key === edge.to.key ||
     full.inside(key, edge.from.key) ||
     full.inside(key, edge.to.key);
-  const scene: SimplifyScene = {
+  // The nodes in the way: none of the ends' own.
+  const nodes = full.nodes.filter((n) => meets(n.rect, region) && !own(n.key));
+  const boxes = full.boxes.filter((b) => meets(b, region));
+  const local = (relaxed: boolean): LocalScene => ({
     ...full,
-    // The nodes in the way: none of the ends' own.
-    nodes: full.nodes.filter((n) => meets(n.rect, region) && !own(n.key)),
-    boxes: full.boxes.filter((b) => meets(b, region)),
+    nodes,
+    boxes,
     groups: full.groups.filter((g) => meets(g.rect, region)),
-  };
+    obstacles: [
+      ...nodes.flatMap((n) =>
+        relaxed && n.soft === true
+          ? (n.lines ?? [n.rect]).map((rect) => ({ rect, need: SOFT_CLEARANCE }))
+          : [{ rect: n.rect, need: CLEARANCE }],
+      ),
+      ...boxes.map((rect) => ({ rect, need: CLEARANCE / 2 })),
+    ],
+  });
+  const scene = local(false);
   const others: Other[] = [];
   for (const [key, entry] of cache) {
     if (key === edge.key || full.shares(key, edge.key) || !meets(entry.box, region)) continue;
@@ -721,13 +756,27 @@ function simplifyEdge(
   // Fewer bends: straight, then L, then Z, the first shape that fits.
   // Each with the full room before an arrowhead first, else with the room the route had.
   const variants = [written, edge];
-  for (let level = 0; level < Math.min(bends, 3); level++) {
-    for (const e of variants) {
-      const list =
-        level === 0 ? straights(e, troubled) : level === 1 ? corners(e, troubled) : zs(e);
-      const best = pick(e, list, scene, others, current);
-      if (best !== undefined) return best;
+  const fewer = (sc: LocalScene, base: Measure) => {
+    for (let level = 0; level < Math.min(bends, 3); level++) {
+      for (const e of variants) {
+        const list =
+          level === 0 ? straights(e, troubled) : level === 1 ? corners(e, troubled) : zs(e);
+        const best = pick(e, list, sc, others, base);
+        if (best !== undefined) return best;
+      }
     }
+    return undefined;
+  };
+  const best = fewer(scene, current);
+  if (best !== undefined) return best;
+  // Annotation text (a label attached to a node, a caption) may be passed at
+  // half the clearance from its lines (a short line of a centred label
+  // leaves room beside it), never touched, where that saves a bend.
+  if (nodes.some((n) => n.soft === true)) {
+    const relaxed = local(true);
+    const base = measure(edge, coreOf(edge, points), points, relaxed, others) as Measure;
+    const eased = fewer(relaxed, base);
+    if (eased !== undefined) return eased;
   }
   // As many bends: the segments between bends moved off tiny jogs, out of a
   // node's clearance and away from what they hug, where the route has any.
@@ -737,23 +786,11 @@ function simplifyEdge(
 
 const outlined = (c: Candidate): Point[] => straightened([c.from.outline, ...c.core, c.to.outline]);
 
-/** `m` is no worse than `current` in any respect. */
-function noWorse(m: Measure, current: Measure): boolean {
-  return (
-    m.crossings <= current.crossings &&
-    m.overlaps <= current.overlaps &&
-    m.near <= current.near &&
-    m.groupRuns <= current.groupRuns &&
-    m.shortfall <= Math.max(0, current.shortfall) + EPS &&
-    m.groupCrossings.every((n, i) => n <= (current.groupCrossings[i] as number))
-  );
-}
-
 /** The best valid candidate of one bend count, if any. */
 function pick(
   edge: SimplifyEdge,
   list: readonly Candidate[],
-  scene: SimplifyScene,
+  scene: LocalScene,
   others: readonly Other[],
   current: Measure,
 ): Simplified | undefined {
@@ -762,12 +799,11 @@ function pick(
     const points = outlined(c);
     if (!lanesKept(edge, c)) continue;
     const m = measure(edge, c.core, points, scene, others, current);
-    if (m === undefined || !noWorse(m, current) || !keepsRules(edge, c, points, scene, others))
-      continue;
+    if (m === undefined || !keepsRules(edge, c, points, scene, others)) continue;
     const score = [
       jogLengths(points).filter((l) => l < TINY_JOG).length,
       c.moved,
-      Math.max(0, m.shortfall),
+      m.shortfall,
       -clearanceOf(edge, segments(c.core).slice(1, -1), scene, others),
       routeLength(points),
     ];
@@ -786,7 +822,7 @@ function pick(
 function nudge(
   edge: SimplifyEdge,
   points: readonly Point[],
-  scene: SimplifyScene,
+  scene: LocalScene,
   others: readonly Other[],
   start: Measure,
 ): Simplified | undefined {
@@ -847,7 +883,7 @@ function nudge(
       };
       const scoreOf = (c: readonly Point[], m: Measure) => [
         tinyCount(c),
-        Math.max(0, m.shortfall),
+        m.shortfall,
         -clearanceOf(edge, local(c, k), scene, others),
         // Then the segment's own room, then the smallest move.
         -clearanceOf(edge, segments(c).slice(k, k + 1), scene, others),
@@ -865,12 +901,7 @@ function nudge(
         const drawn = outlined(candidate);
         if (!lanesKept(edge, candidate)) continue;
         const m = measure(edge, next, drawn, scene, others, current);
-        if (
-          m === undefined ||
-          !noWorse(m, current) ||
-          !keepsRules(edge, candidate, drawn, scene, others)
-        )
-          continue;
+        if (m === undefined || !keepsRules(edge, candidate, drawn, scene, others)) continue;
         const score = scoreOf(next, m);
         if (best === undefined || lexLess(score, best.score)) best = { core: next, m, score };
       }

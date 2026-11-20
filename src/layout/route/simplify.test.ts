@@ -300,4 +300,60 @@ describe("not simpler", () => {
     };
     expect(simplifyRoutes([edge], scene({ e: route }, { a: A, c: C })).size).toBe(0);
   });
+
+  describe("held to the routed line thing by thing (review of #617)", () => {
+    const L: Rect = { x: 0, y: 0, width: 60, height: 40 };
+    const R: Rect = { x: 120, y: 25, width: 60, height: 40 };
+    const route = [
+      { x: 60, y: 20 },
+      { x: 95, y: 20 },
+      { x: 95, y: 30 },
+      { x: 120, y: 30 },
+    ];
+    const edge: SimplifyEdge = {
+      key: key("e"),
+      from: end("l", L, "east", 20, ["east"]),
+      to: end("r", R, "west", 30),
+    };
+
+    test("an obstacle the route kept clear of stays clear, whatever it already crossed", () => {
+      // The routed line crosses A; B is clear of it. The straight line at
+      // y = 30 would cross B: no worse in total, worse on B.
+      const A: Rect = { x: 70, y: 15, width: 8, height: 10 };
+      const B: Rect = { x: 80, y: 28, width: 6, height: 4 };
+      const points = simplifyRoutes([edge], scene({ e: route }, { l: L, r: R, A, B })).get(
+        key("e"),
+      )?.points;
+      if (points !== undefined) {
+        expect(points).not.toHaveLength(2);
+        // Every segment keeps B's clearance.
+        for (let i = 1; i < points.length; i++) {
+          const a = points[i - 1] as Point;
+          const b = points[i] as Point;
+          const x0 = Math.min(a.x, b.x);
+          const x1 = Math.max(a.x, b.x);
+          const y0 = Math.min(a.y, b.y);
+          const y1 = Math.max(a.y, b.y);
+          const dx = Math.max(B.x - x1, 0, x0 - (B.x + B.width));
+          const dy = Math.max(B.y - y1, 0, y0 - (B.y + B.height));
+          expect(Math.max(dx, dy)).toBeGreaterThanOrEqual(6);
+        }
+      }
+    });
+
+    test("a route of another net the line never met may not be crossed, though the total stays", () => {
+      // The routed line crosses v; the straight line at y = 30 would cross w instead.
+      const v = [
+        { x: 75, y: 18 },
+        { x: 75, y: 22 },
+      ];
+      const w = [
+        { x: 80, y: 28 },
+        { x: 80, y: 32 },
+      ];
+      const changed = simplifyRoutes([edge], scene({ e: route, v, w }, { l: L, r: R }));
+      const points = changed.get(key("e"))?.points;
+      if (points !== undefined) expect(points).not.toHaveLength(2);
+    });
+  });
 });

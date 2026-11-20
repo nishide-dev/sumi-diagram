@@ -185,19 +185,32 @@ describe("example 2: a skip and a junction beside a label", () => {
 });
 
 describe("example 3: a router into experts between two attached labels", () => {
-  test("the staircase keeps no tiny step, and the lint names what blocks the Z", async () => {
+  test("a Z past the attached labels' text, 1.5pt or more from each line", async () => {
     const value = await render(MOE);
     const points = routeOf(value, "n:router", "g:experts");
-    // No column clears both texts, so it still needs four bends, but no step under 2mm.
-    expect(bendCount(points)).toBe(4);
+    expect(bendCount(points)).toBe(2);
+    const column = (points[1] as Point).x;
+    // The column passes the note's short second line and the experts' label.
+    const label = (key: string) => value.layout.nodes.find((n) => n.key === key)?.label;
+    const below = label("n:experts-label");
+    const note = label("n:hash-note");
+    if (below === undefined || note === undefined) throw new Error("no labels");
+    expect(below.box.x - column).toBeGreaterThanOrEqual(3);
+    const second = note.box.x + (note.box.width + (note.lineWidths[1] as number)) / 2;
+    expect(column - second).toBeGreaterThanOrEqual(3);
+    expect(avoidable(value)).toEqual([]);
+  });
+
+  test("where the text blocks every column, the staircase is reported with what blocks it", async () => {
+    const value = await render(
+      MOE.replace('"first 3 MoE layers:\\nhash routing"', '"first 3 MoE layers:\\nhash-based routing"'),
+    );
+    const points = routeOf(value, "n:router", "g:experts");
+    expect(bendCount(points)).toBeGreaterThan(2);
     expect(jogLengths(points).filter((l) => l < TINY_JOG)).toEqual([]);
     const findings = avoidable(value);
     expect(findings).toHaveLength(1);
     expect(findings[0]?.message).toContain('node "hash-note"');
-    expect(findings[0]?.message).toContain('node "experts-label"');
-    // Moving the note out of the way gives a Z.
-    const moved = await render(MOE.replace("side: north, gap: 1.5mm", "side: south, gap: 1.5mm"));
-    expect(bendCount(routeOf(moved, "n:router", "g:experts"))).toBeLessThanOrEqual(2);
   });
 });
 
@@ -229,6 +242,40 @@ edges:
     expect(findings[0]?.hint).toContain('fromAnchor "east" and toAnchor "north"');
     const fixed = await render(pair("{from: a, to: b, fromAnchor: east, toAnchor: north}"));
     expect(bendCount(routeOf(fixed, "n:a", "n:b"))).toBe(1);
+    expect(avoidable(fixed)).toEqual([]);
+  });
+
+  test("two written anchors apart get two values on one line; applied, the line is straight", async () => {
+    const offset = (edge: string) => `
+version: 1
+figure:
+  id: offset
+  theme: sumi
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: a, at: [0, 0]}
+          - {item: b, at: [40, 3]}
+nodes:
+  - {id: a, component: box, label: A, props: {height: 14mm}}
+  - {id: b, component: box, label: Bee, props: {height: 9mm}}
+edges:
+  - ${edge}
+`;
+    const value = await render(
+      offset('{from: a, to: b, fromAnchor: "east:0.2", toAnchor: "west:0.8"}'),
+    );
+    const hint = avoidable(value)[0]?.hint ?? "";
+    const from = /fromAnchor "(east:[\d.]+|east)"/.exec(hint)?.[1];
+    const to = /toAnchor "(west:[\d.]+|west)"/.exec(hint)?.[1];
+    expect(from).toBeDefined();
+    expect(to).toBeDefined();
+    const fixed = await render(
+      offset(`{from: a, to: b, fromAnchor: "${from}", toAnchor: "${to}"}`),
+    );
+    expect(routeOf(fixed, "n:a", "n:b")).toHaveLength(2);
     expect(avoidable(fixed)).toEqual([]);
   });
 

@@ -1968,10 +1968,7 @@ describe.each(["columns", "grid"] as const)("synthetic 100-node figure: %s", (ki
     // distinct net pairs and points among them).
     // #134: sides from the arrange tree changed these from 23 and 1233.
     // #512: unanchored ends on wide nodes drop straight (grid: 1169 before).
-    // #604: simpler routes after routing (grid: 1170 before; each edge has no
-    // more crossings and contacts than its routed line, but the distinct
-    // crossing points of net pairs can differ by one; contacts stay 10).
-    const total = { columns: 24, grid: 1171 }[kind];
+    const total = { columns: 24, grid: 1170 }[kind];
     const netOf = new Map(result.layout.edges.map((e) => [e.key, e.route?.net]));
     const points = new Set(
       checkRoutes(ir, result.layout).crossings.map((c) => {

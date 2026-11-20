@@ -164,6 +164,20 @@ export const ROUTE = Object.freeze({
 /** Shapes whose ends may slide along a side or move to another (#604): sides drawn straight. */
 const SLIDING_SHAPES: ReadonlySet<string> = new Set(["rectangle", "square", "text", "cylinder"]);
 
+/** The box of each line of an upright label, as wide as the line (its whole box if turned). */
+function textLines(label: TextLayout): Rect[] {
+  if (label.rotation !== undefined) return [label.box];
+  return label.lineWidths.map((width, i) => {
+    const x =
+      label.textAlign === "left"
+        ? label.box.x
+        : label.textAlign === "right"
+          ? label.box.x + label.box.width - width
+          : label.box.x + (label.box.width - width) / 2;
+    return { x, y: label.box.y + i * label.lineHeightUnits, width, height: label.lineHeightUnits };
+  });
+}
+
 /** Where a line into `port` along the side's inward normal meets the drawn shape (as `resolveEnds`). */
 function outlineOf(node: NodeIR, rect: Rect, side: Side, port: Point): Point {
   const outward = SIDE_DIR[side];
@@ -911,7 +925,16 @@ class Router {
     if (simplifyEdges.length === 0) return edges;
     const netOf = new Map(edges.map((e) => [e.ir.key, e.net]));
     const changed = simplifyRoutes(simplifyEdges, {
-      nodes: this.#obstacles,
+      nodes: this.#obstacles.map((o) => {
+        const node = nodeIR.get(o.key);
+        // Annotation text: a label attached to a node, or a caption.
+        const soft =
+          node !== undefined &&
+          ((node.attach !== undefined && node.shape === "text") || node.captionOf !== undefined);
+        if (!soft) return o;
+        const label = this.#layout.nodes.find((n) => n.key === o.key)?.label;
+        return { ...o, soft, ...(label !== undefined && { lines: textLines(label) }) };
+      }),
       boxes: [
         ...layout.groups.flatMap((g) => (g.label ? [g.label.box] : [])),
         ...captionBoxes(ir, layout),

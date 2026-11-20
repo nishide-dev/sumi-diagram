@@ -136,6 +136,45 @@ function offsetFor(r: Rect, side: Side, at: number, lo: number, hi: number): num
   return Math.round(exact * 1000) / 1000;
 }
 
+/**
+ * Offsets on two facing sides that put both ends on one coordinate within
+ * `[lo, hi]`, nearest to `at`: two decimals where some pair lands on the
+ * same coordinate (to 0.01 unit), else three, else four.
+ */
+function pairedOffsets(
+  a: Rect,
+  sideA: Side,
+  b: Rect,
+  sideB: Side,
+  at: number,
+  lo: number,
+  hi: number,
+): [number, number] {
+  const sa = sideSpan(a, sideA);
+  const sb = sideSpan(b, sideB);
+  const la = sa.hi - sa.lo;
+  const lb = sb.hi - sb.lo;
+  let fallback: { pair: [number, number]; miss: number } | undefined;
+  for (const digits of [2, 3, 4]) {
+    const f = 10 ** digits;
+    let best: { pair: [number, number]; distance: number } | undefined;
+    const first = Math.ceil(((lo - sa.lo) / la) * f);
+    const last = Math.floor(((hi - sa.lo) / la) * f);
+    for (let k = first; k <= last; k++) {
+      const fa = k / f;
+      const c = sa.lo + fa * la;
+      const fb = Math.round(((c - sb.lo) / lb) * f) / f;
+      const miss = Math.abs(sb.lo + fb * lb - c);
+      if (fallback === undefined || miss < fallback.miss) fallback = { pair: [fa, fb], miss };
+      if (miss > 0.01) continue;
+      const distance = Math.abs(c - at);
+      if (best === undefined || distance < best.distance) best = { pair: [fa, fb], distance };
+    }
+    if (best !== undefined) return best.pair;
+  }
+  return fallback?.pair ?? [0.5, 0.5];
+}
+
 const anchorText = (side: Side, offset: number) =>
   Math.abs(offset - 0.5) < 1e-9 ? side : `${side}:${offset}`;
 
@@ -300,14 +339,19 @@ function anchorFix(
       const apart = wf !== undefined && wt !== undefined && Math.abs(wf - wt) > 0.5;
       if ((outside(wf) || outside(wt) || apart) && clear(line, blocks)) {
         const anchors: string[] = [];
+        if (wf !== undefined && wt !== undefined) {
+          // Both written: two values that land on one coordinate.
+          const [fa, fb] = pairedOffsets(a, fromSide, b, toSide, at, lo, hi);
+          anchors.push(`fromAnchor "${anchorText(fromSide, fa)}"`);
+          anchors.push(`toAnchor "${anchorText(toSide, fb)}"`);
+          return { bends: 0, anchors };
+        }
         for (const [field, w, r, side] of [
           ["fromAnchor", wf, a, fromSide],
           ["toAnchor", wt, b, toSide],
         ] as const) {
-          if (w === undefined) continue;
-          const offset = offsetFor(r, side, at, lo, hi);
-          if (outside(w) || (wf !== undefined && wt !== undefined))
-            anchors.push(`${field} "${anchorText(side, offset)}"`);
+          if (w === undefined || !outside(w)) continue;
+          anchors.push(`${field} "${anchorText(side, offsetFor(r, side, at, lo, hi))}"`);
         }
         return { bends: 0, anchors };
       }
