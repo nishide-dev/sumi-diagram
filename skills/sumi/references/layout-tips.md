@@ -235,6 +235,16 @@ figure:
   own `gap`), as does a colliding edge label or badge (`geometry/label-collision`,
   `layout/edge-label-overlap`).
 
+## Straight edges between neighbours (`figure.layout.straighten: true`)
+
+When the preview shows small jogs or S-bends between boxes that face each other (a box
+beside a taller column, a group beside a single box), add `straighten: true` under
+`figure.layout` before nudging `gap`s or writing fractional anchors: Sumi moves a box or
+group within the free room of its row or stack so the ends line up, and keeps the move only
+if the edge is then straight and no other edge gets worse. Written `align: start | end |
+stretch`, `figure.layout.align`, shared `place` coordinates and fans are never broken, so a
+jog caused by one of those stays (see [structured.md](structured.md#straightening-edges-by-moving-nodes-figurelayoutstraighten)).
+
 ## Design principles
 
 A paper figure is read in seconds, beside its caption. Check every candidate

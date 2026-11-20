@@ -1178,12 +1178,20 @@ export const straightenable = (f: { aside: number; gapAside?: number }): boolean
  * but an anchor still moves by at most the tolerance. A candidate snapped
  * back to a lip by `reresolve` is rejected. Edges are taken in document
  * order. Mutates `pairs`.
+ *
+ * `far` (`figure.layout.straighten`, #618): an end without an anchor also
+ * moves farther than the tolerance, onto the other end's line, when that
+ * line meets its side at least {@link STRAIGHT_MARGIN} inside the corners
+ * (where a `straight` end may go). The layout first moves the nodes so the
+ * ends line up (`structured/straighten.ts`); this is what is left when a node
+ * cannot move all the way.
  */
 function straighten(
   pairs: ({ from: End; to: End } | { error: string })[],
   choices: readonly { from: Choice | undefined; to: Choice | undefined }[],
   reresolve: (end: End, choice: Choice, port: Point) => End,
   element: (key: ElementKey) => Element,
+  far = false,
 ): void {
   const pointKey = (key: ElementKey, p: Point) => `${key} ${p.x} ${p.y}`;
   const users = new Map<string, number>();
@@ -1200,7 +1208,9 @@ function straighten(
     const { from: a, to: b } = pair;
     // The axis the ends face each other along.
     const f = facing(a, b);
-    if (f === undefined || !straightenable(f)) continue;
+    if (f === undefined) continue;
+    const near = straightenable(f);
+    if (!near && !(far && f.aside !== 0)) continue;
     const d = f.dir;
     const choice = choices[index] as { from: Choice | undefined; to: Choice | undefined };
     const candidates = (
@@ -1221,12 +1231,18 @@ function straighten(
         ? { x: other.port.x, y: end.port.y }
         : { x: end.port.x, y: other.port.y };
       const rect = element(end.key).rect;
-      const onSide = vertical
-        ? port.x >= rect.x && port.x <= rightOf(rect)
-        : port.y >= rect.y && port.y <= bottomOf(rect);
+      const onSide = near
+        ? vertical
+          ? port.x >= rect.x && port.x <= rightOf(rect)
+          : port.y >= rect.y && port.y <= bottomOf(rect)
+        : end.side !== undefined &&
+          straightOffset(rect, end.side, vertical ? port.x : port.y) !== undefined;
       const here = pointKey(end.key, end.port);
       const there = pointKey(end.key, port);
       if (!onSide || users.get(here) !== 1 || (users.get(there) ?? 0) > 0) continue;
+      // Far (#618): never onto a junction or a port other edges share — the branches of a
+      // fan keep their own ends, all alike.
+      if (!near && (other.junction || users.get(pointKey(other.key, other.port)) !== 1)) continue;
       const moved = reresolve(end, endChoice, port);
       // Resolving a point inside the gap snaps back to a lip: that is not
       // a successful move. Try the neighbour instead, without changing users.
@@ -1734,7 +1750,13 @@ function resolveEndsWith(
     if (reason !== undefined) return { error: reason };
     return { from: resolve(edge.from, from), to: resolve(edge.to, to) };
   });
-  straighten(resolved, choices, (end, choice, port) => resolve(end.key, choice, port), element);
+  straighten(
+    resolved,
+    choices,
+    (end, choice, port) => resolve(end.key, choice, port),
+    element,
+    ir.meta.straighten === true,
+  );
   return resolved.map((pair, index) => {
     if ("error" in pair) return pair;
     const edge = (choices[index] as (typeof choices)[number]).edge;

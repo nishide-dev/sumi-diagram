@@ -43,7 +43,7 @@ edges:
 `figure.layout.engine` (`auto` | `structured`) is rarely needed: **a figure
 with `figure.layout.arrange` is structured, one without it auto**; an
 explicit `engine: auto` wins. Under auto, every structured-only field
-(`arrange`, `align`, `alignGrowth`, `fanIn`, `density`, `attach`, `sublabel`,
+(`arrange`, `align`, `alignGrowth`, `fanIn`, `density`, `straighten`, `attach`, `sublabel`,
 `labelRotation`, `textAlign`, `grow`, `fromAnchor` / `toAnchor`, group `props.plane`, edge
 `labelAt` / `labelSide` / `route`, and the `legend`, `tokens`, `matrix`, `bracket`, `cuboid`,
 `separator`, `block-arrow`, `triangle-arrow`, `chevron` and `zoom` components) is `layout/structured-only`: remove it or
@@ -976,6 +976,69 @@ edges:
 The concat operators are items of the decoder stack (not attached), and the two
 `align` constraints push `enc1` and `enc2` down to their levels, so both dashed
 skips are single horizontal lines. The `key` legend is [below](#legends).
+
+## Straightening edges by moving nodes (`figure.layout.straighten`)
+
+An edge between two boxes that face each other but sit at slightly different heights
+gets a jog (or a staircase around a label). Drawing by hand you would **move one of the
+boxes** a little so the line runs straight. `figure.layout.straighten: true` (opt-in,
+structured only) does that after placing:
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: straighten-demo
+  theme: paper
+  profile: paper-single
+  layout:
+    straighten: true             # the left column moves up: both arrows run straight
+    arrange:
+      row:
+        gap: 10mm
+        items:
+          - stack: {gap: 5mm, items: [policy, data]}
+          - stack: {gap: 5mm, items: [infer, train, ckpt]}
+nodes:
+  - {id: policy, component: box, label: Policy}
+  - {id: data, component: box, label: Prompts}
+  - {id: infer, component: box, label: Inference}
+  - {id: train, component: box, label: Training}
+  - {id: ckpt, component: box, label: Checkpoint}
+edges:
+  - {from: policy, to: infer}
+  - {from: data, to: train}
+  - {from: infer, to: train}
+  - {from: train, to: ckpt}
+```
+
+- **What moves**: a node, a group (with everything in it), or a nested `stack` / `row`,
+  across the axis of the box that holds it (up / down in a `row`, sideways in a `stack`),
+  or a `place` item off its written coordinate. Attached labels move with their target.
+  It moves only **within the free room of its box**: no box, group or the figure grows,
+  nothing else moves, and it comes no closer than 3pt to anything it was not already that
+  close to. The target end is tried first, then the source; the smallest item that holds
+  the end first, then the boxes and groups around it.
+- **What never moves** (alignments you asked for stay): items of a box with a written
+  `align: start | end | stretch` (only centring leaves room to move), a `gap: 0` box, an
+  element of a `figure.layout.align` constraint on that axis, a `place` coordinate another
+  item shares (a line you drew), cells of `tokens` / `matrix`, anything on a tilted plane or
+  in a chat, and **part of a fan**: an element with two or more unanchored ends on one side
+  (or a junction with two or more edges leaving, or entering) keeps its branches alike, so
+  neither the hub nor one branch moves alone.
+- **Kept only if it helps**: the edge must then be routed straight, no edge may gain a bend
+  or lose its route, every edge that was straight stays straight, and the routed figure must
+  not grow. Otherwise nothing moves.
+- **Anchors**: a written anchor stays where it is on its side, and the other box moves to
+  meet it (`toAnchor: "east:0.2"` lines up with that point). When no box can move all the
+  way, an end **without** an anchor may also slide along its side onto the other end's line
+  (at least 3pt from the corners); fans and shared ports never slide.
+- **When to use it**: paper figures where boxes of different sizes sit in rows and stacks
+  next to each other (a panel beside a column, a group beside a single box) and the preview
+  shows small jogs or S-bends between neighbours. It leaves figures without such edges
+  unchanged. It does not help when the jog comes from a written `align`, a grid, a shared
+  coordinate or a fan; change those (or use `figure.layout.align`) instead. Check the
+  preview: a moved box can make a row look less even.
 
 ## Tables
 

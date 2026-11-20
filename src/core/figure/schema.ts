@@ -749,6 +749,12 @@ export const LayoutFieldsSchema = z.strictObject({
     .describe(
       "compact: the profile's tighter default gap, group padding and node padding, for dense paper figures (usually with fit: scale); gaps written in the figure stay as written. Omitted means normal (structured layout only).",
     ),
+  straighten: z
+    .boolean()
+    .optional()
+    .describe(
+      "true: after placing, shift a node or group across its row or stack (or a place item off a coordinate no other item shares) within the free room of its box, so that an edge whose ends face each other but are out of line becomes straight. Never grows a box or the figure, never moves an align constraint's element, a written align (start, center, end, stretch) or one member of a fan. Omitted means false (structured layout only).",
+    ),
 });
 
 /**
@@ -756,7 +762,7 @@ export const LayoutFieldsSchema = z.strictObject({
  * `figure.layout` alone (design doc §6.19), so later stages never guess.
  */
 export const LayoutSchema = LayoutFieldsSchema.transform(
-  ({ engine, direction, arrange, align, alignGrowth, fanIn, density }) => ({
+  ({ engine, direction, arrange, align, alignGrowth, fanIn, density, straighten }) => ({
     engine: engine ?? (arrange !== undefined ? "structured" : "auto"),
     direction,
     ...(arrange !== undefined && { arrange }),
@@ -764,6 +770,7 @@ export const LayoutSchema = LayoutFieldsSchema.transform(
     ...(alignGrowth !== undefined && { alignGrowth }),
     ...(fanIn !== undefined && { fanIn }),
     ...(density !== undefined && { density }),
+    ...(straighten !== undefined && { straighten }),
   }),
 );
 
