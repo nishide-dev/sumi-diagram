@@ -235,13 +235,14 @@ figure:
   own `gap`), as does a colliding edge label or badge (`geometry/label-collision`,
   `layout/edge-label-overlap`).
 
-## Straight edges between neighbours (`figure.layout.straighten: true`)
+## Straight edges between neighbours (`figure.layout.straighten`)
 
-When the preview shows small jogs or S-bends between boxes that face each other (a box
-beside a taller column, a group beside a single box), add `straighten: true` under
-`figure.layout` before nudging `gap`s or writing fractional anchors: Sumi moves a box or
-group within the free room of its row or stack so the ends line up, and keeps the move only
-if the edge is then straight and no other edge gets worse. Written `align: start | end |
+Small jogs or S-bends between boxes that face each other (a box beside a taller column, a
+group beside a single box) are straightened by default in structured figures
+(`figure.layout.straighten`, default `true`): Sumi moves a box or group within the free room
+of its row or stack so the ends line up, and keeps the move only if the edge is then
+straight and no other edge gets worse. Write `straighten: false` only to keep the placement
+exactly as solved (an older figure whose output must not change). Written `align: start | end |
 stretch`, `figure.layout.align`, shared `place` coordinates and fans are never broken, so a
 jog caused by one of those stays (see [structured.md](structured.md#straightening-edges-by-moving-nodes-figurelayoutstraighten)).
 

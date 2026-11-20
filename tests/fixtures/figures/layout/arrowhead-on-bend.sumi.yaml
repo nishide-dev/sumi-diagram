@@ -5,6 +5,7 @@ figure:
   id: arrowhead-on-bend
   theme: paper
   layout:
+    straighten: false # keep the bend this fixture tests (#620 would line the ends up)
     arrange:
       row: { gap: 20pt, items: [source, target] }
 nodes:

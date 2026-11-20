@@ -1189,7 +1189,11 @@ export const straightenable = (f: { aside: number; gapAside?: number }): boolean
  * junction. The straightening resolves every edge of the figure (`route:
  * straight` / `curve` and zoom included) before it marks one; the router
  * resolves the ports of its orthogonal edges only, so there this guard sees
- * those alone and the mark carries the rest.
+ * those alone and the mark carries the rest. A `far` move never takes an end
+ * on a group drawn without a frame (`frameless`, variant `plain`, #620; the
+ * tolerance move above still does): its side is not
+ * painted, so sliding along it would start the line in the white space beside
+ * the group's content instead of at its middle.
  */
 function straighten(
   pairs: ({ from: End; to: End } | { error: string })[],
@@ -1201,6 +1205,7 @@ function straighten(
   reresolve: (end: End, choice: Choice, port: Point) => End,
   element: (key: ElementKey) => Element,
   far: ReadonlySet<ElementKey> = new Set(),
+  frameless: ReadonlySet<ElementKey> = new Set(),
 ): void {
   const pointKey = (key: ElementKey, p: Point) => `${key} ${p.x} ${p.y}`;
   const users = new Map<string, number>();
@@ -1241,6 +1246,7 @@ function straighten(
       .sort((p, q) => Number(p[3].anchored) - Number(q[3].anchored));
     for (const [which, end, other, endChoice] of candidates) {
       if (endChoice.fixed) continue;
+      if (!near && frameless.has(end.key)) continue;
       // A gap may displace a default port farther than #169's tolerance;
       // explicit anchors still only move within that original tolerance.
       if (endChoice.anchored && Math.abs(f.aside) > STRAIGHTEN_TOLERANCE + 1e-9) continue;
@@ -1781,6 +1787,7 @@ function resolveEndsWith(
     (end, choice, port) => resolve(end.key, choice, port),
     element,
     new Set((layout.edges ?? []).filter((e) => e.slide === true).map((e) => e.key)),
+    new Set(ir.groups.filter((g) => g.variant === "plain").map((g) => g.key)),
   );
   return resolved.map((pair, index) => {
     if ("error" in pair) return pair;

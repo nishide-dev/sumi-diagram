@@ -583,6 +583,7 @@ figure:
   profile: paper-double
   layout:
     fanIn: merge
+    straighten: false # the end out of line is the subject (#620 would slide it straight)
     arrange: { row: { gap: 16mm, align: end, items: [a, b] } }
 nodes:
   - { id: a, component: cuboid, props: { ports: face, width: 6mm, height: 28mm, depth: 2mm } }

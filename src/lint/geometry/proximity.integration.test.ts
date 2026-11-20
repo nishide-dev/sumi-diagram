@@ -69,10 +69,9 @@ describe("proximity rules on painted wires (structured)", async () => {
       )
       .map((d) => `${d.code}: ${d.message}`);
     expect(findings).toEqual([
-      'geometry/edge-near-border: The line shared by edge edges[0], edge edges[1] and edge edges[2] runs right beside the border of group "workers" for 3.6mm (0.33mm between the lines), so it reads as part of the frame.',
       "geometry/edge-near-edge: The line shared by edge edges[14] and edge edges[15] runs beside the line shared by edge edges[11] and edge edges[13] for 10.0mm, 0.46mm apart, so the two read as one line.",
       'geometry/edge-near-border: Edge edges[16] runs right beside the border of group "workers" for 31.8mm (0.52mm between the lines), so it reads as part of the frame.',
-      "geometry/edge-near-edge: Edge edges[17] runs beside edge edges[16] for 41.0mm, 0.52mm apart, so the two read as one line.",
+      "geometry/edge-near-edge: Edge edges[17] runs beside edge edges[16] for 43.5mm, 0.52mm apart, so the two read as one line.",
     ]);
   });
 });
