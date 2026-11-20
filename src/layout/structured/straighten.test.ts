@@ -88,7 +88,7 @@ describe("figure.layout.straighten", () => {
     expect(on.canvas).toEqual(plain.canvas);
   });
 
-  test("is on by default: omitted lays the figure out as true, false as solved (#620)", () => {
+  test("is on by default: omitted lays the figure out as true, false differs (#620)", () => {
     const { off, on, omitted } = both(
       { arrange: { row: { gap: "40pt", items: [column, "b"] } } },
       [box("a"), box("x"), box("b")],
@@ -493,7 +493,8 @@ describe("figure.layout.straighten is the default (#620)", () => {
     return lay(doc);
   };
 
-  test("a fixture that moves: omitted and true give the same layout, false the old one", () => {
+  // That false is byte for byte the output before #620: straighten-default.integration.test.ts.
+  test("a fixture that moves: omitted and true give the same layout, false differs", () => {
     const omitted = layoutOf();
     expect(omitted).toEqual(layoutOf(true));
     const off = layoutOf(false);

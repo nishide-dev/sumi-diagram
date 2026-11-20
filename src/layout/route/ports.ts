@@ -1189,8 +1189,9 @@ export const straightenable = (f: { aside: number; gapAside?: number }): boolean
  * junction. The straightening resolves every edge of the figure (`route:
  * straight` / `curve` and zoom included) before it marks one; the router
  * resolves the ports of its orthogonal edges only, so there this guard sees
- * those alone and the mark carries the rest. Never an end on a group drawn
- * without a frame (`frameless`, variant `plain`, #620): its side is not
+ * those alone and the mark carries the rest. A `far` move never takes an end
+ * on a group drawn without a frame (`frameless`, variant `plain`, #620; the
+ * tolerance move above still does): its side is not
  * painted, so sliding along it would start the line in the white space beside
  * the group's content instead of at its middle.
  */

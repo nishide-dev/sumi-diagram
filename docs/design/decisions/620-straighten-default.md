@@ -11,7 +11,7 @@
 - **structured 配置では `straighten` を省略したら `true` として扱う**。`false` を書くと #618 以前の配置になり、出力はバイト単位で同じ。auto 配置は対象外のまま: 書いた `straighten`（`true` / `false`）は従来どおり `layout/structured-only`、書かなければ診断は出ない。
 - Figure IR の `meta.straighten` は「`false` を書いたときだけ `false`」に変えた（省略と `true` は同じ IR になる）。エンジンは `false` でなければずらしを試す。
 - JSON Schema には `default: true` を書く（Zod の `.meta`。解析後の値は省略のまま残すので、auto の図で既定値が「書いた」扱いにならない）。
-- **枠のないグループ（variant `plain`）の端は辺に沿って寄せない**（`ports.ts` の `straighten()`。ずらしで一線になる場合は従来どおり採る）。既定にする前に、強制有効の比較に入っていなかった図も含めて省略と `false` を比べたところ、`tests/fixtures/figures/density/sparse-small-elements` で (1) の plain グループ → Type-specific embedding（`toAnchor: west`）の始点がグループの描かれない右辺を上端近くまで寄せられ、内容から離れた余白から線が出るようになった。辺が描かれないので、寄せると始点が内容の中ほどから外れる。
+- **枠のないグループ（variant `plain`）の端は、#618 の寄せ（ルーターの許容 1pt を超えて辺に沿って相手の線へ寄せる `far`）の対象にしない**（`ports.ts` の `straighten()`。許容 1pt 以内の #169 の直線化は従来どおり。ずらしで一線になる場合も従来どおり採る）。既定にする前に、強制有効の比較に入っていなかった図も含めて省略と `false` を比べたところ、`tests/fixtures/figures/density/sparse-small-elements` で (1) の plain グループ → Type-specific embedding（`toAnchor: west`）の始点がグループの描かれない右辺を上端近くまで寄せられ、内容から離れた余白から線が出るようになった。辺が描かれないので、寄せると始点が内容の中ほどから外れる。
 - 決まり（「ほかの線を 1 本も悪くしない」「図を大きくしない」）は**緩めない**。6-deepseek-v4 の Router → experts（#618 の結果の例 3）は、直すと experts → ⊕ の屈曲が 1 → 3 になるため直らないままにする（利用者判断）。
 
 ## 採らなかった案
@@ -27,5 +27,5 @@
   - `tests/fixtures/figures/fit/c-h3world`（(c) のトークン列が上へ動き、LoRA への枝が一直線）
   - `tests/fixtures/figures/layout/arrowhead-on-bend`（屈曲そのものを試す図なので `straighten: false` を書いた）
 - 経路やずれそのものを試すテストは `straighten: false` で従来の配置に固定した: `router.test.ts` の向かい合う端の S 字、`group-title-diagnostics.test.ts` の見出しによるずれ、`cuboid.integration.test.ts` の細い側面の重心。`proximity.integration.test.ts` は配置が変わった分の期待値を更新した（境界に沿う線の指摘が 1 つ消え、並走の長さが 41.0 → 43.5mm）。
-- 従来の配置が必要な図は `figure.layout.straighten: false` を書く。
+- 従来の配置が必要な図は `figure.layout.straighten: false` を書く。`false` が #620 以前の出力とバイト単位で同じことは、`straighten-default.integration.test.ts` が origin/main（3375734b）の SVG の sha256 と比べて確かめる（train-infer-a は `false` で一致・省略で不一致、sparse-small-elements は plain グループの寄せをしないので省略でも一致）。
 - 配置の時間は、有効にした図で #618 の限界に書いた分だけ増える（ずらしの候補がない図では端の解決だけ）。
