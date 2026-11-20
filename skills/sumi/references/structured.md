@@ -1217,10 +1217,10 @@ edges:
   otherwise `layout/unaligned-ends` reports the remaining step.
 - **Write anchors only where the side or position matters.** An anchor just off the
   span two facing sides share leaves an S that a straight line would replace:
-  `geometry/avoidable-bend` (warning) gives anchor values whose line is checked to be
-  clear (one value if the other end already faces the span, else one for each end),
-  or (with both ends anchored) the side to move for a single bend, or names the
-  nodes (often attached labels) that block every two-bend route. Write those values
+  `geometry/avoidable-bend` (warning) gives anchor values (or, with both ends
+  anchored, the side to move for a single bend) that it has checked by routing the
+  figure again with them, or lists what is in the way (often attached labels) when
+  no two-bend route fits. Write those values
   or drop the anchor; do not chase the line with more anchors. To move nodes into
   line instead, use `figure.layout.straighten: true`.
 - **`straight`** (`toAnchor: straight` / `fromAnchor: straight`): the end sits in line

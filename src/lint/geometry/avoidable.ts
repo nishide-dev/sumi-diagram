@@ -24,13 +24,15 @@
  * anchors and alignment.
  */
 
-import type { EdgeIR } from "../../compiler/ir";
+import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import type { Anchor } from "../../core/figure/layout";
 import type { Side } from "../../core/figure/schema";
 import { mmToPt, ptToD2Units } from "../../core/units";
 import { groupFrontRect } from "../../layout/group-layers";
+import type { LayoutIR } from "../../layout/ir";
 import { STRAIGHT_MARGIN } from "../../layout/route/ports";
+import { routeEdges } from "../../layout/route/router";
 import type { Point, Rect } from "../../render/geometry";
 import { defineGeometryRule, type LintFinding } from "../rule";
 import { capitalize, isDrawnEdge, isStructured, mmText, printedUnits } from "./common";
@@ -205,7 +207,25 @@ export function obstacles(
       for (const label of element.labels)
         if (label.box !== undefined) out.push({ rect: label.box, element });
     if (related(element.key)) continue;
-    if (element.ir.kind === "node" && element.ir.mark?.type === "point") continue;
+    if (element.ir.kind === "node" && element.ir.mark?.type === "point") {
+      // A junction: the router may not pass through it, but keeps no
+      // clearance around it. Its box is shrunk by the clearance less half a
+      // unit, so the clearance every check adds leaves just that half unit.
+      const box = element.bbox ?? boxOf(element);
+      if (box !== undefined) {
+        const inset = CLEARANCE - 0.5;
+        out.push({
+          rect: {
+            x: box.x + inset,
+            y: box.y + inset,
+            width: box.width - 2 * inset,
+            height: box.height - 2 * inset,
+          },
+          element,
+        });
+      }
+      continue;
+    }
     const box = boxOf(element);
     if (box !== undefined) out.push({ rect: box, element });
   }
@@ -249,6 +269,80 @@ function sideUsed(
 interface Fix {
   readonly bends: number;
   readonly anchors: string[];
+}
+
+/** An anchor to write: on which end, which side, where along it. */
+interface Write {
+  readonly field: "fromAnchor" | "toAnchor";
+  readonly side: Side;
+  readonly offset: number;
+}
+
+/** At most this many hints are checked by routing again, per figure. */
+export const VERIFY_BUDGET = 8;
+
+const bendsOf = (points: readonly Point[] | undefined): number =>
+  points === undefined ? Number.POSITIVE_INFINITY : corners(points).length - 2;
+
+/** Per figure: the routes as the router draws them now, and the checks left. */
+const verifying = new WeakMap<
+  GeometryContext,
+  { budget: number; base?: { bends: Map<ElementKey, number>; errors: number } }
+>();
+
+/** Routes `ir` again on the figure's placed layout: each edge's bends and the routing errors. */
+function reroute(
+  ir: FigureIR,
+  layout: LayoutIR,
+): { bends: Map<ElementKey, number>; errors: number } {
+  const result = routeEdges(ir, layout, { hintTrials: false });
+  return {
+    bends: new Map(result.layout.edges.map((e) => [e.key, bendsOf(e.route?.points)] as const)),
+    errors: result.diagnostics.filter((d) => d.severity === "error").length,
+  };
+}
+
+/**
+ * Writes `writes` on `edge` in a copy of the figure and routes it again with
+ * the real router on the same placed layout: `true` only if the edge then
+ * has `bends` bends, every other edge has no more bends than before, and no
+ * routing error is added. Without the layout (an auto figure) or past
+ * {@link VERIFY_BUDGET}, nothing is verified.
+ */
+function verified(
+  context: GeometryContext,
+  edge: EdgeIR,
+  writes: readonly Write[],
+  bends: number,
+): boolean {
+  const layout = context.layout;
+  if (layout === undefined) return false;
+  let state = verifying.get(context);
+  if (state === undefined) {
+    state = { budget: VERIFY_BUDGET };
+    verifying.set(context, state);
+  }
+  if (state.budget <= 0) return false;
+  state.budget--;
+  state.base ??= reroute(context.ir, layout);
+  const changed: Record<string, unknown> = { ...edge };
+  for (const w of writes) changed[w.field] = { side: w.side, offset: w.offset };
+  const elements = new Map(context.ir.elements);
+  const next = changed as unknown as EdgeIR;
+  elements.set(edge.key, next);
+  const ir: FigureIR = {
+    ...context.ir,
+    elements,
+    edges: context.ir.edges.map((e) => (e.key === edge.key ? next : e)),
+  };
+  const after = reroute(ir, layout);
+  if (after.errors > state.base.errors) return false;
+  if (after.bends.get(edge.key) !== bends) return false;
+  for (const [key, n] of after.bends) {
+    if (key === edge.key) continue;
+    if (n > (state.base.bends.get(key) ?? Number.POSITIVE_INFINITY)) return false;
+  }
+  return true;
 }
 
 /**
@@ -298,6 +392,7 @@ function anchorFix(
   const toSide = toAnchor?.side ?? sideOf(points.at(-1) as Point, points.at(-2) as Point);
   const blocks = obstacles(context, edge).map((o) => o.rect);
   const bends = points.length - 2;
+  const candidates: { bends: number; writes: Write[] }[] = [];
   // Straight: the written sides face each other over a common span.
   if (bends >= 2 && toSide === OPPOSITE[fromSide] && faces(a, fromSide, b)) {
     const sa = sideSpan(a, fromSide);
@@ -347,27 +442,38 @@ function anchorFix(
       // than the router straightens.
       const off = alone && Math.abs((wf ?? wt ?? freeAt) - freeAt) > 2;
       if (outside(wf) || outside(wt) || apart || off) {
-        const fields = (
-          [
-            ["fromAnchor", a, fromSide],
-            ["toAnchor", b, toSide],
-          ] as const
-        ).filter(([field]) => (alone ? (field === "fromAnchor" ? wf : wt) !== undefined : true));
-        // The exact line the written values give is checked, not the ideal one.
-        const offsets = straightOffsets(
-          fields.map(([, rect, side]) => ({ rect, side })),
-          alone ? freeAt : at,
-          alone ? Math.max(lo, freeAt - 1) : lo,
-          alone ? Math.min(hi, freeAt + 1) : hi,
-          (c) => clear(lineAt(c), blocks),
-        );
-        if (offsets !== undefined) {
-          return {
-            bends: 0,
-            anchors: fields.map(
-              ([field, , side], i) => `${field} "${anchorText(side, offsets[i] as number)}"`,
-            ),
-          };
+        const all = [
+          ["fromAnchor", a, fromSide],
+          ["toAnchor", b, toSide],
+        ] as const;
+        // Proposals, checked by routing again below: the written anchor in
+        // line with the other end where it is, then a value for each end.
+        const tries: [readonly (typeof all)[number][], number, number, number][] = [];
+        if (alone)
+          tries.push([
+            all.filter(([field]) => (field === "fromAnchor" ? wf : wt) !== undefined),
+            freeAt,
+            Math.max(lo, freeAt - 1),
+            Math.min(hi, freeAt + 1),
+          ]);
+        tries.push([all, at, lo, hi]);
+        for (const [fields, want, from, to] of tries) {
+          const offsets = straightOffsets(
+            fields.map(([, rect, side]) => ({ rect, side })),
+            want,
+            from,
+            to,
+            (c) => clear(lineAt(c), blocks),
+          );
+          if (offsets !== undefined)
+            candidates.push({
+              bends: 0,
+              writes: fields.map(([field, , side], i) => ({
+                field,
+                side,
+                offset: offsets[i] as number,
+              })),
+            });
         }
       }
     }
@@ -376,41 +482,51 @@ function anchorFix(
   // with both ends anchored: an unanchored end's port can move (fan-in
   // spreading, port separation) when the other end changes side, so the L
   // checked here could differ from the one the anchors would give.
-  if (fromAnchor === undefined || toAnchor === undefined) return undefined;
   const apartX = a.x + a.width <= b.x || b.x + b.width <= a.x;
   const apartY = a.y + a.height <= b.y || b.y + b.height <= a.y;
-  if (bends < 2 || !apartX || !apartY) return undefined;
-  const right = b.x >= a.x + a.width;
-  const down = b.y >= a.y + a.height;
-  const first = points[0] as Point;
-  const last = points.at(-1) as Point;
-  // An end that keeps its side keeps its written position (where the route
-  // ends now); an end that moves takes the middle of its new side (the bare
-  // side the hint writes).
-  const options: { from: Side; to: Side }[] = [
-    { from: right ? "east" : "west", to: down ? "north" : "south" },
-    { from: down ? "south" : "north", to: right ? "west" : "east" },
-  ];
-  for (const option of options) {
-    const keepFrom = option.from === fromAnchor.side;
-    const keepTo = option.to === toAnchor.side;
-    if (keepFrom && keepTo) continue;
-    const sa = sideSpan(a, option.from);
-    const sb = sideSpan(b, option.to);
-    const fromAt = keepFrom ? (vertical(option.from) ? first.x : first.y) : (sa.lo + sa.hi) / 2;
-    const toAt = keepTo ? (vertical(option.to) ? last.x : last.y) : (sb.lo + sb.hi) / 2;
-    const p: Point = vertical(option.from) ? { x: fromAt, y: sa.at } : { x: sa.at, y: fromAt };
-    const r: Point = vertical(option.to) ? { x: toAt, y: sb.at } : { x: sb.at, y: toAt };
-    const q: Point = vertical(option.from) ? { x: p.x, y: r.y } : { x: r.x, y: p.y };
-    if (distance(p, q) < CLEARANCE || distance(q, r) < CLEARANCE) continue;
-    if (!clear([p, q, r], blocks)) continue;
-    if (!keepFrom && sideUsed(context, element, edge.from, a, option.from)) continue;
-    if (!keepTo && sideUsed(context, element, edge.to, b, option.to)) continue;
-    const anchors = [
-      ...(keepFrom ? [] : [`fromAnchor "${option.from}"`]),
-      ...(keepTo ? [] : [`toAnchor "${option.to}"`]),
+  if (fromAnchor !== undefined && toAnchor !== undefined && bends >= 2 && apartX && apartY) {
+    const right = b.x >= a.x + a.width;
+    const down = b.y >= a.y + a.height;
+    const first = points[0] as Point;
+    const last = points.at(-1) as Point;
+    // An end that keeps its side keeps its written position (where the route
+    // ends now); an end that moves takes the middle of its new side (the bare
+    // side the hint writes).
+    const options: { from: Side; to: Side }[] = [
+      { from: right ? "east" : "west", to: down ? "north" : "south" },
+      { from: down ? "south" : "north", to: right ? "west" : "east" },
     ];
-    return { bends: 1, anchors };
+    for (const option of options) {
+      const keepFrom = option.from === fromAnchor.side;
+      const keepTo = option.to === toAnchor.side;
+      if (keepFrom && keepTo) continue;
+      const sa = sideSpan(a, option.from);
+      const sb = sideSpan(b, option.to);
+      const fromAt = keepFrom ? (vertical(option.from) ? first.x : first.y) : (sa.lo + sa.hi) / 2;
+      const toAt = keepTo ? (vertical(option.to) ? last.x : last.y) : (sb.lo + sb.hi) / 2;
+      const p: Point = vertical(option.from) ? { x: fromAt, y: sa.at } : { x: sa.at, y: fromAt };
+      const r: Point = vertical(option.to) ? { x: toAt, y: sb.at } : { x: sb.at, y: toAt };
+      const q: Point = vertical(option.from) ? { x: p.x, y: r.y } : { x: r.x, y: p.y };
+      if (distance(p, q) < CLEARANCE || distance(q, r) < CLEARANCE) continue;
+      if (!clear([p, q, r], blocks)) continue;
+      if (!keepFrom && sideUsed(context, element, edge.from, a, option.from)) continue;
+      if (!keepTo && sideUsed(context, element, edge.to, b, option.to)) continue;
+      candidates.push({
+        bends: 1,
+        writes: [
+          ...(keepFrom ? [] : [{ field: "fromAnchor" as const, side: option.from, offset: 0.5 }]),
+          ...(keepTo ? [] : [{ field: "toAnchor" as const, side: option.to, offset: 0.5 }]),
+        ],
+      });
+    }
+  }
+  // Only what the router, given the anchors, is seen to draw.
+  for (const c of candidates) {
+    if (c.bends >= bends || !verified(context, edge, c.writes, c.bends)) continue;
+    return {
+      bends: c.bends,
+      anchors: c.writes.map((w) => `${w.field} "${anchorText(w.side, w.offset)}"`),
+    };
   }
   return undefined;
 }
@@ -627,10 +743,10 @@ export const avoidableBend = defineGeometryRule({
           return printed >= MICRO_JOG_UNITS - 0.002 && printed < JUNCTION_STEP_UNITS;
         });
         findings.push({
-          message: `${capitalize(element.name)} bends ${bends} times, with steps of ${short.map((l) => mmText(context, l)).join(", ")}, where its ends face each other: ${blockers.map((b) => (b.kind === "group" ? `the title of ${b.name}` : b.name)).join(" and ")} ${blockers.length === 1 ? "stands" : "stand"} between them, so no single step fits.`,
+          message: `${capitalize(element.name)} bends ${bends} times, with steps of ${short.map((l) => mmText(context, l)).join(", ")}, where its ends face each other: no route with two bends keeps clear of the elements around it (in the way: ${blockers.map((b) => (b.kind === "group" ? `the title of ${b.name}` : b.name)).join(", ")}).`,
           path: element.docPath,
           subject: element.subject,
-          hint: `Move ${blockers.length === 1 ? "it" : "them"} out of the way (an attached label to another side or with a larger gap, the arrange order or a gap), or move the ends so they face each other in line; the edge then needs at most two bends.`,
+          hint: "Make room for a single step between the ends: give the elements in the way more room or another place (an attached label's side or gap, the arrange order or a gap), or line the ends up (figure.layout.straighten: true).",
           related: blockers.map((b) => ({
             path: b.docPath,
             message: `${capitalize(b.name)} is defined here.`,
@@ -653,7 +769,7 @@ export const avoidableBend = defineGeometryRule({
           path: element.docPath,
           subject: element.subject,
           hint: anchored
-            ? "Change fromAnchor / toAnchor so the ends line up (or remove them), or give the edge room for one clear step: the router removes steps it can, so what is left is held by the anchors or by nodes and labels in the way."
+            ? "Change fromAnchor / toAnchor so the ends line up (or remove them), or give the edge room for one clear step (figure.layout.straighten: true moves nodes into line)."
             : "Something blocks a cleaner line: move the nodes or attached labels in the way (an attach gap or side, the arrange order or a gap) so the edge has a straight channel, or line the two ends up.",
         });
         continue;

@@ -402,9 +402,9 @@ edges:
   });
 
   test("no L is suggested for one anchor when the other end's port may move", async () => {
-    // b's north side holds two ends (c → b as well), so where a → b would
-    // enter it depends on how the ends share it: only fromAnchor is written,
-    // and the L it would need is not claimed.
+    // b's west side holds two ends (c → b as well), so where a → b enters
+    // it depends on how the ends share it: only fromAnchor is written, and no
+    // L is claimed for it.
     const value = await render(`
 version: 1
 figure:
@@ -417,7 +417,7 @@ figure:
         items:
           - {item: a, at: [0, 0]}
           - {item: b, at: [50, 30]}
-          - {item: c, at: [50, 0]}
+          - {item: c, at: [20, 30]}
 nodes:
   - {id: a, component: box, label: A}
   - {id: b, component: box, label: B}
@@ -434,6 +434,98 @@ edges:
     if (a === undefined || b === undefined) throw new Error("no boxes");
     expect(a.x + a.width).toBeLessThan(b.x);
     expect(a.y + a.height).toBeLessThan(b.y);
+    // Both edges enter b's west side.
+    for (const from of ["n:a", "n:c"])
+      expect(routeOf(value, from, "n:b").at(-1)?.x).toBeCloseTo(b.x, 3);
     for (const d of avoidable(value)) expect(d.message).not.toContain("one bend would do");
+  });
+
+  test("an unrelated junction is an obstacle for the checks", async () => {
+    const source = `
+version: 1
+figure:
+  id: junction
+  theme: sumi
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: a, at: [0, 0]}
+          - {item: b, at: [40, 3]}
+          - {item: j, at: [20, 1]}
+          - {item: c, at: [20, 20]}
+          - {item: d, at: [20, -20]}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+  - {id: c, component: box, label: C}
+  - {id: d, component: box, label: D}
+  - {id: j, component: junction, variant: hidden}
+edges:
+  - {from: a, to: b, toAnchor: "west:0.2"}
+  - {from: c, to: j, component: line}
+  - {from: j, to: d}
+`;
+    const value = await render(source);
+    const ir = value.compiled.ir;
+    const fonts = getFontSet(ir.meta.fontSetId);
+    if (fonts === undefined) throw new Error("no fonts");
+    const context = createGeometryContext(ir, value.inspection, fonts);
+    const edge = ir.edges[0];
+    if (edge === undefined) throw new Error("no edge");
+    expect(obstacles(context, edge).map((o) => o.element.key)).toContain("n:j");
+    // The straight line a value of toAnchor would give runs through j: no
+    // such hint is given.
+    expect(avoidable(value).filter((d) => d.message.includes("would do"))).toEqual([]);
+  });
+
+  test("a one-anchor hint is checked by routing it: the other end may move", async () => {
+    // a's east side serves two edges (a → b and a → c): where a → b leaves
+    // it depends on how the ends share it, so a value computed from where
+    // it leaves now could miss. The hint, if any, is what routing showed.
+    const source = (anchor: string) => `
+version: 1
+figure:
+  id: fanout
+  theme: sumi
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: a, at: [0, 0]}
+          - {item: b, at: [40, 2]}
+          - {item: c, at: [40, 25]}
+nodes:
+  - {id: a, component: box, label: A, props: {height: 20mm}}
+  - {id: b, component: box, label: B}
+  - {id: c, component: box, label: C}
+edges:
+  - {from: a, to: b, toAnchor: "${anchor}"}
+  - {from: a, to: c}
+`;
+    const value = await render(source("west:0.9"));
+    // Both edges leave a's east side.
+    const a = value.layout.nodes.find((n) => n.key === "n:a")?.rect;
+    if (a === undefined) throw new Error("no a");
+    for (const to of ["n:b", "n:c"])
+      expect(routeOf(value, "n:a", to)[0]?.x).toBeCloseTo(a.x + a.width, 3);
+    const finding = avoidable(value).find((d) => d.message.includes("straight line would do"));
+    if (finding !== undefined) {
+      const to = /toAnchor "(west:[\d.]+|west)"/.exec(finding.hint ?? "")?.[1];
+      expect(to).toBeDefined();
+      const from = /fromAnchor "(east:[\d.]+|east)"/.exec(finding.hint ?? "")?.[1];
+      const fixed = await render(
+        source(to as string).replace(
+          `toAnchor: "${to}"}`,
+          `toAnchor: "${to}"${from ? `, fromAnchor: "${from}"` : ""}}`,
+        ),
+      );
+      expect(routeOf(fixed, "n:a", "n:b")).toHaveLength(2);
+      expect(bendCount(routeOf(fixed, "n:a", "n:c"))).toBeLessThanOrEqual(
+        bendCount(routeOf(value, "n:a", "n:c")),
+      );
+    }
   });
 });

@@ -9,6 +9,7 @@ import { type Diagnostic, type DocPath, formatDocPath } from "../../core/diagnos
 import { type CellFields, cellFieldPath } from "../../core/figure/tokens";
 import { type Locator, parseYaml } from "../../core/figure/yaml";
 import { type FontSet, getFontSet } from "../../core/theme/fonts";
+import type { LayoutIR } from "../../layout/ir";
 import { type RenderedFigure, type RenderFigureOptions, renderFigure } from "../../render/render";
 import { type LintConfig, type ResolvedLintConfig, resolveLintConfig } from "../config";
 import {
@@ -23,7 +24,10 @@ import { isGeometryRule, type LintFinding, toDiagnostic } from "../rule";
 import { createGeometryContext, type GeometryContext } from "./context";
 
 /** The parts of a render the geometry lint needs (a {@link RenderedFigure} has them). */
-export type GeometryInput = Pick<RenderedFigure, "inspection" | "compiled" | "html">;
+export type GeometryInput = Pick<RenderedFigure, "inspection" | "compiled" | "html"> & {
+  /** A structured render's routed layout (`RenderedStructuredFigure.layout`). */
+  readonly layout?: LayoutIR;
+};
 
 export interface GeometryLintOptions {
   /** Rule levels and options (`geometry/*` entries apply). Validated; throws `LintConfigError`. */
@@ -74,6 +78,7 @@ export function geometryContextFor(input: GeometryInput, fontSet?: FontSet): Geo
   return {
     ...createGeometryContext(ir, input.inspection, fonts),
     ...(input.html && { html: input.html }),
+    ...(input.layout !== undefined && { layout: input.layout }),
   };
 }
 
