@@ -282,6 +282,47 @@ edges:
     expect(avoidable(fixed)).toEqual([]);
   });
 
+  test("the line the hinted values give is the one checked: applying a hint never adds bends", async () => {
+    // A tall box and a short one anchored apart, with a small box in the
+    // middle of their shared span: the coordinate nearest to the written
+    // ones that the hint's decimals can name must clear it.
+    const source = (edge: string) => `
+version: 1
+figure:
+  id: blocked
+  theme: sumi
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: a, at: [0, 0]}
+          - {item: b, at: [40, 20]}
+          - {item: dot, at: [20, 21]}
+nodes:
+  - {id: a, component: box, label: A, props: {height: 150mm}}
+  - {id: b, component: box, label: B, props: {height: 9mm}}
+  - {id: dot, component: box, props: {width: 1mm, height: 1mm}}
+edges:
+  - ${edge}
+`;
+    const value = await render(
+      source('{from: a, to: b, fromAnchor: "east:0.2", toAnchor: "west:0.8"}'),
+    );
+    const before = bendCount(routeOf(value, "n:a", "n:b"));
+    const hint = avoidable(value)[0]?.hint ?? "";
+    const from = /fromAnchor "(east:[\d.]+|east)"/.exec(hint)?.[1];
+    const to = /toAnchor "(west:[\d.]+|west)"/.exec(hint)?.[1];
+    if (from !== undefined && to !== undefined) {
+      const fixed = await render(
+        source(`{from: a, to: b, fromAnchor: "${from}", toAnchor: "${to}"}`),
+      );
+      const after = routeOf(fixed, "n:a", "n:b");
+      expect(bendCount(after)).toBeLessThanOrEqual(before);
+      expect(after).toHaveLength(2);
+    }
+  });
+
   test("corner anchors draw a deliberate shape and are not reported", async () => {
     const value = await render(pair('{from: a, to: b, fromAnchor: "east:0", toAnchor: "west:1"}'));
     expect(avoidable(value)).toEqual([]);

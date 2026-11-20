@@ -118,61 +118,47 @@ function faces(a: Rect, side: Side, b: Rect): boolean {
   }
 }
 
-/** The anchor offset (two decimals where that stays in `[lo, hi]`) for the coordinate `at`. */
-function offsetFor(r: Rect, side: Side, at: number, lo: number, hi: number): number {
-  const { lo: start, hi: end } = sideSpan(r, side);
-  const exact = (at - start) / (end - start);
-  for (const digits of [2, 3]) {
-    const f = 10 ** digits;
-    for (const v of [
-      Math.round(exact * f) / f,
-      Math.floor(exact * f) / f,
-      Math.ceil(exact * f) / f,
-    ]) {
-      const c = start + v * (end - start);
-      if (c >= lo - 1e-6 && c <= hi + 1e-6) return v;
-    }
-  }
-  return Math.round(exact * 1000) / 1000;
-}
-
 /**
- * Offsets on two facing sides that put both ends on one coordinate within
- * `[lo, hi]`, nearest to `at`: two decimals where some pair lands on the
- * same coordinate (to 0.01 unit), else three, else four.
+ * The anchor offsets for a straight line between two facing sides over
+ * `[lo, hi]`: for each written end, an offset (two decimals, else three, else
+ * four) such that all written ends land on one coordinate (to 0.01 unit),
+ * that coordinate's line passes `isClear`, nearest to `want`. `undefined` if
+ * no representable coordinate gives a clear line.
  */
-function pairedOffsets(
-  a: Rect,
-  sideA: Side,
-  b: Rect,
-  sideB: Side,
-  at: number,
+function straightOffsets(
+  ends: readonly { readonly rect: Rect; readonly side: Side }[],
+  want: number,
   lo: number,
   hi: number,
-): [number, number] {
-  const sa = sideSpan(a, sideA);
-  const sb = sideSpan(b, sideB);
+  isClear: (at: number) => boolean,
+): number[] | undefined {
+  const [first, ...rest] = ends;
+  if (first === undefined) return undefined;
+  const sa = sideSpan(first.rect, first.side);
   const la = sa.hi - sa.lo;
-  const lb = sb.hi - sb.lo;
-  let fallback: { pair: [number, number]; miss: number } | undefined;
   for (const digits of [2, 3, 4]) {
     const f = 10 ** digits;
-    let best: { pair: [number, number]; distance: number } | undefined;
-    const first = Math.ceil(((lo - sa.lo) / la) * f);
-    const last = Math.floor(((hi - sa.lo) / la) * f);
-    for (let k = first; k <= last; k++) {
-      const fa = k / f;
-      const c = sa.lo + fa * la;
-      const fb = Math.round(((c - sb.lo) / lb) * f) / f;
-      const miss = Math.abs(sb.lo + fb * lb - c);
-      if (fallback === undefined || miss < fallback.miss) fallback = { pair: [fa, fb], miss };
-      if (miss > 0.01) continue;
-      const distance = Math.abs(c - at);
-      if (best === undefined || distance < best.distance) best = { pair: [fa, fb], distance };
+    const candidates: { at: number; offsets: number[] }[] = [];
+    for (
+      let k = Math.ceil(((lo - sa.lo) / la) * f);
+      k <= Math.floor(((hi - sa.lo) / la) * f);
+      k++
+    ) {
+      const at = sa.lo + (k / f) * la;
+      const offsets = [k / f];
+      let lands = true;
+      for (const end of rest) {
+        const s = sideSpan(end.rect, end.side);
+        const o = Math.round(((at - s.lo) / (s.hi - s.lo)) * f) / f;
+        if (Math.abs(s.lo + o * (s.hi - s.lo) - at) > 0.01) lands = false;
+        offsets.push(o);
+      }
+      if (lands) candidates.push({ at, offsets });
     }
-    if (best !== undefined) return best.pair;
+    candidates.sort((p, q) => Math.abs(p.at - want) - Math.abs(q.at - want) || p.at - q.at);
+    for (const c of candidates) if (isClear(c.at)) return c.offsets;
   }
-  return fallback?.pair ?? [0.5, 0.5];
+  return undefined;
 }
 
 const anchorText = (side: Side, offset: number) =>
@@ -324,36 +310,44 @@ function anchorFix(
         hi,
         Math.max(lo, wt !== undefined && wf !== undefined ? (wf + wt) / 2 : want),
       );
-      const line: Point[] = vertical(fromSide)
-        ? [
-            { x: at, y: sa.at },
-            { x: at, y: sb.at },
-          ]
-        : [
-            { x: sa.at, y: at },
-            { x: sb.at, y: at },
-          ];
+      const lineAt = (c: number): Point[] =>
+        vertical(fromSide)
+          ? [
+              { x: c, y: sa.at },
+              { x: c, y: sb.at },
+            ]
+          : [
+              { x: sa.at, y: c },
+              { x: sb.at, y: c },
+            ];
       const outside = (w: number | undefined) =>
         w !== undefined && (w < lo - 1e-6 || w > hi + 1e-6);
       // Both written, inside the span but apart: one position for both.
       const apart = wf !== undefined && wt !== undefined && Math.abs(wf - wt) > 0.5;
-      if ((outside(wf) || outside(wt) || apart) && clear(line, blocks)) {
-        const anchors: string[] = [];
-        if (wf !== undefined && wt !== undefined) {
-          // Both written: two values that land on one coordinate.
-          const [fa, fb] = pairedOffsets(a, fromSide, b, toSide, at, lo, hi);
-          anchors.push(`fromAnchor "${anchorText(fromSide, fa)}"`);
-          anchors.push(`toAnchor "${anchorText(toSide, fb)}"`);
-          return { bends: 0, anchors };
+      if (outside(wf) || outside(wt) || apart) {
+        // The anchors to change: both when both are written, else the one outside.
+        const fields = (
+          [
+            ["fromAnchor", wf, a, fromSide],
+            ["toAnchor", wt, b, toSide],
+          ] as const
+        ).filter(([, w]) => w !== undefined && (apart || outside(w)));
+        // The exact line the written values give is checked, not the ideal one.
+        const offsets = straightOffsets(
+          fields.map(([, , rect, side]) => ({ rect, side })),
+          at,
+          lo,
+          hi,
+          (c) => clear(lineAt(c), blocks),
+        );
+        if (offsets !== undefined) {
+          return {
+            bends: 0,
+            anchors: fields.map(
+              ([field, , , side], i) => `${field} "${anchorText(side, offsets[i] as number)}"`,
+            ),
+          };
         }
-        for (const [field, w, r, side] of [
-          ["fromAnchor", wf, a, fromSide],
-          ["toAnchor", wt, b, toSide],
-        ] as const) {
-          if (w === undefined || !outside(w)) continue;
-          anchors.push(`${field} "${anchorText(side, offsetFor(r, side, at, lo, hi))}"`);
-        }
-        return { bends: 0, anchors };
       }
     }
   }
@@ -493,7 +487,7 @@ export const avoidableBend = defineGeometryRule({
           message: `${capitalize(element.name)} bends ${bends} times where ${fix.bends === 0 ? "a straight line" : "one bend"} would do: its written ${fix.anchors.length === 1 ? "anchor holds an end" : "anchors hold the ends"} ${fix.bends === 0 ? "out of line" : "on sides that need more bends"}.`,
           path: element.docPath,
           subject: element.subject,
-          hint: `Write ${fix.anchors.join(" and ")}${fix.bends === 0 ? " (an end without an anchor follows into line)" : ""}, or remove the anchor if the default sides are fine. Write an anchor only where the side or position matters.`,
+          hint: `Write ${fix.anchors.join(" and ")}${fix.bends === 0 && fix.anchors.length === 1 ? " (the end without an anchor follows into line)" : ""}, or remove the anchor if the default sides are fine. Write an anchor only where the side or position matters.`,
         });
         continue;
       }
