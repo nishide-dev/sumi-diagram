@@ -95,8 +95,8 @@ import { endpointRects } from "./endpoint-rects";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
 import { groupTitleDiagnostics } from "./group-title-diagnostics";
 import { PairHeap } from "./heap";
-import { requestedLabelDiagnostics } from "./label-diagnostics";
-import { arrowheadRects, hasRequestedLabel, isTagLabel, placeEdgeLabel } from "./labels";
+import { requestedLabelDiagnostics, withTagDiagnostics } from "./label-diagnostics";
+import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
 import { type LanePlan, laneDiagnostics, planLanes } from "./lanes";
 import { groupArrowheadStems } from "./padding";
 import { keepClearOfLanes, separateParallelRuns, separateSameSideRuns } from "./parallel";
@@ -231,27 +231,16 @@ export function routeEdges(
   if (routed.layout.edges.length === layout.edges.length) return withLaneDiagnostics(ir, routed);
   const diagonal = addDirectRoutes(ir, layout, routed.layout);
   const zoom = addZoomRoutes(ir, straight.size === 0 ? layout : diagonal.layout, diagonal.layout);
-  // Tags (#610), once every route is drawn: their frames against the routes (straight, curved
-  // and zoom lines included), arrowheads, nodes, labels and borders. An orthogonal tag was
-  // checked while routing, before the straight, curved and zoom lines existed: its warning
-  // from then is replaced by this one, which sees everything.
-  const tagged = (edge: EdgeIR) => isTagLabel(edge) && hasRequestedLabel(edge);
-  const tagKeys = new Set(ir.edges.filter(tagged).map((e) => e.id ?? `edges[${e.index}]`));
-  const tags = hasErrors(diagonal.diagnostics)
-    ? []
-    : requestedLabelDiagnostics(ir, zoom.layout, (edge) => edgeArrowheadLength(edge.style), tagged);
-  const earlier = routed.diagnostics.filter(
-    (d) =>
-      !(
-        !hasErrors(diagonal.diagnostics) &&
-        d.code === "layout/edge-label-overlap" &&
-        d.subject?.kind === "edge" &&
-        tagKeys.has(d.subject.id)
-      ),
+  // Tags (#610), once every route is drawn (`withTagDiagnostics`).
+  const diagnostics = withTagDiagnostics(
+    ir,
+    zoom.layout,
+    [...routed.diagnostics, ...diagonal.diagnostics, ...zoom.diagnostics],
+    (edge) => edgeArrowheadLength(edge.style),
   );
   return withLaneDiagnostics(ir, {
     layout: deepFreeze(zoom.layout),
-    diagnostics: [...earlier, ...diagonal.diagnostics, ...zoom.diagnostics, ...tags],
+    diagnostics,
   });
 }
 

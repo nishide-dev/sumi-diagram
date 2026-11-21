@@ -508,3 +508,42 @@ edges:
     expect(warned[0]?.message).toContain('the line of edge edges[0] ("x" → "y")');
   });
 });
+
+describe("tags on tilted planes against page routes (#610, #577)", () => {
+  const figure = (pageEdge: boolean) => `version: 1
+figure:
+  id: planetag
+  theme: sumi
+  profile: paper-double
+  projection: {angle: 45, depthScale: 0.6}
+  layout:
+    arrange:
+      stack: {gap: 6mm, align: center, items: [a, tokens, b]}
+groups:
+  - id: tokens
+    props: {plane: floor, contents: projected, padding: 7mm}
+    arrange:
+      row: {gap: 14mm, align: center, items: [t1, t2]}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+  - {id: t1, component: box, label: The, tone: blue}
+  - {id: t2, component: box, label: cat, tone: blue}
+edges:
+  - {from: t1, to: t2, label: next, labelStyle: tag}
+${pageEdge ? "  - {from: a, to: b}" : ""}
+`;
+
+  test("a plane edge's tag under a page route is reported once, in page coordinates", async () => {
+    const result = await renderFigure(figure(true));
+    const warned = result.diagnostics.filter((d) => d.code === "layout/edge-label-overlap");
+    expect(warned).toHaveLength(1);
+    expect(warned[0]?.message).toContain('the line of edge edges[1] ("a" → "b")');
+    expect(warned[0]?.message).not.toContain("its own line");
+  });
+
+  test("alone on its plane, the tag is clear", async () => {
+    const result = await renderFigure(figure(false));
+    expect(result.diagnostics.filter((d) => d.code === "layout/edge-label-overlap")).toEqual([]);
+  });
+});

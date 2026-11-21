@@ -15,7 +15,7 @@
 
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
-import type { Diagnostic } from "../../core/diagnostics";
+import { type Diagnostic, hasErrors } from "../../core/diagnostics";
 import { EDGE_LABEL_POSITIONS, EDGE_LABEL_SIDES } from "../../core/figure/schema";
 import { groupFrontRect, groupLayerObstacles } from "../group-layers";
 import type { LayoutIR, Point, Rect } from "../ir";
@@ -113,7 +113,9 @@ export function requestedLabelDiagnostics(
     const found: string[] = [];
     // A tag (#610) sits on its own segment; on a straight or curved line, on its line.
     const tag = isTagLabel(edge);
-    const direct = edge.route !== undefined;
+    // A straight or curved line, or a route mapped onto a tilted plane (#577): the tag sits on
+    // its own line wherever it is.
+    const direct = edge.route !== undefined || !axisAligned(e.route?.points ?? []);
     const host = tag && !direct ? labelSegment(e.route?.points ?? [], edge) : -1;
     for (const other of routed) {
       const own = other.edge.key === edge.key;
@@ -125,7 +127,7 @@ export function requestedLabelDiagnostics(
           .some((q, i) => !(own && i + 1 === host) && segmentMeets(points[i] as Point, q, box));
       if (crosses) found.push(own ? "its own line" : `the line of ${elementName(other.edge.key)}`);
       const heads =
-        other.edge.route !== undefined
+        other.edge.route !== undefined || !axisAligned(points)
           ? directHeads(points, other.edge, arrowheadOf(other.edge))
           : arrowheadRects(points, other.edge, arrowheadOf(other.edge));
       if (heads.some((r) => overlaps(r, box))) {
@@ -186,6 +188,40 @@ export function requestedLabelDiagnostics(
     });
   }
   return diagnostics;
+}
+
+/** Whether every segment of a route runs along an axis (not a route mapped onto a tilted plane). */
+const axisAligned = (points: readonly Point[]): boolean =>
+  points.slice(1).every((q, i) => {
+    const p = points[i] as Point;
+    return Math.abs(p.x - q.x) < 1e-9 || Math.abs(p.y - q.y) < 1e-9;
+  });
+
+/**
+ * The tag overlaps of a whole figure (#610), once every route is drawn and in page coordinates:
+ * `layout/edge-label-overlap` for every tag (orthogonal, straight, curved, on a tilted plane)
+ * against every line (zoom lines included), arrowhead, node, label and border. A tag's warning
+ * from an earlier, partial check (routing before the straight, curved and zoom lines existed,
+ * or a plane routed apart from the page) is replaced, so each tag is reported at most once.
+ */
+export function withTagDiagnostics(
+  ir: FigureIR,
+  layout: LayoutIR,
+  diagnostics: readonly Diagnostic[],
+  arrowheadOf: (edge: EdgeIR) => number,
+): Diagnostic[] {
+  const tagged = (edge: EdgeIR) => isTagLabel(edge) && hasRequestedLabel(edge);
+  const tagIds = new Set(ir.edges.filter(tagged).map((e) => e.id ?? `edges[${e.index}]`));
+  if (tagIds.size === 0 || hasErrors(diagnostics)) return [...diagnostics];
+  const earlier = diagnostics.filter(
+    (d) =>
+      !(
+        d.code === "layout/edge-label-overlap" &&
+        d.subject?.kind === "edge" &&
+        tagIds.has(d.subject.id)
+      ),
+  );
+  return [...earlier, ...requestedLabelDiagnostics(ir, layout, arrowheadOf, tagged)];
 }
 
 /**
