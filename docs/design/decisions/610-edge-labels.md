@@ -18,7 +18,7 @@
 
 - 実装: `direct-label.ts` の `readingSide(ux, uy)`。左法線 `(uy, −ux)` の係数として、`ux > 0` なら左（= 上）、`ux < 0` なら右（= 上）。垂直から 5° 以内（`STEEP_DEGREES`、|ux| ≤ sin 5°）は垂直とみなし、下向きで左（= 右）、上向きで右（= 右）。曲線は中点の接線で同じ判定をする。
 - `labelSide` を書いた辺は従来どおり「source → target に向かって左右」。自己ループの外側の既定（`loopLabelEdge`）も変えない（明示の `labelSide` として渡す）。
-- 斜めの線は「上」を優先した。「上か右のうち近いほう」（法線の右成分＋上成分の符号）も試したが、急な右上がりの線でラベルが左上から右下へ移り、ピン留めした再現 tricl の T₁ が動いた。「上」の規則では左向きの成分を持つ線だけが変わる。垂直の付近では「上」の側が x 成分の符号で左右に入れ替わるので、5° 以内は垂直として右に置き、ほぼ垂直な線がわずかに傾いただけでラベルが反対側へ飛ばないようにした。
+- 斜めの線は「上」を優先した。「上か右のうち近いほう」（法線の右成分＋上成分の符号）も試したが、急な右上がりの線でラベルが左上から右下へ移り、ピン留めした再現 tricl の T₁ が動いた。「上」の規則で変わるのは、垂直から 5° を超えて左向きの成分を持つ線と、垂直から 5° 以内の上向きの線（わずかに右へ傾いたものを含む）だけ（互換性の節を参照）。垂直の付近では「上」の側が x 成分の符号で左右に入れ替わるので、5° 以内は垂直として右に置き、ほぼ垂直な線がわずかに傾いただけでラベルが反対側へ飛ばないようにした。
 
 ### 2. `labelAt` に割合
 
@@ -40,7 +40,7 @@
 
 ### 4. lint: `geometry/edge-label-detached`（info）・`geometry/edge-label-touches-line`（warning）
 
-ルーターが自分で置いたラベル（直交の辺で `labelAt`・`labelSide`・`labelStyle` なし、凡例の見本でない）だけを見る。書いて置かせたラベルは `layout/edge-label-overlap` の担当。`straight` / `curve` のラベルは作りから gap を保つので見ない。
+ルーターが自分で置いたラベル（直交の辺で `labelAt`・`labelSide` を書かず `labelStyle: tag` でもない。`labelStyle: beside` を明示した辺は対象。凡例の見本でない）だけを見る。書いて置かせたラベルは `layout/edge-label-overlap` の担当。`straight` / `curve` のラベルは作りから gap を保つので見ない。
 
 - 距離: 文字の**グリフごと**の輪郭の外接矩形（`inkGlyphs`。フォントの `glyf` から。輪郭のわからない行は行の箱、runs のラベルは run ごとの箱）と、描かれた自分の線（`drawn`、線幅の半分を引く）の最短距離。行ごとの和集合（`inkLines`、hugging の測り方）では、語と語の間の空白を通る線まで「触れる」になり、warning が誤って出るため（レビューの指摘）。
 - **detached**: 距離 > ラベルの gap（`labelGap`: テーマの `edgeLabelGap` × `textScale`）＋ 文字サイズの 3/4。ふつうに置いたラベルは gap ＋ 0.3em 程度（sumi で 8.5 units）で、持ち上げられたものは 18〜76 units だった（下記）。info とした: 文字は読めるが、どの線のラベルかが曖昧になる。
@@ -64,8 +64,8 @@
 
 ## 互換性
 
-- **見た目が変わる図**: `skills/sumi/layouts/loop-cycle` の 1 枚だけ（下の弧の「scores」が線の下から上=輪の内側へ）。
-- **見た目は変わらず再生成した出力**: loop-cycle のプレビュー PNG と `previews.json`（上の変更に追随）、compare-rows の SVG（YAML 冒頭の Lint のコメントを更新したため、埋め込んだソースのメタデータだけが変わる）。
+- **見た目が変わる図**: `skills/sumi/layouts/loop-cycle` の 1 枚だけ（下の弧の「scores」が線の下から上=輪の内側へ）。その SVG と、同じ変化を写すプレビュー PNG（`loop-cycle.png`）。
+- **見た目は変わらず再生成した出力**: `previews.json`（loop-cycle と compare-rows の SVG の hash）、compare-rows の SVG（YAML 冒頭の Lint のコメントを更新したため、埋め込んだソースのメタデータだけが変わる）。
 - examples（ピン留めした再現を含む）、`docs/gallery/`、`docs/assets` は変わらない（`SUMI_UPDATE_REPRODUCTIONS` なしで `reproduction-hashes.test.ts` が通る）。
 - 直交のルーターで置くラベルの位置は変わらない（`labelStyle` を書かない限り、`placeEdgeLabel` の既定の経路は同じ）。
 - 新しい lint の指摘: compare-rows（detached、info）。テストの fixture では `literal-newline`・`rag-compare-a` が detached（info）。touches-line はリポジトリの図に 0 件。

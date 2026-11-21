@@ -345,7 +345,7 @@ const cache = new WeakMap<GeometryContext, LabelVerdict[]>();
 export const edgeLabelDetached = defineGeometryRule({
   id: EDGE_LABEL_DETACHED,
   description:
-    "An edge label the router placed (no labelAt, labelSide or labelStyle) sits farther from its own line than the label gap plus three quarters of its text size; the hint is an edit checked by routing the figure again.",
+    "An edge label the router placed (no labelAt or labelSide, and not labelStyle: tag) sits farther from its own line than the label gap plus three quarters of its text size; the hint is an edit checked by routing the figure again.",
   defaultSeverity: "info",
   fixable: false,
   run: (context) => findingsOf(context, "detached"),
@@ -354,7 +354,7 @@ export const edgeLabelDetached = defineGeometryRule({
 export const edgeLabelTouchesLine = defineGeometryRule({
   id: EDGE_LABEL_TOUCHES_LINE,
   description:
-    "The letters of an edge label the router placed (no labelAt, labelSide or labelStyle) touch or cross its own line; the hint is an edit checked by routing the figure again.",
+    "The letters of an edge label the router placed (no labelAt or labelSide, and not labelStyle: tag) touch or cross its own line; the hint is an edit checked by routing the figure again.",
   defaultSeverity: "warning",
   fixable: false,
   run: (context) => findingsOf(context, "touching"),

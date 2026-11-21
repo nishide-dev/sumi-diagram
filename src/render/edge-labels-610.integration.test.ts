@@ -547,3 +547,45 @@ ${pageEdge ? "  - {from: a, to: b}" : ""}
     expect(result.diagnostics.filter((d) => d.code === "layout/edge-label-overlap")).toEqual([]);
   });
 });
+
+describe("a plane tag against the other legs of its own route (#610, #577)", () => {
+  const figure = (plane: boolean) => `version: 1
+figure:
+  id: planeu
+  theme: sumi
+  profile: paper-double
+${plane ? "  projection: {angle: 45, depthScale: 0.6}\n" : ""}  layout:
+    arrange:
+      stack: {gap: 6mm, align: center, items: [tokens]}
+groups:
+  - id: tokens
+    props: {${plane ? "plane: floor, contents: projected, " : ""}padding: 9mm}
+    arrange:
+      row: {gap: 6mm, align: center, items: [t1, t2]}
+nodes:
+  - {id: t1, component: box, label: The, tone: blue}
+  - {id: t2, component: box, label: cat, tone: blue}
+edges:
+  - {from: t1, to: t2, fromAnchor: south, toAnchor: south, label: "a much longer tag on the loop", labelStyle: tag, labelAt: 0.5}
+`;
+
+  for (const plane of [false, true]) {
+    test(`a tag wider than its U's bottom leg crosses its own legs (${plane ? "on a tilted plane" : "on the page"})`, async () => {
+      const result = await renderFigure(figure(plane));
+      const warned = result.diagnostics.filter((d) => d.code === "layout/edge-label-overlap");
+      expect(warned).toHaveLength(1);
+      expect(warned[0]?.message).toContain("its own line");
+    });
+  }
+});
+
+describe("an explicit labelStyle: beside is still router-placed (#610)", () => {
+  test("a lifted label with labelStyle: beside is reported as detached", async () => {
+    const source = loop.replace(
+      '(until no shards are left)"}',
+      '(until no shards are left)", labelStyle: beside}',
+    );
+    const { rendered } = await render(source);
+    expect(drifts(geometryContextFor(rendered)).map((d) => d.kind)).toEqual(["detached"]);
+  });
+});

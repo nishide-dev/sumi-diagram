@@ -20,7 +20,7 @@ import { EDGE_LABEL_POSITIONS, EDGE_LABEL_SIDES } from "../../core/figure/schema
 import { groupFrontRect, groupLayerObstacles } from "../group-layers";
 import type { LayoutIR, Point, Rect } from "../ir";
 import { sampleCubic } from "./cubic";
-import { arrowheadRects, hasRequestedLabel, isTagLabel, labelSegment, tagBox } from "./labels";
+import { arrowheadRects, hasRequestedLabel, isTagLabel, tagBox } from "./labels";
 
 /** The open rectangles overlap (touching does not count). */
 const overlaps = (a: Rect, b: Rect): boolean =>
@@ -113,10 +113,12 @@ export function requestedLabelDiagnostics(
     const found: string[] = [];
     // A tag (#610) sits on its own segment; on a straight or curved line, on its line.
     const tag = isTagLabel(edge);
-    // A straight or curved line, or a route mapped onto a tilted plane (#577): the tag sits on
-    // its own line wherever it is.
-    const direct = edge.route !== undefined || !axisAligned(e.route?.points ?? []);
-    const host = tag && !direct ? labelSegment(e.route?.points ?? [], edge) : -1;
+    // A tag sits on one segment of its own route: that one is not an obstacle, its other legs
+    // are. The segment is the one through the tag's centre, so it survives a route mapped onto a
+    // tilted plane (#577), whose slanted lengths no longer pick the same longest segment. A
+    // straight or curved line is all one line under its tag.
+    const direct = edge.route !== undefined;
+    const host = tag && !direct ? hostSegment(e.route?.points ?? [], label.box) : -1;
     for (const other of routed) {
       const own = other.edge.key === edge.key;
       const points = other.points;
@@ -188,6 +190,31 @@ export function requestedLabelDiagnostics(
     });
   }
   return diagnostics;
+}
+
+/**
+ * The index `i` of the segment from `points[i - 1]` to `points[i]` nearest the centre of
+ * `box`: the segment a tag (#610) sits on, centred.
+ */
+function hostSegment(points: readonly Point[], box: Rect): number {
+  const c = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  let best = 1;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1] as Point;
+    const b = points[i] as Point;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const length = dx * dx + dy * dy;
+    const t =
+      length === 0 ? 0 : Math.max(0, Math.min(1, ((c.x - a.x) * dx + (c.y - a.y) * dy) / length));
+    const d = Math.hypot(a.x + t * dx - c.x, a.y + t * dy - c.y);
+    if (d < bestDistance - 1e-9) {
+      best = i;
+      bestDistance = d;
+    }
+  }
+  return best;
 }
 
 /** Whether every segment of a route runs along an axis (not a route mapped onto a tilted plane). */
