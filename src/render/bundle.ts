@@ -22,6 +22,7 @@
 
 import type { Point } from "../core/geometry";
 import type { Arrowhead } from "../core/registry/manifest";
+import { sampleCubic } from "../layout/route/cubic";
 import type { Arc } from "./wire";
 
 /** The control-point distance of a quarter circle of radius 1 as a cubic. */
@@ -263,13 +264,16 @@ export function strandPathData(strand: Strand, n: (value: number) => string): st
     .join(" ");
 }
 
-/** The length of a strand: its straight pieces and its quarter circles (`πr/2` each). */
+/**
+ * The length of a strand: its straight pieces and its arcs, each measured along
+ * the cubic (a quarter circle, or the ellipse it becomes on a projected plane).
+ */
 export function strandLength(strand: Strand): number {
   const straight = strand.pieces.reduce((sum, [a, b]) => sum + distance(a, b), 0);
-  const arcs = strand.arcs.reduce(
-    (sum, arc) => sum + ((Math.PI / 2) * distance(arc.from, arc.to)) / Math.SQRT2,
-    0,
-  );
+  const arcs = strand.arcs.reduce((sum, arc) => {
+    const points = sampleCubic([arc.from, arc.c1, arc.c2, arc.to]);
+    return sum + points.slice(1).reduce((n, p, i) => n + distance(points[i] as Point, p), 0);
+  }, 0);
   return straight + arcs;
 }
 

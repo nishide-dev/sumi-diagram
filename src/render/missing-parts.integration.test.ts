@@ -367,10 +367,29 @@ edges:
     }
   });
 
-  test("a legend bundle sample keeps room for its grown heads, solid or dashed", async () => {
+  test("a legend bundle sample keeps room for its grown heads and a visible line", async () => {
+    // The x extent of each subpath of a path's d (the samples are horizontal).
+    const runs = (d: string) =>
+      d
+        .split("M ")
+        .filter((part) => part.trim() !== "")
+        .map((part) => {
+          const xs = part
+            .trim()
+            .split(/[ LC]+/)
+            .filter(Boolean)
+            .map(Number)
+            .filter((_, i) => i % 2 === 0);
+          return Math.max(...xs) - Math.min(...xs);
+        });
     for (const fields of ["", ", dash: dashed"]) {
       for (const lineWidth of ["0.5pt", "2pt", "3pt"]) {
-        const text = `version: 1
+        for (const [component, strands] of [
+          ["arrow", 5],
+          ["double-arrow", 5],
+          ["double-arrow", 3],
+        ] as const) {
+          const text = `version: 1
 figure:
   id: legend-bundle
   theme: sumi
@@ -381,14 +400,93 @@ nodes:
     component: legend
     props:
       entries:
-        - {edge: {strands: 5, lineWidth: ${lineWidth}${fields}}, label: test}
-        - {edge: {strands: 3, component: double-arrow, lineWidth: ${lineWidth}${fields}}, label: both}
+        - {edge: {lineWidth: ${lineWidth}}, label: one line}
+        - {edge: {strands: ${strands}, component: ${component}, lineWidth: ${lineWidth}${fields}}, label: bundle}
 `;
-        const found = await renderFigure(text);
-        expect(found.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
-        expect(found.ok).toBe(true);
+          const found = await renderFigure(text);
+          expect(found.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+          if (!found.ok) throw new Error("not rendered");
+          const svg = found.value.svg;
+          const bundle = /<path class="sumi-wire sumi-bundle" d="([^"]+)"/.exec(svg)?.[1] ?? "";
+          const lines = runs(bundle);
+          expect(lines).toHaveLength(strands);
+          // The ordinary sample's visible line (its wire) is the least a strand shows.
+          const plain = [...svg.matchAll(/<path class="sumi-wire" d="([^"]+)"/g)]
+            .flatMap((m) => runs(m[1] as string))
+            .filter((x) => x > 0);
+          const least = Math.min(...plain);
+          for (const visible of lines) expect(visible).toBeGreaterThanOrEqual(least - 1e-6);
+        }
       }
     }
+  });
+
+  test("a bent dashed bundle on a projected plane measures its mapped curves", async () => {
+    const figure = await render(`version: 1
+figure:
+  id: plane-dashed
+  theme: sumi
+  projection: {angle: 45, depthScale: 0.6}
+  layout:
+    arrange: {stack: {items: [p]}}
+groups:
+  - id: p
+    props: {plane: floor, contents: projected, padding: 7mm}
+    arrange: {place: {unit: 1mm, items: [{item: a, at: [0, 0]}, {item: b, at: [40, 25]}]}}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+edges:
+  - {from: a, to: b, strands: 3, dash: dashed, fromAnchor: east, toAnchor: north}
+`);
+    const d = /<path class="sumi-wire sumi-bundle" d="([^"]+)"/.exec(figure.svg)?.[1] ?? "";
+    expect(d).toContain("C ");
+    // Each strand's length measured on its drawn path, curves sampled finely.
+    const measured = d
+      .split("M ")
+      .filter((part) => part.trim() !== "")
+      .map((part) => {
+        const tokens = part.trim().split(" ");
+        let at = { x: Number(tokens[0]), y: Number(tokens[1]) };
+        let total = 0;
+        for (let i = 2; i < tokens.length; ) {
+          if (tokens[i] === "L") {
+            const to = { x: Number(tokens[i + 1]), y: Number(tokens[i + 2]) };
+            total += Math.hypot(to.x - at.x, to.y - at.y);
+            at = to;
+            i += 3;
+          } else {
+            const [c1x, c1y, c2x, c2y, x, y] = tokens.slice(i + 1, i + 7).map(Number) as number[];
+            let prev = at;
+            for (let k = 1; k <= 400; k++) {
+              const t = k / 400;
+              const s = 1 - t;
+              const p = {
+                x:
+                  s ** 3 * at.x +
+                  3 * s * s * t * (c1x as number) +
+                  3 * s * t * t * (c2x as number) +
+                  t ** 3 * (x as number),
+                y:
+                  s ** 3 * at.y +
+                  3 * s * s * t * (c1y as number) +
+                  3 * s * t * t * (c2y as number) +
+                  t ** 3 * (y as number),
+              };
+              total += Math.hypot(p.x - prev.x, p.y - prev.y);
+              prev = p;
+            }
+            at = { x: x as number, y: y as number };
+            i += 7;
+          }
+        }
+        return total;
+      });
+    const edge = figure.compiled.ir.edges[0];
+    const painted = figure.inspection.painted?.find((p) => p.key === edge?.key)?.dashLengths ?? [];
+    expect(painted).toHaveLength(3);
+    for (const [i, length] of painted.entries())
+      expect(Math.abs(length - (measured[i] as number))).toBeLessThan(0.05);
   });
 
   test("a legend zoom sample cannot be a bundle; reported at the entry", async () => {

@@ -599,7 +599,14 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
                     );
               const head = edgeArrowheadLength({ ...style, arrowheadScale: scale });
               const periods = pattern === undefined ? 0 : 2 * (pattern[0] + pattern[1]);
-              line = Math.max(line, Math.ceil(((2 * head + periods) / 2) * 2) / 2);
+              // Visible line between the heads: at least an ordinary sample's (its line less
+              // its one head), and two dash periods on a dashed one; units here, `line` in pt.
+              const stem = Math.max(sizes.line * 2 - edgeArrowheadLength(style), 0);
+              line = Math.max(
+                line,
+                Math.ceil(((Math.max(heads.length, 1) * head + Math.max(periods, stem)) / 2) * 2) /
+                  2,
+              );
             }
           }
         }
