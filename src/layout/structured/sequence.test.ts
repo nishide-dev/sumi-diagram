@@ -349,4 +349,89 @@ describe("sequence errors (#630)", () => {
     const auto = figure("          - ab").replace("  layout:\n", "  layout:\n    engine: auto\n");
     expect(errorCodes(auto)).toContain("layout/structured-only");
   });
+
+  test("a self-message loops east or west: other lanes are errors, west is checked and laid out", () => {
+    const west = {
+      nodes: "  - {id: n1, component: box, label: a note}\n",
+      edges: "  - {id: bb, from: b, to: b, label: back, lane: {side: west}}\n",
+      sequence: "",
+    };
+    // West of b's lifeline, the loop shares the a–b gap with a note right of a: allowed, and
+    // the gap holds both.
+    const p = layout(
+      figure("          - [bb, {note: n1, over: [a], side: right}]\n          - ab", west),
+    );
+    expect(p.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+    const route = p.edge("e:bb").route;
+    if (!route?.label) throw new Error("no route");
+    const westmost = Math.min(...route.points.map((q) => q.x), route.label.box.x);
+    expect(westmost).toBeLessThan(p.cx("n:b"));
+    expect(westmost).toBeGreaterThan(p.rect("n:n1").x + p.rect("n:n1").width);
+    // Its label is outside the loop, west of it.
+    expect(route.label.box.x + route.label.box.width).toBeLessThanOrEqual(
+      Math.min(...route.points.map((q) => q.x)) + 1e-6,
+    );
+    // A note left of b would sit on the loop.
+    expect(
+      errorCodes(figure("          - [bb, {note: n1, over: [b], side: left}]", west)),
+    ).toContain("layout/sequence-invalid-row");
+    for (const lane of ["{side: north}", "{side: east, outside: a}"])
+      expect(
+        errorCodes(
+          figure("          - bb", {
+            nodes: "",
+            edges: `  - {id: bb, from: b, to: b, lane: ${lane}}\n`,
+            sequence: "",
+          }),
+        ),
+      ).toContain("layout/sequence-invalid-row");
+  });
+
+  test("a note over several lifelines must be able to widen", () => {
+    const note = (node: string) =>
+      figure("          - {note: n1, over: [a, c]}", {
+        nodes: `${node}\n`,
+        edges: "",
+        sequence: "",
+      });
+    const fixed = layoutStructuredFigure(note("  - {id: n1, component: circle, label: n}"));
+    expect(fixed.diagnostics.map((d) => d.code)).toContain("layout/sequence-invalid-row");
+    expect(fixed.ok).toBe(false);
+    const sized = layoutStructuredFigure(
+      note("  - {id: n1, component: box, label: n, props: {width: 10mm}}"),
+    );
+    expect(sized.diagnostics.map((d) => d.code)).toContain("layout/sequence-invalid-row");
+    // Over one lifeline any component is fine.
+    const one = layoutStructuredFigure(
+      figure("          - {note: n1, over: [b]}", {
+        nodes: "  - {id: n1, component: circle, label: n}\n",
+        edges: "",
+        sequence: "",
+      }),
+    );
+    expect(one.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+  });
+
+  test("dash: solid makes the lifelines solid even on a dashed variant", () => {
+    const p = layout(
+      figure("          - ab", {
+        nodes: "",
+        edges: "",
+        sequence: "        lifeline: {variant: dashed, dash: solid}\n",
+      }),
+    );
+    const life = p.ir.edges.find((e) => e.key === "e:seq-1-life-1-1");
+    expect(life?.variant).toBe("dashed");
+    expect((life?.style as { strokeDash?: number }).strokeDash).toBe(0);
+    expect((life?.style as { strokeDotted?: true }).strokeDotted).toBeUndefined();
+    const dotted = layout(
+      figure("          - ab", {
+        nodes: "",
+        edges: "",
+        sequence: "        lifeline: {variant: dotted, dash: solid}\n",
+      }),
+    );
+    const plain = dotted.ir.edges.find((e) => e.key === "e:seq-1-life-1-1");
+    expect((plain?.style as { strokeDotted?: true }).strokeDotted).toBeUndefined();
+  });
 });

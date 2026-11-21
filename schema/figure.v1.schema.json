@@ -1758,7 +1758,7 @@
                 "type": "string",
                 "pattern": "^[a-z][a-z0-9_-]{0,63}$"
               },
-              "description": "The participants the note lies over: one, or the two outermost of several neighbours (the note widens to span every lifeline from the leftmost to the rightmost named). With side, exactly one."
+              "description": "The participants the note lies over: one, or the two outermost of several neighbours (the note widens to span every lifeline from the leftmost to the rightmost named, so it must be a component that can stretch: not a circle or other fixed shape, nor one with props.width). With side, exactly one."
             },
             "side": {
               "description": "Place the note beside the lifeline (on this side) instead of over it; the lifeline then runs on unbroken. Omitted means over the lifelines, which stop at the note's top and resume below it.",
@@ -1800,7 +1800,7 @@
                       "type": "string",
                       "pattern": "^[a-z][a-z0-9_-]{0,63}$"
                     },
-                    "description": "The participants the note lies over: one, or the two outermost of several neighbours (the note widens to span every lifeline from the leftmost to the rightmost named). With side, exactly one."
+                    "description": "The participants the note lies over: one, or the two outermost of several neighbours (the note widens to span every lifeline from the leftmost to the rightmost named, so it must be a component that can stretch: not a circle or other fixed shape, nor one with props.width). With side, exactly one."
                   },
                   "side": {
                     "description": "Place the note beside the lifeline (on this side) instead of over it; the lifeline then runs on unbroken. Omitted means over the lifelines, which stop at the note's top and resume below it.",

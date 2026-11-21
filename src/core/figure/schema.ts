@@ -493,7 +493,7 @@ const SequenceNoteSchema = z.strictObject({
     .array(Id)
     .min(1)
     .describe(
-      "The participants the note lies over: one, or the two outermost of several neighbours (the note widens to span every lifeline from the leftmost to the rightmost named). With side, exactly one.",
+      "The participants the note lies over: one, or the two outermost of several neighbours (the note widens to span every lifeline from the leftmost to the rightmost named, so it must be a component that can stretch: not a circle or other fixed shape, nor one with props.width). With side, exactly one.",
     ),
   side: z
     .enum(["left", "right"])

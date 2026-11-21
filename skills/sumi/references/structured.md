@@ -395,12 +395,14 @@ edges:
   The label sits above the line in both directions (the `labelSide` default follows the
   direction); a message across several lifelines keeps its label in the gap next to its
   source (`labelAt: start`). An edge **from a participant to itself** is a
-  self-message: a loop out to the east with its label beside it.
+  self-message: a loop out to the east with its label beside it (`lane: {side: west}`
+  loops west instead; other lanes, `outside` and `route` are errors).
 - **Lifelines** are generated `line` edges, `muted` and `dashed`, thinner than the
   messages (the theme's thin line). `lifeline: {variant, dash: solid | dashed | dotted,
-  tone, lineWidth}` changes them.
+  tone, lineWidth}` changes them; `dash: solid` is solid even on a dashed variant.
 - **Notes**: `{note: <node>, over: [p]}` centres a node on one lifeline;
-  `over: [p, q]` widens it to span every lifeline from p to q; `side: right | left`
+  `over: [p, q]` widens it to span every lifeline from p to q (so it must stretch: a box
+  or group, not a circle or a node with `props.width`); `side: right | left`
   (with one participant) puts it beside the lifeline instead. A lifeline stops just
   above a note over it and resumes below it.
 - **Bands**: a list `[a, {note: n, over: [p]}]` puts messages and notes side by side in

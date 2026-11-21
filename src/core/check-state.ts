@@ -71,6 +71,8 @@ export interface PartialFigure {
   sequences?: readonly SequenceExpansion[];
   /** The fragment frames of sequences (#630) among `sets`: index → the fragment's row. */
   sequenceSets?: ReadonlyMap<number, DocPath>;
+  /** Lifelines of sequences written `dash: solid` (#630): drawn solid even on a dashed variant. */
+  solidLifelines?: ReadonlySet<ElementKey>;
   /**
    * Legends expanded into a frame group and its parts (#131), in the order
    * of the legend nodes. Set by `expandLegends()`.

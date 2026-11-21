@@ -196,6 +196,8 @@ export type SequenceRowIR =
       readonly to: number;
       readonly fromNode: ElementKey;
       readonly toNode: ElementKey;
+      /** A self-message looping west of its lifeline; east otherwise. */
+      readonly west?: true;
       readonly source: SourceMapEntry;
     }
   | {
@@ -1488,6 +1490,7 @@ function arrangeIR(
             to: row.to,
             fromNode: keyOf(row.fromNode),
             toNode: keyOf(row.toNode),
+            ...(row.west && { west: true as const }),
             source: source(row.path),
           })
         : row.kind === "band"

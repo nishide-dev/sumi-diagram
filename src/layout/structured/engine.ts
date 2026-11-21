@@ -52,6 +52,7 @@ import type {
   FigureIR,
   GroupIR,
   NodeIR,
+  SequenceRowIR,
   SetIR,
 } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
@@ -900,6 +901,7 @@ class StructuredLayout {
     const diagnostics: Diagnostic[] = [...this.#setDiagnostics, ...this.#matchWidthDiagnostics()];
     for (const box of this.#boxSizes.keys()) {
       if (box.kind === "chat") diagnostics.push(...this.#chatGeometry(box).diagnostics);
+      if (box.kind === "sequence") diagnostics.push(...this.#sequenceDiagnostics(box));
       if (box.centerOn !== undefined) {
         const padding = this.#centerPadding(box);
         const size = this.#boxSize(box);
@@ -1601,6 +1603,33 @@ class StructuredLayout {
       widenable: (key) => this.#stretchable(key, true),
       gap: this.#defaultGap,
     });
+  }
+
+  /**
+   * A note over several lifelines (#630) must widen to cover them all, since each of
+   * them stops at it: a shape that cannot stretch (a circle, an explicit width, an
+   * outline component) is an error.
+   */
+  #sequenceDiagnostics(box: ArrangeBoxIR): Diagnostic[] {
+    const out: Diagnostic[] = [];
+    const walk = (rows: readonly SequenceRowIR[]) => {
+      for (const row of rows) {
+        if (row.kind === "band" || row.kind === "fragment") walk(row.rows);
+        if (row.kind !== "note" || row.side !== undefined || row.lo === row.hi) continue;
+        if (this.#stretchable(row.node, true)) continue;
+        const id = row.node.slice(2);
+        out.push({
+          code: "layout/sequence-invalid-row",
+          severity: "error",
+          message: `Note "${id}" lies over several lifelines, but its component cannot widen to cover them.`,
+          ...row.source,
+          subject: { kind: "node", id },
+          hint: "Use a box-like component without props.width for a note over several lifelines (or a group), or put the note over one lifeline.",
+        });
+      }
+    };
+    walk(box.sequence?.rows ?? []);
+    return out;
   }
 
   #edgeIR(key: ElementKey): EdgeIR | undefined {

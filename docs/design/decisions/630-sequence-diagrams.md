@@ -36,8 +36,8 @@ arrange:
 検査の段階（`expandChats` の直後、link・layout の前）で、箱を普通の要素に展開する。描画・PPTX・lint は新しい種類の図形を知らなくてよい。
 
 - メッセージごとに、両端の lifeline の上に隠しジャンクション（`seq-<n>-m<k>-from` / `-to`）を作り、辺の `from` / `to` をそれに付け替え、`route: straight` にする。ラベルは行の向きに合わせて線の上（右向きは `labelSide: left`、左向きは `right`）。複数の lifeline をまたぐメッセージは、ラベルを始点側の列の間に置く（`labelAt: start`）。作者が書いた `route` / `labelAt` / `labelSide` / `lane` は残す。
-- 自分自身へのメッセージは、同じ lifeline の 2 つのジャンクションを `lane: {side: east}`（#609）でつなぐ小さなループにする（ラベルはループの右、`labelAt: middle`・`labelSide: left`）。ループの幅はプロファイルの arrange gap の 3/4。
-- lifeline は参加者から下端の隠しジャンクションまでの `line` 辺の鎖（`seq-<n>-life-<i>-<k>`、既定は `muted`・`dashed`）。注記が lifeline の上にあるときは、注記の上下の枠のすぐ外にジャンクションを置き、その間は線を引かない。線の幅は既定でテーマの `line.thin`（なければ muted の線の半分、textScale × 0.5pt 以上）にし、メッセージより細く見せる。
+- 自分自身へのメッセージは、同じ lifeline の 2 つのジャンクションを `lane: {side: east}`（#609）でつなぐ小さなループにする（ラベルはループの右、`labelAt: middle`・`labelSide: left`）。ループの幅はプロファイルの arrange gap の 3/4。作者は `lane: {side: west}`（ラベルはループの左）と `offset` だけを書ける。north / south・`outside`・`route` は `layout/sequence-invalid-row`（帯の判定と列の間隔は、実際にループがある側で計算する）。
+- lifeline は参加者から下端の隠しジャンクションまでの `line` 辺の鎖（`seq-<n>-life-<i>-<k>`、既定は `muted`・`dashed`）。注記が lifeline の上にあるときは、注記の上下の枠のすぐ外にジャンクションを置き、その間は線を引かない。`dash: solid` は variant の破線・点線も消す（`doc.solidLifelines`、テーマの段階）。線の幅は既定でテーマの `line.thin`（なければ muted の線の半分、textScale × 0.5pt 以上）にし、メッセージより細く見せる。
 - 帯（fragment）は、隠しジャンクション 2 つ（枠の左上・右下の角）・見出しの `label` ノード・中の注記を members にした `rect` の set（`padding: 0`）にする。描き方は sets の rect と同じで、`variant`（既定 `outlined`）・`tone`・`fillOpacity` を渡す。見出しは太字（`weight` / `text` で変えられる）。
 - 生成した ID は `seq-<n>-` で始まり予約する（作者の要素と重なれば `ref/reserved-id`）。生成した要素は `doc.expanded`（`from: "sequence"`）に記録し、診断は箱の場所を指す。生成した set の診断の場所は帯の行（`doc.sequenceSets`）。
 - 誤り: 辺のない行（`layout/sequence-unknown-message`）、参加者でない端・注記（`layout/sequence-unknown-participant`）、2 回置いたメッセージ・`side` の注記に複数の参加者・横に重なる帯の行・重複した参加者（`layout/sequence-invalid-row`）。auto エンジンは `arrange` そのものが `layout/structured-only` なので、何も足していない。
@@ -51,7 +51,7 @@ arrange:
 - **列（x）**: 参加者を左から並べ、lifeline は参加者の中心。隣り合う lifeline の距離の下限を集め（参加者の箱の半分ずつ + `participantGap`、メッセージのラベル（両側の lifeline から `clear` 離す。ラベルの幅 + 矢じりの余裕）、自分へのメッセージのループとラベル、注記のはみ出し、帯の枠と見出し）、足りない距離を間隔に足すことを変化がなくなるまで繰り返す（複数の間隔にまたがる下限は均等に配る）。`clear` は arrange gap の 1/4。
 - **行（y）**: 参加者は下端をそろえる。各行は前の行の下端から `rowGap`（既定は arrange gap の 1/3）下に始まる。メッセージはラベルの高さ + ラベルの間隔の下に線。自分へのメッセージは、ラベルの高さとループの幅で決まる高さのループ。注記はその高さ。帯は見出しの行・中の行・下の余白。最初の行が見出しと重ならない（lifeline の間のメッセージなど）ときは見出しの横から始め、高さを節約する。
 - **帯の枠**: 中の行が届く範囲（lifeline・ラベル・注記・入れ子の枠）に余白（arrange gap の 1/3）を足した矩形。見出しは枠の中の左上で、囲む最初の lifeline の左に置く（どの lifeline も見出しを横切らない）。枠の外の lifeline とは余白の分だけ離す。
-- 注記を複数の lifeline に広げるのは、引き伸ばせるノード（`stretch` と同じ条件）だけ。
+- 注記を複数の lifeline に広げるのは、引き伸ばせるノード（`stretch` と同じ条件）だけ。引き伸ばせないもの（円・`props.width` を書いたノード・outline 部品）を複数の lifeline の上に置くと、覆わない lifeline まで途切れるので、配置の段階で `layout/sequence-invalid-row`（error）にした。
 - 箱の大きさは、参加者・注記・ジャンクション・見出しの矩形と、自分へのメッセージのラベルの右端を含む。
 
 ### 4. lint

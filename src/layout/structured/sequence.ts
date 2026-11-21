@@ -163,10 +163,17 @@ export function sequenceGeometry(box: ArrangeBoxIR, ctx: SequenceContext): Seque
         const lo = Math.min(row.from, row.to);
         const hi = Math.max(row.from, row.to);
         if (lo === hi) {
+          // The loop and its label lie in the gap east of the lifeline (west with `lane: west`).
           const { reach: r } = loop(row);
-          if (hi < count - 1)
-            out.push({ lo, hi: hi + 1, width: r + clear, reason: name, edge: row.edge });
-          extend(lo, hi, x[lo] as number, (x[lo] as number) + r);
+          if (row.west) {
+            if (lo > 0)
+              out.push({ lo: lo - 1, hi: lo, width: r + clear, reason: name, edge: row.edge });
+            extend(lo, hi, (x[lo] as number) - r, x[lo] as number);
+          } else {
+            if (hi < count - 1)
+              out.push({ lo, hi: hi + 1, width: r + clear, reason: name, edge: row.edge });
+            extend(lo, hi, x[lo] as number, (x[lo] as number) + r);
+          }
           continue;
         }
         extend(lo, hi, x[lo] as number, x[hi] as number);
@@ -378,14 +385,16 @@ export function sequenceGeometry(box: ArrangeBoxIR, ctx: SequenceContext): Seque
   const end = last + rowGap;
   for (const [i, key] of seq.ends.entries()) point(key, x[i] as number, end);
 
-  // Self-message labels reach right of their loops; everything else is a rect.
+  // Self-message labels reach beyond their loops; everything else is a rect.
   let minX = Math.min(...[...rects.values()].map((r) => r.x));
   let maxX = Math.max(...[...rects.values()].map((r) => r.x + r.width));
   const selfReach = (rows: readonly SequenceRowIR[]) => {
     for (const row of rows) {
       if (row.kind === "fragment" || row.kind === "band") selfReach(row.rows);
-      else if (row.kind === "message" && row.from === row.to)
-        maxX = Math.max(maxX, (x[row.from] as number) + loop(row).reach);
+      else if (row.kind === "message" && row.from === row.to) {
+        if (row.west) minX = Math.min(minX, (x[row.from] as number) - loop(row).reach);
+        else maxX = Math.max(maxX, (x[row.from] as number) + loop(row).reach);
+      }
     }
   };
   selfReach(seq.rows);

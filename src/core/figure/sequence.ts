@@ -58,6 +58,8 @@ export type SequenceRowX =
       /** The hidden junctions the edge now joins, on the `from` and `to` lifelines. */
       readonly fromNode: string;
       readonly toNode: string;
+      /** A self-message looping west of its lifeline (`lane: {side: west}`); east otherwise. */
+      readonly west?: true;
       readonly path: DocPath;
     }
   | {
@@ -205,10 +207,12 @@ export function expandSequences(state: CheckState, locate: Locator): void {
   };
   const junction = (id: string, path: DocPath, name: string) =>
     addNode(NodeSchema.parse({ id, component: "sumi/junction", variant: "hidden" }), path, name);
-  const addEdge = (edge: FigureEdge, path: DocPath, name: string): void => {
+  const solid = new Set<ElementKey>();
+  const addEdge = (edge: FigureEdge, path: DocPath, name: string, solidLine = false): void => {
     if (edge.id === undefined || reserved(edge.id, path)) return;
     takenEdges.add(edge.id);
     edges.push(edge);
+    if (solidLine) solid.add(edgeKey(edge.id, edges.length - 1));
     origins.push([
       edgeKey(edge.id, edges.length - 1),
       { from: "sequence", path, subject: figureSubject, name },
@@ -272,7 +276,9 @@ export function expandSequences(state: CheckState, locate: Locator): void {
           const extent = (x: SequenceRowX): [number, number] | undefined =>
             x.kind === "message"
               ? x.from === x.to
-                ? [4 * x.from, 4 * x.from + 1]
+                ? x.west
+                  ? [4 * x.from - 1, 4 * x.from]
+                  : [4 * x.from, 4 * x.from + 1]
                 : [4 * Math.min(x.from, x.to), 4 * Math.max(x.from, x.to)]
               : x.kind === "note"
                 ? x.side === "right"
@@ -347,6 +353,29 @@ export function expandSequences(state: CheckState, locate: Locator): void {
           const from = participantOf(edge.from, rowPath, `The source of message "${row}",`);
           const to = participantOf(edge.to, rowPath, `The target of message "${row}",`);
           if (from === undefined || to === undefined) continue;
+          // A self-message is a loop beside its lifeline: east (the default) or west.
+          const lane = edge.lane;
+          if (
+            from === to &&
+            ((lane !== undefined &&
+              ((lane.side !== "east" && lane.side !== "west") || lane.outside !== undefined)) ||
+              edge.route !== undefined)
+          ) {
+            state.diagnostics.push(
+              errorAt(
+                locate,
+                "layout/sequence-invalid-row",
+                `Self-message "${row}" loops beside its lifeline: its lane is east or west, without outside or route.`,
+                rowPath,
+                {
+                  subject: figureSubject,
+                  hint: "Write lane: {side: west} (or east, the default, with an optional offset) on the edge, or leave lane out.",
+                },
+              ),
+            );
+            continue;
+          }
+          const west = from === to && lane?.side === "west";
           used.set(row, rowPath);
           messages++;
           const fromNode = junction(
@@ -371,9 +400,10 @@ export function expandSequences(state: CheckState, locate: Locator): void {
             to: toNode,
             ...(self
               ? {
-                  lane: edge.lane ?? { side: "east", offset: loopPt },
+                  lane: { side: west ? "west" : "east", offset: lane?.offset ?? loopPt },
                   labelAt: edge.labelAt ?? "middle",
-                  labelSide: edge.labelSide ?? "left",
+                  // Outside the loop: right of the downward segment going east, left going west.
+                  labelSide: edge.labelSide ?? (west ? "right" : "left"),
                 }
               : {
                   route: edge.route ?? "straight",
@@ -391,6 +421,7 @@ export function expandSequences(state: CheckState, locate: Locator): void {
             to,
             fromNode,
             toNode,
+            ...(west && { west: true as const }),
             path: rowPath,
           });
           continue;
@@ -531,6 +562,7 @@ export function expandSequences(state: CheckState, locate: Locator): void {
             },
             [...at, "participants", i],
             `the lifeline of "${participant}"`,
+            dash === "solid",
           );
         previous = stop;
       }
@@ -559,5 +591,6 @@ export function expandSequences(state: CheckState, locate: Locator): void {
   if (expansions.length === 0) return;
   doc.sequences = expansions;
   if (setOrigins.size > 0) doc.sequenceSets = setOrigins;
+  if (solid.size > 0) doc.solidLifelines = solid;
   recordExpanded(doc, origins);
 }
