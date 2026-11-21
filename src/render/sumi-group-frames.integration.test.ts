@@ -6,6 +6,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { getTheme } from "../core/theme/builtin";
+import { contrastRatio } from "../core/theme/node-variants";
 import { resolveStyle } from "../core/theme/resolve";
 import { resolveSetStyle } from "../core/theme/set-style";
 import { renderFigure } from "./render";
@@ -102,6 +103,33 @@ describe("sumi group frames (#634)", () => {
         expect(frame(variant), variant).toEqual({ stroke: FRAME[id], width: 0.5 });
       expect(frame("filled-dashed")).toEqual({ stroke: MUTED[id], width: 1 });
       expect(resolveSetStyle(theme, { variant: "default", tone: "blue" }).strokeWidth.pt).toBe(1);
+    });
+  }
+
+  for (const id of ["sumi", "sumi-dark"] as const) {
+    test(`${id}: a dimmed panel's frame is no louder than a normal one's`, async () => {
+      const ir = await compile(`version: 1
+figure:
+  id: dimframe
+  theme: ${id}
+  profile: paper-double
+  layout: {arrange: {row: {gap: 8mm, items: [normal, quiet]}}}
+groups:
+  - {id: normal, label: Normal, arrange: {stack: {items: [a]}}}
+  - {id: quiet, label: Dim, dim: true, arrange: {stack: {items: [b]}}}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+`);
+      const canvas = getTheme(id)?.canvas ?? "#ffffff";
+      const stroke = (gid: string) => ir.groups.find((g) => g.id === gid)?.style.stroke ?? "";
+      expect(contrastRatio(stroke("quiet"), canvas)).toBeLessThanOrEqual(
+        contrastRatio(stroke("normal"), canvas),
+      );
+      // The dimmed node still takes the theme's dim stroke, quieter than its own outline.
+      const node = (nid: string) => ir.nodes.find((n) => n.id === nid)?.style.stroke ?? "";
+      expect(node("b")).toBe(getTheme(id)?.dim?.stroke ?? "");
+      expect(contrastRatio(node("b"), canvas)).toBeLessThan(contrastRatio(node("a"), canvas));
     });
   }
 

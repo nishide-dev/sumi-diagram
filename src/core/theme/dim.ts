@@ -108,6 +108,19 @@ export function paleStyle<S extends ResolvedStyle>(style: S, canvas: Color = "#f
   return Object.freeze(pale);
 }
 
+/**
+ * The dimmed color of a frame: the theme's dim stroke, unless the frame already has less contrast
+ * against the canvas (#634: `sumi`'s pale panel frames). Dimming never makes a frame louder.
+ */
+function quieter(own: Color, dimmed: Color, canvas: Color): Color {
+  const hex = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i;
+  if (!hex.test(own) || !hex.test(dimmed) || !hex.test(canvas)) return dimmed;
+  const ground = expandColor(canvas);
+  return contrastRatio(expandColor(own), ground) < contrastRatio(expandColor(dimmed), ground)
+    ? own
+    : dimmed;
+}
+
 /** Solid areas lighten and keep at least 3:1 text contrast (#214). */
 export function dimStyle<S extends ResolvedStyle>(
   style: S,
@@ -121,10 +134,13 @@ export function dimStyle<S extends ResolvedStyle>(
     !areaFill &&
     style.fill !== "transparent" &&
     expandColor(style.fill) === expandColor(style.stroke);
-  const fill = ink ? dim.stroke : lightenColor(style.fill, dim.lighten, canvas);
+  // A frame (a group's or a legend's) is structure: a quiet one stays quiet. A node's or an
+  // edge's line takes the dim gray, which also drops its tone.
+  const stroke = style.kind === "group" ? quieter(style.stroke, dim.stroke, canvas) : dim.stroke;
+  const fill = ink ? stroke : lightenColor(style.fill, dim.lighten, canvas);
   const dimmed: S = {
     ...style,
-    stroke: visible(style.stroke, dim.stroke),
+    stroke: visible(style.stroke, stroke),
     fontColor: visible(
       style.fontColor,
       areaFill ? readableInk(expandColor(fill), expandColor(dim.fontColor), 3) : dim.fontColor,
