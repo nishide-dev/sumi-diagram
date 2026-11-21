@@ -364,6 +364,8 @@ class StructuredLayout {
   readonly #itemSizes = new Map<ElementKey, Size>();
   readonly #rects = new Map<ElementKey, Rect>();
   readonly #contents = new Map<ElementKey, Rect>();
+  /** `matchLabelHeight` (#613): the title band height (units) of each name. */
+  readonly #matchedLabelHeights = new Map<string, number>();
   /** The tilted planes (#577) of the pass: the flat frame and the flat rectangles of their nodes. */
   readonly #planes = new Map<
     ElementKey,
@@ -489,6 +491,17 @@ class StructuredLayout {
       this.#groups.set(group.key, group);
       const label = measureText(group.label, group.style, measurer);
       if (label !== undefined) this.#labels.set(group.key, label);
+    }
+    // `matchLabelHeight` (#613): one title band per name, the tallest label's.
+    for (const group of ir.groups) {
+      const name = group.matchLabelHeight;
+      const label = this.#labels.get(group.key);
+      if (name === undefined) continue;
+      const height = label === undefined ? 0 : Math.ceil(label.height);
+      this.#matchedLabelHeights.set(
+        name,
+        Math.max(this.#matchedLabelHeights.get(name) ?? 0, height),
+      );
     }
     this.#matchWidths(ir);
   }
@@ -1098,24 +1111,38 @@ class StructuredLayout {
         content.height +
         p.north +
         p.south +
-        (this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(label, group)) +
+        (this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(group)) +
         groupLayerSpread(group),
     };
   }
 
   /** The room (units) a title above the border (#517) takes outside the frame, or 0. */
   #titleAbove(group: GroupIR): number {
-    const label = this.#labels.get(group.key);
-    if (label === undefined || group.labelAt?.startsWith("above") !== true) return 0;
-    return Math.ceil(label.height) + this.#padOf(group) / 2;
+    const height = this.#labelHeight(group);
+    if (height === undefined || group.labelAt?.startsWith("above") !== true) return 0;
+    return height + this.#padOf(group) / 2;
   }
 
   /**
    * Height a group's label band takes above (or below) its content: the label
    * and half the padding between it and the content.
    */
-  #labelSpace(label: TextMetrics | undefined, group: GroupIR): number {
-    return label === undefined ? 0 : Math.ceil(label.height) + this.#padOf(group) / 2;
+  #labelSpace(group: GroupIR): number {
+    const height = this.#labelHeight(group);
+    return height === undefined ? 0 : height + this.#padOf(group) / 2;
+  }
+
+  /**
+   * The height (whole units) of a group's title band: its label's, or with
+   * `matchLabelHeight` (#613) the tallest label's of its name; `undefined` for no band.
+   */
+  #labelHeight(group: GroupIR): number | undefined {
+    if (group.matchLabelHeight !== undefined) {
+      const matched = this.#matchedLabelHeights.get(group.matchLabelHeight) ?? 0;
+      return matched > 0 ? matched : undefined;
+    }
+    const label = this.#labels.get(group.key);
+    return label === undefined ? undefined : Math.ceil(label.height);
   }
 
   /**
@@ -1406,10 +1433,7 @@ class StructuredLayout {
     // caption's stack (#130) gives it to its group instead (`growFirst`).
     const extra = vertical ? frame.height - natural.height : frame.width - natural.width;
     let grow = box.growFirst === true ? Math.max(0, extra) : 0;
-    const growers =
-      box.justify === "stretch" && grow === 0
-        ? order.filter((item) => this.#growable(item, vertical))
-        : [];
+    const growers = grow === 0 ? this.#justifyGrowers(box, order) : [];
     const rawWeight = (item: ArrangeItemIR) =>
       typeof item === "string" ? (this.#nodes.get(item)?.grow ?? 1) : 1;
     // Normalize first so even very small positive YAML weights stay finite.
@@ -1427,7 +1451,7 @@ class StructuredLayout {
     const ranked = [...shares].sort((a, b) => b.remainder - a.remainder || a.index - b.index);
     for (const share of ranked.slice(0, remainder)) share.units++;
     const additions = new Map(shares.map(({ item, units }) => [item, units]));
-    const between = box.justify === "space-between" && order.length > 1 && grow === 0;
+    const between = grow === 0 && this.#spreads(box);
     if (between) gap += Math.max(0, extra) / (order.length - 1);
     let cursor =
       (vertical ? frame.y : frame.x) +
@@ -1463,7 +1487,7 @@ class StructuredLayout {
       const crossLead = separator ? 0 : this.#crossLead(item);
       const crossTrail = separator ? 0 : this.#crossTrail(item);
       const margin = crossLead + crossTrail;
-      const stretched = separator || (align === "stretch" && this.#stretchable(item, vertical));
+      const stretched = this.#crossStretched(item, align, vertical);
       const cross = stretched ? crossAvailable - margin : crossNatural;
       let offset =
         separator || align === "start" || (align === "stretch" && stretched)
@@ -1515,6 +1539,46 @@ class StructuredLayout {
       this.#defaultGap,
       (key, rect) => this.#bodyRect(key, rect),
     );
+  }
+
+  /** The items of a stack / row (in `order`) that `justify: stretch` grows; none without it. */
+  #justifyGrowers(box: ArrangeBoxIR, order: readonly ArrangeItemIR[]): ArrangeItemIR[] {
+    const vertical = box.kind === "stack";
+    return box.justify === "stretch" ? order.filter((item) => this.#growable(item, vertical)) : [];
+  }
+
+  /** Whether `justify: space-between` spreads a stack / row's items (it needs two). */
+  #spreads(box: ArrangeBoxIR): boolean {
+    return box.justify === "space-between" && box.items.length > 1;
+  }
+
+  /** Whether an item of a stack / row placed with `align` takes the whole cross axis. */
+  #crossStretched(item: ArrangeItemIR, align: Align, vertical: boolean): boolean {
+    const separator = typeof item === "string" && this.#nodes.get(item)?.component === SEPARATOR_ID;
+    return separator || (align === "stretch" && this.#stretchable(item, vertical));
+  }
+
+  /**
+   * Whether a group's root box uses spare height itself (#613), decided by the
+   * helpers {@link #placeLine} distributes it with: a stack that grows items
+   * (`justify: stretch`, `growFirst`) or spreads them (`space-between`), or a
+   * row with an item (not a separator) stretched across it.
+   */
+  #fillsHeight(box: ArrangeBoxIR | undefined): boolean {
+    if (box?.kind === "stack")
+      return (
+        box.growFirst === true ||
+        this.#justifyGrowers(box, box.items).length > 0 ||
+        this.#spreads(box)
+      );
+    if (box?.kind === "row")
+      // A separator spans any row; it leaves the other items centred.
+      return box.items.some(
+        (item) =>
+          !(typeof item === "string" && this.#nodes.get(item)?.component === SEPARATOR_ID) &&
+          this.#crossStretched(item, box.align ?? "center", false),
+      );
+    return false;
   }
 
   /** Main-axis growth is opt-in; badged boxes retain their reserved footprint. */
@@ -1668,7 +1732,7 @@ class StructuredLayout {
     if (group === undefined) return;
     rect = groupFrontRect(group, rect);
     const p = this.#padding(key);
-    const band = this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(this.#labels.get(key), group);
+    const band = this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(group);
     // The label band is above the content, or below it for a bottom label (#127).
     const top = labelAtBottom(group.labelAt) ? 0 : band;
     const content: Rect = {
@@ -1682,10 +1746,30 @@ class StructuredLayout {
     const rigid = group.tokens !== undefined || group.matrix !== undefined;
     if (rigid) this.#locked++;
     try {
-      this.#placeContainer(key, group.arrange, content);
+      this.#placeContainer(key, group.arrange, this.#alignedContent(group, content));
     } finally {
       if (rigid) this.#locked--;
     }
+  }
+
+  /**
+   * `contentAlign` (#613): the part of a group's content area its content is
+   * placed in. A group taller than its content (stretched by its box) centres
+   * the content by default; `top` / `bottom` place it at its natural height at
+   * that edge instead, so the room is one band on the other side. The area
+   * reported as the group's content stays the whole area, and the arrange
+   * tree's box gets no room across it to centre or straighten (#618) in.
+   * A root box that really fills the height itself ({@link #fillsHeight}) keeps
+   * the whole area, so nothing is left to move.
+   */
+  #alignedContent(group: GroupIR, content: Rect): Rect {
+    const align = group.contentAlign;
+    if (align === undefined || align === "center") return content;
+    if (this.#fillsHeight(group.arrange)) return content;
+    const natural = this.#containerSize(group.key, group.arrange).height;
+    const spare = content.height - natural;
+    if (spare <= 0) return content;
+    return { ...content, y: align === "top" ? content.y : content.y + spare, height: natural };
   }
 
   /** Places the attached nodes of `container` into `rects`, each after its target. */

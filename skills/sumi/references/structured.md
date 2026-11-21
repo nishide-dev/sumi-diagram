@@ -650,9 +650,64 @@ the other end beside the group (a `row`) so the edge crosses a side.
 stretch` grow to the tallest so captions share a line. A frameless panel next to framed
 ones is a group with `variant: plain` and a `caption`, not a stack with a `label` node
 under it (its items are centred in the extra height). A stretched group's tree is
-**centred vertically**; to sit content at the bottom make the tree a `row` with `align:
-end` around the stack: `arrange: {row: {align: end, items: [{stack: {direction: up,
-items: […]}}]}}` ([example 6](examples.md#6-success-a-paper-figure)).
+**centred vertically** by default, which leaves an empty band between the title and the
+first row and another under the content.
+
+**Where the content sits: `contentAlign`.** `groups[].contentAlign: top | center | bottom`
+places the group's content (its tree and attached nodes, as one block at its natural
+height) in a group made taller than it by `align: stretch` / `justify: stretch`: `top`
+puts it right under the title and leaves one band at the bottom, `bottom` leaves it at
+the top, `center` (default) splits it. No effect at natural height, on widths, or on a
+tilted plane. Sibling panels with `top` start their first rows on one line, so column
+headings (the panels' titles, or a heading node first in each tree) line up. To *fill*
+the height instead, use the tree's `justify: stretch` / `space-between` (above); a root
+box that really fills the height (those growing or spreading items, or a root `row`
+whose `align: stretch` stretches an item) wins and leaves `contentAlign` nothing to move.
+`geometry/content-band` (info) names a stretched panel with at least 4mm empty above and
+below its content, with `contentAlign: top` checked by a trial layout. With
+`figure.layout.straighten` (default) an item may still move to straighten an edge, but
+only within its own box, never back into the band. A column of panels (a `stack` beside a
+taller panel) is stretched as one box and centres them: give it `justify: stretch` so its
+last panel grows, then `contentAlign: top` on that panel.
+
+**Titles of different heights: `matchLabelHeight`.** Groups that write the same name
+reserve the tallest of their title bands (`matchLabelHeight: panels`), so a two-line
+title does not push its panel's first row below its neighbours'; a group without a label
+reserves the band too. Use it with `contentAlign: top`:
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: aligned-panels
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 4mm, align: stretch, items: [a, b]}
+groups:
+  - id: a
+    label: (a) Input
+    contentAlign: top
+    matchLabelHeight: panels
+    arrange: {stack: {gap: 3mm, items: [img, enc]}}
+  - id: b
+    label: "(b) Tokens after\nthe encoder"
+    contentAlign: top
+    matchLabelHeight: panels
+    arrange: {stack: {gap: 2mm, items: [t1, t2, t3]}}
+nodes:
+  - {id: img, component: box, label: Image}
+  - {id: enc, component: box, label: Encoder}
+  - {id: t1, component: box, label: Token 1}
+  - {id: t2, component: box, label: Token 2}
+  - {id: t3, component: box, label: Token 3}
+edges:
+  - {from: img, to: enc}
+```
+
+To sit content at the bottom of a stretched group write `contentAlign: bottom` ([example
+6](examples.md#6-success-a-paper-figure) does it with a `row` with `align: end` around the
+stack, which works too).
 
 ```yaml
 # expect-render: fits

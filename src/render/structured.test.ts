@@ -262,6 +262,8 @@ describe("geometry lint on structured SVGs", () => {
           ? [
               ["info", "geometry/heavy-scaling"],
               ["info", "geometry/script-too-small"],
+              // The left panel is stretched to the others' height and centres its content (#613).
+              ["info", "geometry/content-band"],
               ["info", "geometry/color-on-panel"],
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/group-empty-area"],

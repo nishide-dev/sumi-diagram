@@ -40,6 +40,7 @@ import type {
   FigureNode,
   GlyphKind,
   GlyphPosition,
+  GroupContentAlign,
   GroupLabelPosition,
   IconPlacement,
   LabelRotation,
@@ -442,6 +443,10 @@ export interface GroupIR extends ObjectIRBase {
   };
   /** `props.padding` in pt (#517): replaces the profile's group padding. */
   readonly paddingPt?: number;
+  /** Where the content sits in a group taller than it (#613); absent means centred. */
+  readonly contentAlign?: GroupContentAlign;
+  /** Groups with the same name reserve the tallest of their title bands (#613). */
+  readonly matchLabelHeight?: string;
 }
 
 export interface EdgeIR extends ElementIRBase {
@@ -958,6 +963,8 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         arrange: arrangeOf(g.arrange, ["groups", index, "arrange"]),
       }),
       ...(g.labelAt !== undefined && { labelAt: g.labelAt }),
+      ...(g.contentAlign !== undefined && { contentAlign: g.contentAlign }),
+      ...(g.matchLabelHeight !== undefined && { matchLabelHeight: g.matchLabelHeight }),
       ...(captions.has(g.id) && { caption: nodeKey(captions.get(g.id) as string) }),
     });
   });
