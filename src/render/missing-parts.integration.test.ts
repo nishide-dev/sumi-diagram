@@ -7,12 +7,14 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { getFontSet } from "../core/theme/fonts";
 import { bundleArrowheadScale, strandSpacing } from "../layout/route/arrowhead";
 import { lintRenderedFigure } from "../lint/geometry/lint";
 import { cylinderArc } from "../lint/geometry/shapes";
 import { bundleStrands } from "./bundle";
 import { svgToEditablePptx } from "./pptx";
 import { type RenderedFigure, renderFigure } from "./render";
+import { writeStructuredSvg } from "./structured";
 
 async function render(text: string): Promise<RenderedFigure> {
   const result = await renderFigure(text);
@@ -180,6 +182,112 @@ edges:
     expect(sharp).not.toContain("C ");
   });
 
+  test("tight bends and wide bundles: no line runs backwards or vanishes", () => {
+    const cases: [{ x: number; y: number }[], number, number][] = [
+      [
+        [
+          { x: 0, y: 0 },
+          { x: 4, y: 0 },
+          { x: 4, y: 4 },
+        ],
+        5,
+        4,
+      ],
+      [
+        [
+          { x: 0, y: 0 },
+          { x: 40, y: 0 },
+          { x: 40, y: 3 },
+          { x: 80, y: 3 },
+        ],
+        5,
+        4,
+      ],
+      [
+        [
+          { x: 0, y: 0 },
+          { x: 30, y: 0 },
+          { x: 30, y: 6 },
+          { x: 0, y: 6 },
+        ],
+        4,
+        8,
+      ],
+    ];
+    for (const [route, count, spacing] of cases) {
+      const strands = bundleStrands(route, count, spacing, 8);
+      expect(strands).toHaveLength(count);
+      const dirs = route.slice(1).map((p, i) => {
+        const a = route[i] as { x: number; y: number };
+        const length = Math.hypot(p.x - a.x, p.y - a.y);
+        return { x: (p.x - a.x) / length, y: (p.y - a.y) / length };
+      });
+      for (const strand of strands) {
+        // Drawn: straight pieces, or (on a bend too short for any) a quarter circle.
+        expect(strand.pieces.length + strand.arcs.length).toBeGreaterThan(0);
+        for (const [a, b] of strand.pieces) {
+          const length = Math.hypot(b.x - a.x, b.y - a.y);
+          expect(length).toBeGreaterThan(0);
+          // Every piece runs the way one of the route's legs runs, never against it.
+          const u = { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
+          expect(dirs.some((d) => Math.abs(d.x * u.x + d.y * u.y - 1) < 1e-9)).toBe(true);
+        }
+      }
+      // The lines stay apart (in order) and parallel on the first leg.
+      const ys = strands.map((s) => {
+        const first = s.path[0] as { y: number };
+        return first.y;
+      });
+      for (let i = 1; i < ys.length; i++) expect(ys[i] as number).toBeLessThan(ys[i - 1] as number);
+    }
+  });
+
+  test("a wide bundle on roomy legs keeps its spacing", () => {
+    const strands = bundleStrands(
+      [
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+        { x: 100, y: 100 },
+      ],
+      5,
+      4,
+      8,
+    );
+    expect(strands.map((s) => s.offset)).toEqual([-8, -4, 0, 4, 8]);
+  });
+
+  for (const head of ["triangle", "arrow", "open", "diamond", "circle", "box"] as const) {
+    test(`every strand meets a ${head} head`, async () => {
+      const figure = await render(two("strands: 3"));
+      if (!("layout" in figure)) throw new Error("structured figure expected");
+      const ir = {
+        ...figure.compiled.ir,
+        edges: figure.compiled.ir.edges.map((e) => ({ ...e, targetArrowhead: head })),
+      };
+      const fonts = getFontSet(ir.meta.fontSetId);
+      if (fonts === undefined) throw new Error("no fonts");
+      const svg = writeStructuredSvg(ir, figure.layout, fonts);
+      const d = /<path class="sumi-wire sumi-bundle" d="([^"]+)"/.exec(svg)?.[1] ?? "";
+      const ends = d
+        .split("M ")
+        .filter((part) => part.trim() !== "")
+        .map((part) => {
+          const numbers = part
+            .trim()
+            .split(/[ LC]+/)
+            .filter(Boolean)
+            .map(Number);
+          return { x: numbers.at(-2) as number, y: numbers.at(-1) as number };
+        });
+      expect(ends).toHaveLength(3);
+      const group = /<g class="[^"]*sumi-kind-edge"[^>]*>(.*?)<\/g>/.exec(svg)?.[1] ?? "";
+      const width = (figure.compiled.ir.edges[0]?.style.strokeWidth.units ?? 0) as number;
+      // The distance from a strand's end to the head's outline: within half a line width.
+      const outline = headOutline(group);
+      for (const end of ends) expect(outline(end)).toBeLessThanOrEqual(width / 2 + 1e-6);
+    });
+  }
+
   test("the editable PPTX says it draws a bundle as one line", async () => {
     const figure = await render(two("strands: 4"));
     const pptx = svgToEditablePptx(figure.svg, figure.compiled.ir);
@@ -303,6 +411,8 @@ edges:
       const fixed = figure(component, `width: ${width ?? w}, height: ${height ?? h}`);
       const after = await lintRenderedFigure(fixed, { file: "fit.sumi.yaml" });
       expect(after.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+      // No overflow at any level, not only as an error.
+      expect(after.diagnostics.filter((d) => d.code === "geometry/label-overflow")).toEqual([]);
     });
   }
 
@@ -314,3 +424,41 @@ edges:
     expect(report.diagnostics.filter((d) => d.code === "geometry/label-overflow")).toEqual([]);
   });
 });
+
+type Pt = { x: number; y: number };
+
+function segmentDistance(p: Pt, a: Pt, b: Pt): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(p.x - (a.x + dx * t), p.y - (a.y + dy * t));
+}
+
+/** The distance from a point to the arrowhead drawn in an edge group's markup (polygon, circle or chevron). */
+function headOutline(group: string): (p: Pt) => number {
+  const polygon = /<polygon points="([^"]+)"/.exec(group)?.[1];
+  if (polygon !== undefined) {
+    const points = polygon.split(" ").map((pair) => {
+      const [x, y] = pair.split(",").map(Number);
+      return { x: x as number, y: y as number };
+    });
+    return (p) =>
+      Math.min(
+        ...points.map((a, i) => segmentDistance(p, a, points[(i + 1) % points.length] as Pt)),
+      );
+  }
+  const circle = /<circle cx="([^"]+)" cy="([^"]+)" r="([^"]+)"/.exec(group);
+  if (circle !== null) {
+    const [cx, cy, r] = circle.slice(1).map(Number) as [number, number, number];
+    return (p) => Math.abs(Math.hypot(p.x - cx, p.y - cy) - r);
+  }
+  const chevron = /<path class="sumi-arrowhead"[^>]* d="([^"]+)"/.exec(group)?.[1] ?? "";
+  const numbers = chevron
+    .split(/[ ML]+/)
+    .filter(Boolean)
+    .map(Number);
+  const points: Pt[] = [];
+  for (let i = 0; i + 1 < numbers.length; i += 2)
+    points.push({ x: numbers[i] as number, y: numbers[i + 1] as number });
+  return (p) => Math.min(...points.slice(1).map((b, i) => segmentDistance(p, points[i] as Pt, b)));
+}

@@ -56,3 +56,43 @@ describe("label-overflow fitting size at any level", () => {
     expect(verdict).toEqual({ ok: false, reason: "overflow" });
   });
 });
+
+describe("trials are linted on the painted lines (#614 review)", () => {
+  // Growing the diamond pushes the row below it down, onto a line: only the bundle's outer
+  // strands (not its route) come too close, so the trial must see what is painted.
+  const painted = (size: string) => `version: 1
+figure:
+  id: painted
+  theme: sumi
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: {stack: {gap: 3mm, items: [n, {row: {gap: 40mm, items: [e, d]}}]}}, at: [0, 0]}
+          - {item: p, at: [-30, 10.8]}
+          - {item: q, at: [30, 10.8]}
+nodes:
+  - {id: n, component: diamond, label: "More\\nresearch?", props: {${size}}}
+  - {id: e, component: junction, variant: hidden}
+  - {id: d, component: junction, variant: hidden}
+  - {id: p, component: junction, variant: hidden}
+  - {id: q, component: junction, variant: hidden}
+edges:
+  - {from: e, to: d, strands: 5, component: line}
+  - {from: p, to: q, component: line}
+`;
+  test("a resize that brings a strand onto another line is not verified", async () => {
+    const text = painted("width: 20mm, height: 12mm");
+    const lint = lintGeometry(await rendered(text), { source: text });
+    expect(lint.filter((d) => d.code === "geometry/edge-near-edge")).toEqual([]);
+    const hint = lint.find((d) => d.code === "geometry/label-overflow")?.hint ?? "";
+    expect(hint).not.toContain("Verified");
+    expect(hint).toContain("the trial layout adds geometry/edge-near-edge");
+    // The size it names does bring the strands onto the line when rendered.
+    const after = lintGeometry(await rendered(painted("width: 25mm, height: 15mm")), {
+      source: text,
+    });
+    expect(after.map((d) => d.code)).toContain("geometry/edge-near-edge");
+  });
+});

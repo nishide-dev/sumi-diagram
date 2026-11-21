@@ -97,9 +97,10 @@ import { setOverlaps } from "../layout/set-overlap";
 import { ellipseSegments, outlinePolygon } from "../layout/set-shape";
 import { fontFileFor } from "../lint/geometry/measure";
 import { cylinderPathData, shapeOutline } from "../lint/geometry/shapes";
-import { bundleStrands, strandPathData } from "./bundle";
+import { bundleStrands, strandHeadInset, strandPathData } from "./bundle";
 import { drawNodeOutline } from "./compose";
 import { subsetFont } from "./font-subset";
+import type { PathSegment } from "./geometry";
 import { HATCH, hatchSegments } from "./hatch";
 import { solidLayerAttributes } from "./outline-paint";
 import { dashArray, dashAttribute, n, paint, strokeAttributes } from "./stroke";
@@ -797,6 +798,32 @@ export function paintedEdges(ir: FigureIR, layout: LayoutIR): Map<ElementKey, Pa
 }
 
 /**
+ * What each edge paints (#156), as the inspection's `painted` paths: the
+ * merged wires in the SVG lose which edge each piece belongs to. Render and
+ * the lint's trial layouts (`trial.ts`) both attach it, so a trial is linted on
+ * the same geometry as the figure.
+ */
+export function paintedInspection(
+  ir: FigureIR,
+  layout: LayoutIR,
+): { key: ElementKey; path: PathSegment[]; dashLengths?: readonly number[] }[] {
+  return [...paintedEdges(ir, layout)].map(([key, { pieces, arcs, dashLengths }]) => ({
+    key,
+    ...(dashLengths !== undefined && { dashLengths }),
+    path: [
+      ...pieces.flatMap(([from, to]): PathSegment[] => [
+        { command: "M", to: from },
+        { command: "L", to },
+      ]),
+      ...arcs.flatMap(({ from, c1, c2, to }): PathSegment[] => [
+        { command: "M", to: from },
+        { command: "C", c1, c2, to },
+      ]),
+    ],
+  }));
+}
+
+/**
  * The projected tilted plane (#577, `contents: projected`) each edge lies in: an edge between two
  * nodes of one such plane, routed in the plane or straight, is drawn flat on it (its arrowheads
  * are mapped with it). Curves and edges between planes stay on the page.
@@ -889,18 +916,16 @@ function wires(
     const width = edge.style.strokeWidth.units;
     const length = edgeArrowheadLength(edge.style);
     const scale = headScale(placed.key, placed.route.points);
-    // The lines stop at the head's base, which covers them all.
-    const base = (head: Arrowhead | undefined) =>
-      head === undefined || head === "none" || head === "cross" ? 0 : length;
-    const trimmed = trimEnd(
-      trimEnd(placed.route.points, base(edge.targetArrowhead) * scale.target).reverse(),
-      base(edge.sourceArrowhead) * scale.source,
-    ).reverse();
+    // Each line stops where it meets the back of its head (`strandHeadInset()`).
     const strands = bundleStrands(
-      trimmed,
+      placed.route.points,
       edge.strands,
       strandSpacing(width),
       sharp ? 0 : WIRE_CORNER_RADIUS,
+      (offset) => ({
+        start: strandHeadInset(edge.sourceArrowhead, length, width, offset) * scale.source,
+        end: strandHeadInset(edge.targetArrowhead, length, width, offset) * scale.target,
+      }),
     );
     painted.set(placed.key, {
       pieces: strands.flatMap((strand) => strand.pieces.map(([a, b]): [Point, Point] => [a, b])),
