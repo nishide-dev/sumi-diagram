@@ -970,6 +970,20 @@
             "minimum": 0.5,
             "maximum": 2
           },
+          "dash": {
+            "description": "Draw the line dashed (the theme's dashed edge's dashes) or dotted (round dots), whatever the variant: e.g. variant: muted with dash: dotted for a pale dotted line. Omitted means the variant's own line (solid unless the variant is dashed or dotted).",
+            "type": "string",
+            "enum": [
+              "dashed",
+              "dotted"
+            ]
+          },
+          "strands": {
+            "description": "Draw the edge as a bundle of this many parallel lines (2 to 5) along its route, e.g. 4 for four residual streams: the lines are two line widths apart, follow every turn, and end under one arrowhead grown to cover the bundle, up to twice its size (unless arrowheadScale is written); a head still too small for it (a box or diamond on a thick line) draws the lines closer together under it. Structured layout only; not with route: curve or a zoom edge. Omitted means one line.",
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 5
+          },
           "props": {
             "description": "Component props, validated against the component manifest.",
             "default": {},
@@ -1065,6 +1079,24 @@
               "bottom-left",
               "left",
               "top-left"
+            ]
+          },
+          "text": {
+            "description": "The size of the set's label as a role of the theme's text: small (the theme's small text), body (a box's text), heading (the group-title size, the default) or large (1.5 times a box's text), e.g. heading with weight: bold for the title of a band. Follows figure.themeOverrides.textScale.",
+            "type": "string",
+            "enum": [
+              "small",
+              "body",
+              "heading",
+              "large"
+            ]
+          },
+          "weight": {
+            "description": "The weight of the set's label (bold needs a bold face in the theme's font). Omitted means the group title's weight.",
+            "type": "string",
+            "enum": [
+              "regular",
+              "bold"
             ]
           },
           "padding": {

@@ -113,11 +113,11 @@ export function iconRectBesideText(
 
 /** Where a node's icon is drawn: centered on the label center of its shape in `rect`. */
 export function iconRect(
-  node: Pick<NodeIR, "shape" | "style" | "iconSize" | "iconAt">,
+  node: Pick<NodeIR, "shape" | "style" | "iconSize" | "iconAt" | "capDepth">,
   rect: Rect,
 ): Rect {
   const side = iconSize(node);
-  const center = labelCenter(node.shape, rect);
+  const center = labelCenter(node.shape, rect, node.capDepth);
   return { x: center.x - side / 2, y: center.y - side / 2, width: side, height: side };
 }
 

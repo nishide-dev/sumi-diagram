@@ -13,7 +13,7 @@ import { routeStructured } from "../../layout/route/face-routes";
 import { setOverlapDiagnostics } from "../../layout/set-overlap";
 import { placeStructured, type StructuredLayoutOptions } from "../../layout/structured/engine";
 import { inspectSvg } from "../../render/inspect";
-import { writeStructuredSvg } from "../../render/structured";
+import { paintedInspection, writeStructuredSvg } from "../../render/structured";
 import { resolveLintConfig } from "../config";
 import { isGeometryRule } from "../rule";
 import { createGeometryContext, type GeometryContext } from "./context";
@@ -68,11 +68,18 @@ export function problemsOf(
   skip: ReadonlySet<string>,
   /** The figure's YAML, for rules that name where to edit (`geometry/relocatable-node`); the trial must keep its arrange items. */
   source?: string,
+  /** Called with the trial's lint context, for checks that must not depend on the configured levels. */
+  inspect?: (linted: GeometryContext) => void,
 ): Problems | undefined {
   const fonts = getFontSet(trial.ir.meta.fontSetId);
   if (fonts === undefined) return undefined;
-  const inspected = inspectSvg(writeStructuredSvg(trial.ir, trial.layout, fonts, assets), trial.ir);
-  if (!inspected.ok) return undefined;
+  const svg = inspectSvg(writeStructuredSvg(trial.ir, trial.layout, fonts, assets), trial.ir);
+  if (!svg.ok) return undefined;
+  // What each edge paints, as render attaches it: the lint measures wires (and bundles) on it.
+  const inspected = {
+    ...svg,
+    value: { ...svg.value, painted: paintedInspection(trial.ir, trial.layout) },
+  };
   const config = context.lintConfig ?? resolveLintConfig();
   const linted: GeometryContext = {
     ...createGeometryContext(trial.ir, inspected.value, fonts),
@@ -81,6 +88,7 @@ export function problemsOf(
     lintConfig: config,
     ...(source !== undefined && { source }),
   };
+  inspect?.(linted);
   const counts: Problems = new Map();
   const add = (code: string, subject: unknown) => {
     const key = `${code} ${JSON.stringify(subject ?? null)}`;

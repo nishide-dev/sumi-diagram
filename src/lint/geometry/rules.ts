@@ -51,6 +51,7 @@ import { obstaclesCrossedByRoute, type RouteObstacle, segmentCrossesRegion } fro
 import { groupEmptySpace } from "./empty-space";
 import { iconFamilyMix, iconOveruse } from "./icons";
 import { microJogLengths } from "./jogs";
+import { type FitSize, fitSentence, fitTrials, fittingSize } from "./label-fit";
 import { inkLines, unionOf } from "./measure";
 import { regionsOverlap } from "./outlines";
 import { edgeLabelHugging, edgeLabelOnCorner, tokenColumnDrift } from "./placement";
@@ -565,6 +566,7 @@ export const labelOverflow = defineGeometryRule({
   fixable: false,
   run(context) {
     const findings: LintFinding[] = [];
+    const sized: { index: number; key: string; subject: unknown; size: FitSize }[] = [];
     for (const element of context.elements) {
       const { labelArea, bbox } = element;
       // A title above the border (#517) is outside the frame by design.
@@ -639,9 +641,17 @@ export const labelOverflow = defineGeometryRule({
                   ]),
                 ) +
                   Math.max(margin, 0)),
+              element.ir.kind === "node" ? element.ir.capDepth : undefined,
             )
           : undefined;
       const minHeight = needed !== undefined && needed > bbox.height ? needed : undefined;
+      // The size that fits (#614), checked by a trial layout below.
+      const size =
+        explicit && !hasIcon(element) && context.ir.meta.engine === "structured"
+          ? fittingSize(element, margin)
+          : undefined;
+      if (size !== undefined)
+        sized.push({ index: findings.length, key: element.key, subject: element.subject, size });
       findings.push({
         message: hasIcon(element)
           ? `The icon of ${element.name} (${box === undefined ? "" : formatOverflowSize(context, box)}${element.ir.kind === "node" && element.ir.iconSize !== undefined ? "" : `${box === undefined ? "" : ", "}1 em`}) does not fit inside its ${shapeName(element)} shape (${formatOverflowSize(context, bbox)})${outside ? "; it is drawn outside the shape" : ""}.`
@@ -660,6 +670,16 @@ export const labelOverflow = defineGeometryRule({
           related: [{ path: labelPath(element), message: "The label is defined here." }],
         }),
       });
+    }
+    const verdicts = fitTrials(context, sized, (linted, subject) =>
+      labelOverflow
+        .run(linted, undefined)
+        .some((f) => JSON.stringify(f.subject ?? null) === JSON.stringify(subject ?? null)),
+    );
+    for (const [i, { index, size }] of sized.entries()) {
+      const finding = findings[index] as LintFinding;
+      const verdict = verdicts[i] ?? ({ ok: false, reason: "failed" } as const);
+      findings[index] = { ...finding, hint: `${finding.hint ?? ""} ${fitSentence(size, verdict)}` };
     }
     return findings;
   },

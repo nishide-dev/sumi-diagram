@@ -83,6 +83,9 @@ interface Element {
   /** Nodes only (#519). */
   sublabelInk: string | undefined;
   props: Record<string, unknown>;
+  /** An edge's `strands` and `route` (#614), also on a legend's sample line. */
+  strands?: number | undefined;
+  route?: string | undefined;
   /** How messages name the element (an expanded caption or legend part names its origin). */
   name: string;
 }
@@ -228,6 +231,49 @@ export function resolveComponents(
           },
         ],
         () => [...element.path, "props", "padding"],
+      );
+    }
+    // A bundle (#614) is drawn along a routed or straight path: a curve or a zoom has none.
+    // Checked on every edge, a legend's sample line too (reported at its entry's edge).
+    if (
+      element.kind === "edge" &&
+      element.strands !== undefined &&
+      (element.route === "curve" || (manifest.kind === "edge" && manifest.routing === "zoom"))
+    ) {
+      report(
+        [
+          {
+            code: "component/invalid-prop",
+            severity: "error",
+            message:
+              element.route === "curve"
+                ? "A bundle (strands) is drawn along a routed or straight line, not a curve."
+                : "A zoom edge cannot be a bundle (strands): it draws its own two lines.",
+            hint: "Remove strands, or route the edge orthogonally (omit route) or straight.",
+          },
+        ],
+        () => [...element.path, "strands"],
+      );
+      state.invalid.add(element.key);
+      continue;
+    }
+    if (
+      element.kind === "node" &&
+      element.props.capDepth !== undefined &&
+      manifest.kind === "node" &&
+      manifest.shape === "cylinder" &&
+      engine !== "structured"
+    ) {
+      report(
+        [
+          {
+            code: "layout/structured-only",
+            severity: "error",
+            message: "A cylinder's cap depth is drawn by the structured layout engine only.",
+            hint: "Set figure.layout.arrange (or engine: structured), or remove props.capDepth.",
+          },
+        ],
+        () => [...element.path, "props", "capDepth"],
       );
     }
     if (element.kind === "group" && element.props.layers !== undefined) {
@@ -707,6 +753,8 @@ function* elements(state: CheckState): Generator<Element> {
       glyphs: entry.kind === "node" && entry.element.glyphs !== undefined,
       grow: entry.kind === "node" ? entry.element.grow : undefined,
       props: entry.element.props ?? {},
+      strands: entry.kind === "edge" ? entry.element.strands : undefined,
+      route: entry.kind === "edge" ? entry.element.route : undefined,
     };
   }
 }

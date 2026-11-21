@@ -212,7 +212,11 @@ export function createGeometryContext(
         // A node lying on a projected tilted plane (#577): the polygon it is drawn as.
         const outline: Region = { kind: "polygon", points: geometry.outline };
         regions = { outline, labelArea: outline };
-      } else regions = { outline: shapeOutline(shape, bbox), labelArea: labelArea(shape, bbox) };
+      } else
+        regions = {
+          outline: shapeOutline(shape, bbox),
+          labelArea: labelArea(shape, bbox, element.kind === "node" ? element.capDepth : undefined),
+        };
     }
     const measured = geometry.labels.map((label) => measureLabel(label, fonts));
     elements.push({
