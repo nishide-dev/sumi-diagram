@@ -89,6 +89,10 @@ interface VariantStyles {
   label: { default: StyleLayerInput; muted: StyleLayerInput };
   junction: { default: StyleLayerInput; muted: StyleLayerInput; hidden: StyleLayerInput };
   container: {
+    /** Under every container variant: `sumi`'s thin pale panel frame (#634). */
+    default?: StyleLayerInput;
+    /** Replaces `filled-dashed`'s frame (the dashed one) where the default frame is too pale for a fill. */
+    filledDashedFrame?: StyleLayerInput;
     muted: StyleLayerInput;
     plain: StyleLayerInput;
     filled: StyleLayerInput;
@@ -137,6 +141,10 @@ const outlineVariants = (shaded: string): Omit<VariantStyles["container"], "mute
 });
 
 const withoutDashed = <T extends { dashed: unknown }>({ dashed: _, ...rest }: T) => rest;
+const withoutFilledDashedFrame = <T extends { filledDashedFrame?: unknown }>({
+  filledDashedFrame: _,
+  ...rest
+}: T) => rest;
 
 /** Expands per-category variant styles to every built-in component. */
 function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["components"]> {
@@ -220,10 +228,11 @@ function componentStyles(styles: VariantStyles): NonNullable<ThemeDefinition["co
     },
     // `filled-dashed` (#519): the dashed frame of `dashed` on the fill of `filled`.
     container: {
-      ...styles.container,
+      ...withoutFilledDashedFrame(styles.container),
       "filled-dashed": {
         ...styles.container.dashed,
         ...(styles.container.filled.fill !== undefined && { fill: styles.container.filled.fill }),
+        ...styles.container.filledDashedFrame,
       },
     },
     legend: styles.legend,
@@ -410,6 +419,9 @@ function sumiTheme(dark: boolean, canvasOverride?: string): ThemeDefinition {
   const canvas = canvasOverride ?? (dark ? SUMI_DARK_CANVAS : SUMI_CANVAS);
   const text = dark ? "#f0f0db" : "#30364f";
   const muted = dark ? "#acbac4" : "#4e566b";
+  // Panel frames (#634): a hairline paler than the node outlines, as `paper`'s, so a panel of the
+  // canvas's own color reads as a quiet region and the nodes in it stand out.
+  const frame = dark ? "#6f7791" : "#a9aebc";
   // The dark bubble; light panels are the canvas (#608).
   const panel = "#383f58";
   const shade = dark ? "#3e4661" : "#e1d9bc";
@@ -459,15 +471,15 @@ function sumiTheme(dark: boolean, canvasOverride?: string): ThemeDefinition {
     version: 1,
     id: dark ? "sumi-dark" : "sumi",
     description: dark
-      ? "Navy canvas with cream ink and sand accents, canvas-colored panels with a gray frame"
-      : "White canvas with navy ink and sand accents, white panels with a gray frame (filled for sand; themeOverrides.canvas brings back the cream #f8f8ee, groupFill the sand #efeddd)",
+      ? "Navy canvas with cream ink and sand accents, canvas-colored panels with a thin pale frame (0.5pt, quieter than the node outlines)"
+      : "White canvas with navy ink and sand accents, white panels with a thin pale gray frame (0.5pt, quieter than the node outlines; filled for sand; themeOverrides.canvas brings back the cream #f8f8ee, groupFill the sand #efeddd)",
     canvas,
     fonts: LATIN_FONT_SET_ID,
     tokens: {
       size: { text: "8pt", small: "7pt", heading: "9pt" },
       // The html card variables (--sumi-fg, --sumi-muted, #496) read these.
       color: { fg: text, bg: canvas, muted },
-      line: { regular: "1pt", bold: "2pt" },
+      line: { frame: "0.5pt", regular: "1pt", bold: "2pt" },
       dash: { regular: 4 },
     },
     base: {
@@ -517,8 +529,13 @@ function sumiTheme(dark: boolean, canvasOverride?: string): ThemeDefinition {
         },
         junction: junctionStyles(text, muted),
         container: {
-          muted: { fill: canvas, stroke: muted, fontColor: muted },
+          // Every frame a container draws (default, muted, dashed, dotted, layers, planes).
+          default: { stroke: frame, strokeWidth: "{line.frame}" },
+          muted: { fill: canvas, fontColor: muted },
           ...outlineVariants(shade),
+          // A dashed frame on the sand fill is that fill's only border: it keeps the gray 1pt
+          // frame, which the pale hairline would not show against the sand.
+          filledDashedFrame: { stroke: muted, strokeWidth: "{line.regular}" },
         },
         legend: legendStyles(canvas, muted),
         edge: {
@@ -563,7 +580,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
     tokens: {
       color: { fg: "#1f2328", bg: "#ffffff", muted: "#6e7781", surface: "#f6f8fa" },
       size: { text: "8pt", small: "7pt", heading: "9pt" },
-      line: { regular: "1pt", bold: "2pt" },
+      line: { frame: "0.5pt", regular: "1pt", bold: "2pt" },
       dash: { regular: 4 },
     },
     base: {
@@ -803,7 +820,7 @@ export const BUILTIN_THEME_DEFINITIONS: readonly ThemeDefinition[] = [
         pink: "#bf3989",
       },
       size: { text: "8pt", small: "7pt", heading: "9pt" },
-      line: { regular: "1pt", bold: "2pt" },
+      line: { frame: "0.5pt", regular: "1pt", bold: "2pt" },
       dash: { regular: 4 },
     },
     base: {

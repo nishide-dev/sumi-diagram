@@ -13,7 +13,7 @@ import { deltaE, fromOklch, toOklch } from "./color-math";
 import { resolveStyle } from "./resolve";
 import type { Theme } from "./schema";
 import type { ElementStrokes, FigureStrokes } from "./strokes";
-import type { Color, CommonStyle, StyleLength } from "./style";
+import { type Color, type CommonStyle, mergeStyle, type StyleLength } from "./style";
 import type { Tone } from "./tones";
 
 export interface SetStyle extends CommonStyle {
@@ -191,11 +191,9 @@ function setFontSize(theme: Theme, heading: StyleLength, text: TextRole | undefi
 /** Resolves the style of a set under `theme` (already carrying the figure's tone overrides). */
 export function resolveSetStyle(theme: Theme, options: SetStyleOptions): SetStyle {
   const { variant, tone } = options;
-  const frame = resolveStyle(theme, {
-    kind: "group",
-    id: "sumi/container",
-    variant: "default",
-  }).style;
+  // The theme's group base, not the container's own layers: a set is an outline that carries a
+  // category, not a panel, so it keeps its weight where a theme draws quiet panel frames (#634).
+  const frame = mergeStyle("group", [theme.base.group]);
   const dashed = resolveStyle(theme, {
     kind: "group",
     id: "sumi/container",

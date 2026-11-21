@@ -20,12 +20,23 @@ const hash = (svg: string) =>
     )
     .digest("hex");
 
-async function render(rel: string, straighten: "omit" | "false"): Promise<string> {
+async function render(
+  rel: string,
+  straighten: "omit" | "false",
+  oldFrames = false,
+): Promise<string> {
   const file = join(ROOT, rel);
   let text = await Bun.file(file).text();
   if (straighten === "false") {
     expect(text).toMatch(/^ {2}layout:\n/m);
     text = text.replace(/^ {2}layout:\n/m, "  layout:\n    straighten: false\n");
+  }
+  if (oldFrames) {
+    // The gray 1pt group frames the hashes were drawn with (0.5pt pale ones since #634).
+    text = text.replace(
+      /^ {2}profile:/m,
+      '  themeOverrides: { groupStroke: "#4e566b", frameWidth: 1pt }\n  profile:',
+    );
   }
   const result = await renderFigure(text, { assetBase: dirname(file) });
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
@@ -43,8 +54,8 @@ const BEFORE = {
 describe("figure.layout.straighten: false is the layout before #620", () => {
   test("train-infer-a (moves by default): false matches the old output, omitted does not", async () => {
     const rel = "tests/fixtures/figures/color-use/train-infer-a.sumi.yaml";
-    expect(await render(rel, "false")).toBe(BEFORE[rel]);
-    expect(await render(rel, "omit")).not.toBe(BEFORE[rel]);
+    expect(await render(rel, "false", true)).toBe(BEFORE[rel]);
+    expect(await render(rel, "omit", true)).not.toBe(BEFORE[rel]);
   });
 
   test("sparse-small-elements: an end on a plain group does not slide, so the default keeps the old output", async () => {

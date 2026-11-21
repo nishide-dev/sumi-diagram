@@ -345,12 +345,12 @@ describe("projected planes: default output is unchanged", () => {
     const [shape, plane, inPlane] = name.split("/") as [string, string, string];
     for (const contents of ["", "upright"]) {
       // origin/main drew `sumi` on its cream canvas (white since #595) with sand panels (the canvas
-      // since #608), which the overrides restore.
+      // since #608) and gray 1pt frames (0.5pt pale ones since #634), which the overrides restore.
       const text = source({ contents, shape, plane, inPlane })
         .replaceAll(", route: auto", "")
         .replace(
           "  profile:",
-          '  themeOverrides: { canvas: "#f8f8ee", groupFill: "#efeddd" }\n  profile:',
+          '  themeOverrides: { canvas: "#f8f8ee", groupFill: "#efeddd", groupStroke: "#4e566b", frameWidth: 1pt }\n  profile:',
         );
       const value = await render(text);
       const hash = createHash("sha256")

@@ -72,9 +72,12 @@ test("scaled sizes reach the SVG, the PDF and the PPTX in both layouts", async (
     const widths = new Set(
       [...svg.matchAll(/stroke-width[:=]"?([\d.]+)/g)].map((m) => Number(m[1])),
     );
-    // sumi draws 1pt lines (2px): doubled to 2pt (4px), none left at the theme's own width.
+    // sumi draws 1pt lines (2px) and 0.5pt group frames (1px, #634): doubled to 4px and 2px, none
+    // left at the theme's own widths (the group frame is drawn in the structured layout only).
     expect(widths.has(4)).toBe(true);
-    expect(widths.has(2)).toBe(false);
+    expect(widths.has(1)).toBe(false);
+    expect([...widths].every((w) => w === 0 || w === 2 || w === 4)).toBe(true);
+    if (!auto) expect(svg).toMatch(/stroke="#a9aebc" stroke-width="2"/);
 
     const fontSet = getFontSet(DEFAULT_FONT_SET_ID);
     if (!fontSet) throw new Error("Missing default font set");

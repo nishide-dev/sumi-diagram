@@ -13,7 +13,7 @@
   --fs-group: 9;         /* pt: group title */
   --fs-edge: 7;          /* pt: edge label (profile minimum 7pt) */
   --frame-w: 1;          /* pt: a node's frame */
-  --group-frame-w: 1;    /* pt: a group's frame */
+  --group-frame-w: 0.5;  /* pt: a group's frame */
   --edge-w: 1;           /* pt: an edge */
   --radius: 0pt;         /* a node's corners */
   --gap: 4mm;            /* between the items of a row, stack or grid */
@@ -30,6 +30,7 @@
   /* END SUMI SIZES */
   :root {
     --canvas: #ffffff; --ink: #000000; --panel: #f4f4f4;       /* theme canvas, text/line colour, group fill */
+    --frame: #a9aebc;                                          /* group frame (sumi #a9aebc, sumi-dark #6f7791) */
     --blue: #dde6f0; --blue-line: #3d5d77;                     /* one fill + one line per tone you use */
     --gray: #e6e6e6; --gray-line: #555555;
     --arrow: #000000;                                          /* arrowhead / edge colour */
@@ -49,7 +50,7 @@
         display: flex; align-items: center; justify-content: center }      /* .large: --op-large, .xlarge: --op-xlarge */
   .op.large { width: var(--op-large); height: var(--op-large) }
   .op.xlarge { width: var(--op-xlarge); height: var(--op-xlarge) }
-  .group { padding: var(--group-pad); background: var(--panel); border: calc(var(--group-frame-w) * var(--pt)) solid var(--ink) }
+  .group { padding: var(--group-pad); background: var(--panel); border: calc(var(--group-frame-w) * var(--pt)) solid var(--frame) }
   .group > .title { position: absolute; left: 0; bottom: 100%; font-weight: bold; font-size: calc(var(--fs-group) * var(--pt)) }  /* title above the border */
   .overflow { outline: 0.6mm dashed red }                       /* set by the script below: Sumi would report geometry/label-overflow */
   svg.edges { position: absolute; inset: 0; width: 160mm; height: 100mm; overflow: visible }
