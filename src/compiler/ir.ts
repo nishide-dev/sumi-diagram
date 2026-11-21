@@ -30,8 +30,9 @@ import type {
   ArrangeItem,
   AttachSide,
   Corner,
-  EdgeLabelPosition,
+  EdgeLabelAt,
   EdgeLabelSide,
+  EdgeLabelStyle,
   FanInMode,
   FigureEdge,
   FigureFit,
@@ -492,9 +493,11 @@ export interface EdgeIR extends ElementIRBase {
   readonly fromSpan?: true;
   readonly toSpan?: true;
   /** Structured layout: where along the route the label sits (#128). Absent when not written. */
-  readonly labelAt?: EdgeLabelPosition;
+  readonly labelAt?: EdgeLabelAt;
   /** Structured layout: the side of the line, facing from source to target (#128). Absent when not written. */
   readonly labelSide?: EdgeLabelSide;
+  /** Structured layout: `tag` draws the label on the line in a framed box (#610). Absent when not written. */
+  readonly labelStyle?: EdgeLabelStyle;
   /**
    * `lane` (#609): the side the route keeps to, the distance of its long
    * segment beyond the farthest face (units; absent: the default), and the
@@ -1311,6 +1314,7 @@ function edgeIR(
     ...(e.toAnchor === STRAIGHT_SPAN_ANCHOR && { toSpan: true as const }),
     ...(e.labelAt !== undefined && { labelAt: e.labelAt }),
     ...(e.labelSide !== undefined && { labelSide: e.labelSide }),
+    ...(e.labelStyle !== undefined && { labelStyle: e.labelStyle }),
     ...(e.lane !== undefined && {
       lane: freeze({
         side: e.lane.side,

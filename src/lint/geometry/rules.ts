@@ -54,6 +54,7 @@ import { microJogLengths } from "./jogs";
 import { inkLines, unionOf } from "./measure";
 import { regionsOverlap } from "./outlines";
 import { edgeLabelHugging, edgeLabelOnCorner, tokenColumnDrift } from "./placement";
+import { edgeLabelDetached, edgeLabelTouchesLine } from "./placement-drift";
 import {
   axisSegments,
   type Bundle,
@@ -2211,6 +2212,8 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   edgeTouchesLabel,
   edgeLabelHugging,
   edgeLabelOnCorner,
+  edgeLabelDetached,
+  edgeLabelTouchesLine,
   tokenColumnDrift,
   aspectDistorted,
   reversedEdge,

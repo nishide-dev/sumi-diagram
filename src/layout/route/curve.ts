@@ -134,12 +134,17 @@ export function curveLabel(metrics: TextMetrics, points: Cubic, edge: EdgeIR): T
   }
   const total = lengths.at(-1) ?? 1;
   const room = Math.hypot(metrics.width, metrics.height) / 2 + edgeArrowheadLength(edge.style) + 2;
+  // A fraction (#610) is of the arc length, kept `room` off both ends.
   const at =
-    edge.labelAt === "start"
-      ? Math.min(total / 2, room)
-      : edge.labelAt === "end"
-        ? Math.max(total / 2, total - room)
-        : total / 2;
+    typeof edge.labelAt === "number"
+      ? room <= total - room
+        ? Math.min(total - room, Math.max(room, edge.labelAt * total))
+        : total / 2
+      : edge.labelAt === "start"
+        ? Math.min(total / 2, room)
+        : edge.labelAt === "end"
+          ? Math.max(total / 2, total - room)
+          : total / 2;
   const i = Math.max(
     1,
     lengths.findIndex((n) => n >= at),

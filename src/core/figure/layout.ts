@@ -7,7 +7,7 @@
  *   `figure.layout.density` (#182), `figure.layout.straighten` (#618),
  *   `group.arrange`, `group.contentAlign` / `matchLabelHeight` (#613), `node.attach`, `node.sublabel` (#184),
  *   `node.labelRotation` (#178), `edge.fromAnchor` / `toAnchor`,
- *   `edge.labelAt` / `labelSide` (#128), `edge.lane` (#609)) is an error: it would otherwise be
+ *   `edge.labelAt` / `labelSide` (#128), `edge.labelStyle` (#610), `edge.lane` (#609)) is an error: it would otherwise be
  *   ignored silently.
  * - With the `structured` engine, every node and group must be placed exactly
  *   once: as an item of one arrange tree (`figure.layout.arrange` for the root,
@@ -232,6 +232,7 @@ function checkAuto(state: CheckState, locate: Locator): void {
       "toAnchor",
       "labelAt",
       "labelSide",
+      "labelStyle",
       "route",
       "lane",
       "lineWidth",

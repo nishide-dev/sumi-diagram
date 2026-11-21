@@ -4,7 +4,8 @@
  * even when nothing there is clear (`placeRequestedLabel`). The overlap that
  * remains is reported here, so the author can pick another side or segment.
  *
- * Only edges that write `labelAt` or `labelSide` are checked: the default
+ * Only edges that write `labelAt` or `labelSide` (or draw a tag, #610, whose
+ * own segment does not count) are checked: the default
  * placement and its diagnostics are unchanged (its leftovers are found by
  * the geometry lint as before). Checked on the routed Layout IR, against
  * what the geometry lint does not see for an edge's own label: routes
@@ -18,7 +19,7 @@ import type { Diagnostic } from "../../core/diagnostics";
 import { EDGE_LABEL_POSITIONS, EDGE_LABEL_SIDES } from "../../core/figure/schema";
 import { groupFrontRect, groupLayerObstacles } from "../group-layers";
 import type { LayoutIR, Point, Rect } from "../ir";
-import { arrowheadRects, hasRequestedLabel } from "./labels";
+import { arrowheadRects, hasRequestedLabel, isTagLabel, labelSegment } from "./labels";
 
 /** The open rectangles overlap (touching does not count). */
 const overlaps = (a: Rect, b: Rect): boolean =>
@@ -90,12 +91,16 @@ export function requestedLabelDiagnostics(
     const box = e.route?.label?.box;
     if (box === undefined || !hasRequestedLabel(edge)) continue;
     const found: string[] = [];
+    // A tag (#610) sits on its own segment.
+    const host = isTagLabel(edge) ? labelSegment(e.route?.points ?? [], edge) : -1;
     for (const other of routed) {
       const own = other.edge.key === edge.key;
       const points = other.points;
       const crosses = points
         .slice(1)
-        .some((q, i) => overlaps(segmentRect(points[i] as Point, q), box));
+        .some(
+          (q, i) => !(own && i + 1 === host) && overlaps(segmentRect(points[i] as Point, q), box),
+        );
       if (crosses) found.push(own ? "its own line" : `the line of ${elementName(other.edge.key)}`);
       const heads = arrowheadRects(points, other.edge, arrowheadOf(other.edge));
       if (heads.some((r) => overlaps(r, box))) {
@@ -125,24 +130,30 @@ export function requestedLabelDiagnostics(
     if (found.length === 0) continue;
 
     const source = ir.sourceMap.get(edge.key);
+    const tag = isTagLabel(edge);
     const written = [
       ...(edge.labelAt !== undefined ? [`labelAt: ${edge.labelAt}`] : []),
-      ...(edge.labelSide !== undefined ? [`labelSide: ${edge.labelSide}`] : []),
+      ...(edge.labelSide !== undefined && !tag ? [`labelSide: ${edge.labelSide}`] : []),
+      ...(tag ? ["labelStyle: tag"] : []),
     ].join(", ");
     const otherSide = EDGE_LABEL_SIDES.find((s) => s !== edge.labelSide);
     const otherAt = EDGE_LABEL_POSITIONS.filter((p) => p !== edge.labelAt);
     const tries = [
-      ...(edge.labelSide !== undefined ? [`labelSide: ${otherSide}`] : []),
-      `labelAt: ${otherAt.join(" or ")}`,
+      ...(edge.labelSide !== undefined && !tag ? [`labelSide: ${otherSide}`] : []),
+      `labelAt: ${otherAt.join(" or ")} (or a fraction of the route such as 0.3)`,
     ];
     diagnostics.push({
       code: "layout/edge-label-overlap",
       severity: "warning",
-      message: `The label of edge ${edgeName(edge)} overlaps ${list(found)}: nothing beside the segment and side it asks for (${written}) is clear.`,
+      message: tag
+        ? `The tag of edge ${edgeName(edge)} overlaps ${list(found)}: nothing on the segment it asks for (${written}) is clear.`
+        : `The label of edge ${edgeName(edge)} overlaps ${list(found)}: nothing beside the segment and side it asks for (${written}) is clear.`,
       path: source?.path ?? ["edges", edge.index],
       ...(source?.location !== undefined && { location: source.location }),
       subject: { kind: "edge", id: edge.id ?? `edges[${edge.index}]` },
-      hint: `labelAt and labelSide keep the label beside the segment and side they name, so it is not moved elsewhere. Try ${tries.join(", or ")}; remove them to let the router choose; or make room (a gap, anchors, a shorter label).`,
+      hint: tag
+        ? `A tag stays on the segment labelAt names, so it is not moved elsewhere. Try ${tries.join(", or ")}; remove labelStyle: tag to let the router place the label beside the line; or make room (a gap, anchors, a shorter label).`
+        : `labelAt and labelSide keep the label beside the segment and side they name, so it is not moved elsewhere. Try ${tries.join(", or ")}; remove them to let the router choose; or make room (a gap, anchors, a shorter label).`,
     });
   }
   return diagnostics;
