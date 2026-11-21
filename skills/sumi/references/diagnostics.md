@@ -135,6 +135,9 @@ Apply one edit and re-check: independent savings are not additive.
 | `layout/chat-unknown-speaker`, `layout/chat-unknown-avatar` | use a name in `chat.speakers` / an existing avatar node ID ([chat](structured.md#chat-conversations)) |
 | `layout/chat-non-bubble` | message `node` must reference a `bubble` node |
 | `layout/chat-overflow` (render, warning) | widen `chat.width`, lower `maxWidth` or shorten the meta note; visuals retain their authored sizes |
+| `layout/sequence-unknown-message` | a sequence row names no edge: give the message edge an `id` and use it, or write `{note, over}` for a note ([sequence](structured.md#sequence-diagrams)) |
+| `layout/sequence-unknown-participant` | a message's `from` / `to` or a note's `over` is not in `participants`: add it there, or use a participant |
+| `layout/sequence-invalid-row` | a participant listed twice, a message placed by two rows (add another edge), a `side` note over several lifelines (name one), or a band whose rows share a lifeline (write them as consecutive rows) |
 | `layout/no-route` (render) | the ends touch (`gap: 0`), are closer than the arrowhead, or are boxed in (the message and `related` name the node, often an `attach`ed one); on a `zoom` edge the ends overlap | widen that `gap` (arrows need about 1.5mm in `academic` / `paper`, 2.5mm in `minimal` / `color`, 4mm in `slides`; even a `line` needs > 0), anchor other sides ([spacing](structured.md#spacing-that-routes)); for `zoom` put the view beside, above or below the source |
 | `layout/unknown-align-item`, `layout/duplicate-align-item`, `layout/invalid-align` | an `align` entry names no node or group (edges cannot be aligned), names one twice, or has fewer than two IDs; an entry with both or neither of `x` / `y` is `schema/invalid-value` ([align](structured.md#aligning-across-trees)) |
 | `layout/unsatisfied-align` (render, warning) | the constraint could not be met; drawn closest, the message gives the distance | follow the hint: items share a box (use different boxes or wrap one in its own `stack` / `row`; an item directly in a stack moves sideways, one in a row up or down, without a wrapper) or another constraint pulls them apart; for table headings `align: start` on the parent row |
@@ -221,7 +224,7 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/edge-crosses-label` | warning | auto: connect elements inside the group rather than the group, change `direction`, shorten the label; both: move the group's title away from the entering edge with `labelAt` ([titles](structured.md#group-titles-and-captions)); structured: or enter from the side with an anchor |
 | `geometry/edge-through-node` | warning | an edge crosses a node it does not connect (a `route: straight` line also when it only brushes the outline): change `direction` or grouping, or use side anchors |
 | `geometry/arrowhead-on-bend` | warning | the straight run from a tip to the preceding bend is shorter than the head (structured head = 4 + 4 × stroke width in 0.5pt units; D2 triangle and open markers only): move the anchor, widen the gap, or rearrange |
-| `geometry/dash-hidden` | warning | less than about two dash or dot periods fit on a painted subpath, including legend samples; rounded segments and sharp branch junctions restart the pattern, and arrowhead shape affects the available wire: increase the gap or edge length, or use a smaller `arrowheadScale` |
+| `geometry/dash-hidden` | warning | less than about two dash or dot periods fit on a painted subpath, including legend samples; rounded segments and sharp branch junctions restart the pattern, and arrowhead shape affects the available wire: increase the gap or edge length, or use a smaller `arrowheadScale`. The pieces of a sequence's lifelines between rows are not measured (they read as one line) |
 | `geometry/theme-color-use` | info | the theme (`sumi`, `sumi-dark`) prefers a gray base, at most three accent tones and `tinted` / `outlined` / `emphasis` over blocks of colour: more `gray`-excluded tones, or more node area in `filled` / `solid` with a tone, or any `solid` node with a tone (use `emphasis` for the dark block), than its `colorUse` allows. Recolour the named tones to gray or a kept tone, and the named nodes to `tinted`; or `--rule geometry/theme-color-use=off` |
 | `geometry/arrowhead-cramped` | info | a structured head has under 1pt of visible stem before a bend (the router aims at 2pt before `fit`; after rounding and `fit`; a straight edge is reported too when length minus its heads is under 1pt; not for invisible or legend edges): tight group padding grows automatically; else widen the gap, change anchors, reduce shrinking. Promote with `{"rules":{"geometry/arrowhead-cramped":"warning"}}` |
 | `geometry/edge-label-hugging` | info | structured: an edge label's glyphs are under 1pt (printed, about 0.35mm) from its own line without touching it. A theme that sets `edgeLabelGap` (`sumi`, `sumi-dark`: 6 units, about 1mm) compares the drawn clearance with 75% of that gap times `textScale` instead; other themes keep 1pt and the router's 1.5pt gap (0.4-0.5mm), which is not flagged; auto (D2) is exempt: move the label with `labelAt` / `labelSide` to a longer segment, widen the gap before the arrowhead, or shorten it |
@@ -270,13 +273,17 @@ you act on it:
    items of a stack are drawn equally wide; the path still names the one that sets the
    width, with the natural widths of the others. It ends at `Widest contributor`: a node,
    a legend / tokens / matrix (sized by its own props: `perRow`, `cellWidth`), a group
-   whose title is wider than its content, or a `place` box (its written coordinates).
+   whose title is wider than its content, a `place` box (its written coordinates), or a
+   `sequence` box: the distances between its lifelines and what sets the widest
+   (`participantGap`, a message label, a note or a fragment frame).
 3. `Fits <max>`: values that make the figure fit, each **tried**: the figure is laid out,
    routed, drawn and linted with that one change, and it is shown only if the page then
    fits and no new error or warning appears (`geometry/relocatable-node` counts only when
    your config raises it to warning or error). One value at a time (a row's or grid's gap,
-   a group's `props.padding`, a node's explicit `width`; smallest change first, up to 3);
-   if none is enough alone, all of them together, each giving its share (`(together)`).
+   a group's `props.padding`, a node's explicit `width`, a sequence's `participantGap`;
+   smallest change first, up to 3); if none is enough alone, all of them together, each
+   giving its share (`(together)`). For a sequence whose gaps are set by message labels,
+   folding the widest label (then all of them) onto two lines is tried too.
    Apply one, re-run. `would fit but adds <code>` names a value that fits but breaks
    something else (an edge label no longer fits, a cramped arrowhead): choose another.
    When nothing fits, the hint says how much the path can give at most, and lists the

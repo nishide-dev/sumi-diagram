@@ -18,6 +18,7 @@ import { spacedProfile } from "../../core/profile/schema";
 import { formatMm, formatPt, mmToPt, ptToMm } from "../../core/units";
 import { asHintTrial, hintLayoutOptions, inHintTrial, mapBoxes } from "../../layout/hint-trials";
 import { structuredWidthTree } from "../../layout/structured/engine";
+import { PARTICIPANT_GAP } from "../../layout/structured/sequence";
 import { setsWidth, type WidthEntry, widest, widthPath } from "../../layout/structured/width-tree";
 import type { GeometryContext } from "./context";
 import { layoutTrial, newProblems, type Problems, problemsOf } from "./trial";
@@ -90,6 +91,19 @@ function describe(entry: WidthEntry, next: WidthEntry | undefined): string {
       return `${entry.name} ${w}, spanned by the written place coordinates and the sizes of its ${entry.children.length} items (widest: ${widest(entry.children)?.name ?? "none"} ${mm(widest(entry.children)?.widthPt ?? 0)})`;
     case "chat":
       return `${entry.name} ${w}, the chat's width`;
+    case "sequence": {
+      const gaps = entry.sequence?.gaps ?? [];
+      const wide = [...gaps].sort((a, b) => b.pt - a.pt)[0];
+      return `${entry.name} ${w}, ${gaps.length + 1} lifelines ${gaps.map((g) => mm(g.pt)).join(" + ")} apart${
+        wide === undefined
+          ? ""
+          : ` (widest: "${wide.between[0]}" to "${wide.between[1]}" ${mm(wide.pt)}, set by ${
+              wide.reason === PARTICIPANT_GAP
+                ? `participantGap ${mm(entry.sequence?.participantGap.pt ?? 0)}${entry.sequence?.participantGap.written ? "" : " (profile default)"} between the participants' boxes`
+                : wide.reason
+            })`
+      }`;
+    }
     case "stack": {
       const others = entry.children.filter((c) => c !== next).sort((a, b) => b.widthPt - a.widthPt);
       const second = others[0];
@@ -167,6 +181,7 @@ interface Part {
   readonly now: string;
   readonly patch:
     | { readonly box: ArrangeBoxIR; readonly field: "gapPt" | "columnGapPt" }
+    | { readonly sequence: ArrangeBoxIR }
     | { readonly group: ElementKey }
     | { readonly node: ElementKey };
 }
@@ -193,6 +208,7 @@ const floorTo = (value: number, step: number) => Math.floor(value / step + 1e-9)
 /** A copy of the figure with `values` written into `parts`. */
 function edited(ir: FigureIR, parts: readonly Part[], values: readonly number[]): FigureIR {
   const boxes = new Map<ArrangeBoxIR, Partial<ArrangeBoxIR>>();
+  const sequences = new Map<ArrangeBoxIR, number>();
   const paddings = new Map<ElementKey, number>();
   const widths = new Map<ElementKey, number>();
   parts.forEach((part, i) => {
@@ -200,6 +216,7 @@ function edited(ir: FigureIR, parts: readonly Part[], values: readonly number[])
     const { patch } = part;
     if ("box" in patch)
       boxes.set(patch.box, { ...boxes.get(patch.box), [patch.field]: mmToPt(value) });
+    else if ("sequence" in patch) sequences.set(patch.sequence, mmToPt(value));
     else if ("group" in patch) paddings.set(patch.group, value);
     // Sizes are rounded to 0.5pt like a written `props.width`.
     else widths.set(patch.node, Math.max(1, Math.round(mmToPt(value) * 2)) / 2);
@@ -218,7 +235,11 @@ function edited(ir: FigureIR, parts: readonly Part[], values: readonly number[])
     },
     (b, o) => {
       const patch = boxes.get(o);
-      return patch === undefined ? b : { ...b, ...patch };
+      const participantGapPt = sequences.get(o);
+      const out = patch === undefined ? b : { ...b, ...patch };
+      return participantGapPt === undefined || out.sequence === undefined
+        ? out
+        : { ...out, sequence: { ...out.sequence, participantGapPt } };
     },
   );
 }
@@ -247,6 +268,19 @@ function partsOf(ir: FigureIR, tree: WidthEntry): Part[] {
         weight: gap.count * mmToPt(1),
         now: `${mm(gap.pt)}${gap.written ? "" : ", the profile default"}`,
         patch: { box, field: gap.field === "gap" ? "gapPt" : "columnGapPt" },
+      });
+    // A sequence (#630): its participantGap narrows the gaps no label, note or frame widens.
+    const set = entry.sequence?.gaps.filter((g) => g.reason === PARTICIPANT_GAP).length ?? 0;
+    if (entry.kind === "sequence" && box && entry.sequence && set > 0)
+      out.push({
+        what: `${entry.name}.participantGap`,
+        unit: "mm",
+        current: ptToMm(entry.sequence.participantGap.pt),
+        least: 0,
+        step: 0.5,
+        weight: set * mmToPt(1),
+        now: `${mm(entry.sequence.participantGap.pt)}${entry.sequence.participantGap.written ? "" : ", the profile default"}`,
+        patch: { sequence: box },
       });
     if (entry.kind === "group" && entry.key && entry.padding && entry.leaf === undefined) {
       const key = entry.key;
@@ -287,6 +321,45 @@ function partsOf(ir: FigureIR, tree: WidthEntry): Part[] {
     }
   }
   return out;
+}
+
+/**
+ * Sequence message labels (#630) that set a gap between lifelines on the
+ * width path, folded at the space nearest their middle: the widest alone,
+ * then all of them together.
+ */
+function labelWraps(
+  ir: FigureIR,
+  tree: WidthEntry,
+): { labels: Map<ElementKey, string>; text: string }[] {
+  const found: { key: ElementKey; id: string; label: string; pt: number }[] = [];
+  for (const entry of widthPath(tree))
+    for (const gap of entry.sequence?.gaps ?? []) {
+      const edge = gap.edge === undefined ? undefined : ir.edges.find((e) => e.key === gap.edge);
+      if (edge === undefined || found.some((f) => f.key === edge.key)) continue;
+      const label = foldLabel(edge.label);
+      if (label !== undefined)
+        found.push({ key: edge.key, id: edge.id ?? `edges[${edge.index}]`, label, pt: gap.pt });
+    }
+  found.sort((a, b) => b.pt - a.pt);
+  const text = (list: typeof found) =>
+    `fold the label${list.length > 1 ? "s" : ""} of ${list
+      .map((f) => `message "${f.id}" onto two lines (label: ${JSON.stringify(f.label)})`)
+      .join(", ")}`;
+  const candidates = [found.slice(0, 1), ...(found.length > 1 ? [found] : [])];
+  return candidates
+    .filter((list) => list.length > 0)
+    .map((list) => ({ labels: new Map(list.map((f) => [f.key, f.label])), text: text(list) }));
+}
+
+/** A one-line label broken at the space nearest its middle; `undefined` without one. */
+function foldLabel(label: string): string | undefined {
+  if (label.includes("\n")) return undefined;
+  const middle = label.length / 2;
+  let best = -1;
+  for (let i = 0; i < label.length; i++)
+    if (label[i] === " " && (best < 0 || Math.abs(i - middle) < Math.abs(best - middle))) best = i;
+  return best <= 0 ? undefined : `${label.slice(0, best)}\n${label.slice(best + 1)}`;
 }
 
 export interface FitResult {
@@ -347,7 +420,8 @@ export function fitHints(
     const values = valuesFor(group, overflowPt);
     return values === undefined ? [] : [{ parts: group, values }];
   });
-  if (singles.length === 0 && combos.length === 0)
+  const wraps = labelWraps(ir, tree);
+  if (singles.length === 0 && combos.length === 0 && wraps.length === 0)
     return none(
       parts.length === 0
         ? "the width path has no gap, padding or explicit width to reduce"
@@ -422,6 +496,37 @@ export function fitHints(
     for (const combo of combos) {
       if (broken || fits.length > 0 || trials >= MAX_FIT_TRIALS) break;
       attempt(combo.parts, combo.values);
+    }
+    // Sequence message labels (#630) that widen their lifelines' gap, folded onto two lines.
+    for (const wrap of wraps) {
+      if (broken || fits.length > 0 || trials >= MAX_FIT_TRIALS - (baseline === null ? 1 : 0))
+        break;
+      const trial = run(
+        mapBoxes(
+          {
+            ...ir,
+            edges: ir.edges.map((e) => {
+              const label = wrap.labels.get(e.key);
+              return label === undefined ? e : { ...e, label };
+            }),
+          },
+          (b) => b,
+        ),
+      );
+      if (trial === undefined || trial.diagnostics.some((d) => d.severity === "error")) continue;
+      const width = trial.layout.canvas.width / 2;
+      if (width > max + 1e-6) continue;
+      const before = baselineProblems();
+      if (before === undefined) {
+        broken = true;
+        break;
+      }
+      const after = problemsOf(context, trial, assets.value, skip, context.source);
+      if (after === undefined) continue;
+      const added = newProblems(before, after);
+      if (added.length > 0)
+        rejected.push({ text: wrap.text, problem: (added[0] as string).split(" ")[0] as string });
+      else fits.push({ text: wrap.text, widthPt: width });
     }
     if (broken)
       return {

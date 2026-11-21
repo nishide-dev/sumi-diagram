@@ -1220,6 +1220,8 @@ export const dashHidden = defineGeometryRule({
     return context.elements.flatMap((edge): LintFinding[] => {
       if (edge.ir.kind !== "edge" || edge.route === undefined || edge.ir.routing === "zoom")
         return [];
+      // A piece of a sequence lifeline (#630) between two rows reads as part of the whole line.
+      if (edge.ir.lifeline === true) return [];
       const style = edge.ir.style;
       const pattern = strokePattern(style);
       if (!pattern || style.stroke === "transparent" || style.strokeWidth.units <= 0) return [];

@@ -166,7 +166,7 @@ function arrangeSlots(ir: FigureIR) {
   return { boxes, slotOf, outer };
 }
 
-const ARRANGE_KINDS = ["stack", "row", "grid", "place", "chat"] as const;
+const ARRANGE_KINDS = ["stack", "row", "grid", "place", "chat", "sequence"] as const;
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -189,7 +189,7 @@ interface SourceItems {
  * Every `items` sequence of the arrange boxes written in the source: under
  * `figure.layout.arrange` and each group's `arrange`, through nested boxes
  * and the wrappers that hold them (a grid cell's or a place item's `item`).
- * A chat's items are messages, not arrange items.
+ * A chat's items are messages, not arrange items; a sequence (#630) has rows.
  */
 function sourceItems(document: unknown): SourceItems[] {
   const out: SourceItems[] = [];
@@ -199,7 +199,7 @@ function sourceItems(document: unknown): SourceItems[] {
   };
   const box = (value: unknown, path: DocPath) => {
     const kind = boxKind(value);
-    if (kind === undefined || kind === "chat" || !isRecord(value)) return;
+    if (kind === undefined || kind === "chat" || kind === "sequence" || !isRecord(value)) return;
     const spec = value[kind];
     if (!isRecord(spec) || !Array.isArray(spec.items)) return;
     const at: DocPath = [...path, kind, "items"];
@@ -223,7 +223,7 @@ function sameItem(context: GeometryContext, ir: ArrangeItemIR, written: unknown)
   if (typeof ir === "string" || ir.growFirst === true) return written === itemName(context, ir);
   const kind = boxKind(written);
   if (kind !== ir.kind || !isRecord(written)) return false;
-  if (kind === "chat") return true;
+  if (kind === "chat" || kind === "sequence") return true;
   const spec = written[kind];
   return isRecord(spec) && Array.isArray(spec.items) && sameItems(context, ir, spec.items);
 }

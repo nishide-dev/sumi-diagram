@@ -50,6 +50,7 @@ import {
   SIDES,
   type Side,
 } from "./schema";
+import { sequenceItemPath, sequenceKeys } from "./sequence";
 import type { Locator } from "./yaml";
 
 /** A parsed edge anchor. */
@@ -327,6 +328,26 @@ function checkStructured(state: CheckState, locate: Locator): void {
               );
           } else add({ id, path: itemPath, via: "arrange", owner, silent });
         }
+      return;
+    }
+    if (box.sequence !== undefined) {
+      const sequence = doc.sequences?.find((s) => s.spec === box.sequence);
+      if (sequence === undefined) return;
+      for (const id of sequenceKeys(sequence)) {
+        const itemPath = sequenceItemPath(sequence, id);
+        if (!elements.has(id) && !isInvalidId(id)) {
+          if (collectionsReadable && !silent)
+            push(
+              errorAt(
+                locate,
+                "layout/unknown-item",
+                `Unknown sequence item "${id}"; participants and notes must be node or group IDs.`,
+                itemPath,
+                { subject: ownerSubject, hint: unknownHint(id) },
+              ),
+            );
+        } else add({ id, path: itemPath, via: "arrange", owner, silent });
+      }
       return;
     }
     for (const kind of ["stack", "row", "grid", "place"] as const) {

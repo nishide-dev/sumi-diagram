@@ -58,7 +58,9 @@ general per-element style, colour, font or coordinate field: appearance is
 `variant` and `tone`, size the `width` / `height` props of node components, and
 position the layout (`direction` in auto figures; arrange trees, `attach` and
 anchors in structured ones). Conversations use a [`chat` arrange box](structured.md#chat-conversations)
-with ordinary `bubble` nodes, speakers, meta notes and date dividers.
+with ordinary `bubble` nodes, speakers, meta notes and date dividers; sequence diagrams a
+[`sequence` arrange box](structured.md#sequence-diagrams) with ordinary nodes as participants
+and notes and ordinary edges as messages, in rows.
 
 In built-in chromatic themes, the yellow tone's line (edges and outlined or
 tinted frames; not a solid node, whose outline is its bright fill) has at least
@@ -86,6 +88,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges (`shape: ellipse` with `angle`: tilted ellipses); node `glyphs`; `legend` samples `icon` / `glyph` / `set`, `flow`, `perRow`, `heading`, `labelAt`; node `iconSize` (and a legend `icon` entry's) sizes an icon without an enclosing shape; a `tone` on an icon-only `label` colours the icon (a legend `icon` entry: `iconTone`); stroke options: `themeOverrides` `lineWidth` / `frameWidth` / `arrowheadScale` / `cornerRadius`, element `lineWidth` / `cornerRadius` / `arrowheadScale`, `dotted` variant; `block-arrow`, `triangle-arrow`, `chevron` flow markers |
 | 0.16.1 | Set `enclose: footprint` includes member glyphs and padding; the default `body` preserves existing outlines. |
 | 0.19.0 | `cuboid`: a solid drawn in oblique projection, with `dims`; `figure.projection` (`angle`, `depthScale`); container `props.plane` (`floor` / `wall`): a tilted plane group, with `props.contents: projected` laying node outlines, arrowheads and a `matrix` flat on it; `cuboid` `cells` / `highlight` and `<node>.<name>` zoom ends |
+| 0.20.0 | `sequence` arrange box (participants, lifelines, message rows, notes, bands, fragments); edge `dash` / `strands`, set `text` / `weight`, cylinder `capDepth` |
 
 ## IDs
 

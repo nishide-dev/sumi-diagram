@@ -48,6 +48,7 @@ import { glyphRects } from "../../assets/glyphs";
 import type {
   ArrangeBoxIR,
   ArrangeItemIR,
+  EdgeIR,
   FigureIR,
   GroupIR,
   NodeIR,
@@ -109,6 +110,7 @@ import {
 } from "./align";
 import { verifiedAlignHints } from "./align-hint";
 import { chatGeometry } from "./chat";
+import { sequenceGeometry } from "./sequence";
 import { fitSets } from "./sets";
 import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
 import { type StraightenStats, straightenLayout } from "./straighten";
@@ -378,6 +380,8 @@ class StructuredLayout {
   readonly #grids = new Map<ArrangeBoxIR, GridTracks>();
   readonly #boxSizes = new Map<ArrangeBoxIR, Size>();
   readonly #chatFrames = new Map<ArrangeBoxIR, Rect>();
+  /** The frame of each sequence box (#630) in the pass: its self-message labels reach beyond its items. */
+  readonly #sequenceFrames = new Map<ArrangeBoxIR, Rect>();
   readonly #centerPaddings = new Map<ArrangeBoxIR, { before: number; after: number }>();
   /** `layout/set-size-too-small` of the last pass (#545). */
   #setDiagnostics: Diagnostic[] = [];
@@ -614,6 +618,7 @@ class StructuredLayout {
     // Measurements depend on this pass's struts and any grown group padding.
     this.#boxSizes.clear();
     this.#chatFrames.clear();
+    this.#sequenceFrames.clear();
     this.#centerPaddings.clear();
     const root = this.#ir.arrange as ArrangeBoxIR;
     const size = this.#containerSize(ROOT, root);
@@ -745,6 +750,30 @@ class StructuredLayout {
           const found = item(child, `${name}.items[${i}]`);
           return found === undefined ? [] : [found];
         });
+      if (arrange.kind === "sequence" && arrange.sequence !== undefined) {
+        const seq = arrange.sequence;
+        const geometry = this.sequenceGeometry(arrange);
+        const id = (key: ElementKey) => key.slice(2);
+        return {
+          ...base,
+          children: children(),
+          sequence: {
+            gaps: geometry.gaps.map((gap) => ({
+              between: [
+                id(seq.participants[gap.index] as ElementKey),
+                id(seq.participants[gap.index + 1] as ElementKey),
+              ] as const,
+              pt: pt(gap.width),
+              reason: gap.reason,
+              ...(gap.edge !== undefined && { edge: gap.edge }),
+            })),
+            participantGap: {
+              pt: seq.participantGapPt ?? pt(this.#defaultGap),
+              written: seq.participantGapPt !== undefined,
+            },
+          },
+        };
+      }
       if (arrange.kind === "row" && arrange.items.length > 1)
         return {
           ...base,
@@ -948,6 +977,11 @@ class StructuredLayout {
     if (cached !== undefined) return cached;
     if (box.kind === "chat") {
       const size = this.#chatGeometry(box).size;
+      this.#boxSizes.set(box, size);
+      return size;
+    }
+    if (box.kind === "sequence") {
+      const size = this.sequenceGeometry(box).size;
       this.#boxSizes.set(box, size);
       return size;
     }
@@ -1387,6 +1421,15 @@ class StructuredLayout {
       }
       return;
     }
+    if (box.kind === "sequence") {
+      this.#locked++;
+      try {
+        this.#placeSequence(box, frame, visit);
+      } finally {
+        this.#locked--;
+      }
+      return;
+    }
     if (box.kind === "place") {
       this.#placeCoordinates(box, frame, visit);
       return;
@@ -1414,6 +1457,20 @@ class StructuredLayout {
           y: frame.y + (frame.height - geometry.size.height) / 2 + local.y,
         }),
       );
+  }
+
+  /** A sequence box (#630) is rigid: centred in its frame, every item where its rows put it. */
+  #placeSequence(
+    box: ArrangeBoxIR,
+    frame: Rect,
+    visit: (key: ElementKey, rect: Rect) => void,
+  ): void {
+    const geometry = this.sequenceGeometry(box);
+    const x = frame.x + (frame.width - geometry.size.width) / 2;
+    const y = frame.y + (frame.height - geometry.size.height) / 2;
+    this.#sequenceFrames.set(box, { x, y, ...geometry.size });
+    for (const [key, local] of geometry.rects)
+      visit(key, this.#bodyRect(key, { ...local, x: x + local.x, y: y + local.y }));
   }
 
   /** Places the items of a stack or row. */
@@ -1528,6 +1585,26 @@ class StructuredLayout {
       });
       cursor += (vertical ? size.height : size.width) + gap + this.#trail(item);
     }
+  }
+
+  /** The lifelines, rows and frames of a sequence box (#630), in its local coordinates. */
+  sequenceGeometry(box: ArrangeBoxIR) {
+    return sequenceGeometry(box, {
+      sizeOf: (key) => this.#itemSize(key),
+      edgeOf: (key) => this.#edgeIR(key),
+      labelOf: (key) => {
+        const edge = this.#edgeIR(key);
+        return edge === undefined
+          ? this.#labels.get(key)
+          : measureText(edge.label, edge.style, this.#measurer);
+      },
+      widenable: (key) => this.#stretchable(key, true),
+      gap: this.#defaultGap,
+    });
+  }
+
+  #edgeIR(key: ElementKey): EdgeIR | undefined {
+    return this.#ir.edges.find((e) => e.key === key);
   }
 
   /** Measure and place chat visuals through the same natural-footprint contract. */
@@ -2034,6 +2111,7 @@ class StructuredLayout {
       ...this.#ir.nodes.flatMap((node) => this.#decorations(node, this.#rect(node.key))),
       ...[...labels.values(), ...sublabels.values()].map((label) => label.box),
       ...this.#chatFrames.values(),
+      ...this.#sequenceFrames.values(),
     ];
     const minX = Math.min(...all.map((r) => r.x));
     const minY = Math.min(...all.map((r) => r.y));
