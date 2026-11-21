@@ -276,6 +276,15 @@ groups:
   `filled`). An undrawn border is not geometry-linted, and an edge label inside a
   `plain` group gets the background beneath it. To make a whole panel pale use
   [`dim: true`](#dimmed-groups).
+- The default group fill is the theme's: white in `paper` and `sumi` (`sumi-dark`: its
+  navy canvas), a pale panel in `minimal`, `color`, `slides` and `llama`, none in
+  `academic`. A `muted` group is the canvas (white; `sumi-dark`: navy) in every theme but
+  `academic` (no fill); with a `palette` it takes the palette's paler panel instead. `figure.themeOverrides.groupFill: '#rrggbb'` sets, in one place, the
+  fill of every `container` group that has no `tone` and draws a fill: default, `muted`,
+  `filled` and `filled-dashed` groups, over a palette's panels too. Groups without a fill keep none (`plain`, `dashed`,
+  `dotted`, and `academic`'s default and `muted` groups; its `filled` and `filled-dashed` take it), and a `tone` wins over it. `'#ffffff'`
+  whitens the panels; `'#efeddd'` brings back `sumi`'s sand panel from before v0.20.0. A sand
+  panel for one `sumi` group is `variant: filled`.
 
 ## Edges and the connection table
 
@@ -467,8 +476,8 @@ They are built in; a figure cannot define its own. `sumi catalog --json` lists t
 | `color` | general purpose with color: like `minimal`, but tones are pastel fills and emphasis is blue |
 | `paper` | color ML-paper style: pastel tone fills, rounded boxes (2pt) and groups (6pt), black 1pt frames, light gray groups, thin 0.5pt edges with small arrowheads, framed images with a 0.5pt border, Inter for Latin text |
 | `llama` | after Meta's Llama 4 MoE figure: 1pt slate lines and frames with **open chevron arrowheads** (a small gap before the box), white boxes with a gray frame, `solid` = dark slate block with white text, `emphasis` = blue accent block, `filled` = gray borderless block, `muted` = pale borderless block, borderless pale groups with a regular-weight title (`muted` group: white panel), rounded corners (3pt / 5pt), Inter for Latin text |
-| `sumi` | white canvas (`themeOverrides.canvas: "#f8f8ee"` for the former cream), navy ink and sand accents |
-| `sumi-dark` | navy canvas, cream ink and sand accents |
+| `sumi` | white canvas (`themeOverrides.canvas: "#f8f8ee"` for the former cream), navy ink and sand accents, white panels with a gray frame (`filled` = sand) |
+| `sumi-dark` | navy canvas, cream ink and sand accents, canvas-colored panels with a gray frame (`filled` = a lighter navy) |
 
 `minimal`, `academic`, `color`, `paper` and `llama` use 8pt text (7pt on edges). `academic` is
 for black-and-white journals, `paper` for the coloured figures of ML papers; both fit
@@ -586,7 +595,7 @@ on any theme (`minimal`, `color`, `paper`, `llama`, …; `academic` is grayscale
 leave it unpainted for black-and-white print). Names: `cool-blue` (navy, high contrast),
 `slate` (muted blue-gray), `coral` (warm), `terracotta` (earthy), `sage` (muted green),
 `lavender`, `cyan-pink` (cyan with a hot accent), `seafoam` (green-teal). A
-palette recolours text, frames, edges and arrowheads (ink), the group panels a theme fills (the palest colour; `paper`'s default groups are white and stay white, so a palette does not tint every panel: only `variant: filled` groups and an explicit `groupFill` take it),
+palette recolours text, frames, edges and arrowheads (ink), the group panels a theme fills (the palest colour; `paper`'s and `sumi`'s default groups are white (`sumi-dark`'s the canvas) and stay so, so a palette does not tint every panel: only `variant: filled` groups and an explicit `groupFill` take it),
 `filled`/`tinted` nodes and the `gray` tone (the tint), `solid` fills and outlined frames
 (the accent colour, deepened for white text), `muted` groups (a paler panel and a palette
 frame) and `emphasis` nodes and edges (the accent). It never changes sizes, fonts or line

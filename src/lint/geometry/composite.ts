@@ -32,6 +32,8 @@ export interface PaintItem {
   readonly ink: string;
   /** The `tone` a node or group sets, if any (#548): its name says whether it is a hue when a pale tone's chroma is too low to. */
   readonly tone?: string;
+  /** A group's variant (#608): `filled` paints the panel too, so the hint of color-on-panel names it. */
+  readonly variant?: string;
   /** One face of a node painted in a single opacity group with its other faces (a cuboid, #587): the topmost covers, then the group's opacity applies once. */
   readonly faces?: true;
   readonly region: Region;
@@ -107,6 +109,7 @@ export function paintItems(context: GeometryContext, options: PaintOptions = {})
       alpha: e.ir.style.opacity,
       ink: color,
       ...(e.ir.kind !== "edge" && e.ir.tone !== undefined && { tone: e.ir.tone }),
+      ...(e.ir.kind === "group" && { variant: e.ir.variant }),
       region: kind === "group" ? rectPolygon(e.bbox) : (e.outline ?? rectPolygon(e.bbox)),
       bbox: e.bbox,
       docPath: e.docPath,

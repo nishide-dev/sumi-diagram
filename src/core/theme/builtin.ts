@@ -410,7 +410,8 @@ function sumiTheme(dark: boolean, canvasOverride?: string): ThemeDefinition {
   const canvas = canvasOverride ?? (dark ? SUMI_DARK_CANVAS : SUMI_CANVAS);
   const text = dark ? "#f0f0db" : "#30364f";
   const muted = dark ? "#acbac4" : "#4e566b";
-  const panel = dark ? "#383f58" : "#efeddd";
+  // The dark bubble; light panels are the canvas (#608).
+  const panel = "#383f58";
   const shade = dark ? "#3e4661" : "#e1d9bc";
   const fills = dark
     ? {
@@ -458,8 +459,8 @@ function sumiTheme(dark: boolean, canvasOverride?: string): ThemeDefinition {
     version: 1,
     id: dark ? "sumi-dark" : "sumi",
     description: dark
-      ? "Navy canvas with cream ink and sand accents"
-      : "White canvas with navy ink and sand accents (themeOverrides.canvas brings back the cream #f8f8ee)",
+      ? "Navy canvas with cream ink and sand accents, canvas-colored panels with a gray frame"
+      : "White canvas with navy ink and sand accents, white panels with a gray frame (filled for sand; themeOverrides.canvas brings back the cream #f8f8ee, groupFill the sand #efeddd)",
     canvas,
     fonts: LATIN_FONT_SET_ID,
     tokens: {
@@ -477,8 +478,11 @@ function sumiTheme(dark: boolean, canvasOverride?: string): ThemeDefinition {
         fontSize: "{size.text}",
         fontColor: text,
       },
+      // Panels are the canvas with a gray frame (#608), as `muted` ones always were documented:
+      // colored nodes on a sand panel compete with it (geometry/color-on-panel). The sand
+      // stays one step away: `variant: filled`, or `themeOverrides.groupFill: "#efeddd"`.
       group: {
-        fill: panel,
+        fill: canvas,
         stroke: muted,
         strokeWidth: "{line.regular}",
         fontSize: "{size.heading}",
@@ -513,7 +517,7 @@ function sumiTheme(dark: boolean, canvasOverride?: string): ThemeDefinition {
         },
         junction: junctionStyles(text, muted),
         container: {
-          muted: { fill: shade, stroke: muted, fontColor: muted },
+          muted: { fill: canvas, stroke: muted, fontColor: muted },
           ...outlineVariants(shade),
         },
         legend: legendStyles(canvas, muted),

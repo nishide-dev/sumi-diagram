@@ -259,6 +259,8 @@ describe("withPalette", () => {
     expect(recolored.toneLines.get("gray")?.stroke).toBe(PALETTE("terracotta").roles.strong);
   });
 
+  // The themes whose default group is the canvas: a palette leaves it as is.
+  const CANVAS_PANELS = new Set(["paper", "sumi", "sumi-dark"]);
   test("gives every theme the palette's ink, panel, tint and accent", () => {
     for (const theme of BUILTIN_THEMES.values()) {
       for (const { id } of palettes) {
@@ -279,9 +281,15 @@ describe("withPalette", () => {
         expect(style("sumi/box", "solid").fill, `${theme.id} ${id} solid`).toBe(roles.strong);
         const group = style("sumi/container");
         // A theme whose groups have no fill (academic) keeps them open.
-        // `paper`'s default groups are white (#440): a palette does not tint them.
-        if (group.fill !== "transparent" && theme.id !== "paper")
-          expect(group.fill, `${theme.id} ${id} panel`).toBe(roles.panel);
+        // `paper`'s default groups are white (#440), `sumi`'s the canvas (#608): a palette does
+        // not tint them.
+        const expected =
+          theme.id === "academic"
+            ? "transparent"
+            : CANVAS_PANELS.has(theme.id)
+              ? theme.canvas
+              : roles.panel;
+        expect(group.fill, `${theme.id} ${id} default group`).toBe(expected);
         if (theme.id === "paper") {
           expect(group.fill, `${id} paper default group`).toBe("#ffffff");
           expect(style("sumi/container", "filled").fill, `${id} paper filled group`).toBe(

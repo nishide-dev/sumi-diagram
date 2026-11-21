@@ -7,11 +7,12 @@ import {
   muddinessOf,
   muddyColor,
   muddyFindings,
+  panelFillsOf,
   panelFindings,
   translucentFindings,
   translucentOverColor,
 } from "./color-composition";
-import { analyze, over, type PaintItem, paintItems } from "./composite";
+import { analysisOf, analyze, over, type PaintItem, paintItems } from "./composite";
 import { geometryContextFor } from "./lint";
 
 const read = (path: string) => readFileSync(new URL(`../../../${path}`, import.meta.url), "utf8");
@@ -130,6 +131,8 @@ nodes:
     expect(findings).toHaveLength(1);
     expect(findings[0]?.message).toContain("#f3f3f3");
     expect(findings[0]?.message).toContain("colored elements");
+    // The panel's color is the figure's groupFill: one override whitens every panel (#608).
+    expect(findings[0]?.hint).toContain("themeOverrides.groupFill: '#ffffff'");
     expect(colorOnPanel.defaultSeverity).toBe("info");
   });
 
@@ -372,6 +375,165 @@ edges: []
       expect(await count(panelOf("sumi", tone, tone)), `${tone} on ${tone}`).toBe(1);
     }
     expect(await count(panelOf("sumi", "gray", "gray"))).toBe(0);
+  });
+
+  // Following the hint makes the finding go away, whichever source paints the panel (#608): each
+  // case applies the edit the hint names to the YAML and renders it again.
+  const panelFigure = (theme: string, group: string, overrides = "") => `version: 1
+figure:
+  id: fix
+  theme: ${theme}
+${overrides}  layout:
+    arrange: { row: { gap: 4mm, items: [g] } }
+groups:
+  - id: g
+    caption: Panel
+${group}    arrange: { row: { gap: 4mm, items: [a, b, c] } }
+nodes:
+${["a", "b", "c"].map((id) => `  - { id: ${id}, component: box, label: ${id}, tone: green, variant: filled }`).join("\n")}
+edges: []
+`;
+  const hintsOf = async (source: string) => {
+    const context = await contextOf(source);
+    return panelFindings(analysisOf(context), panelFillsOf(context.ir)).map((f) => f.hint ?? "");
+  };
+  const TONE = "    tone: blue\n";
+  const cases: {
+    name: string;
+    theme?: string;
+    group: string;
+    overrides?: string;
+    says: string[];
+    not?: string[];
+    fix: (source: string) => string;
+  }[] = [
+    {
+      name: "tone and filled",
+      group: `${TONE}    variant: filled\n`,
+      says: ["remove its `tone: blue`", "change its `variant: filled` to `default`"],
+      fix: (t) => t.replace(TONE, "").replace("variant: filled\n", "variant: default\n"),
+    },
+    {
+      name: "tone only",
+      group: TONE,
+      says: ["remove its `tone: blue`"],
+      not: ["variant", "groupFill"],
+      fix: (t) => t.replace(TONE, ""),
+    },
+    {
+      name: "filled only",
+      group: "    variant: filled\n",
+      says: ["change its `variant: filled` to `default`"],
+      not: ["tone", "groupFill"],
+      fix: (t) => t.replace("variant: filled\n", "variant: default\n"),
+    },
+    {
+      name: "filled-dashed",
+      group: "    variant: filled-dashed\n",
+      says: ["change its `variant: filled-dashed` to `dashed`"],
+      fix: (t) => t.replace("variant: filled-dashed\n", "variant: dashed\n"),
+    },
+    {
+      name: "a non-white groupFill",
+      group: "",
+      overrides: "  themeOverrides: {groupFill: '#efeddd'}\n",
+      says: ["`figure.themeOverrides.groupFill: '#ffffff'` (now '#efeddd')"],
+      not: ["Remove"],
+      fix: (t) => t.replace("'#efeddd'", "'#ffffff'"),
+    },
+    {
+      name: "a tone over a non-white groupFill",
+      group: TONE,
+      overrides: "  themeOverrides: {groupFill: '#efeddd'}\n",
+      says: [
+        "Remove the group's `tone: blue` and set `figure.themeOverrides.groupFill: '#ffffff'`",
+      ],
+      fix: (t) => t.replace(TONE, "").replace("'#efeddd'", "'#ffffff'"),
+    },
+    {
+      name: "a palette's panel (color theme)",
+      theme: "color",
+      group: "",
+      overrides: "  themeOverrides: {palette: sage}\n",
+      says: ["`figure.themeOverrides.groupFill: '#ffffff'` (the theme's panel is #"],
+      fix: (t) => t.replace("{palette: sage}", "{palette: sage, groupFill: '#ffffff'}"),
+    },
+    {
+      // The palette tints a muted group in every theme; color's default panel is tinted too.
+      name: "a palette's muted panel (color theme)",
+      theme: "color",
+      group: "    variant: muted\n",
+      overrides: "  themeOverrides: {palette: sage}\n",
+      says: ["`figure.themeOverrides.groupFill: '#ffffff'`"],
+      not: ["variant: muted"],
+      fix: (t) => t.replace("{palette: sage}", "{palette: sage, groupFill: '#ffffff'}"),
+    },
+    {
+      // sumi's default panel stays white under a palette: the calmer variant clears it.
+      name: "a palette's muted panel (sumi)",
+      group: "    variant: muted\n",
+      overrides: "  themeOverrides: {palette: sage}\n",
+      says: ["change its `variant: muted` to `default`"],
+      fix: (t) => t.replace("variant: muted\n", "variant: default\n"),
+    },
+  ];
+  test.each(cases.map((c) => [c.name, c] as const))(
+    "the color-on-panel hint for %s is a change that clears it",
+    async (_, c) => {
+      const source = panelFigure(c.theme ?? "sumi", c.group, c.overrides);
+      const hints = await hintsOf(source);
+      expect(hints).toHaveLength(1);
+      for (const part of c.says) expect(hints[0], part).toContain(part);
+      for (const part of c.not ?? []) expect(hints[0], part).not.toContain(part);
+      expect(await hintsOf(c.fix(source))).toEqual([]);
+    },
+  );
+
+  test("an unfilled panel shows its outer panel: the hint does not stop at dropping the inner fill", async () => {
+    // A filled-dashed panel inside a blue one: `dashed` would show the blue, which still competes.
+    const source = `version: 1
+figure:
+  id: nested
+  theme: sumi
+  layout:
+    arrange: { row: { gap: 4mm, items: [outer] } }
+groups:
+  - id: outer
+    caption: Outer
+    tone: blue
+    variant: filled
+    arrange: { row: { gap: 4mm, items: [inner] } }
+  - id: inner
+    caption: Inner
+    variant: filled-dashed
+    arrange: { row: { gap: 4mm, items: [a, b, c] } }
+nodes:
+${["a", "b", "c"].map((id) => `  - { id: ${id}, component: box, label: ${id}, tone: green, variant: filled }`).join("\n")}
+edges: []
+`;
+    const [hint, ...rest] = await hintsOf(source);
+    expect(rest).toEqual([]);
+    expect(hint).not.toContain("to `dashed`");
+    expect(hint).toContain("`figure.themeOverrides.groupFill: '#ffffff'`");
+    // The `dashed` edit really would move the finding to the blue panel...
+    expect(await hintsOf(source.replace("variant: filled-dashed", "variant: dashed"))).toHaveLength(
+      1,
+    );
+    // ...while the suggested groupFill clears it.
+    const fixed = source.replace(
+      "  theme: sumi\n",
+      "  theme: sumi\n  themeOverrides: {groupFill: '#ffffff'}\n",
+    );
+    expect(await hintsOf(fixed)).toEqual([]);
+  });
+
+  test("sumi-dark's panel is its canvas: the fixed panel is not reported there either", async () => {
+    const source = panelFigure("sumi-dark", `${TONE}    variant: filled\n`);
+    const [hint] = await hintsOf(source);
+    expect(hint).toContain("the canvas (#30364f)");
+    expect(await hintsOf(source.replace(TONE, "").replace("    variant: filled\n", ""))).toEqual(
+      [],
+    );
   });
 
   test("neutral boxes (default outlined, white) on a colored panel are not colored, in any theme", async () => {
