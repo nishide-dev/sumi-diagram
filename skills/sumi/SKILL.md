@@ -97,7 +97,7 @@ is the `figure.themeOverrides.textScale` that fixes it (`sumi`: 2 for slides, 1.
 
 ### 4. Write the figure
 
-**Start from the closest base layout.** Pick one by structure in the [layouts index](layouts/README.md) and view its PNG; plan the adaptation (labels, counts, tones, theme and profile from step 1), saying which layout you used. None fits: plan from scratch.
+**Start from the closest base layout.** Pick one by structure in the [layouts index](layouts/README.md) and view its PNG; plan the adaptation (labels, counts, tones, theme and profile from step 1), saying which layout you used. None fits: plan from scratch, first checking the [layout tips table](references/layout-tips.md) for a built-in arrangement (a sequence diagram is a [`sequence` box](references/structured.md#sequence-diagrams), not hand-placed lifelines).
 
 **Non-trivial layout? Then mock it up** (several panels, loops, state machines, sets, taxonomies, anything whose
 arrangement is not obvious, however few nodes; skip only for an obvious one-directional flow): sketch the planned figure as an HTML/CSS page at real size

@@ -470,6 +470,11 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     }
     if (style.kind === "edge" && entry.kind === "edge" && entry.element.dash !== undefined)
       style = withDash(style, theme, id, entry.element.dash);
+    // A sequence's lifelines written `dash: solid` (#630) are solid whatever their variant.
+    if (style.kind === "edge" && state.doc.solidLifelines?.has(entry.key)) {
+      const { strokeDotted: _, ...solid } = style;
+      style = Object.freeze({ ...solid, strokeDash: 0 });
+    }
     if (style.kind === "node" && entry.kind === "node")
       style = withTextStyle(style, theme, entry.element);
     if (style.kind === "edge" && theme.edgeLabelGap !== undefined)

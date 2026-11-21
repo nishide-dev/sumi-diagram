@@ -331,7 +331,9 @@ export const StackSchema = z.strictObject({
     return z
       .array(ArrangeItemSchema)
       .min(1)
-      .describe("Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat).");
+      .describe(
+        "Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat / sequence).",
+      );
   },
 });
 
@@ -343,7 +345,9 @@ export const RowSchema = z.strictObject({
     return z
       .array(ArrangeItemSchema)
       .min(1)
-      .describe("Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat).");
+      .describe(
+        "Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat / sequence).",
+      );
   },
 });
 
@@ -474,6 +478,134 @@ export const ChatSchema = z.strictObject({
 });
 export type Chat = z.output<typeof ChatSchema>;
 
+/**
+ * A sequence diagram (#630, design record 630): participants in a row with
+ * lifelines down from them, and rows of messages (edges), notes and fragments
+ * in time order. Sumi decides every coordinate.
+ */
+export const SEQUENCE_DASHES = ["solid", ...EDGE_DASHES] as const;
+
+const SequenceNoteSchema = z.strictObject({
+  note: Id.describe(
+    "The node (or group) of the note: any component, placed on the lifelines named by over.",
+  ),
+  over: z
+    .array(Id)
+    .min(1)
+    .describe(
+      "The participants the note lies over: one, or the two outermost of several neighbours (the note widens to span every lifeline from the leftmost to the rightmost named, so it must be a component that can stretch: not a circle or other fixed shape, nor one with props.width). With side, exactly one.",
+    ),
+  side: z
+    .enum(["left", "right"])
+    .optional()
+    .describe(
+      "Place the note beside the lifeline (on this side) instead of over it; the lifeline then runs on unbroken. Omitted means over the lifelines, which stop at the note's top and resume below it.",
+    ),
+});
+
+export const SequenceFragmentSchema = z
+  .strictObject({
+    fragment: z
+      .string()
+      .min(1)
+      .describe(
+        'The frame\'s heading, written as it should read, e.g. "loop [until done]" or "alt [cache hit]"; no UML kind is required.',
+      ),
+    get rows() {
+      return z
+        .array(SequenceRowSchema)
+        .min(1)
+        .describe("The rows the frame encloses (messages, notes and nested fragments).");
+    },
+    variant: z
+      .enum(SET_VARIANTS)
+      .optional()
+      .describe(
+        "The frame's paint, as a rect set's: default (tint and outline), filled, outlined, dashed or dotted. Omitted means outlined.",
+      ),
+    tone: Tone.describe(
+      "Color category of the frame (outline, tint) and its heading. Omitted means gray.",
+    ),
+    fillOpacity: z
+      .number()
+      .min(0)
+      .max(1)
+      .optional()
+      .describe("Strength of the tint (0..1), as a set's fillOpacity."),
+    text: z
+      .enum(TEXT_ROLES)
+      .optional()
+      .describe("The size of the heading: small, body (the default), heading or large."),
+    weight: z
+      .enum(["regular", "bold"])
+      .optional()
+      .describe("The weight of the heading. Omitted means bold."),
+  })
+  .meta({
+    id: "SequenceFragment",
+    description:
+      "A frame around consecutive rows with a heading at its top left (outside the first lifeline it encloses), drawn as a rect set.",
+  });
+
+const SequenceMessage = Id.describe(
+  "A message: the ID of an edge whose from and to are participants (the same one for a self-message).",
+);
+
+/** A row of a sequence: a message (an edge ID), a note, a band of both, or a fragment. */
+export const SequenceRowSchema = z.union([
+  SequenceMessage,
+  SequenceNoteSchema,
+  z
+    .array(z.union([SequenceMessage, SequenceNoteSchema]))
+    .min(2)
+    .describe(
+      "A band: messages and notes side by side in one row, from the same top (e.g. a note on one lifeline while two others exchange a message). They may not cover the same lifelines or the same side of a gap.",
+    ),
+  SequenceFragmentSchema,
+]);
+
+export const SequenceSchema = z.strictObject({
+  participants: z
+    .array(Id)
+    .min(1)
+    .describe(
+      "The node or group IDs heading the lifelines, left to right (any component: a box, an icon, a group).",
+    ),
+  rows: z
+    .array(SequenceRowSchema)
+    .min(1)
+    .describe(
+      "Top to bottom: edge IDs (messages), {note, over}, bands [a, b] of both side by side, and {fragment, rows}. The y of every row follows from this order.",
+    ),
+  participantGap: LayoutLength.optional().describe(
+    "Least space between neighbouring participants' boxes; the lifelines move further apart when a message label, note or fragment needs it. Omitted means the profile's arrange gap.",
+  ),
+  rowGap: LayoutLength.optional().describe(
+    "Space between consecutive rows. Omitted means a third of the profile's arrange gap.",
+  ),
+  lifeline: z
+    .strictObject({
+      variant: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("The line component's variant. Omitted means muted."),
+      dash: z
+        .enum(SEQUENCE_DASHES)
+        .optional()
+        .describe("solid, dashed or dotted. Omitted means dashed."),
+      tone: z.enum(TONE_NAMES).optional().describe("The lifelines' tone. Omitted means none."),
+      lineWidth: StrokeWidth.optional().describe(
+        "Width of the lifelines. Omitted means the theme's thin line (or half the muted line), at least 0.5pt times the text scale, so they read lighter than the messages.",
+      ),
+    })
+    .optional()
+    .describe("How the lifelines are drawn (generated line edges)."),
+});
+export type Sequence = z.output<typeof SequenceSchema>;
+export type SequenceRow = z.output<typeof SequenceRowSchema>;
+export type SequenceFragment = z.output<typeof SequenceFragmentSchema>;
+
 /** One box of an arrange tree: exactly one arrangement kind. */
 export const ArrangeBoxSchema = z
   .strictObject({
@@ -490,6 +622,7 @@ export const ArrangeBoxSchema = z
       return PlaceSchema.optional();
     },
     chat: ChatSchema.optional(),
+    sequence: SequenceSchema.optional(),
   })
   .check((ctx) => {
     const kinds = Object.values(ctx.value).filter((v) => v !== undefined).length;
@@ -497,16 +630,16 @@ export const ArrangeBoxSchema = z
       ctx.issues.push({
         code: "custom",
         message:
-          'An arrange box must have exactly one of "stack", "row", "grid", "place" or "chat".',
+          'An arrange box must have exactly one of "stack", "row", "grid", "place", "chat" or "sequence".',
         input: ctx.value,
-        params: { [ONE_OF_ISSUE]: ["stack", "row", "grid", "place", "chat"] },
+        params: { [ONE_OF_ISSUE]: ["stack", "row", "grid", "place", "chat", "sequence"] },
       });
     }
   })
   .meta({
     id: "ArrangeBox",
     description:
-      "A stack (vertical), row (horizontal), row-major grid, rigid coordinate placement, or chat conversation column.",
+      "A stack (vertical), row (horizontal), row-major grid, rigid coordinate placement, chat conversation column, or sequence diagram.",
     minProperties: 1,
     maxProperties: 1,
   });

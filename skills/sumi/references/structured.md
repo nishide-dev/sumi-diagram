@@ -9,7 +9,7 @@ Feature versions and what to do on an older CLI:
 [figure-format](figure-format.md#feature-versions).
 
 Contents: [minimal example](#minimal-example) · [engine rules](#engine-rules) ·
-[arrange trees](#arrange-trees) · [grids](#grids) · [coordinates](#coordinate-placement) · [panel separators](#panel-separators) · [flow arrows](#flow-arrows) ·
+[arrange trees](#arrange-trees) · [sequence diagrams](#sequence-diagrams) · [grids](#grids) · [coordinates](#coordinate-placement) · [panel separators](#panel-separators) · [flow arrows](#flow-arrows) ·
 [group titles and captions](#group-titles-and-captions) · [sublabels](#sublabels) ·
 [turned labels](#turned-labels) · [text align](#text-align) · [attach](#attach-side-notes) ·
 [align](#aligning-across-trees) · [tables](#tables) ·
@@ -63,7 +63,7 @@ tones, `operator`, `junction`, `dim` and the paper variants work in both.
 figure:
   layout:
     arrange:                   # root tree: places the root elements
-      row:                     # exactly one of stack / row / grid / place / chat
+      row:                     # exactly one of stack / row / grid / place / chat / sequence
         gap: 6mm               # default 4mm (8mm on slides; 2.5mm with density: compact)
         align: end             # start | center | end | stretch (cross axis)
         items:                 # IDs of nodes / groups, or nested boxes
@@ -349,6 +349,93 @@ inline math. Both use `llama`, need no scaling and have no lint diagnostics.
 Use `|-` for explicit multi-line answers; keep each `$...$` expression short
 enough to fit the bubble, since math expressions do not wrap internally.
 
+
+## Sequence diagrams
+
+A **`sequence`** arrange box (0.20.0) draws a sequence diagram from ordinary nodes and
+edges: `participants` head the lifelines (any node or group: a box, an icon, a tinted
+box), each **row** is an edge ID (a message, top to bottom), a note or a fragment, and
+Sumi decides every coordinate. Adding a message is one edge and one row; nothing else
+moves by hand.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: sequence
+  theme: sumi
+  layout:
+    arrange:
+      sequence:
+        participants: [client, api, db]
+        rows:
+          - get
+          - {note: auth, over: [api]}
+          - fragment: "loop [each page]"
+            rows: [query, rows]
+          - [merge, {note: cache, over: [db]}]
+          - ok
+nodes:
+  - {id: client, component: box, label: Client, weight: bold}
+  - {id: api, component: box, label: API, weight: bold, tone: blue, variant: tinted}
+  - {id: db, component: box, label: Database, weight: bold}
+  - {id: auth, component: box, variant: dashed, label: checks the token}
+  - {id: cache, component: box, variant: dashed, label: warms its cache}
+edges:
+  - {id: get, from: client, to: api, label: GET /items}
+  - {id: query, from: api, to: db, label: SELECT page}
+  - {id: rows, from: db, to: api, variant: dashed, label: rows}
+  - {id: merge, from: api, to: api, label: merge}
+  - {id: ok, from: api, to: client, variant: dashed, label: 200 OK}
+```
+
+- **Messages** are `edges[]` with an `id` whose `from` and `to` are participants: any
+  label, `variant` (replies: `dashed`), `dash`, `tone`, arrowheads. Sumi retargets each
+  to hidden junctions on the two lifelines at its row; the route is always straight.
+  The label sits above the line in both directions; a message across several lifelines
+  keeps its label in the gap next to its source, clear of the lifelines it crosses. The
+  sequence owns this placement: `labelAt`, `labelSide`, `fromAnchor` / `toAnchor`, a
+  `lane` or a `route` other than `straight` on a message is `layout/sequence-invalid-row`. An edge **from a participant to itself** is a
+  self-message: a loop out to the east with its label beside it (`lane: {side: west}`
+  loops west instead; other lanes, `outside`, `route`, `labelAt` and `labelSide` are
+  errors: the label always sits outside the loop).
+- **Lifelines** are generated `line` edges, `muted` and `dashed`, thinner than the
+  messages (the theme's thin line). `lifeline: {variant, dash: solid | dashed | dotted,
+  tone, lineWidth}` changes them; `dash: solid` is solid even on a dashed variant.
+- **Notes**: `{note: <node>, over: [p]}` centres a node on one lifeline;
+  `over: [p, q]` widens it to span every lifeline from p to q (so it must stretch: a box
+  or group, not a circle or a node with `props.width`); `side: right | left`
+  (with one participant) puts it beside the lifeline instead. A lifeline stops just
+  above a note over it and resumes below it.
+- **Bands**: a list `[a, {note: n, over: [p]}]` puts messages and notes side by side in
+  one row (from the same top), e.g. a note on one lifeline while two others talk. They
+  must not cover the same lifelines or the same side of a gap: a note beside `a` next to
+  a message from `a` is `layout/sequence-invalid-row`; a note beside `a` and one over
+  `b` share the gap between them and get room for both.
+- **Fragments**: `{fragment: "loop [until done]", rows: [...]}` frames its rows. The
+  heading is written text (no UML kind is required), bold, inside the frame's top-left
+  corner and left of the first lifeline it encloses; `text`, `weight`, `tone`, `variant`
+  (the paint of a rect set: `outlined` by default, `filled` / `dashed` with
+  `fillOpacity` for a band) style it. Fragments nest. For `alt` with an else branch,
+  write two fragments one after the other.
+- **Spacing**: lifelines are as far apart as the labels, notes and frames between them
+  need, at least `participantGap` (default: the profile's arrange gap) between the
+  participants' boxes; rows are `rowGap` apart (default: a third of it). Participants
+  are bottom-aligned. When the figure is too wide, the `geometry/exceeds-page-width`
+  hint names the gap that sets the width and tries a smaller `participantGap` and
+  folding the widest message labels onto two lines.
+- Any other edge (not in `rows`) is routed as usual, e.g. a dotted arrow between two
+  notes. A group as a note holds several boxes (a `plain` group with `props.padding:
+  0.5pt` keeps it compact).
+- Errors: a row naming no edge (`layout/sequence-unknown-message`), an end or note on a
+  node that is not a participant (`layout/sequence-unknown-participant`), a message in
+  two rows, a `side` note over several lifelines, band rows that overlap
+  (`layout/sequence-invalid-row`). Generated IDs start with `seq-<n>-` and are
+  reserved. Structured only (`layout/structured-only` with `engine: auto`, like every
+  arrange box). Activation bars and participants repeated at the bottom are not drawn.
+
+The [sequence-diagram](../layouts/sequence-diagram/sequence-diagram.sumi.yaml) layout is a
+lint-clean starting point.
 ## Side inputs on a main flow
 
 Put the main node and its side inputs in a **stack with `centerOn`**, inside
