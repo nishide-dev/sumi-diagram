@@ -482,3 +482,29 @@ describe("a touching label in a trial with edge-label-touches-line off (#610)", 
     expect(driftsAdded(none, seen)).toBe(true);
   });
 });
+
+describe("orthogonal tags against zoom lines (#610)", () => {
+  test("an orthogonal tag across zoom lines is reported once", async () => {
+    const source = `version: 1
+figure:
+  id: zoomtag
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 6mm, items: [x, {stack: {gap: 14mm, items: [p, q]}}, y]}
+nodes:
+  - {id: x, component: box, label: X, props: {width: 8mm, height: 3mm}}
+  - {id: p, component: box, label: P}
+  - {id: q, component: box, label: Q}
+  - {id: y, component: box, label: Y, props: {width: 20mm, height: 3mm}}
+edges:
+  - {from: x, to: y, component: zoom}
+  - {from: p, to: q, label: tagged, labelStyle: tag}
+`;
+    const result = await renderFigure(source);
+    const warned = result.diagnostics.filter((d) => d.code === "layout/edge-label-overlap");
+    expect(warned).toHaveLength(1);
+    expect(warned[0]?.message).toContain('the line of edge edges[0] ("x" → "y")');
+  });
+});

@@ -231,20 +231,27 @@ export function routeEdges(
   if (routed.layout.edges.length === layout.edges.length) return withLaneDiagnostics(ir, routed);
   const diagonal = addDirectRoutes(ir, layout, routed.layout);
   const zoom = addZoomRoutes(ir, straight.size === 0 ? layout : diagonal.layout, diagonal.layout);
-  // The tags of straight and curved edges (#610), once every route is drawn: their frames
-  // against the routes, arrowheads, nodes, labels and borders (the orthogonal labels were
-  // checked while routing).
+  // Tags (#610), once every route is drawn: their frames against the routes (straight, curved
+  // and zoom lines included), arrowheads, nodes, labels and borders. An orthogonal tag was
+  // checked while routing, before the straight, curved and zoom lines existed: its warning
+  // from then is replaced by this one, which sees everything.
+  const tagged = (edge: EdgeIR) => isTagLabel(edge) && hasRequestedLabel(edge);
+  const tagKeys = new Set(ir.edges.filter(tagged).map((e) => e.id ?? `edges[${e.index}]`));
   const tags = hasErrors(diagonal.diagnostics)
     ? []
-    : requestedLabelDiagnostics(
-        ir,
-        zoom.layout,
-        (edge) => edgeArrowheadLength(edge.style),
-        (edge) => isDirectEdge(edge) && isTagLabel(edge),
-      );
+    : requestedLabelDiagnostics(ir, zoom.layout, (edge) => edgeArrowheadLength(edge.style), tagged);
+  const earlier = routed.diagnostics.filter(
+    (d) =>
+      !(
+        !hasErrors(diagonal.diagnostics) &&
+        d.code === "layout/edge-label-overlap" &&
+        d.subject?.kind === "edge" &&
+        tagKeys.has(d.subject.id)
+      ),
+  );
   return withLaneDiagnostics(ir, {
     layout: deepFreeze(zoom.layout),
-    diagnostics: [...routed.diagnostics, ...diagonal.diagnostics, ...zoom.diagnostics, ...tags],
+    diagnostics: [...earlier, ...diagonal.diagnostics, ...zoom.diagnostics, ...tags],
   });
 }
 

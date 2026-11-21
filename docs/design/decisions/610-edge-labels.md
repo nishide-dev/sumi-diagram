@@ -69,6 +69,8 @@
 - examples（ピン留めした再現を含む）、`docs/gallery/`、`docs/assets` は変わらない（`SUMI_UPDATE_REPRODUCTIONS` なしで `reproduction-hashes.test.ts` が通る）。
 - 直交のルーターで置くラベルの位置は変わらない（`labelStyle` を書かない限り、`placeEdgeLabel` の既定の経路は同じ）。
 - 新しい lint の指摘: compare-rows（detached、info）。テストの fixture では `literal-newline`・`rag-compare-a` が detached（info）。touches-line はリポジトリの図に 0 件。
+- 既定の側が変わる `labelSide` なしの straight / curve のラベル: 左向きの成分を持つ線（進行方向の左=下 → 線の上）と、上向きの垂直な線および垂直から 5° 以内の上向きの線（進行方向の左 → 線の右）。それ以外（右向き、下向きの垂直に近い線）は変わらない。
+- 札の重なりの診断: 直交の札は配線中にも判定するが、直線・曲線・ズームの線がそろったあとで改めて判定し、配線中の警告はその結果に置き換える（同じ辺に二重に出さない）。
 - スキーマ: `labelAt` は文字列か数、`labelStyle` は新しい項目。既存の YAML はそのまま有効。
 
 ### 測定（ルーターが置いたラベルの文字と線の距離、units）
