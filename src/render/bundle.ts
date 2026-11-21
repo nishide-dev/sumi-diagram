@@ -272,3 +272,18 @@ export function strandLength(strand: Strand): number {
   );
   return straight + arcs;
 }
+
+/**
+ * A strand mapped point by point (#614): the lines of a bundle on a projected
+ * plane are made flat on it and mapped with its affine map, which keeps a
+ * cubic a cubic. Its pieces and arcs stay in step with its path.
+ */
+export function mapStrand(strand: Strand, map: (p: Point) => Point): Strand {
+  const arc = (a: Arc): Arc => ({ from: map(a.from), c1: map(a.c1), c2: map(a.c2), to: map(a.to) });
+  return {
+    offset: strand.offset,
+    pieces: strand.pieces.map(([a, b]) => [map(a), map(b)] as const),
+    arcs: strand.arcs.map(arc),
+    path: strand.path.map((step) => ("c1" in step ? arc(step) : map(step))),
+  };
+}

@@ -326,6 +326,98 @@ edges:
     expect(report.diagnostics.filter((d) => d.code === "geometry/dash-hidden")).toEqual([]);
   });
 
+  test("on a projected plane every strand ends on the drawn (mapped) head", async () => {
+    const text = (strands: number) => `version: 1
+figure:
+  id: plane-bundle
+  theme: sumi
+  projection: {angle: 45, depthScale: 0.6}
+  layout:
+    arrange: {stack: {items: [p]}}
+groups:
+  - id: p
+    props: {plane: floor, contents: projected, padding: 7mm}
+    arrange: {row: {gap: 18mm, items: [a, b]}}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+edges:
+  - {from: a, to: b, strands: ${strands}, lineWidth: 1pt}
+`;
+    for (const strands of [2, 3, 5]) {
+      const figure = await render(text(strands));
+      const d = /<path class="sumi-wire sumi-bundle" d="([^"]+)"/.exec(figure.svg)?.[1] ?? "";
+      const ends = d
+        .split("M ")
+        .filter((part) => part.trim() !== "")
+        .map((part) => {
+          const numbers = part
+            .trim()
+            .split(/[ LC]+/)
+            .filter(Boolean)
+            .map(Number);
+          return { x: numbers.at(-2) as number, y: numbers.at(-1) as number };
+        });
+      expect(ends).toHaveLength(strands);
+      const group = /<g class="[^"]*sumi-kind-edge"[^>]*>(.*?)<\/g>/.exec(figure.svg)?.[1] ?? "";
+      expect(group).toContain("sumi-plane-head");
+      const width = 2;
+      const outline = headOutline(group);
+      for (const end of ends) expect(outline(end)).toBeLessThanOrEqual(width / 2 + 1e-6);
+    }
+  });
+
+  test("a legend bundle sample keeps room for its grown heads, solid or dashed", async () => {
+    for (const fields of ["", ", dash: dashed"]) {
+      for (const lineWidth of ["0.5pt", "2pt", "3pt"]) {
+        const text = `version: 1
+figure:
+  id: legend-bundle
+  theme: sumi
+  layout:
+    arrange: {stack: {items: [key]}}
+nodes:
+  - id: key
+    component: legend
+    props:
+      entries:
+        - {edge: {strands: 5, lineWidth: ${lineWidth}${fields}}, label: test}
+        - {edge: {strands: 3, component: double-arrow, lineWidth: ${lineWidth}${fields}}, label: both}
+`;
+        const found = await renderFigure(text);
+        expect(found.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+        expect(found.ok).toBe(true);
+      }
+    }
+  });
+
+  test("a legend zoom sample cannot be a bundle; reported at the entry", async () => {
+    const text = `version: 1
+figure:
+  id: legend-zoom
+  theme: sumi
+  layout:
+    arrange: {stack: {items: [key]}}
+nodes:
+  - id: key
+    component: legend
+    props:
+      entries:
+        - {edge: {component: zoom, strands: 3}, label: zoom}
+`;
+    const found = await errors(text);
+    expect(found.map((d) => d.code)).toContain("component/invalid-prop");
+    expect(found.map((d) => d.path)).toContainEqual([
+      "nodes",
+      0,
+      "props",
+      "entries",
+      0,
+      "edge",
+      "strands",
+    ]);
+  });
+
   test("the editable PPTX says it draws a bundle as one line", async () => {
     const figure = await render(two("strands: 4"));
     const pptx = svgToEditablePptx(figure.svg, figure.compiled.ir);

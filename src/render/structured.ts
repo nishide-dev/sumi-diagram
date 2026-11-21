@@ -97,7 +97,7 @@ import { setOverlaps } from "../layout/set-overlap";
 import { ellipseSegments, outlinePolygon } from "../layout/set-shape";
 import { fontFileFor } from "../lint/geometry/measure";
 import { cylinderPathData, shapeOutline } from "../lint/geometry/shapes";
-import { bundleStrands, strandHeadInset, strandLength, strandPathData } from "./bundle";
+import { bundleStrands, mapStrand, strandHeadInset, strandLength, strandPathData } from "./bundle";
 import { drawNodeOutline } from "./compose";
 import { subsetFont } from "./font-subset";
 import type { PathSegment } from "./geometry";
@@ -915,18 +915,28 @@ function wires(
     if (edge.route === "curve" || placed.route.lines !== undefined) continue;
     const width = edge.style.strokeWidth.units;
     const length = edgeArrowheadLength(edge.style);
-    const scale = headScale(placed.key, placed.route.points);
+    // On a projected plane (#577) the heads are drawn flat on it and mapped: the lines are
+    // offset and cut on the plane too, then mapped with them (an affine map keeps them parallel).
+    const frame = planar.get(placed.key);
+    const route =
+      frame === undefined
+        ? placed.route.points
+        : placed.route.points.map((p) => unmapPoint(frame, p));
     // Each line stops where it meets the back of its head (`strandHeadInset()`).
-    const strands = bundleStrands(
-      placed.route.points,
+    const flat = bundleStrands(
+      route,
       edge.strands,
       bundleSpacing(width, edge.strands, length, [edge.sourceArrowhead, edge.targetArrowhead]),
       sharp ? 0 : WIRE_CORNER_RADIUS,
       (offset) => ({
-        start: strandHeadInset(edge.sourceArrowhead, length, width, offset) * scale.source,
-        end: strandHeadInset(edge.targetArrowhead, length, width, offset) * scale.target,
+        start: strandHeadInset(edge.sourceArrowhead, length, width, offset),
+        end: strandHeadInset(edge.targetArrowhead, length, width, offset),
       }),
     );
+    const strands =
+      frame === undefined
+        ? flat
+        : flat.map((strand) => mapStrand(strand, (p) => mapFlatPoint(frame, p)));
     painted.set(placed.key, {
       pieces: strands.flatMap((strand) => strand.pieces.map(([a, b]): [Point, Point] => [a, b])),
       arcs: strands.flatMap((strand) => [...strand.arcs]),
