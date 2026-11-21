@@ -604,6 +604,14 @@ function placeRequestedLabel(
   } else {
     first = length / 2;
   }
+  // A tag (#610) stays on its segment: where `start` / `end` would put it past the segment's
+  // ends (a leg shorter than the arrowhead, the gap and half the tag), it is centred and kept
+  // there; what it then overlaps is `layout/edge-label-overlap`'s to report.
+  if (tag && (first < len / 2 - 1e-9 || first > length - len / 2 + 1e-9 || lo > hi + 1e-9)) {
+    first = length / 2;
+    lo = first;
+    hi = first;
+  }
 
   const segments: Rect[] = [];
   for (const route of [points, ...(surroundings.routes ?? [])]) {

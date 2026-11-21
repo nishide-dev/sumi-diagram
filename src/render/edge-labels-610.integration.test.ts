@@ -589,3 +589,42 @@ describe("an explicit labelStyle: beside is still router-placed (#610)", () => {
     expect(drifts(geometryContextFor(rendered)).map((d) => d.kind)).toEqual(["detached"]);
   });
 });
+
+describe("a tag at start or end of a short leg stays on it (#610)", () => {
+  const figure = (at: string) => `version: 1
+figure:
+  id: shortlegs
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 30mm, items: [a, b]}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+edges:
+  - {from: a, to: b, fromAnchor: south, toAnchor: south, label: tag, labelStyle: tag, labelAt: ${at}}
+`;
+
+  for (const [at, index] of [
+    ["start", 1],
+    ["end", -1],
+  ] as const) {
+    test(`labelAt: ${at} centres the tag on the short leg`, async () => {
+      const result = await renderFigure(figure(at));
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      const rendered = result.value as RenderedStructuredFigure;
+      const e = edgeAt(rendered, 0);
+      const points = e.route?.points ?? [];
+      expect(points.length).toBeGreaterThanOrEqual(4);
+      const i = index > 0 ? index : points.length - 1;
+      const p = points[i - 1] as Point;
+      const q = points[i] as Point;
+      // The leg is vertical and shorter than the tag with its allowances.
+      expect(p.x).toBe(q.x);
+      const c = center(e.route?.label?.box as Rect);
+      expect(Math.abs(c.x - p.x)).toBeLessThan(0.5);
+      expect(Math.abs(c.y - (p.y + q.y) / 2)).toBeLessThan(0.5);
+    });
+  }
+});
