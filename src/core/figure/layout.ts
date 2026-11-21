@@ -7,7 +7,7 @@
  *   `figure.layout.density` (#182), `figure.layout.straighten` (#618),
  *   `group.arrange`, `group.contentAlign` / `matchLabelHeight` (#613), `node.attach`, `node.sublabel` (#184),
  *   `node.labelRotation` (#178), `edge.fromAnchor` / `toAnchor`,
- *   `edge.labelAt` / `labelSide` (#128)) is an error: it would otherwise be
+ *   `edge.labelAt` / `labelSide` (#128), `edge.lane` (#609)) is an error: it would otherwise be
  *   ignored silently.
  * - With the `structured` engine, every node and group must be placed exactly
  *   once: as an item of one arrange tree (`figure.layout.arrange` for the root,
@@ -233,6 +233,7 @@ function checkAuto(state: CheckState, locate: Locator): void {
       "labelAt",
       "labelSide",
       "route",
+      "lane",
       "lineWidth",
       "arrowheadScale",
     ] as const) {
@@ -707,7 +708,53 @@ function checkStructured(state: CheckState, locate: Locator): void {
     }
   }
 
-  // 9. Align constraints (#132): about the figure, so they invalidate nothing.
+  // 9. Lanes (#609): a known `outside`, on an edge the router draws.
+  for (const [index, edge] of (doc.edges ?? []).entries()) {
+    if (edge?.lane === undefined || invalid.has(edgeKey(edge.id, index))) continue;
+    const subject = { kind: "edge", id: edge.id ?? `edges[${index}]` } as const;
+    const lanePath = ["edges", index, "lane"];
+    const conflict =
+      edge.route !== undefined
+        ? `route: ${edge.route} draws the edge as one ${edge.route === "curve" ? "curve" : "line"}`
+        : refOwner(edge.from) === refOwner(edge.to)
+          ? "the edge is a self-loop (route: curve draws loops out of one side)"
+          : edge.from.includes(".") || edge.to.includes(".")
+            ? "an end is a cell or block, drawn as one straight line"
+            : undefined;
+    if (conflict !== undefined) {
+      push(
+        errorAt(
+          locate,
+          "layout/invalid-lane",
+          `The lane of edge ${edge.id === undefined ? `edges[${index}]` : `"${edge.id}"`} cannot be drawn: ${conflict}.`,
+          lanePath,
+          {
+            atKey: true,
+            subject,
+            hint: "Remove lane, or remove what conflicts with it: lanes are for orthogonal routes between two elements.",
+          },
+        ),
+        edgeKey(edge.id, index),
+      );
+      continue;
+    }
+    const outside = edge.lane.outside;
+    if (outside !== undefined && !elements.has(outside) && !isInvalidId(outside)) {
+      if (!collectionsReadable) continue;
+      push(
+        errorAt(
+          locate,
+          "layout/unknown-lane-outside",
+          `Unknown lane.outside "${outside}" in edge ${edge.id === undefined ? `edges[${index}]` : `"${edge.id}"`}; name the node or group the lane runs outside of.`,
+          [...lanePath, "outside"],
+          { subject, hint: unknownHint(outside) },
+        ),
+        edgeKey(edge.id, index),
+      );
+    }
+  }
+
+  // 10. Align constraints (#132): about the figure, so they invalidate nothing.
   if (collectionsReadable) checkAlign(state, locate, elements, isInvalidId, unknownHint);
 }
 

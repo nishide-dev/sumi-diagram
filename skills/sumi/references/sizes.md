@@ -21,6 +21,11 @@ draft is close to the page width instead of 200–460mm wide.
 - Text sizes and the sizes below scale with `figure.themeOverrides.textScale`; gaps and
   paddings come from the profile and do not.
 
+For another theme, density, text scale or your own labels, ask the CLI:
+`sumi catalog --sizes --profile paper-double --theme sumi --label "Multi-Head Attention"`
+(`--json` for numbers; `--css` for the [mockup template](mockup-template.html)). It prints the
+font sizes and line widths too, from the same code as these tables.
+
 The tables are generated from the code (`bun run test src/cli/skill-sizes.test.ts`
 checks them; `SUMI_UPDATE_GOLDEN=1` rewrites them).
 

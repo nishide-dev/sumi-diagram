@@ -258,7 +258,10 @@ names its Sumi means.
   (e.g. bottom to top for a stack of layers); a fold or turn has a reason. Side paths
   (residuals, skips, feedback) run beside it, never back across it. *Sumi:* the
   root `stack: {direction: up}` or `row`; side entries with `toAnchor: west`;
-  main-path edges first in `edges` (earlier edges route straighter).
+  main-path edges first in `edges` (earlier edges route straighter); a loop, skip or
+  return line with `lane: {side, offset, outside}` keeps its long segment beside the
+  path or outside a panel ([lanes](structured.md#lanes-loops-skips-and-buses-lane)),
+  never hidden junctions or extra padding.
 - **One focus.** The one or two elements the figure is about stand out; the rest
   is quieter; a compared baseline is pale. *Sumi:* `emphasis`, `solid`, operator
   `size: large` for the focus; pastel `filled` for the rest; `dim: true` on a

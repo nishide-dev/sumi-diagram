@@ -15,6 +15,7 @@ import { outlineRegions } from "../../lint/geometry/outlines";
 import { rectPolygon, shapeOutline } from "../../lint/geometry/shapes";
 import { type LayoutIR, type Point, type Rect, roundUnits } from "../ir";
 import { endpointRects, makeInside } from "./endpoint-rects";
+import { planLanes } from "./lanes";
 
 /** Direction indices: 0 = east (+x), 1 = south (+y), 2 = west (−x), 3 = north (−y). */
 export const DIRS: readonly Point[] = [
@@ -1325,6 +1326,7 @@ function resolveEndsWith(
     tokenFrames,
   );
   const inside = (inner: Element, outer: Element): boolean => insideKeys(inner.key, outer.key);
+  const lanes = planLanes(ir, layout);
 
   // The side of each end: the anchor's, or the default.
   const chooseSide = (
@@ -1343,6 +1345,16 @@ function resolveEndsWith(
       if (port !== undefined) {
         return { ...port, inward: false, anchored: true, fixed: true };
       }
+    }
+    // A lane (#609): the side facing the lane; an anchor written on that side keeps its position.
+    const lane = lanes.get(edge.key);
+    if (lane !== undefined && lane.problem === undefined) {
+      const side = isSource ? lane.from : lane.to;
+      const anchor = isSource ? edge.fromAnchor : edge.toAnchor;
+      if (side !== undefined)
+        return typeof anchor === "object" && anchor.side === side
+          ? { side, offset: anchor.offset, inward: false, anchored: true }
+          : { side, inward: false, anchored: false };
     }
     // A blocked face-port cuboid edge (#587): the end is the top or bottom face's centroid.
     const faceSide = edge.faceSides?.[isSource ? "from" : "to"];

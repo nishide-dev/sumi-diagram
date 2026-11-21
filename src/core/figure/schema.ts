@@ -1172,6 +1172,24 @@ export const NodeSchema = z.strictObject({
   ),
 });
 
+/**
+ * `edges[].lane` (#609, design record 609): where the long segment of a
+ * loop, skip or bus runs.
+ */
+export const LaneSchema = z.strictObject({
+  side: z
+    .enum(SIDES)
+    .describe(
+      "The side the lane runs on: the edge leaves its source and enters its target on this side (an end beyond the lane uses the side facing it), and the long segment runs beyond both ends.",
+    ),
+  offset: LayoutLength.optional().describe(
+    'Distance from the farthest face on that side (of both ends, or of the outside element) to the lane, e.g. "4mm". Omitted means 6pt, or more where an arrowhead needs the room.',
+  ),
+  outside: Id.optional().describe(
+    "A group or node the lane runs just outside of (offset beyond its frame on that side) instead of beyond both ends: the frame a skip goes around, the panel a loop goes over, or the target beside which a bus's trunk runs.",
+  ),
+});
+
 export const EdgeSchema = z.strictObject({
   route: z
     .enum(["straight", "curve"])
@@ -1201,6 +1219,9 @@ export const EdgeSchema = z.strictObject({
     .describe(
       "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, or the other side when that is clear. With route: straight or curve, the default is left of the local tangent and labels stay horizontal without obstacle avoidance (structured layout only).",
     ),
+  lane: LaneSchema.optional().describe(
+    "The lane of a loop, skip or bus (structured layout only): the edge leaves and enters on the lane's side and its long segment runs `offset` beyond both ends (or beyond the frame of `outside`). Edges with lanes on one side that share a source (or a target) share one lane, the farthest: a bus with one trunk. Omitted means the router's own route.",
+  ),
   component: ComponentRef.default("arrow").describe("Component reference (kind: edge)."),
   variant: Variant,
   tone: z

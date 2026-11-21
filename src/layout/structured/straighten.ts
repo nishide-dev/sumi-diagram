@@ -524,7 +524,8 @@ function edgeState(ir: FigureIR, layout: LayoutIR, slides: ReadonlySet<number>):
       list.push({ end: `${index} ${which}`, other: other.key, key: end.key });
       bySide.set(side, list);
     }
-    if (!routed(ir, index)) continue;
+    // A lane (#609) is the author's route: it is not lined up.
+    if (!routed(ir, index) || edge.lane !== undefined) continue;
     if (inLine(drawn[index])?.line === true) straight.add(index);
     const here = inLine(pair);
     if (here === undefined) continue;

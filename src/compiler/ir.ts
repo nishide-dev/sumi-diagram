@@ -48,6 +48,7 @@ import type {
   LayoutEngine,
   SetLabelPosition,
   SetShape,
+  Side,
 } from "../core/figure/schema";
 import { refCell, refOwner } from "../core/figure/schema";
 import { nodeOrder } from "../core/figure/tokens";
@@ -90,6 +91,7 @@ import {
   sublabelFontSize,
 } from "../core/theme/style";
 import type { Tone } from "../core/theme/tones";
+import { ptToD2Units } from "../core/units";
 import { wrapBubbleText } from "./bubble";
 import { withStretchOutlines } from "./stretch-outlines";
 
@@ -493,6 +495,16 @@ export interface EdgeIR extends ElementIRBase {
   readonly labelAt?: EdgeLabelPosition;
   /** Structured layout: the side of the line, facing from source to target (#128). Absent when not written. */
   readonly labelSide?: EdgeLabelSide;
+  /**
+   * `lane` (#609): the side the route keeps to, the distance of its long
+   * segment beyond the farthest face (units; absent: the default), and the
+   * element whose frame it goes around instead of the ends. Structured layout only.
+   */
+  readonly lane?: {
+    readonly side: Side;
+    readonly offset?: number;
+    readonly outside?: ElementKey;
+  };
   /**
    * The manifest's `routing` (#176): `zoom` joins corners of the two ends
    * with straight lines instead of a routed path. Absent for a routed edge.
@@ -976,6 +988,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       e.route === undefined &&
       e.fromAnchor === undefined &&
       e.toAnchor === undefined &&
+      e.lane === undefined &&
       refCell(e.from) === undefined &&
       refCell(e.to) === undefined &&
       ends[0] !== ends[1] &&
@@ -1298,6 +1311,13 @@ function edgeIR(
     ...(e.toAnchor === STRAIGHT_SPAN_ANCHOR && { toSpan: true as const }),
     ...(e.labelAt !== undefined && { labelAt: e.labelAt }),
     ...(e.labelSide !== undefined && { labelSide: e.labelSide }),
+    ...(e.lane !== undefined && {
+      lane: freeze({
+        side: e.lane.side,
+        ...(e.lane.offset !== undefined && { offset: ptToD2Units(e.lane.offset) }),
+        ...(e.lane.outside !== undefined && { outside: endpointKey(e.lane.outside) }),
+      }),
+    }),
     // A line to a block of a cuboid (#584) is one straight segment: the router knows no blocks.
     ...(e.route !== undefined
       ? { route: e.route }
