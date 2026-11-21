@@ -285,6 +285,12 @@ groups:
   `dotted`, and `academic`'s default and `muted` groups; its `filled` and `filled-dashed` take it), and a `tone` wins over it. `'#ffffff'`
   whitens the panels; `'#efeddd'` brings back `sumi`'s sand panel from before v0.20.0. A sand
   panel for one `sumi` group is `variant: filled`.
+- In `sumi` and `sumi-dark` every frame a group draws (default, `muted`, `dashed`, `dotted`,
+  `layers`, planes) is a 0.5pt pale gray hairline, quieter than the 1pt node outlines, so a
+  white panel reads as a region and its nodes stand out (since 0.20.0). `filled-dashed` keeps
+  the gray 1pt dashed frame (it is the only border of its sand fill); sets and legends keep
+  theirs. `themeOverrides.groupStroke` / `frameWidth` replace the frame for a darker or
+  heavier one.
 
 ## Edges and the connection table
 
@@ -476,8 +482,8 @@ They are built in; a figure cannot define its own. `sumi catalog --json` lists t
 | `color` | general purpose with color: like `minimal`, but tones are pastel fills and emphasis is blue |
 | `paper` | color ML-paper style: pastel tone fills, rounded boxes (2pt) and groups (6pt), black 1pt frames, light gray groups, thin 0.5pt edges with small arrowheads, framed images with a 0.5pt border, Inter for Latin text |
 | `llama` | after Meta's Llama 4 MoE figure: 1pt slate lines and frames with **open chevron arrowheads** (a small gap before the box), white boxes with a gray frame, `solid` = dark slate block with white text, `emphasis` = blue accent block, `filled` = gray borderless block, `muted` = pale borderless block, borderless pale groups with a regular-weight title (`muted` group: white panel), rounded corners (3pt / 5pt), Inter for Latin text |
-| `sumi` | white canvas (`themeOverrides.canvas: "#f8f8ee"` for the former cream), navy ink and sand accents, white panels with a gray frame (`filled` = sand) |
-| `sumi-dark` | navy canvas, cream ink and sand accents, canvas-colored panels with a gray frame (`filled` = a lighter navy) |
+| `sumi` | white canvas (`themeOverrides.canvas: "#f8f8ee"` for the former cream), navy ink and sand accents, white panels with a thin pale gray frame (0.5pt, quieter than the 1pt node outlines; `filled` = sand) |
+| `sumi-dark` | navy canvas, cream ink and sand accents, canvas-colored panels with a thin pale frame (0.5pt; `filled` = a lighter navy) |
 
 `minimal`, `academic`, `color`, `paper` and `llama` use 8pt text (7pt on edges). `academic` is
 for black-and-white journals, `paper` for the coloured figures of ML papers; both fit

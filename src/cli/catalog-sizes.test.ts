@@ -240,7 +240,7 @@ describe("sumi catalog --sizes", () => {
         (m) => m[1],
       ),
     );
-    const colours = new Set(["--canvas", "--ink", "--panel", "--arrow", "--pt"]);
+    const colours = new Set(["--canvas", "--ink", "--panel", "--frame", "--arrow", "--pt"]);
     for (const [, name] of text.matchAll(/var\((--[a-z-]+)\)/g)) {
       if (name === undefined || colours.has(name) || /^--(blue|gray)/.test(name)) continue;
       expect(printed.has(name), name).toBe(true);

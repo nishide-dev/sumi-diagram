@@ -78,7 +78,9 @@ Vocabulary (confirm names with `sumi catalog --json`, never invent):
 - Layout: it must be expressible as `row` / `stack` / `grid` / `place` / `chat`. Free positions
   go on a mm grid so each box has one centre.
 
-Ground: the theme's `canvas` (`sumi` and `minimal` white, `sumi-dark` #30364f; `themeOverrides.canvas` replaces it). Where
+Ground: the theme's `canvas` (`sumi` and `minimal` white, `sumi-dark` #30364f; `themeOverrides.canvas` replaces it). Group
+frames: `sumi` draws them 0.5pt in a pale gray (`--frame`: #a9aebc, `sumi-dark` #6f7791), quieter than the
+node outlines. Where
 `colorUse` is not `null`, follow it: at most `maxAccentTones` accent tones, `preferredVariants`
 for most boxes, heavy fills (`heavyVariants`) for one focus at most and within `maxHeavyShare`.
 Otherwise colour only for meaning, 2-3 hues plus one accent. The same kind of thing looks the
