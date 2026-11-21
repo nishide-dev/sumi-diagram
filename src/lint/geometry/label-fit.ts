@@ -41,8 +41,6 @@ const STEP_MM = 0.5;
 /** No suggestion grows a side beyond this many times its written length. */
 const MAX_GROWTH = 6;
 
-const LABEL_OVERFLOW = "geometry/label-overflow";
-
 /** A written size in mm (on the 0.5mm grid) and the layout units it parses to. */
 export interface FitSize {
   readonly widthMm: number;
@@ -183,6 +181,11 @@ const withSize = (ir: FigureIR, key: string, size: FitSize): FigureIR => ({
 export function fitTrials(
   context: GeometryContext,
   fits: readonly { readonly key: string; readonly subject: unknown; readonly size: FitSize }[],
+  /**
+   * Whether the label of `subject` still overflows in a trial's lint context: the rule's own
+   * findings at any configured level (an `info` or `off` label-overflow must not pass a trial).
+   */
+  overflows: (linted: GeometryContext, subject: unknown) => boolean,
 ): FitVerdict[] {
   const placed = context.placed;
   const failed = (reason: "failed" | "large") => fits.map(() => ({ ok: false, reason }) as const);
@@ -220,10 +223,19 @@ export function fitTrials(
         return { ok: false, reason: "error" };
       const before = baselineProblems();
       if (before === undefined) return { ok: false, reason: "baseline" };
-      const problems = problemsOf(context, trial, assets.value, new Set(), context.source);
+      let still = true;
+      const problems = problemsOf(
+        context,
+        trial,
+        assets.value,
+        new Set(),
+        context.source,
+        (linted) => {
+          still = overflows(linted, fit.subject);
+        },
+      );
       if (problems === undefined) return { ok: false, reason: "failed" };
-      if ((problems.get(`${LABEL_OVERFLOW} ${JSON.stringify(fit.subject ?? null)}`) ?? 0) > 0)
-        return { ok: false, reason: "overflow" };
+      if (still) return { ok: false, reason: "overflow" };
       const added = newProblems(before, problems);
       if (added.length > 0)
         return {

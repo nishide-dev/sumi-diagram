@@ -1569,7 +1569,7 @@ edges:
 - The router plans the route as one line: keep other edges away from a bundle (their own
   anchors or a `gap`); a line running on a bundle is `geometry/edge-near-edge`. Do not
   share a source port with a single line (give each its own `fromAnchor`).
-- The editable PPTX draws a bundle as one line; the SVG, PDF and image PPTX draw every line.
+- The editable PPTX draws a bundle as one line and says so (`pptx/bundle-as-one-line`); the SVG, PDF and picture PPTX draw every line.
 
 ### Crossings (`layout/edge-crossing`)
 

@@ -25,7 +25,7 @@ Sumi の原則（汎用の部品、分野固有の必須部品を作らない、
 - 辺を、その経路に沿った n 本の平行線として描く。線の中心どうしの間隔は線幅の 2 倍（線の間に線幅 1 本分の隙間。どの線幅でも同じ見え方）。経路は今までどおり 1 本としてルーターが引き、描くときに左右へずらす（`src/render/bundle.ts`）。
   - 曲がり角は、元の経路の角の丸めと同じ中心の同心円で丸める（内側の線は半径 − ずれ、外側は ＋ ずれ、内側で 0 以下なら尖らせる）。半径は各脚の半分まで（ワイヤーの丸めと同じ上限）。直角でない角は尖ったまま（直交の経路と `route: straight` しか来ない）。
   - 矢じりは 1 つ。線は矢じりの底で止まり、矢じりは束を覆う大きさに自動で拡大する（`bundleArrowheadScale()`: 幅 ≥ 2·n 本分の線幅、0.25 刻み、1〜2）。辺が `arrowheadScale` を書いたときはそれを使う（ルーターの余白と lint は `style.arrowheadScale` を読むので、拡大はどこでも一貫する）。
-- 束は他の辺と幹（trunk）を共有しない（ネットの線の合成から外し、独立に描く）。`path.connection`（検査・lint の経路・編集可能 PPTX）は経路そのもの 1 本のまま。lint が測る描いた線（`paintedEdges()`）は全部の線の片と円弧を持つので、束に重なる線は `edge-near-edge` が報告する。
+- 束は他の辺と幹（trunk）を共有しない（ネットの線の合成から外し、独立に描く）。`path.connection`（検査・lint の経路・編集可能 PPTX）は経路そのもの 1 本のまま。編集可能 PPTX は束を 1 本のコネクタで描くので、黙って失わないよう `pptx/bundle-as-one-line`（warning）を出す（各線を個別の図形にすると、コネクタの接続と矢じりの扱いが SVG と一致しなくなるため、最初は報告にとどめた）。`themeOverrides.edgeCorners: sharp` では全部の線を尖った角（ずらした角の点）で描く。lint が測る描いた線（`paintedEdges()`）は全部の線の片と円弧を持つので、束に重なる線は `edge-near-edge` が報告する。
 - 曲線（`route: curve`）と `zoom` の辺には付けられない（`component/invalid-prop`）。auto エンジンでは `layout/structured-only`。凡例の `edge` の見本も `strands` を取る。
 - 採らなかった案:
   - **太い線を地の色で抜く**（太線の上に細い地色の線を重ねて n 本に見せる）: 角の処理は SVG 任せで済むが、透明な背景・塗りのあるパネルの上で抜いた部分が地の色にならない。
@@ -39,7 +39,7 @@ Sumi の原則（汎用の部品、分野固有の必須部品を作らない、
   - 高さが文字に合わせて伸びることは、高さを書かなければ今もそうなっている（幅だけを書いても高さは伸びる）。#603 の不満は、蓋が 12pt ずつ取るので 2 行のラベルで 23mm になることと、明示した高さが足りないときの寸法探しだった。前者を `capDepth`、後者を次のヒントで解く。
 - **`geometry/label-overflow` のヒントに収まる寸法を足す**（`src/lint/geometry/label-fit.ts`）: `props.width` / `props.height` を書いたノード（structured、組み込みの形。outline 部品・アイコン・キャプションを除く）で、ラベルが形の文字の領域に収まらないとき、
   - 描いたラベルの行を形のラベルの中心に保ったまま、0.5mm 刻みで (a) 高さだけ、(b) 幅だけ、(c) 両方を同じ比で大きくし、収まる最小の寸法を探す（面積が最小のもの。同じなら高さだけ → 幅だけ → 両方。幅はページで制限されることが多いため）。円・正方形は辺 1 つ。判定は lint と同じ `labelArea()` と `rectDepthInside()`（cylinder は蓋、`capDepth` を含む）。
-  - その寸法を IR の写しに書き、描画と同じ手順（`placeStructured` → `routeStructured` → SVG → この規則を含む全 geometry 規則）で試す（`trial.ts`、#621 の `relocatable`・#613 の `content-band` と同じ）。配置に error がなく、そのラベルの `label-overflow` が消え、元の図の写しと比べて新しい error / warning がないときだけ「Verified: props.width: 25mm, props.height: 15mm fits the label …」と書く。新しい問題（ページ幅の超過など）が出たら寸法とその問題のコードを書き、試せなかったときは理由を書く。
+  - その寸法を IR の写しに書き、描画と同じ手順（`placeStructured` → `routeStructured` → SVG → この規則を含む全 geometry 規則）で試す（`trial.ts`、#621 の `relocatable`・#613 の `content-band` と同じ）。配置に error がなく、そのラベルの `label-overflow` が消え（設定した重さによらず、規則の判定そのもので確かめる。info や off にしていても見逃さない）、元の図の写しと比べて新しい error / warning がないときだけ「Verified: props.width: 25mm, props.height: 15mm fits the label …」と書く。新しい問題（ページ幅の超過など）が出たら寸法とその問題のコードを書き、試せなかったときは理由を書く。
   - 費用: 明示した寸法のノードがはみ出したときだけ。1 図につき最大 4 ノード（`MAX_FIT_TRIALS`）と元の図 1 回。`HintTrials` の大きさの上限を超える図、HTML・外部ファイルの画像を含む図、ほかの規則の試しの中では試さない（`inHintTrial`）。
   - 今までのヒントの文（cylinder の「props.height of at least …pt」など）は残し、その後ろに足す。auto エンジンの図（D2 がラベルを置く）には足さない。
   - ひし形の寸法を式で出す案（ラベルの箱の角が辺の内側に入る条件）も考えたが、形ごとの式を持つより、lint と同じ判定で探して試す方が、cylinder・楕円・六角形・平行四辺形にも同じ仕組みで効く。

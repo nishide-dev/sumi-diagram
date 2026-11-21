@@ -68,6 +68,8 @@ export function problemsOf(
   skip: ReadonlySet<string>,
   /** The figure's YAML, for rules that name where to edit (`geometry/relocatable-node`); the trial must keep its arrange items. */
   source?: string,
+  /** Called with the trial's lint context, for checks that must not depend on the configured levels. */
+  inspect?: (linted: GeometryContext) => void,
 ): Problems | undefined {
   const fonts = getFontSet(trial.ir.meta.fontSetId);
   if (fonts === undefined) return undefined;
@@ -81,6 +83,7 @@ export function problemsOf(
     lintConfig: config,
     ...(source !== undefined && { source }),
   };
+  inspect?.(linted);
   const counts: Problems = new Map();
   const add = (code: string, subject: unknown) => {
     const key = `${code} ${JSON.stringify(subject ?? null)}`;

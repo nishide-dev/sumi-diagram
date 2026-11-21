@@ -187,6 +187,7 @@ per-figure suppression: mention kept warnings in your report.
 | `pdf/*` (`input-too-large`, `missing-font`, `unresolved-font`, `engine-unavailable`, `conversion-failed`), `pptx/*` conversion codes (same names) | PDF / picture PPTX conversion failed; nothing written | `sumi doctor` for fonts; else report the message (the SVG still renders) |
 | `pptx/unsupported-size` | a slide side over 56 inches, an SVG without valid pt dimensions, or (editable) `fit: scale` shrinking text below 1pt | a smaller profile only if the user agrees; for tiny text use picture PPTX or shrink less; invalid SVG dimensions are a bug |
 | `pptx/experimental-editable`, `pptx/glued-routing` (warnings) | explicit experimental editable export; glued routes become straight, labels fixed | report the boundaries; keep picture PPTX unless editable was requested |
+| `pptx/bundle-as-one-line` (warning) | editable PPTX draws a `strands` bundle as one connector | keep picture PPTX, PDF or SVG for the parallel lines, or say the bundle must be redrawn |
 | `pptx/unsupported-asset`, `pptx/unsupported-geometry` | editable PPTX cannot carry icons, images, HTML, or this SVG/arrowhead/glued self-loop; nothing written | default picture PPTX (freeform mode for self-loops); report unexpected structures |
 
 ## Geometry lint (`geometry/*`)

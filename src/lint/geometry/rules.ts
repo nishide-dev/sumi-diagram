@@ -671,7 +671,11 @@ export const labelOverflow = defineGeometryRule({
         }),
       });
     }
-    const verdicts = fitTrials(context, sized);
+    const verdicts = fitTrials(context, sized, (linted, subject) =>
+      labelOverflow
+        .run(linted, undefined)
+        .some((f) => JSON.stringify(f.subject ?? null) === JSON.stringify(subject ?? null)),
+    );
     for (const [i, { index, size }] of sized.entries()) {
       const finding = findings[index] as LintFinding;
       const verdict = verdicts[i] ?? ({ ok: false, reason: "failed" } as const);

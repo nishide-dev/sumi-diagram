@@ -11,6 +11,7 @@ import { bundleArrowheadScale, strandSpacing } from "../layout/route/arrowhead";
 import { lintRenderedFigure } from "../lint/geometry/lint";
 import { cylinderArc } from "../lint/geometry/shapes";
 import { bundleStrands } from "./bundle";
+import { svgToEditablePptx } from "./pptx";
 import { type RenderedFigure, renderFigure } from "./render";
 
 async function render(text: string): Promise<RenderedFigure> {
@@ -144,6 +145,57 @@ describe("bundles of parallel lines (#614)", () => {
     const figure = await render(two("strands: 3, arrowheadScale: 0.75"));
     expect(styleOf(figure, "e:ab").arrowheadScale).toBe(0.75);
     expect((await render(two(""))).svg).not.toContain("sumi-bundle");
+  });
+
+  test("with sharp corners every line keeps a sharp, mitred corner", () => {
+    const route = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 80 },
+    ];
+    const strands = bundleStrands(route, 3, 4, 0);
+    for (const strand of strands) expect(strand.arcs).toEqual([]);
+    expect(strands[0]?.pieces[0]?.[1]).toEqual({ x: 96, y: 4 });
+    expect(strands[2]?.pieces[0]?.[1]).toEqual({ x: 104, y: -4 });
+  });
+
+  test("edgeCorners: sharp draws no arcs in a bundle", async () => {
+    const bent = (overrides: string) => `version: 1
+figure:
+  id: bent
+  theme: sumi
+${overrides}  layout:
+    arrange: {place: {unit: 1mm, items: [{item: a, at: [0, 0]}, {item: b, at: [40, 25]}]}}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+edges:
+  - {from: a, to: b, strands: 3, fromAnchor: east, toAnchor: north}
+`;
+    const bundle = (svg: string) =>
+      /<path class="sumi-wire sumi-bundle" d="([^"]+)"/.exec(svg)?.[1] ?? "";
+    expect(bundle((await render(bent(""))).svg)).toContain("C ");
+    const sharp = bundle((await render(bent("  themeOverrides: {edgeCorners: sharp}\n"))).svg);
+    expect(sharp.match(/M /g)).toHaveLength(3);
+    expect(sharp).not.toContain("C ");
+  });
+
+  test("the editable PPTX says it draws a bundle as one line", async () => {
+    const figure = await render(two("strands: 4"));
+    const pptx = svgToEditablePptx(figure.svg, figure.compiled.ir);
+    expect(pptx.diagnostics.map((d) => d.code)).toContain("pptx/bundle-as-one-line");
+    const plain = await render(two(""));
+    expect(
+      svgToEditablePptx(plain.svg, plain.compiled.ir).diagnostics.map((d) => d.code),
+    ).not.toContain("pptx/bundle-as-one-line");
+  });
+
+  test("a zoom edge cannot be a bundle", async () => {
+    expect((await errors(two("component: zoom, strands: 2"))).map((d) => d.path)).toContainEqual([
+      "edges",
+      0,
+      "strands",
+    ]);
   });
 
   test("a curve, a zoom and the auto engine cannot take strands", async () => {

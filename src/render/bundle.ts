@@ -111,7 +111,8 @@ export function bundleStrands(
         ),
       );
       const base = Math.min(radius, legs / 2);
-      const r = right ? base - (left ? offset : -offset) : 0;
+      // Sharp corners (radius 0, `edgeCorners: sharp`) stay sharp on every line: the mitred points.
+      const r = right && base > 0 ? base - (left ? offset : -offset) : 0;
       if (r <= 0) {
         pieces.push([start, corner]);
         drawn.push(corner);
