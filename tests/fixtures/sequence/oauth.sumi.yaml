@@ -1,0 +1,37 @@
+# OAuth-like authorization code exchange (#630 demo): notes over and beside lifelines,
+# a fragment, a message across two lifelines and a self-message.
+version: 1
+figure:
+  id: oauth
+  theme: sumi
+  profile: screen-doc
+  themeOverrides: {textScale: 1.5}
+  layout:
+    arrange:
+      sequence:
+        participants: [user, app, auth, api]
+        rows:
+          - login
+          - redirect
+          - {note: consent, over: [user, auth]}
+          - code
+          - {fragment: "token exchange", rows: [exchange, token, {note: verify, over: [auth], side: right}]}
+          - call
+          - check
+          - data
+nodes:
+  - {id: user, component: box, label: User, weight: bold}
+  - {id: app, component: box, label: Client app, weight: bold}
+  - {id: auth, component: box, label: Auth server, weight: bold}
+  - {id: api, component: box, label: Resource API, weight: bold}
+  - {id: consent, component: box, variant: dashed, label: user signs in and consents}
+  - {id: verify, component: box, label: "checks code\nand PKCE"}
+edges:
+  - {id: login, from: user, to: app, label: open app}
+  - {id: redirect, from: app, to: auth, label: "authorize (PKCE challenge)"}
+  - {id: code, from: auth, to: app, variant: dashed, label: authorization code}
+  - {id: exchange, from: app, to: auth, label: "code + verifier"}
+  - {id: token, from: auth, to: app, variant: dashed, label: access token}
+  - {id: call, from: app, to: api, label: "GET /data (Bearer)"}
+  - {id: check, from: api, to: api, label: validate token}
+  - {id: data, from: api, to: app, variant: dashed, label: "200 OK"}

@@ -121,6 +121,10 @@ export type AttachSide = Side | Corner;
  * Where a group's label (title) sits inside the group's border (#127, design
  * doc §6.27): along the top or bottom edge, at the left, centre or right.
  */
+/** Where a group's content sits when the group is taller than it (#613). */
+export const GROUP_CONTENT_ALIGNS = ["top", "center", "bottom"] as const;
+export type GroupContentAlign = (typeof GROUP_CONTENT_ALIGNS)[number];
+
 export const GROUP_LABEL_POSITIONS = [
   "top-left",
   "top",
@@ -186,6 +190,21 @@ export type EdgeLabelPosition = (typeof EDGE_LABEL_POSITIONS)[number];
  */
 export const EDGE_LABEL_SIDES = ["left", "right"] as const;
 export type EdgeLabelSide = (typeof EDGE_LABEL_SIDES)[number];
+
+/**
+ * The dash of an edge's line apart from its variant (#614): `dashed` takes the
+ * theme's dashed edge's dashes and `dotted` its round dots, on any variant (a
+ * muted, emphasis or toned line).
+ */
+export const EDGE_DASHES = ["dashed", "dotted"] as const;
+export type EdgeDash = (typeof EDGE_DASHES)[number];
+
+/** Fewest and most parallel lines of a bundle edge (`edges[].strands`, #614). */
+export const EDGE_STRANDS_RANGE = { min: 2, max: 5 } as const;
+
+/** The size of a text as a role of the theme's text (nodes' and sets' `text`). */
+export const TEXT_ROLES = ["small", "body", "heading", "large"] as const;
+export type TextRole = (typeof TEXT_ROLES)[number];
 
 /** Cross-axis alignment inside a stack or row. */
 export const ARRANGE_ALIGNS = ["start", "center", "end", "stretch"] as const;
@@ -312,7 +331,9 @@ export const StackSchema = z.strictObject({
     return z
       .array(ArrangeItemSchema)
       .min(1)
-      .describe("Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat).");
+      .describe(
+        "Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat / sequence).",
+      );
   },
 });
 
@@ -324,7 +345,9 @@ export const RowSchema = z.strictObject({
     return z
       .array(ArrangeItemSchema)
       .min(1)
-      .describe("Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat).");
+      .describe(
+        "Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat / sequence).",
+      );
   },
 });
 
@@ -455,6 +478,134 @@ export const ChatSchema = z.strictObject({
 });
 export type Chat = z.output<typeof ChatSchema>;
 
+/**
+ * A sequence diagram (#630, design record 630): participants in a row with
+ * lifelines down from them, and rows of messages (edges), notes and fragments
+ * in time order. Sumi decides every coordinate.
+ */
+export const SEQUENCE_DASHES = ["solid", ...EDGE_DASHES] as const;
+
+const SequenceNoteSchema = z.strictObject({
+  note: Id.describe(
+    "The node (or group) of the note: any component, placed on the lifelines named by over.",
+  ),
+  over: z
+    .array(Id)
+    .min(1)
+    .describe(
+      "The participants the note lies over: one, or the two outermost of several neighbours (the note widens to span every lifeline from the leftmost to the rightmost named, so it must be a component that can stretch: not a circle or other fixed shape, nor one with props.width). With side, exactly one.",
+    ),
+  side: z
+    .enum(["left", "right"])
+    .optional()
+    .describe(
+      "Place the note beside the lifeline (on this side) instead of over it; the lifeline then runs on unbroken. Omitted means over the lifelines, which stop at the note's top and resume below it.",
+    ),
+});
+
+export const SequenceFragmentSchema = z
+  .strictObject({
+    fragment: z
+      .string()
+      .min(1)
+      .describe(
+        'The frame\'s heading, written as it should read, e.g. "loop [until done]" or "alt [cache hit]"; no UML kind is required.',
+      ),
+    get rows() {
+      return z
+        .array(SequenceRowSchema)
+        .min(1)
+        .describe("The rows the frame encloses (messages, notes and nested fragments).");
+    },
+    variant: z
+      .enum(SET_VARIANTS)
+      .optional()
+      .describe(
+        "The frame's paint, as a rect set's: default (tint and outline), filled, outlined, dashed or dotted. Omitted means outlined.",
+      ),
+    tone: Tone.describe(
+      "Color category of the frame (outline, tint) and its heading. Omitted means gray.",
+    ),
+    fillOpacity: z
+      .number()
+      .min(0)
+      .max(1)
+      .optional()
+      .describe("Strength of the tint (0..1), as a set's fillOpacity."),
+    text: z
+      .enum(TEXT_ROLES)
+      .optional()
+      .describe("The size of the heading: small, body (the default), heading or large."),
+    weight: z
+      .enum(["regular", "bold"])
+      .optional()
+      .describe("The weight of the heading. Omitted means bold."),
+  })
+  .meta({
+    id: "SequenceFragment",
+    description:
+      "A frame around consecutive rows with a heading at its top left (outside the first lifeline it encloses), drawn as a rect set.",
+  });
+
+const SequenceMessage = Id.describe(
+  "A message: the ID of an edge whose from and to are participants (the same one for a self-message).",
+);
+
+/** A row of a sequence: a message (an edge ID), a note, a band of both, or a fragment. */
+export const SequenceRowSchema = z.union([
+  SequenceMessage,
+  SequenceNoteSchema,
+  z
+    .array(z.union([SequenceMessage, SequenceNoteSchema]))
+    .min(2)
+    .describe(
+      "A band: messages and notes side by side in one row, from the same top (e.g. a note on one lifeline while two others exchange a message). They may not cover the same lifelines or the same side of a gap.",
+    ),
+  SequenceFragmentSchema,
+]);
+
+export const SequenceSchema = z.strictObject({
+  participants: z
+    .array(Id)
+    .min(1)
+    .describe(
+      "The node or group IDs heading the lifelines, left to right (any component: a box, an icon, a group).",
+    ),
+  rows: z
+    .array(SequenceRowSchema)
+    .min(1)
+    .describe(
+      "Top to bottom: edge IDs (messages), {note, over}, bands [a, b] of both side by side, and {fragment, rows}. The y of every row follows from this order.",
+    ),
+  participantGap: LayoutLength.optional().describe(
+    "Least space between neighbouring participants' boxes; the lifelines move further apart when a message label, note or fragment needs it. Omitted means the profile's arrange gap.",
+  ),
+  rowGap: LayoutLength.optional().describe(
+    "Space between consecutive rows. Omitted means a third of the profile's arrange gap.",
+  ),
+  lifeline: z
+    .strictObject({
+      variant: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("The line component's variant. Omitted means muted."),
+      dash: z
+        .enum(SEQUENCE_DASHES)
+        .optional()
+        .describe("solid, dashed or dotted. Omitted means dashed."),
+      tone: z.enum(TONE_NAMES).optional().describe("The lifelines' tone. Omitted means none."),
+      lineWidth: StrokeWidth.optional().describe(
+        "Width of the lifelines. Omitted means the theme's thin line (or half the muted line), at least 0.5pt times the text scale, so they read lighter than the messages.",
+      ),
+    })
+    .optional()
+    .describe("How the lifelines are drawn (generated line edges)."),
+});
+export type Sequence = z.output<typeof SequenceSchema>;
+export type SequenceRow = z.output<typeof SequenceRowSchema>;
+export type SequenceFragment = z.output<typeof SequenceFragmentSchema>;
+
 /** One box of an arrange tree: exactly one arrangement kind. */
 export const ArrangeBoxSchema = z
   .strictObject({
@@ -471,6 +622,7 @@ export const ArrangeBoxSchema = z
       return PlaceSchema.optional();
     },
     chat: ChatSchema.optional(),
+    sequence: SequenceSchema.optional(),
   })
   .check((ctx) => {
     const kinds = Object.values(ctx.value).filter((v) => v !== undefined).length;
@@ -478,16 +630,16 @@ export const ArrangeBoxSchema = z
       ctx.issues.push({
         code: "custom",
         message:
-          'An arrange box must have exactly one of "stack", "row", "grid", "place" or "chat".',
+          'An arrange box must have exactly one of "stack", "row", "grid", "place", "chat" or "sequence".',
         input: ctx.value,
-        params: { [ONE_OF_ISSUE]: ["stack", "row", "grid", "place", "chat"] },
+        params: { [ONE_OF_ISSUE]: ["stack", "row", "grid", "place", "chat", "sequence"] },
       });
     }
   })
   .meta({
     id: "ArrangeBox",
     description:
-      "A stack (vertical), row (horizontal), row-major grid, rigid coordinate placement, or chat conversation column.",
+      "A stack (vertical), row (horizontal), row-major grid, rigid coordinate placement, chat conversation column, or sequence diagram.",
     minProperties: 1,
     maxProperties: 1,
   });
@@ -1021,6 +1173,15 @@ export const GroupSchema = z.strictObject({
     .describe(
       'Text drawn centred below the group\'s border, e.g. "(a) encoder". Drawn as a label with the reserved ID <id>-caption.',
     ),
+  contentAlign: z
+    .enum(GROUP_CONTENT_ALIGNS)
+    .optional()
+    .describe(
+      "Structured layout: where the group's content (its arrange tree and attached nodes) sits when the group is taller than the content, e.g. a panel stretched to its neighbours' height by align: stretch or justify: stretch. top puts the content right under the title and leaves the room at the bottom, bottom leaves it at the top, center (the default) splits it above and below. Sibling panels with top share the line their first rows start on. A root box that fills the height itself (a stack whose justify: stretch grows an item or whose justify: space-between spreads two or more, a row whose align: stretch stretches an item) keeps it, and contentAlign then has nothing to move. No effect on a group at its natural height or on a tilted plane. Omitted means center.",
+    ),
+  matchLabelHeight: Id.optional().describe(
+    "Structured layout: groups that write the same name reserve the same height for their title (the tallest of their labels), so a one-line title and a two-line title start their content on one line; a group without a label reserves the band too. With contentAlign: top in a stretched row, the first rows of the panels line up. Omitted means the group's own title height.",
+  ),
   component: ComponentRef.default("container").describe("Component reference (kind: group)."),
   variant: Variant,
   tone: Tone,
@@ -1067,7 +1228,7 @@ export const NodeSchema = z.strictObject({
       'Structured layout: a second, smaller text under the label, e.g. a size "32 × 32 × 4" under "Noise". Drawn at 7/8 of the label\'s font size (rounded down to 0.5pt); newlines break lines and label math is allowed. Needs a label.',
     ),
   text: z
-    .enum(["small", "body", "heading", "large"])
+    .enum(TEXT_ROLES)
     .optional()
     .describe(
       "Structured layout: the size of the node's label as a role of the theme's text, not a free size: small (the theme's small text, e.g. a caption or a muted note), body (the variant's own size, the default), heading (the theme's group-title size, e.g. a row title or a method name) or large (1.5 times the body size, e.g. a repeat count like \"L×\"). The sublabel is drawn at 7/8 of it. Follows figure.themeOverrides.textScale.",
@@ -1159,6 +1320,24 @@ export const NodeSchema = z.strictObject({
   ),
 });
 
+/**
+ * `edges[].lane` (#609, design record 609): where the long segment of a
+ * loop, skip or bus runs.
+ */
+export const LaneSchema = z.strictObject({
+  side: z
+    .enum(SIDES)
+    .describe(
+      "The side the lane runs on: the edge leaves its source and enters its target on this side (an end beyond the lane uses the side facing it), and the long segment runs beyond both ends.",
+    ),
+  offset: LayoutLength.optional().describe(
+    'Distance from the farthest face on that side (of both ends, or of the outside element) to the lane, e.g. "4mm". Omitted means 6pt, or more where an arrowhead needs the room.',
+  ),
+  outside: Id.optional().describe(
+    "A group or node the lane runs just outside of (offset beyond its frame on that side) instead of beyond both ends: the frame a skip goes around, the panel a loop goes over, or the target beside which a bus's trunk runs.",
+  ),
+});
+
 export const EdgeSchema = z.strictObject({
   route: z
     .enum(["straight", "curve"])
@@ -1188,6 +1367,9 @@ export const EdgeSchema = z.strictObject({
     .describe(
       "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, or the other side when that is clear. With route: straight or curve, the default is left of the local tangent and labels stay horizontal without obstacle avoidance (structured layout only).",
     ),
+  lane: LaneSchema.optional().describe(
+    "The lane of a loop, skip or bus (structured layout only): the edge leaves and enters on the lane's side and its long segment runs `offset` beyond both ends (or beyond the frame of `outside`). Edges with lanes on one side that share a source (or a target) share one lane, the farthest: a bus with one trunk. Omitted means the router's own route.",
+  ),
   component: ComponentRef.default("arrow").describe("Component reference (kind: edge)."),
   variant: Variant,
   tone: z
@@ -1202,6 +1384,20 @@ export const EdgeSchema = z.strictObject({
   arrowheadScale: ArrowheadScale.optional().describe(
     "Size of this edge's arrowheads as a multiple (0.5 to 2) of what its width gives; the router keeps room for the scaled head. Omitted means figure.themeOverrides.arrowheadScale or 1. Structured layout only.",
   ),
+  dash: z
+    .enum(EDGE_DASHES)
+    .optional()
+    .describe(
+      "Draw the line dashed (the theme's dashed edge's dashes) or dotted (round dots), whatever the variant: e.g. variant: muted with dash: dotted for a pale dotted line. Omitted means the variant's own line (solid unless the variant is dashed or dotted).",
+    ),
+  strands: z
+    .int()
+    .min(EDGE_STRANDS_RANGE.min)
+    .max(EDGE_STRANDS_RANGE.max)
+    .optional()
+    .describe(
+      "Draw the edge as a bundle of this many parallel lines (2 to 5) along its route, e.g. 4 for four residual streams: the lines are two line widths apart, follow every turn, and end under one arrowhead grown to cover the bundle, up to twice its size (unless arrowheadScale is written); a head still too small for it (a box or diamond on a thick line) draws the lines closer together under it. Structured layout only; not with route: curve or a zoom edge. Omitted means one line.",
+    ),
   props: Props,
 });
 
@@ -1246,6 +1442,18 @@ export const SetSchema = z.strictObject({
     .optional()
     .describe(
       "Where the label sits outside the outline: top, top-right, right, bottom-right, bottom, bottom-left, left or top-left. Omitted means top.",
+    ),
+  text: z
+    .enum(TEXT_ROLES)
+    .optional()
+    .describe(
+      "The size of the set's label as a role of the theme's text: small (the theme's small text), body (a box's text), heading (the group-title size, the default) or large (1.5 times a box's text), e.g. heading with weight: bold for the title of a band. Follows figure.themeOverrides.textScale.",
+    ),
+  weight: z
+    .enum(["regular", "bold"])
+    .optional()
+    .describe(
+      "The weight of the set's label (bold needs a bold face in the theme's font). Omitted means the group title's weight.",
     ),
   padding: LayoutLength.optional().describe(
     "Room between the members and the outline. Omitted means the profile's group padding.",

@@ -1,8 +1,13 @@
 import { Command, CommanderError, Option } from "commander";
 import pkg from "../../package.json";
-import type { CatalogSection } from "../core/catalog";
-import { COMPONENT_KINDS, type ComponentKind } from "../core/registry/manifest";
-import { catalogCommand, collectSection } from "./commands/catalog";
+import { COMPONENT_KINDS } from "../core/registry/manifest";
+import {
+  type CatalogCommandOptions,
+  catalogCommand,
+  collectSection,
+  parseTextScale,
+  SIZE_DENSITY_CHOICES,
+} from "./commands/catalog";
 import { doctorCommand } from "./commands/doctor";
 import { fmtCommand } from "./commands/fmt";
 import { lintCommand, parseMaxWarnings } from "./commands/lint";
@@ -73,6 +78,10 @@ stack traces for internal errors. If the reader of the output exits early
     .option("--background <mode>", "canvas or transparent; overrides figure.background")
     .option("--profile <name>", "use this built-in profile instead of figure.profile")
     .option("--no-geometry", "skip the geometry rules on the rendered SVG")
+    .option(
+      "--explain-width",
+      "print where the width goes: natural widths, paddings and gaps per group and box (structured layout)",
+    )
     .option("--json", "print a JSON report to stdout instead of text")
     .action(async (file: string, options, command: Command) => {
       setExitCode(
@@ -180,16 +189,40 @@ update, 2 the update was refused or failed (the installed version is left as it 
     .addOption(
       new Option("--kind <kind>", "only components of this kind").choices([...COMPONENT_KINDS]),
     )
-    .action(
-      (options: {
-        json?: boolean;
-        kind?: ComponentKind;
-        section?: CatalogSection[];
-        icons?: string;
-      }) => {
-        setExitCode(catalogCommand(options, context));
-      },
-    );
+    .option(
+      "--sizes",
+      "print the default sizes of a structured figure: text sizes, line widths, gaps, paddings and each node component's natural size",
+    )
+    .option(
+      "--profile <id>",
+      "with --sizes: this profile (default: paper-double, screen-doc and presentation-16x9)",
+    )
+    .option("--theme <id>", "with --sizes: this theme (default: sumi)")
+    .addOption(
+      new Option(
+        "--density <density>",
+        "with --sizes: the layout density (default: normal)",
+      ).choices([...SIZE_DENSITY_CHOICES]),
+    )
+    .option(
+      "--text-scale <n>",
+      "with --sizes: figure.themeOverrides.textScale (default: what the theme needs for the profile)",
+      parseTextScale,
+    )
+    .option(
+      "--label <text>",
+      'with --sizes: measure the components with this label (repeatable; default: "Encoder")',
+      collect,
+    )
+    .option(
+      "--component <id>",
+      "with --sizes: only this node component (repeatable; default: all)",
+      collect,
+    )
+    .option("--css", "with --sizes and --profile: print the mockup template's size variables (CSS)")
+    .action((options: CatalogCommandOptions) => {
+      setExitCode(catalogCommand(options, context));
+    });
 
   return program;
 }

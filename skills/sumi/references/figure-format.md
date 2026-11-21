@@ -43,13 +43,13 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 
 | Element | Fields (required in bold) | Defaults |
 | --- | --- | --- |
-| group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
+| group | **`id`**, `label`, `labelAt`, `caption`, `contentAlign`¹, `matchLabelHeight`¹, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent, contentAlign `center` |
 | node | **`id`**, **`component`**, `label`, `sublabel`¹, `sublabelInk`¹, `text`¹, `weight`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `matchWidth`¹, `variant`, `tone`, `mono`, `icon`, `iconSize`, `iconAt`¹, `badge`, `glyphs`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
 | set¹ | **`id`**, **`members`**, `label`, `labelAt`, `shape`, `angle`, `padding`, `width`, `height`, `minWidth`, `minHeight`, `enclose`, `variant`, `tone`, `fillOpacity` | shape `circle`, labelAt `top`, enclose `body`, variant `default`, no tone (gray), padding = the profile's group padding |
-| edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `route`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
+| edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `route`¹, `lane`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`):
-[structured](structured.md) (`grow`: [filling extra height](structured.md#arrange-trees); `matchWidth`: [equal widths](structured.md#arrange-trees)).
+[structured](structured.md) (`grow`: [filling extra height](structured.md#arrange-trees); `matchWidth`: [equal widths](structured.md#arrange-trees); group `contentAlign` / `matchLabelHeight`: [stretched panels](structured.md#group-titles-and-captions)).
 Exception: `bubble` supports `textAlign` in auto layout too.
 `icon` / `badge` / `glyphs`: [assets](assets.md#glyphs). Group `labelAt` / `caption`: [groups](#groups).
 
@@ -58,7 +58,9 @@ general per-element style, colour, font or coordinate field: appearance is
 `variant` and `tone`, size the `width` / `height` props of node components, and
 position the layout (`direction` in auto figures; arrange trees, `attach` and
 anchors in structured ones). Conversations use a [`chat` arrange box](structured.md#chat-conversations)
-with ordinary `bubble` nodes, speakers, meta notes and date dividers.
+with ordinary `bubble` nodes, speakers, meta notes and date dividers; sequence diagrams a
+[`sequence` arrange box](structured.md#sequence-diagrams) with ordinary nodes as participants
+and notes and ordinary edges as messages, in rows.
 
 In built-in chromatic themes, the yellow tone's line (edges and outlined or
 tinted frames; not a solid node, whose outline is its bright fill) has at least
@@ -86,6 +88,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges (`shape: ellipse` with `angle`: tilted ellipses); node `glyphs`; `legend` samples `icon` / `glyph` / `set`, `flow`, `perRow`, `heading`, `labelAt`; node `iconSize` (and a legend `icon` entry's) sizes an icon without an enclosing shape; a `tone` on an icon-only `label` colours the icon (a legend `icon` entry: `iconTone`); stroke options: `themeOverrides` `lineWidth` / `frameWidth` / `arrowheadScale` / `cornerRadius`, element `lineWidth` / `cornerRadius` / `arrowheadScale`, `dotted` variant; `block-arrow`, `triangle-arrow`, `chevron` flow markers |
 | 0.16.1 | Set `enclose: footprint` includes member glyphs and padding; the default `body` preserves existing outlines. |
 | 0.19.0 | `cuboid`: a solid drawn in oblique projection, with `dims`; `figure.projection` (`angle`, `depthScale`); container `props.plane` (`floor` / `wall`): a tilted plane group, with `props.contents: projected` laying node outlines, arrowheads and a `matrix` flat on it; `cuboid` `cells` / `highlight` and `<node>.<name>` zoom ends |
+| 0.20.0 | `sequence` arrange box (participants, lifelines, message rows, notes, bands, fragments); edge `dash` / `strands`, set `text` / `weight`, cylinder `capDepth` |
 
 ## IDs
 
@@ -310,7 +313,13 @@ their own `properties`, `enum`, `const` and `anyOf`.
 
 - Sizes (`props.width` / `height`): lengths with a unit (`mm`, `cm`, `in`, `pt`),
   rounded to the nearest 0.5pt (`12mm` = 34.02pt becomes 34pt, silently). Omit sizes unless
-  needed: nodes are sized to their labels.
+  needed: nodes are sized to their labels. When a written size is too small for the label,
+  `geometry/label-overflow`'s hint gives the size that fits (`Verified: props.height: 19.5mm
+  …` when a trial layout confirmed it); write that size.
+- `cylinder` `props.capDepth` (structured): the depth of each elliptical cap, e.g. `2pt` for
+  a flat cylinder about as tall as the boxes beside it (the default caps are 12pt deep on a
+  cylinder sized to its label). A cylinder sized to its label is the label plus three cap
+  depths tall.
 - `label` (`sumi/label`) draws text without a border and needs a non-empty label.
 - **Shapes**: `box`, `square`, `circle`, `ellipse`, `diamond`, `hexagon`,
   `parallelogram`, `cylinder`, `document`. `circle` and `square` keep 1:1.
@@ -563,6 +572,9 @@ Colours are strict `#RRGGBB` and apply before inherited dimming.
   the frame; in a legend `edge` entry the sample's), `arrowheadScale` on an edge, `cornerRadius`
   on a node, group or set. `variant: dotted` on an edge, `container` or set draws round dots
   three line widths apart (the theme's `dashed` colours and fill); use `dashed` for dashes.
+  An edge's `dash: dashed | dotted` puts dashes or dots on any variant (`variant: muted, dash:
+  dotted` is a pale dotted line; both engines), and `strands: 2–5` draws it as a bundle of
+  parallel lines ([bundles](structured.md#bundles-of-parallel-lines-strands)).
   Editable PPTX uses PowerPoint's round-dot preset and the nearest of its three head sizes.
 
 <a id="text-scale"></a>**Text scale.** `themeOverrides.textScale` (a multiple of 0.25, 0.5 to 4) multiplies the

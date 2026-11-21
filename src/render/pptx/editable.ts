@@ -1793,6 +1793,18 @@ export function svgToEditablePptx(
         message:
           "Glued connectors replace ELK routes with straight lines. Edge label positions do not follow later edits.",
       });
+    // A bundle (#614) is one connector in PowerPoint: say so instead of losing its lines silently.
+    for (const edge of ir.edges) {
+      if (edge.strands === undefined) continue;
+      const name = edge.id ?? `edges[${edge.index}]`;
+      diagnostics.push({
+        code: "pptx/bundle-as-one-line",
+        severity: "warning",
+        message: `Edge ${name} is a bundle of ${edge.strands} parallel lines (strands), but the editable PPTX draws it as one connector along its route.`,
+        hint: "Use the picture PPTX, PDF or SVG to keep the parallel lines, or redraw them in PowerPoint.",
+        subject: { kind: "edge", id: name },
+      });
+    }
     return {
       ok: true,
       value: editablePptx(

@@ -58,7 +58,9 @@ const CYLINDER_DEEP_SLOPE = 1 / 6;
  * a third of the height below that), so a short cylinder keeps room for a line
  * of text between its caps (#516).
  */
-export function cylinderArc(height: number): number {
+export function cylinderArc(height: number, capDepth?: number): number {
+  // A written cap depth (#614, props.capDepth) is kept, at most a third of the height.
+  if (capDepth !== undefined) return Math.min(capDepth, height / 3);
   if (height >= CYLINDER_DEEP_HEIGHT_UNITS)
     return Math.min(
       2 * CYLINDER_ARC_UNITS,
@@ -82,8 +84,9 @@ export function cylinderArc(height: number): number {
 export function cylinderPathData(
   { x, y, width: w, height: h }: Rect,
   n: (value: number) => string,
+  capDepth?: number,
 ): { body: string; rim: string } {
-  const arc = cylinderArc(h);
+  const arc = cylinderArc(h, capDepth);
   const cx = x + w / 2;
   const k = w * 0.05;
   const body =
@@ -98,10 +101,12 @@ export function cylinderPathData(
 }
 
 /** The height of a cylinder's body between the caps, where its label goes. */
-export const cylinderBodyHeight = (height: number): number => height - 3 * cylinderArc(height);
+export const cylinderBodyHeight = (height: number, capDepth?: number): number =>
+  height - 3 * cylinderArc(height, capDepth);
 
 /** The smallest height (in 0.25-unit steps) whose body is at least `content` tall. */
-export function cylinderMinHeight(content: number): number {
+export function cylinderMinHeight(content: number, capDepth?: number): number {
+  if (capDepth !== undefined) return Math.max(0, content) + 3 * capDepth;
   let h = Math.max(0, content);
   while (cylinderBodyHeight(h) < content) h += 0.25;
   return h;
@@ -157,11 +162,11 @@ export function shapeOutline(shape: DrawnShape, bbox: Rect): Region {
  * cylinder (between the front edge of the top cap and the top of the bottom
  * cap) and the document (above the wavy bottom edge).
  */
-export function labelArea(shape: DrawnShape, bbox: Rect): Region {
+export function labelArea(shape: DrawnShape, bbox: Rect, capDepth?: number): Region {
   const { x, y, width, height } = bbox;
   switch (shape) {
     case "cylinder": {
-      const arc = cylinderArc(height);
+      const arc = cylinderArc(height, capDepth);
       return rectPolygon({ x, y: y + 2 * arc, width, height: height - 3 * arc });
     }
     case "document":

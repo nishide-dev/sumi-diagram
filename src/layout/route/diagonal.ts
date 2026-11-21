@@ -445,7 +445,7 @@ function growForStraightLabels(layout: LayoutIR): LayoutIR {
 }
 
 /** A set outline (#407) moved by (dx, dy), like the nodes it encloses. */
-function shiftOutline(outline: SetOutline, dx: number, dy: number): SetOutline {
+export function shiftOutline(outline: SetOutline, dx: number, dy: number): SetOutline {
   const at = (p: Point): Point => ({ x: roundUnits(p.x + dx), y: roundUnits(p.y + dy) });
   switch (outline.kind) {
     case "ellipse":

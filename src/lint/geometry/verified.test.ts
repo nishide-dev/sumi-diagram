@@ -7,6 +7,10 @@ import { geometryContextFor, lintGeometry, lintRenderedFigure } from "./lint";
 import { exceedsPageWidth, groupEmptyArea } from "./rules";
 import { verifyHints } from "./verified";
 
+/** The partial-reduction trials of the width hint, run directly (the diagnostic shows them only when no edit fits, #607). */
+const widthTrials = (rendered: Parameters<typeof geometryContextFor>[0]) =>
+  verifyHints(geometryContextFor(rendered), "width", (c) => c.canvas.width);
+
 const gridProbe = (count: number, span = false) => `version: 1
 figure:
   id: probe
@@ -33,7 +37,11 @@ test.each([1, 3])(
     const width = printedSize(before.rendered.inspection).widthPt;
     expect(printedSize(inner.rendered.inspection).widthPt).toBe(width);
     const reduction = width - printedSize(outer.rendered.inspection).widthPt;
-    const hint = before.diagnostics.find((d) => d.code === exceedsPageWidth.id)?.hint;
+    // The diagnostic leads with an edit that fits (#607); the partial edits are verifyHints'.
+    const diagnosticHint = before.diagnostics.find((d) => d.code === exceedsPageWidth.id)?.hint;
+    expect(diagnosticHint).toContain("Fits 88mm");
+    expect(diagnosticHint).toContain('set props.width of node "a" to');
+    const hint = widthTrials(before.rendered);
     expect(hint).toContain(
       `set figure.layout.arrange.grid.columnGap to 0mm (page width reduced by ${formatMm(reduction)})`,
     );
@@ -41,7 +49,7 @@ test.each([1, 3])(
     const saved = structuredClone(before.rendered.compiled.ir);
     const inspection = structuredClone(before.rendered.inspection);
     const again = lintGeometry(before.rendered, { rules: [exceedsPageWidth] });
-    expect(again[0]?.hint).toBe(hint);
+    expect(again[0]?.hint).toBe(diagnosticHint);
     expect(before.rendered.compiled.ir).toEqual(saved);
     expect(before.rendered.inspection).toEqual(inspection);
     const edits = hint?.split("Verified layout edits (independent trials): ")[1]?.split("; ") ?? [];
@@ -80,7 +88,11 @@ nodes:
     const reduction =
       printedSize(before.rendered.inspection).widthPt -
       printedSize(after.rendered.inspection).widthPt;
-    const hint = before.diagnostics.find((d) => d.code === exceedsPageWidth.id)?.hint;
+    const fits = before.diagnostics.find((d) => d.code === exceedsPageWidth.id)?.hint;
+    // The image keeps its size: only the gap and the box are fitting edits (#607).
+    expect(fits).toContain("set figure.layout.arrange.row.gap to 13mm (now 20mm) → 87.49mm");
+    expect(fits).not.toContain('node "a" to');
+    const hint = widthTrials(before.rendered);
     expect(hint).toContain(
       `set figure.layout.arrange.row.gap to 0mm (page width reduced by ${formatMm(reduction)})`,
     );
@@ -237,9 +249,13 @@ nodes:
   - { id: s, component: separator }
   - { id: b, component: box, label: B, props: { width: 300pt } }
 `);
-  const hint = report.diagnostics.find((d) => d.code === exceedsPageWidth.id)?.hint;
+  if (!report.rendered) throw new Error("render failed");
+  const hint = widthTrials(report.rendered);
   expect(hint).toContain("set figure.layout.arrange.row.gap to 0mm (page width reduced by");
   expect(hint).not.toMatch(/node "s"/);
+  expect(report.diagnostics.find((d) => d.code === exceedsPageWidth.id)?.hint).not.toMatch(
+    /node "s"/,
+  );
 });
 
 const rowsOf = (gaps: readonly string[]) =>
@@ -250,8 +266,11 @@ const rowNodes = (count: number) =>
       .map((c) => `  - { id: ${c}${i}, component: box, label: X, props: { width: 20pt } }`)
       .join("\n"),
   ).join("\n");
-const widthHint = async (text: string) =>
-  (await lintRenderedFigure(text)).diagnostics.find((d) => d.code === exceedsPageWidth.id)?.hint;
+const widthHint = async (text: string) => {
+  const report = await lintRenderedFigure(text);
+  if (!report.rendered) throw new Error("render failed");
+  return widthTrials(report.rendered);
+};
 
 test("candidates are ordered by expected impact, not tree order, within the trial budget", async () => {
   const wideNode = await widthHint(`version: 1

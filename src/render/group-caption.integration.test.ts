@@ -40,6 +40,7 @@ async function render(
   jogEdges: readonly string[] = [],
   hugEdges: readonly string[] = [],
   bendEdges: readonly string[] = [],
+  bandGroups: readonly string[] = [],
 ): Promise<RenderedFigure> {
   const result = await renderFigure(source, {
     backend: createD2CliBackend(),
@@ -65,6 +66,8 @@ async function render(
     ...bendEdges.map((id) => ["geometry/avoidable-bend", "warning", id]),
     // Labels pressed against their lines (#546).
     ...hugEdges.map((id) => ["geometry/edge-label-hugging", "info", id]),
+    // Stretched groups that centre their content (#613).
+    ...bandGroups.map((id) => ["geometry/content-band", "info", id]),
   ]);
   return result.value;
 }
@@ -188,10 +191,11 @@ nodes:
       if (rect === undefined) throw new Error(`no ${key}`);
       return rect;
     };
-    const plain = await render(figure(""));
+    const plain = await render(figure(""), undefined, [], [], [], ["g"]);
     const b = rectOf(plain, "n:b");
     // Without a caption the group is as tall as b.
     expect(rectOf(plain, "g:g")).toMatchObject({ y: b.y, height: b.height });
+    // With a caption, the group's content area is about as tall as its content (no band).
     const captioned = await render(figure(", caption: (a) one"));
     const b2 = rectOf(captioned, "n:b");
     const group = rectOf(captioned, "g:g");

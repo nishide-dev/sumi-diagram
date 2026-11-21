@@ -12,6 +12,14 @@
  * word (case-insensitive; `""` lists all) as `icon:` references, one per
  * line, or with `--json` `{ version, query, icons: ["tabler/…", …] }`. It
  * cannot be combined with `--section` or `--kind`.
+ *
+ * `--sizes` (#611) prints the default sizes of a structured figure instead:
+ * per setting (profile, density, theme, text scale) the text sizes, line
+ * widths, spacing and the natural size of each node component, from the same
+ * code as the Skill's `references/sizes.md` (`defaultSizes()`). Without
+ * `--profile` it prints paper-double, screen-doc and presentation-16x9 at the
+ * theme's text scale for each. `--json` prints `{ version, settings: [...] }`;
+ * `--css` (one `--profile`) prints the mockup template's size variables.
  */
 
 import { InvalidArgumentError } from "commander";
@@ -27,6 +35,17 @@ import { builtinRegistry } from "../../core/registry/builtins";
 import { CATALOG_VERSION, type CatalogEntry } from "../../core/registry/catalog";
 import type { ComponentKind } from "../../core/registry/manifest";
 import type { ThemeCatalogEntry } from "../../core/theme/catalog";
+import {
+  type ComponentSize,
+  defaultSizes,
+  fontFaceCss,
+  SIZE_DENSITIES,
+  SIZE_SETTINGS,
+  type SizeDensity,
+  SizeError,
+  type SizeSetting,
+  sizesCss,
+} from "../../layout/structured/default-sizes";
 import { type CliContext, EXIT, type ExitCode, UsageError } from "../io";
 
 export interface CatalogCommandOptions {
@@ -36,7 +55,30 @@ export interface CatalogCommandOptions {
   kind?: ComponentKind;
   /** `--section`, repeatable. */
   section?: CatalogSection[];
+  /** `--sizes`: print the default sizes instead of the catalog (#611). */
+  sizes?: boolean;
+  /** `--css`: with `--sizes`, the mockup template's size variables. */
+  css?: boolean;
+  profile?: string;
+  theme?: string;
+  density?: SizeDensity;
+  textScale?: number;
+  /** `--label`, repeatable. */
+  label?: string[];
+  /** `--component`, repeatable. */
+  component?: string[];
 }
+
+/** Parses `--text-scale`: a number (the figure schema checks the range and step). */
+export function parseTextScale(value: string): number {
+  const scale = Number(value);
+  if (value.trim() === "" || !Number.isFinite(scale)) {
+    throw new InvalidArgumentError("Expected a number, e.g. 1.5.");
+  }
+  return scale;
+}
+
+export const SIZE_DENSITY_CHOICES: readonly string[] = SIZE_DENSITIES;
 
 /** Parses one `--section` value and appends it (repeatable option). */
 export function collectSection(value: string, previous: CatalogSection[] = []): CatalogSection[] {
@@ -48,7 +90,23 @@ export function collectSection(value: string, previous: CatalogSection[] = []): 
     : [...previous, value as CatalogSection];
 }
 
+const SIZE_ONLY = [
+  ["css", "--css"],
+  ["profile", "--profile"],
+  ["theme", "--theme"],
+  ["density", "--density"],
+  ["textScale", "--text-scale"],
+  ["label", "--label"],
+  ["component", "--component"],
+] as const;
+
 export function catalogCommand(options: CatalogCommandOptions, context: CliContext): ExitCode {
+  if (options.sizes) return sizesCommand(options, context);
+  const sizeOnly = SIZE_ONLY.filter(([key]) => options[key] !== undefined).map(([, flag]) => flag);
+  if (sizeOnly.length > 0)
+    throw new UsageError(
+      `${sizeOnly.join(", ")} ${sizeOnly.length === 1 ? "needs" : "need"} --sizes.`,
+    );
   if (options.icons !== undefined) {
     if (options.section !== undefined || options.kind !== undefined) {
       throw new UsageError("--icons cannot be combined with --section or --kind.");
@@ -72,6 +130,87 @@ export function catalogCommand(options: CatalogCommandOptions, context: CliConte
     options.json ? `${JSON.stringify(catalog, null, 2)}\n` : formatCatalogText(catalog),
   );
   return EXIT.ok;
+}
+
+function sizesCommand(options: CatalogCommandOptions, context: CliContext): ExitCode {
+  if (options.section !== undefined || options.kind !== undefined || options.icons !== undefined) {
+    throw new UsageError("--sizes cannot be combined with --section, --kind or --icons.");
+  }
+  if (options.css && options.json) throw new UsageError("--css and --json cannot be combined.");
+  if (options.css && options.profile === undefined) {
+    throw new UsageError("--css needs one --profile.");
+  }
+  if (options.css && (options.component !== undefined || options.label !== undefined)) {
+    throw new UsageError(
+      "--css cannot be combined with --component or --label: its sizes are those of a one-word box.",
+    );
+  }
+  const profiles =
+    options.profile === undefined ? SIZE_SETTINGS.map((s) => s.profile) : [options.profile];
+  let settings: SizeSetting[];
+  try {
+    settings = profiles.map((profile) =>
+      defaultSizes({
+        profile,
+        ...(options.theme !== undefined && { theme: options.theme }),
+        ...(options.density !== undefined && { density: options.density }),
+        ...(options.textScale !== undefined && { textScale: options.textScale }),
+        ...(options.label !== undefined && { labels: options.label }),
+        ...(options.component !== undefined && { components: options.component }),
+        // The CSS needs no overflow search.
+        ...(options.css === true && { minWidths: false }),
+      }),
+    );
+  } catch (error) {
+    if (error instanceof SizeError) throw new UsageError(error.message);
+    throw error;
+  }
+  const [first] = settings;
+  if (options.css && first !== undefined) {
+    context.stdout.write(`${fontFaceCss(first.text.fontSet)}${sizesCss(first)}`);
+  } else if (options.json) {
+    context.stdout.write(`${JSON.stringify({ version: CATALOG_VERSION, settings }, null, 2)}\n`);
+  } else {
+    context.stdout.write(settings.map(formatSizesText).join("\n"));
+  }
+  return EXIT.ok;
+}
+
+const propsText = (props: Record<string, string> | null) =>
+  props === null
+    ? "-"
+    : Object.entries(props)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(", ");
+
+const sizeText = (size: ComponentSize) => [`${size.width.mm}mm`, `${size.height.mm}mm`];
+
+/** One setting of `--sizes`: its text, lines and spacing, then one row per measured node. */
+export function formatSizesText(setting: SizeSetting): string {
+  const { text, lines, spacing } = setting;
+  const header = [
+    `${setting.profile}, density ${setting.density}, theme ${setting.theme}, textScale ${setting.textScale}`,
+    `  Text: node ${text.nodePt}pt, group ${text.groupPt}pt, edge ${text.edgePt}pt (profile minimum ${text.minPt}pt; font set ${text.fontSet})`,
+    `  Lines: node ${lines.nodePt}pt, group ${lines.groupPt}pt, edge ${lines.edgePt}pt; corner radius ${setting.radiusPt}pt`,
+    `  Spacing: gap ${spacing.gap.mm}mm, group padding ${spacing.groupPadding.pt}pt (${spacing.groupPadding.mm}mm) each side, node padding ${spacing.nodePaddingX.pt}pt left/right and ${spacing.nodePaddingY.pt}pt top/bottom, margin ${spacing.margin.mm}mm, max width ${spacing.maxWidth === null ? "none" : `${spacing.maxWidth.mm}mm`}`,
+  ];
+  const table = formatTable(
+    ["COMPONENT", "WIDTH", "HEIGHT", "MIN WIDTH", "PROPS", "LABEL"],
+    setting.components.map((size) => [
+      size.component,
+      ...sizeText(size),
+      size.minWidth === null ? "-" : `${size.minWidth.mm}mm`,
+      propsText(size.props),
+      size.label === null ? "(no label)" : JSON.stringify(size.label),
+    ]),
+  );
+  const byProps =
+    setting.sizedByProps.length === 0
+      ? ""
+      : `Sized by their props, not by a label (see sumi catalog): ${setting.sizedByProps.join(", ")}\n`;
+  const note =
+    "WIDTH × HEIGHT: the natural size (label plus padding). MIN WIDTH: the narrowest props.width that passes geometry/label-overflow.\n";
+  return `${header.join("\n")}\n${table}${note}${byProps}`;
 }
 
 /** The human-readable catalog: one table per section, titled when there are several. */

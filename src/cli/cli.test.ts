@@ -556,6 +556,35 @@ describe("sumi render (output paths)", () => {
     expect(pdf.info.SumiD2Sha256).toBeUndefined();
   });
 
+  test("--explain-width prints the natural-width tree and leaves the output unchanged (#607)", async () => {
+    const example = join(import.meta.dir, "../../examples/dit-block/dit-block.sumi.yaml");
+    const plain = await sumi(["render", example, "-o", "plain.svg", "--no-geometry"]);
+    expect(plain.exitCode, plain.stderr).toBe(0);
+    expect(plain.stderr).not.toContain("Width (natural widths");
+    const text = await sumi([
+      "render",
+      example,
+      "-o",
+      "explained.svg",
+      "--no-geometry",
+      "--explain-width",
+    ]);
+    expect(text.exitCode, text.stderr).toBe(0);
+    expect(text.stderr).toContain("Width (natural widths before stretch; * sets the width):");
+    expect(text.stderr).toMatch(/page [\d.]+mm \(before fit: scale\) = margins 2 × [\d.]+mm/);
+    expect(text.stderr).toMatch(/\* group "[\w-]+" [\d.]+mm = content [\d.]+mm \+ padding/);
+    expect(await readFile(join(dir, "explained.svg"), "utf8")).toBe(
+      await readFile(join(dir, "plain.svg"), "utf8"),
+    );
+    const json = await sumi(["render", example, "-o", "json.svg", "--explain-width", "--json"]);
+    const report = JSON.parse(json.stdout);
+    expect(report.widthTree.kind).toBe("figure");
+    expect(report.widthTree.setsWidth).toBe(true);
+    expect(report.widthTree.children[0].name).toMatch(/^figure\.layout\.arrange\./);
+    const without = JSON.parse((await sumi(["render", example, "-o", "j2.svg", "--json"])).stdout);
+    expect(without.widthTree).toBeUndefined();
+  });
+
   test("background override applies to JSON rendering and rejects invalid values", async () => {
     const example = join(import.meta.dir, "../../examples/dit-block/dit-block.sumi.yaml");
     const result = await sumi([

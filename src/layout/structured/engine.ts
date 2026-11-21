@@ -48,9 +48,11 @@ import { glyphRects } from "../../assets/glyphs";
 import type {
   ArrangeBoxIR,
   ArrangeItemIR,
+  EdgeIR,
   FigureIR,
   GroupIR,
   NodeIR,
+  SequenceRowIR,
   SetIR,
 } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
@@ -109,9 +111,11 @@ import {
 } from "./align";
 import { verifiedAlignHints } from "./align-hint";
 import { chatGeometry } from "./chat";
+import { sequenceGeometry } from "./sequence";
 import { fitSets } from "./sets";
 import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
 import { type StraightenStats, straightenLayout } from "./straighten";
+import type { WidthEntry } from "./width-tree";
 
 /** The engine name recorded in the Layout IR. */
 export const STRUCTURED_ENGINE = "sumi-structured";
@@ -179,7 +183,15 @@ interface GridTracks {
   columnGap: number;
   rowGap: number;
   size: Size;
-  cells: { item: ArrangeItemIR; span: number; column: number; row: number; size: Size }[];
+  cells: {
+    item: ArrangeItemIR;
+    span: number;
+    column: number;
+    row: number;
+    size: Size;
+    /** The width it needs of its columns (centring and `align` included). */
+    trackWidth: number;
+  }[];
 }
 
 /**
@@ -208,6 +220,34 @@ export interface PlacedStructured {
 export function placeStructured(
   ir: FigureIR,
   options: StructuredLayoutOptions = {},
+): PlacedStructured {
+  return placeWith(ir, options);
+}
+
+/**
+ * The natural widths behind the layout {@link placeStructured} returns (#607,
+ * `width-tree.ts`): the same steps (align struts, room before arrowheads),
+ * then one more pass with the final struts, whose measurements are read.
+ * Costs one placement more than `placeStructured`; for lint hints and
+ * `sumi render --explain-width` only.
+ */
+export function structuredWidthTree(
+  ir: FigureIR,
+  options: StructuredLayoutOptions = {},
+): WidthEntry {
+  let tree: WidthEntry | undefined;
+  placeWith(ir, options, (engine, struts) => {
+    engine.run(struts);
+    tree = engine.widthTree();
+  });
+  if (tree === undefined) throw new Error("internal error: no width tree");
+  return tree;
+}
+
+function placeWith(
+  ir: FigureIR,
+  options: StructuredLayoutOptions,
+  after?: (engine: StructuredLayout, struts: Struts) => void,
 ): PlacedStructured {
   if (ir.meta.engine !== "structured" || ir.arrange === undefined) {
     throw new Error("internal error: the structured layout needs a structured figure");
@@ -286,6 +326,7 @@ export function placeStructured(
     engine.growPadding(deficits);
     placed = place();
   }
+  after?.(engine, strutsOf.get(placed.layout) ?? NO_STRUTS);
   const diagnostics =
     inHintTrial() || placed.diagnostics.length === 0
       ? placed.diagnostics
@@ -326,6 +367,8 @@ class StructuredLayout {
   readonly #itemSizes = new Map<ElementKey, Size>();
   readonly #rects = new Map<ElementKey, Rect>();
   readonly #contents = new Map<ElementKey, Rect>();
+  /** `matchLabelHeight` (#613): the title band height (units) of each name. */
+  readonly #matchedLabelHeights = new Map<string, number>();
   /** The tilted planes (#577) of the pass: the flat frame and the flat rectangles of their nodes. */
   readonly #planes = new Map<
     ElementKey,
@@ -338,6 +381,8 @@ class StructuredLayout {
   readonly #grids = new Map<ArrangeBoxIR, GridTracks>();
   readonly #boxSizes = new Map<ArrangeBoxIR, Size>();
   readonly #chatFrames = new Map<ArrangeBoxIR, Rect>();
+  /** The frame of each sequence box (#630) in the pass: its self-message labels reach beyond its items. */
+  readonly #sequenceFrames = new Map<ArrangeBoxIR, Rect>();
   readonly #centerPaddings = new Map<ArrangeBoxIR, { before: number; after: number }>();
   /** `layout/set-size-too-small` of the last pass (#545). */
   #setDiagnostics: Diagnostic[] = [];
@@ -452,6 +497,17 @@ class StructuredLayout {
       const label = measureText(group.label, group.style, measurer);
       if (label !== undefined) this.#labels.set(group.key, label);
     }
+    // `matchLabelHeight` (#613): one title band per name, the tallest label's.
+    for (const group of ir.groups) {
+      const name = group.matchLabelHeight;
+      const label = this.#labels.get(group.key);
+      if (name === undefined) continue;
+      const height = label === undefined ? 0 : Math.ceil(label.height);
+      this.#matchedLabelHeights.set(
+        name,
+        Math.max(this.#matchedLabelHeights.get(name) ?? 0, height),
+      );
+    }
     this.#matchWidths(ir);
   }
 
@@ -563,6 +619,7 @@ class StructuredLayout {
     // Measurements depend on this pass's struts and any grown group padding.
     this.#boxSizes.clear();
     this.#chatFrames.clear();
+    this.#sequenceFrames.clear();
     this.#centerPaddings.clear();
     const root = this.#ir.arrange as ArrangeBoxIR;
     const size = this.#containerSize(ROOT, root);
@@ -614,6 +671,162 @@ class StructuredLayout {
       );
     }
     return out;
+  }
+
+  /**
+   * The natural widths behind the last pass (#607, `width-tree.ts`): read
+   * from the measurement caches of that pass, so they are exactly the sizes
+   * the placement used. Lengths in pt.
+   */
+  widthTree(): WidthEntry {
+    const pt = (units: number) => units / 2;
+    const nameOf = (element: NodeIR | GroupIR) =>
+      element.legend?.name ??
+      element.tokens?.name ??
+      element.matrix?.name ??
+      `${element.kind} "${element.id}"`;
+    const placed = (natural: number, rect: Rect | undefined, extra = 0) =>
+      rect !== undefined && rect.width + extra > natural + 1
+        ? { placedPt: pt(rect.width + extra) }
+        : {};
+    const item = (entry: ArrangeItemIR, path: string): WidthEntry | undefined => {
+      if (entry === null) return undefined;
+      if (typeof entry !== "string") return box(entry, path);
+      const width = this.#itemSize(entry).width;
+      const node = this.#nodes.get(entry);
+      if (node !== undefined) {
+        const extra = this.#badgeOverhangs.get(entry) ?? NO_OVERHANG;
+        const label = this.#labels.get(entry);
+        return {
+          name: nameOf(node),
+          kind: "node",
+          key: entry,
+          widthPt: pt(width),
+          ...placed(width, this.#rects.get(entry), extra.west + extra.east),
+          ...(node.width !== undefined && { fixedPt: node.width.pt }),
+          ...(label !== undefined && { labelPt: pt(label.width) }),
+          children: [],
+        };
+      }
+      const group = this.#group(entry);
+      const leaf =
+        group.plane !== undefined
+          ? ("plane" as const)
+          : group.legend?.id === group.id
+            ? ("legend" as const)
+            : group.tokens !== undefined
+              ? ("tokens" as const)
+              : group.matrix !== undefined
+                ? ("matrix" as const)
+                : undefined;
+      const base = {
+        name: nameOf(group),
+        kind: "group" as const,
+        key: entry,
+        widthPt: pt(width),
+        ...placed(width, this.#rects.get(entry)),
+      };
+      if (leaf !== undefined) return { ...base, leaf, children: [] };
+      const p = this.#padding(entry);
+      const content = this.#containerSize(entry, group.arrange).width;
+      const title = this.#labels.get(entry);
+      const titleWidth = title === undefined ? 0 : Math.ceil(title.width);
+      const inner =
+        group.arrange === undefined ? undefined : box(group.arrange, `group "${group.id}".arrange`);
+      return {
+        ...base,
+        padding: { west: pt(p.west), east: pt(p.east), written: group.paddingPt !== undefined },
+        contentPt: pt(content),
+        ...(titleWidth > content && { titlePt: pt(titleWidth) }),
+        ...this.#attachEntry(entry, group.arrange),
+        children: inner === undefined ? [] : [inner],
+      };
+    };
+    const box = (arrange: ArrangeBoxIR, path: string): WidthEntry => {
+      const name = `${path}.${arrange.kind}`;
+      const width = this.#boxSize(arrange).width;
+      const base = { name, kind: arrange.kind, box: arrange, widthPt: pt(width) };
+      const children = (): WidthEntry[] =>
+        arrange.items.flatMap((child, i) => {
+          const found = item(child, `${name}.items[${i}]`);
+          return found === undefined ? [] : [found];
+        });
+      if (arrange.kind === "sequence" && arrange.sequence !== undefined) {
+        const seq = arrange.sequence;
+        const geometry = this.sequenceGeometry(arrange);
+        const id = (key: ElementKey) => key.slice(2);
+        return {
+          ...base,
+          children: children(),
+          sequence: {
+            gaps: geometry.gaps.map((gap) => ({
+              between: [
+                id(seq.participants[gap.index] as ElementKey),
+                id(seq.participants[gap.index + 1] as ElementKey),
+              ] as const,
+              pt: pt(gap.width),
+              reason: gap.reason,
+              ...(gap.edge !== undefined && { edge: gap.edge }),
+            })),
+            participantGap: {
+              pt: seq.participantGapPt ?? pt(this.#defaultGap),
+              written: seq.participantGapPt !== undefined,
+            },
+          },
+        };
+      }
+      if (arrange.kind === "row" && arrange.items.length > 1)
+        return {
+          ...base,
+          gap: {
+            pt: pt(this.#gap(arrange)),
+            count: arrange.items.length - 1,
+            field: "gap" as const,
+            written: arrange.gapPt !== undefined,
+          },
+          children: children(),
+        };
+      if (arrange.kind === "grid") {
+        const tracks = this.#gridTracks(arrange);
+        // Each child knows its column, so the widest of each column can be marked.
+        const placedChildren = arrange.items.flatMap((child, i) => {
+          const found = item(child, `${name}.items[${i}]`);
+          const cell = tracks.cells[i];
+          return found === undefined || cell === undefined
+            ? []
+            : [{ ...found, column: cell.column, span: cell.span, trackPt: pt(cell.trackWidth) }];
+        });
+        return {
+          ...base,
+          children: placedChildren,
+          columnsPt: tracks.widths.map(pt),
+          ...(tracks.widths.length > 1 && {
+            gap: {
+              pt: pt(tracks.columnGap),
+              count: tracks.widths.length - 1,
+              field: "columnGap" as const,
+              written: arrange.columnGapPt !== undefined,
+            },
+          }),
+        };
+      }
+      return { ...base, children: children() };
+    };
+    const root = this.#ir.arrange as ArrangeBoxIR;
+    return {
+      name: "figure",
+      kind: "figure",
+      widthPt: pt(this.#containerSize(ROOT, root).width),
+      ...this.#attachEntry(ROOT, root),
+      children: [box(root, "figure.layout.arrange")],
+    };
+  }
+
+  /** How far a container's attached nodes reach beyond its arrange tree (#607), if at all. */
+  #attachEntry(container: Container, arrange: ArrangeBoxIR | undefined): { attachPt?: number } {
+    const box = arrange === undefined ? 0 : this.#boxSize(arrange).width;
+    const reach = this.#containerSize(container, arrange).width - box;
+    return reach > 0 ? { attachPt: reach / 2 } : {};
   }
 
   /** Records `item`'s slot and applies its shift (#618); `frame` is its box's. */
@@ -688,6 +901,7 @@ class StructuredLayout {
     const diagnostics: Diagnostic[] = [...this.#setDiagnostics, ...this.#matchWidthDiagnostics()];
     for (const box of this.#boxSizes.keys()) {
       if (box.kind === "chat") diagnostics.push(...this.#chatGeometry(box).diagnostics);
+      if (box.kind === "sequence") diagnostics.push(...this.#sequenceDiagnostics(box));
       if (box.centerOn !== undefined) {
         const padding = this.#centerPadding(box);
         const size = this.#boxSize(box);
@@ -765,6 +979,11 @@ class StructuredLayout {
     if (cached !== undefined) return cached;
     if (box.kind === "chat") {
       const size = this.#chatGeometry(box).size;
+      this.#boxSizes.set(box, size);
+      return size;
+    }
+    if (box.kind === "sequence") {
+      const size = this.sequenceGeometry(box).size;
       this.#boxSizes.set(box, size);
       return size;
     }
@@ -928,24 +1147,38 @@ class StructuredLayout {
         content.height +
         p.north +
         p.south +
-        (this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(label, group)) +
+        (this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(group)) +
         groupLayerSpread(group),
     };
   }
 
   /** The room (units) a title above the border (#517) takes outside the frame, or 0. */
   #titleAbove(group: GroupIR): number {
-    const label = this.#labels.get(group.key);
-    if (label === undefined || group.labelAt?.startsWith("above") !== true) return 0;
-    return Math.ceil(label.height) + this.#padOf(group) / 2;
+    const height = this.#labelHeight(group);
+    if (height === undefined || group.labelAt?.startsWith("above") !== true) return 0;
+    return height + this.#padOf(group) / 2;
   }
 
   /**
    * Height a group's label band takes above (or below) its content: the label
    * and half the padding between it and the content.
    */
-  #labelSpace(label: TextMetrics | undefined, group: GroupIR): number {
-    return label === undefined ? 0 : Math.ceil(label.height) + this.#padOf(group) / 2;
+  #labelSpace(group: GroupIR): number {
+    const height = this.#labelHeight(group);
+    return height === undefined ? 0 : height + this.#padOf(group) / 2;
+  }
+
+  /**
+   * The height (whole units) of a group's title band: its label's, or with
+   * `matchLabelHeight` (#613) the tallest label's of its name; `undefined` for no band.
+   */
+  #labelHeight(group: GroupIR): number | undefined {
+    if (group.matchLabelHeight !== undefined) {
+      const matched = this.#matchedLabelHeights.get(group.matchLabelHeight) ?? 0;
+      return matched > 0 ? matched : undefined;
+    }
+    const label = this.#labels.get(group.key);
+    return label === undefined ? undefined : Math.ceil(label.height);
   }
 
   /**
@@ -1190,6 +1423,15 @@ class StructuredLayout {
       }
       return;
     }
+    if (box.kind === "sequence") {
+      this.#locked++;
+      try {
+        this.#placeSequence(box, frame, visit);
+      } finally {
+        this.#locked--;
+      }
+      return;
+    }
     if (box.kind === "place") {
       this.#placeCoordinates(box, frame, visit);
       return;
@@ -1219,6 +1461,20 @@ class StructuredLayout {
       );
   }
 
+  /** A sequence box (#630) is rigid: centred in its frame, every item where its rows put it. */
+  #placeSequence(
+    box: ArrangeBoxIR,
+    frame: Rect,
+    visit: (key: ElementKey, rect: Rect) => void,
+  ): void {
+    const geometry = this.sequenceGeometry(box);
+    const x = frame.x + (frame.width - geometry.size.width) / 2;
+    const y = frame.y + (frame.height - geometry.size.height) / 2;
+    this.#sequenceFrames.set(box, { x, y, ...geometry.size });
+    for (const [key, local] of geometry.rects)
+      visit(key, this.#bodyRect(key, { ...local, x: x + local.x, y: y + local.y }));
+  }
+
   /** Places the items of a stack or row. */
   #placeLine(
     box: ArrangeBoxIR,
@@ -1236,10 +1492,7 @@ class StructuredLayout {
     // caption's stack (#130) gives it to its group instead (`growFirst`).
     const extra = vertical ? frame.height - natural.height : frame.width - natural.width;
     let grow = box.growFirst === true ? Math.max(0, extra) : 0;
-    const growers =
-      box.justify === "stretch" && grow === 0
-        ? order.filter((item) => this.#growable(item, vertical))
-        : [];
+    const growers = grow === 0 ? this.#justifyGrowers(box, order) : [];
     const rawWeight = (item: ArrangeItemIR) =>
       typeof item === "string" ? (this.#nodes.get(item)?.grow ?? 1) : 1;
     // Normalize first so even very small positive YAML weights stay finite.
@@ -1257,7 +1510,7 @@ class StructuredLayout {
     const ranked = [...shares].sort((a, b) => b.remainder - a.remainder || a.index - b.index);
     for (const share of ranked.slice(0, remainder)) share.units++;
     const additions = new Map(shares.map(({ item, units }) => [item, units]));
-    const between = box.justify === "space-between" && order.length > 1 && grow === 0;
+    const between = grow === 0 && this.#spreads(box);
     if (between) gap += Math.max(0, extra) / (order.length - 1);
     let cursor =
       (vertical ? frame.y : frame.x) +
@@ -1293,7 +1546,7 @@ class StructuredLayout {
       const crossLead = separator ? 0 : this.#crossLead(item);
       const crossTrail = separator ? 0 : this.#crossTrail(item);
       const margin = crossLead + crossTrail;
-      const stretched = separator || (align === "stretch" && this.#stretchable(item, vertical));
+      const stretched = this.#crossStretched(item, align, vertical);
       const cross = stretched ? crossAvailable - margin : crossNatural;
       let offset =
         separator || align === "start" || (align === "stretch" && stretched)
@@ -1336,6 +1589,53 @@ class StructuredLayout {
     }
   }
 
+  /** The lifelines, rows and frames of a sequence box (#630), in its local coordinates. */
+  sequenceGeometry(box: ArrangeBoxIR) {
+    return sequenceGeometry(box, {
+      sizeOf: (key) => this.#itemSize(key),
+      edgeOf: (key) => this.#edgeIR(key),
+      labelOf: (key) => {
+        const edge = this.#edgeIR(key);
+        return edge === undefined
+          ? this.#labels.get(key)
+          : measureText(edge.label, edge.style, this.#measurer);
+      },
+      widenable: (key) => this.#stretchable(key, true),
+      gap: this.#defaultGap,
+    });
+  }
+
+  /**
+   * A note over several lifelines (#630) must widen to cover them all, since each of
+   * them stops at it: a shape that cannot stretch (a circle, an explicit width, an
+   * outline component) is an error.
+   */
+  #sequenceDiagnostics(box: ArrangeBoxIR): Diagnostic[] {
+    const out: Diagnostic[] = [];
+    const walk = (rows: readonly SequenceRowIR[]) => {
+      for (const row of rows) {
+        if (row.kind === "band" || row.kind === "fragment") walk(row.rows);
+        if (row.kind !== "note" || row.side !== undefined || row.lo === row.hi) continue;
+        if (this.#stretchable(row.node, true)) continue;
+        const id = row.node.slice(2);
+        out.push({
+          code: "layout/sequence-invalid-row",
+          severity: "error",
+          message: `Note "${id}" lies over several lifelines, but its component cannot widen to cover them.`,
+          ...row.source,
+          subject: { kind: "node", id },
+          hint: "Use a box-like component without props.width for a note over several lifelines (or a group), or put the note over one lifeline.",
+        });
+      }
+    };
+    walk(box.sequence?.rows ?? []);
+    return out;
+  }
+
+  #edgeIR(key: ElementKey): EdgeIR | undefined {
+    return this.#ir.edges.find((e) => e.key === key);
+  }
+
   /** Measure and place chat visuals through the same natural-footprint contract. */
   #chatGeometry(box: ArrangeBoxIR) {
     return chatGeometry(
@@ -1345,6 +1645,46 @@ class StructuredLayout {
       this.#defaultGap,
       (key, rect) => this.#bodyRect(key, rect),
     );
+  }
+
+  /** The items of a stack / row (in `order`) that `justify: stretch` grows; none without it. */
+  #justifyGrowers(box: ArrangeBoxIR, order: readonly ArrangeItemIR[]): ArrangeItemIR[] {
+    const vertical = box.kind === "stack";
+    return box.justify === "stretch" ? order.filter((item) => this.#growable(item, vertical)) : [];
+  }
+
+  /** Whether `justify: space-between` spreads a stack / row's items (it needs two). */
+  #spreads(box: ArrangeBoxIR): boolean {
+    return box.justify === "space-between" && box.items.length > 1;
+  }
+
+  /** Whether an item of a stack / row placed with `align` takes the whole cross axis. */
+  #crossStretched(item: ArrangeItemIR, align: Align, vertical: boolean): boolean {
+    const separator = typeof item === "string" && this.#nodes.get(item)?.component === SEPARATOR_ID;
+    return separator || (align === "stretch" && this.#stretchable(item, vertical));
+  }
+
+  /**
+   * Whether a group's root box uses spare height itself (#613), decided by the
+   * helpers {@link #placeLine} distributes it with: a stack that grows items
+   * (`justify: stretch`, `growFirst`) or spreads them (`space-between`), or a
+   * row with an item (not a separator) stretched across it.
+   */
+  #fillsHeight(box: ArrangeBoxIR | undefined): boolean {
+    if (box?.kind === "stack")
+      return (
+        box.growFirst === true ||
+        this.#justifyGrowers(box, box.items).length > 0 ||
+        this.#spreads(box)
+      );
+    if (box?.kind === "row")
+      // A separator spans any row; it leaves the other items centred.
+      return box.items.some(
+        (item) =>
+          !(typeof item === "string" && this.#nodes.get(item)?.component === SEPARATOR_ID) &&
+          this.#crossStretched(item, box.align ?? "center", false),
+      );
+    return false;
   }
 
   /** Main-axis growth is opt-in; badged boxes retain their reserved footprint. */
@@ -1498,7 +1838,7 @@ class StructuredLayout {
     if (group === undefined) return;
     rect = groupFrontRect(group, rect);
     const p = this.#padding(key);
-    const band = this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(this.#labels.get(key), group);
+    const band = this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(group);
     // The label band is above the content, or below it for a bottom label (#127).
     const top = labelAtBottom(group.labelAt) ? 0 : band;
     const content: Rect = {
@@ -1512,10 +1852,30 @@ class StructuredLayout {
     const rigid = group.tokens !== undefined || group.matrix !== undefined;
     if (rigid) this.#locked++;
     try {
-      this.#placeContainer(key, group.arrange, content);
+      this.#placeContainer(key, group.arrange, this.#alignedContent(group, content));
     } finally {
       if (rigid) this.#locked--;
     }
+  }
+
+  /**
+   * `contentAlign` (#613): the part of a group's content area its content is
+   * placed in. A group taller than its content (stretched by its box) centres
+   * the content by default; `top` / `bottom` place it at its natural height at
+   * that edge instead, so the room is one band on the other side. The area
+   * reported as the group's content stays the whole area, and the arrange
+   * tree's box gets no room across it to centre or straighten (#618) in.
+   * A root box that really fills the height itself ({@link #fillsHeight}) keeps
+   * the whole area, so nothing is left to move.
+   */
+  #alignedContent(group: GroupIR, content: Rect): Rect {
+    const align = group.contentAlign;
+    if (align === undefined || align === "center") return content;
+    if (this.#fillsHeight(group.arrange)) return content;
+    const natural = this.#containerSize(group.key, group.arrange).height;
+    const spare = content.height - natural;
+    if (spare <= 0) return content;
+    return { ...content, y: align === "top" ? content.y : content.y + spare, height: natural };
   }
 
   /** Places the attached nodes of `container` into `rects`, each after its target. */
@@ -1780,6 +2140,7 @@ class StructuredLayout {
       ...this.#ir.nodes.flatMap((node) => this.#decorations(node, this.#rect(node.key))),
       ...[...labels.values(), ...sublabels.values()].map((label) => label.box),
       ...this.#chatFrames.values(),
+      ...this.#sequenceFrames.values(),
     ];
     const minX = Math.min(...all.map((r) => r.x));
     const minY = Math.min(...all.map((r) => r.y));

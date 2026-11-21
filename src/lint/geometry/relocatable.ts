@@ -29,24 +29,20 @@ import { parse, stringify } from "yaml";
 import { loadFigureAssets } from "../../assets/load";
 import type { ArrangeBoxIR, ArrangeItemIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
-import type { Diagnostic, DocPath } from "../../core/diagnostics";
+import type { DocPath } from "../../core/diagnostics";
 import { parseYaml } from "../../core/figure/yaml";
-import { getFontSet } from "../../core/theme/fonts";
 import { asHintTrial, HintTrials, hintLayoutOptions, mapBoxes } from "../../layout/hint-trials";
 import type { LayoutIR } from "../../layout/ir";
-import { routeStructured } from "../../layout/route/face-routes";
-import { setOverlapDiagnostics } from "../../layout/set-overlap";
-import { placeStructured } from "../../layout/structured/engine";
 import type { Point, Rect } from "../../render/geometry";
-import { inspectSvg } from "../../render/inspect";
-import { writeStructuredSvg } from "../../render/structured";
-import { resolveLintConfig } from "../config";
-import { defineGeometryRule, isGeometryRule } from "../rule";
+import { defineGeometryRule } from "../rule";
 import { boxOf, corners, inGroup, orthogonal } from "./avoidable";
 import { capitalize, isDrawnEdge, isStructured, mmText } from "./common";
-import { createGeometryContext, type GeometryContext, type GeometryElement } from "./context";
+import type { GeometryContext, GeometryElement } from "./context";
+import { layoutTrial, type Problems, problemsOf } from "./trial";
 
 export const RELOCATABLE_NODE = "geometry/relocatable-node";
+/** A trial is linted by every geometry rule but this one (it would start trials of its own). */
+const SKIP: ReadonlySet<string> = new Set([RELOCATABLE_NODE]);
 
 /** At most this many candidate moves are laid out and routed per figure. */
 export const RELOCATE_TRIALS = 6;
@@ -72,15 +68,6 @@ export interface Candidate {
   readonly score: number;
   readonly distance: number;
   readonly order: number;
-}
-
-/** A layout and route of a figure, as render does it. */
-interface Trial {
-  readonly ir: FigureIR;
-  readonly layout: LayoutIR;
-  /** The trial before routing, as `GeometryContext.placed`. */
-  readonly placed: { readonly ir: FigureIR; readonly layout: LayoutIR };
-  readonly diagnostics: readonly Diagnostic[];
 }
 
 const bendsOf = (points: readonly Point[] | undefined): number =>
@@ -114,6 +101,8 @@ function excessEdges(context: GeometryContext): GeometryElement[] {
     const edge = element.ir;
     if (edge.kind !== "edge" || !isDrawnEdge(element) || element.route === undefined) continue;
     if (edge.routing === "zoom" || edge.route === "curve" || edge.route === "straight") continue;
+    // A lane (#609) is the author's route: its bends are asked for.
+    if (edge.lane !== undefined) continue;
     if (edge.from === edge.to) continue;
     if (context.isAncestor(edge.from, edge.to) || context.isAncestor(edge.to, edge.from)) continue;
     const line = element.route[0];
@@ -177,7 +166,7 @@ function arrangeSlots(ir: FigureIR) {
   return { boxes, slotOf, outer };
 }
 
-const ARRANGE_KINDS = ["stack", "row", "grid", "place", "chat"] as const;
+const ARRANGE_KINDS = ["stack", "row", "grid", "place", "chat", "sequence"] as const;
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -200,7 +189,7 @@ interface SourceItems {
  * Every `items` sequence of the arrange boxes written in the source: under
  * `figure.layout.arrange` and each group's `arrange`, through nested boxes
  * and the wrappers that hold them (a grid cell's or a place item's `item`).
- * A chat's items are messages, not arrange items.
+ * A chat's items are messages, not arrange items; a sequence (#630) has rows.
  */
 function sourceItems(document: unknown): SourceItems[] {
   const out: SourceItems[] = [];
@@ -210,7 +199,7 @@ function sourceItems(document: unknown): SourceItems[] {
   };
   const box = (value: unknown, path: DocPath) => {
     const kind = boxKind(value);
-    if (kind === undefined || kind === "chat" || !isRecord(value)) return;
+    if (kind === undefined || kind === "chat" || kind === "sequence" || !isRecord(value)) return;
     const spec = value[kind];
     if (!isRecord(spec) || !Array.isArray(spec.items)) return;
     const at: DocPath = [...path, kind, "items"];
@@ -234,7 +223,7 @@ function sameItem(context: GeometryContext, ir: ArrangeItemIR, written: unknown)
   if (typeof ir === "string" || ir.growFirst === true) return written === itemName(context, ir);
   const kind = boxKind(written);
   if (kind !== ir.kind || !isRecord(written)) return false;
-  if (kind === "chat") return true;
+  if (kind === "chat" || kind === "sequence") return true;
   const spec = written[kind];
   return isRecord(spec) && Array.isArray(spec.items) && sameItems(context, ir, spec.items);
 }
@@ -444,50 +433,6 @@ export function compareRoutes(
   return { ok: false, reason: "no-gain" };
 }
 
-/** Errors and warnings of a lint run: by code and subject, counted. */
-type Problems = Map<string, number>;
-
-/**
- * Lints a trial the way the figure itself is linted: its layout's
- * diagnostics, then the geometry rules (all but this one) under the same
- * configuration and levels, on the trial's SVG with its placement and routes
- * (so rules that check a hint by routing again, such as
- * `geometry/avoidable-bend`, do so here too). Runs inside the hint-trial
- * guard, so no rule starts layouts of its own.
- */
-function problemsOf(
-  context: GeometryContext,
-  trial: Trial,
-  assets: Parameters<typeof writeStructuredSvg>[3],
-): Problems | undefined {
-  const fonts = getFontSet(trial.ir.meta.fontSetId);
-  if (fonts === undefined) return undefined;
-  const inspected = inspectSvg(writeStructuredSvg(trial.ir, trial.layout, fonts, assets), trial.ir);
-  if (!inspected.ok) return undefined;
-  const config = context.lintConfig ?? resolveLintConfig();
-  const linted: GeometryContext = {
-    ...createGeometryContext(trial.ir, inspected.value, fonts),
-    layout: trial.layout,
-    placed: trial.placed,
-    lintConfig: config,
-  };
-  const counts: Problems = new Map();
-  const add = (code: string, subject: unknown) => {
-    const key = `${code} ${JSON.stringify(subject ?? null)}`;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  };
-  for (const d of trial.diagnostics)
-    if (d.severity === "error" || d.severity === "warning") add(d.code, d.subject);
-  for (const { rule, severity, options, explicitSeverity } of config.rules) {
-    if (!isGeometryRule(rule) || rule.id === RELOCATABLE_NODE) continue;
-    for (const f of rule.run(linted, options)) {
-      const level = explicitSeverity ? severity : (f.severity ?? severity);
-      if (level === "error" || level === "warning") add(rule.id, f.subject);
-    }
-  }
-  return counts;
-}
-
 /** What became of one candidate move. */
 export interface RelocationOutcome {
   readonly candidate: Candidate;
@@ -610,25 +555,7 @@ export function relocationTrials(context: GeometryContext): RelocationOutcome[] 
   // hint trial: no rule or router starts trials of its own, so the layouts
   // are the candidates' and the baseline's only.
   return asHintTrial(() => {
-    const trial = (ir: FigureIR): Trial | undefined => {
-      try {
-        const laid = placeStructured(ir, options);
-        const { ir: faced, routed } = routeStructured(ir, laid.layout, { hintTrials: false });
-        return {
-          ir: faced,
-          layout: routed.layout,
-          placed: { ir, layout: laid.layout },
-          diagnostics: [
-            ...laid.diagnostics,
-            ...setOverlapDiagnostics(faced, laid.layout),
-            ...routed.diagnostics,
-          ],
-        };
-      } catch {
-        // A counterfactual may be invalid; it is never a recommendation.
-        return undefined;
-      }
-    };
+    const trial = (ir: FigureIR) => layoutTrial(ir, options);
     const before = routesOf(rendered);
     const { width, height } = rendered.canvas;
     let baseline: Problems | undefined | null = null;
@@ -643,7 +570,7 @@ export function relocationTrials(context: GeometryContext): RelocationOutcome[] 
         base.layout.canvas.width === width &&
         base.layout.canvas.height === height &&
         [...before].every(([key, r]) => again.get(key)?.bends === r.bends);
-      if (same) baseline = problemsOf(context, base, assets.value);
+      if (same) baseline = problemsOf(context, base, assets.value, SKIP);
       return baseline;
     };
     const outcomes: RelocationOutcome[] = [];
@@ -678,7 +605,7 @@ export function relocationTrials(context: GeometryContext): RelocationOutcome[] 
       }
       const base = baselineProblems();
       if (base === undefined) break;
-      const problems = problemsOf(context, result, assets.value);
+      const problems = problemsOf(context, result, assets.value, SKIP);
       if (problems === undefined || [...problems].some(([key, n]) => n > (base.get(key) ?? 0))) {
         done({ ok: false, reason: "problems" }, { routes: verdict });
         continue;

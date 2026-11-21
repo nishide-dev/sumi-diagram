@@ -56,9 +56,12 @@ describe("DiT with a plain left panel (structured)", () => {
     expect(rendered.svg).toMatch(
       /<g class="sumi-k-g--ldt sumi-kind-group"><g class="shape"><rect [^>]*fill="none" [^>]*stroke-width="0"\/>/,
     );
-    // The geometry rules report nothing about the plain panel.
+    // The geometry rules report nothing about the plain panel's frame; only that it is
+    // stretched to the other panels' height and centres its content (#613).
     const diagnostics = lintGeometry(rendered, { source: DIT });
-    expect(diagnostics.filter((d) => JSON.stringify(d).includes('"ldt"'))).toEqual([]);
+    expect(
+      diagnostics.filter((d) => JSON.stringify(d).includes('"ldt"')).map((d) => d.code),
+    ).toEqual(["geometry/content-band"]);
   });
 
   test("lines beside an undrawn border are not reported; a dashed border is", async () => {

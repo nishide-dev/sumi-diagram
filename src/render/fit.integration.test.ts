@@ -149,6 +149,8 @@ describe("structured: #167 figures B and C on paper-double", () => {
       ["geometry/heavy-scaling", "info", "stage-c-h3world"],
       ["geometry/script-too-small", "info", "stage-c-h3world"],
       ["geometry/text-heavy-nodes", "info", "stage-c-h3world"],
+      // The LoRA panel is stretched to its row and centres its content (#613).
+      ["geometry/content-band", "info", "lora"],
       // Its toAnchor holds it off a straight line (#604): the hint gives the value.
       ["geometry/avoidable-bend", "warning", "edges[17]"],
       ["geometry/edge-jog", "info", "edges[17]"],
