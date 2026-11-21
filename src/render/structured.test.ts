@@ -313,7 +313,10 @@ edges:
   - { from: a, to: b, label: gRPC }
 `;
     const findings = lintGeometry(await render(source), { source });
-    expect(findings).toEqual([]);
+    // Clear of the border, but lifted 7mm off a 2mm span: #610 says so (info).
+    expect(findings.map((f) => [f.code, f.severity])).toEqual([
+      ["geometry/edge-label-detached", "info"],
+    ]);
     // With room before the group, the label goes there.
     const roomy = source.replace("gap: 2mm", "gap: 4mm");
     expect(lintGeometry(await render(roomy), { source: roomy })).toEqual([]);

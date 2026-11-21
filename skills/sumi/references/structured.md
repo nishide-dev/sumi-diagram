@@ -1314,8 +1314,9 @@ Shared trunks keep their existing routing. There is no per-edge lane coordinate.
   side anchors pick exact box positions (projected onto non-rectangular outlines).
   A `straight` anchor on this route uses the same automatic endpoint.
   Arrowheads follow the diagonal. Labels stay horizontal, default at the midpoint
-  on the left facing source → target; `labelAt: start | middle | end` and
-  `labelSide: left | right` choose another position. Labels do not dodge obstacles.
+  above the line whichever way it runs (right of a vertical one);
+  `labelAt: start | middle | end` or a fraction such as `0.3`, `labelSide: left | right`
+  and `labelStyle: tag` choose another position or style. Labels do not dodge obstacles.
   Inspect crossings: `geometry/edge-through-node` (also when the line only clips
   or brushes a node or tokens cell: its stroke touches the outline),
   `geometry/edge-crosses-label` and `geometry/label-collision` locate overlaps;
@@ -1333,8 +1334,9 @@ Shared trunks keep their existing routing. There is no per-edge lane coordinate.
   At ordinary nodes, automatic tangents follow the
   endpoint chord; side anchors/fixed ports use their outward side normal.
   Arrowheads follow the end tangent; `tone` works as on straight edges. Labels
-  stay horizontal, left of the local tangent at the arc-length midpoint by default;
-  `labelAt` and `labelSide` also work. Node/label crossings are sampled and reported
+  stay horizontal, above the local tangent (right of a vertical one) at the arc-length
+  midpoint by default; `labelAt` (a fraction is of the arc length), `labelSide` and
+  `labelStyle: tag` also work. Node/label crossings are sampled and reported
   with YAML positions. Move the arrangement or anchors to clear them.
   SVG, PDF, picture PPTX and editable **freeform** PPTX preserve the curve;
   editable **glued** returns `pptx/unsupported-geometry` (choose freeform).
@@ -1500,7 +1502,26 @@ edges:
   side; a short span may need extra distance from the line to clear nodes or labels.
   If nothing there is clear `layout/edge-label-overlap` (warning:
   the other side, another `labelAt`, or neither). Use them to say which edge a label
-  belongs to (`K,V` at the `start`).
+  belongs to (`K,V` at the `start`). A label the router placed by itself that drifts
+  off its line is `geometry/edge-label-detached` (info), one whose letters touch it
+  `geometry/edge-label-touches-line` (warning); their hint names an edit already
+  checked by routing the figure again, when one works.
+  **`labelAt: 0.3`** (a fraction from 0 to 1 of the route's length from `from`) centres
+  the label at that point on the segment it falls on, kept off the arrowheads; it then
+  slides like `middle`.
+- **Tags on a line** (`labelStyle: tag`): the label sits centred on its line in a thin
+  frame filled with the background, which hides the line under it. It needs no room
+  beside the line, so it names a line between close columns (`Dev1`, `/4`) or a point
+  along it (`labelAt: 0.25`). Default place: the middle of the longest segment; it
+  slides along that segment to keep clear and never leaves the line (`labelSide` is
+  ignored). Keep tags short; a long tag on a short segment is `layout/edge-label-overlap`.
+
+```yaml
+edges:
+  - {from: shard, to: dev1, label: Dev1, labelStyle: tag}
+  - {from: dev1, to: dev2, label: grads, labelAt: 0.25}
+  - {from: reply, to: client, route: straight, label: response}   # above, though leftward
+```
 - **Titled group alignment**: frame centers and content centers differ because the
   title reserves space. `layout/group-title-offset` (info) explains a horizontal jog
   between aligned frames. Align the connected nodes, e.g.

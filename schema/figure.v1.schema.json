@@ -881,20 +881,37 @@
             "type": "string"
           },
           "labelAt": {
-            "description": "Where along the route the label sits: beside the first segment (start), the longest segment (middle) or the last segment (end). Omitted means next to the arrowhead, or the middle of a line without arrowheads. With route: straight or curve, start/end are near that endpoint and the default is the arc-length midpoint (structured layout only).",
-            "type": "string",
-            "enum": [
-              "start",
-              "middle",
-              "end"
+            "description": "Where along the route the label sits: beside the first segment (start), the longest segment (middle) or the last segment (end), or a fraction of the route's length from `from` (0 to 1, e.g. 0.3), centred there on the segment it falls on. Omitted means next to the arrowhead, or the middle of a line without arrowheads (the middle of the longest segment for labelStyle: tag). With route: straight or curve, start/end are near that endpoint, a fraction is of the arc length, and the default is the arc-length midpoint (structured layout only).",
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "start",
+                  "middle",
+                  "end"
+                ]
+              },
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
             ]
           },
           "labelSide": {
-            "description": "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, or the other side when that is clear. With route: straight or curve, the default is left of the local tangent and labels stay horizontal without obstacle avoidance (structured layout only).",
+            "description": "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, whichever way the edge runs, or the other side when that is clear. With route: straight or curve, the default is above the line (right of a vertical one) and labels stay horizontal without obstacle avoidance (structured layout only). Ignored with labelStyle: tag.",
             "type": "string",
             "enum": [
               "left",
               "right"
+            ]
+          },
+          "labelStyle": {
+            "description": "How the label is drawn: beside the line (beside, the default) or as a small tag on the line (tag): the text in a thin framed box, filled with the background, that sits centred on the line and hides it there. A tag needs no room beside the line, so it fits between close columns and names a point on a line; labelAt moves it along the route (structured layout only).",
+            "type": "string",
+            "enum": [
+              "beside",
+              "tag"
             ]
           },
           "lane": {

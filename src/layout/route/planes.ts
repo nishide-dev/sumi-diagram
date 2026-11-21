@@ -27,7 +27,9 @@ import type {
 import { roundUnits } from "../ir";
 import { mapFlatPoint, planeBasis, planeFrameOf, pointsBounds } from "../plane";
 import { deepFreeze } from "../structured/engine";
+import { edgeArrowheadLength } from "./arrowhead";
 import { isDirectEdge } from "./diagonal";
+import { withTagDiagnostics } from "./label-diagnostics";
 import { boundaryEntry, isJunction, nodeRegion } from "./ports";
 import type { RouteOptions, RouteResult } from "./router";
 
@@ -256,7 +258,14 @@ export function routeWithPlanes(
     ...(nets.length > 0 && { nets }),
     ...(planes !== undefined && { planes }),
   };
-  return { layout: deepFreeze(merged), diagnostics };
+  // Tags (#610) once more on the merged page: a plane's tag against the page's routes and the
+  // other way round (each part was checked alone, in its own coordinates).
+  return {
+    layout: deepFreeze(merged),
+    diagnostics: withTagDiagnostics(ir, merged, diagnostics, (edge) =>
+      edgeArrowheadLength(edge.style),
+    ),
+  };
 }
 
 /**

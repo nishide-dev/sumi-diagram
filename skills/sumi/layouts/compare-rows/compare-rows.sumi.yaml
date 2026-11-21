@@ -8,7 +8,8 @@
 #   added to the baseline, one dashed feedback edge routed under its row, a legend underneath.
 # Change: the row titles, step labels and which slots are empty; keep every step in the
 #   same column in every row; add a row by appending seven items; keep at most one feedback edge per row.
-# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+# Lint: `lint --geometry` 0 errors, 0 warnings, 1 info (geometry/edge-label-detached: "accepted" is lifted
+#   off the short span before Step B; no edit fits there, so it stays as the shipped look).
 version: 1
 figure:
   id: compare-rows

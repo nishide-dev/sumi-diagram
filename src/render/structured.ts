@@ -91,6 +91,7 @@ import {
 } from "../layout/plane";
 import { bundleSpacing } from "../layout/route/arrowhead";
 import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
+import { isTagLabel, tagBox } from "../layout/route/labels";
 import { groupArrowheadStems } from "../layout/route/padding";
 import { edgeArrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
 import { setOverlaps } from "../layout/set-overlap";
@@ -1244,9 +1245,30 @@ function edgeGroup(
     );
   let labelSvg = "";
   if (layoutLabel !== undefined) {
-    labelSvg = label(layoutLabel, style.fontColor);
+    labelSvg =
+      (isTagLabel(edge) ? tagFrame(edge, layoutLabel, groups, canvas) : "") +
+      label(layoutLabel, style.fontColor);
   }
   return `<g class="${elementClass(edge.key)} sumi-kind-edge"${opacity(style)}>${connection}${heads}${labelSvg}</g>`;
+}
+
+/**
+ * The framed box of a tag (`labelStyle: tag`, #610) under its text: filled
+ * with what is painted beneath it, so it hides the line it sits on, and
+ * framed in the line's color at the line's width (at most 0.5pt), solid even
+ * on a dashed line. Drawn just before the label's `<text>`, where the
+ * editable PPTX takes a label's background from.
+ */
+function tagFrame(
+  edge: EdgeIR,
+  layout: TextLayout,
+  groups: readonly PaintedGroup[],
+  canvas: string,
+): string {
+  const box = tagBox(layout.box, layout);
+  const width = Math.min(edge.style.strokeWidth.units, 1);
+  const radius = Math.min(box.height / 2, Math.round(layout.fontSizeUnits / 4));
+  return `<rect class="sumi-edge-tag" x="${n(box.x)}" y="${n(box.y)}" width="${n(box.width)}" height="${n(box.height)}" rx="${n(radius)}" fill="${paint(labelBackground(box, groups, canvas))}" stroke="${paint(edge.style.stroke)}" stroke-width="${n(width)}"/>`;
 }
 
 /**
