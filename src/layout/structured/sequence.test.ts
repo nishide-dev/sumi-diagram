@@ -288,6 +288,54 @@ describe("sequence errors (#630)", () => {
     expect(errorCodes(figure("          - [ab, {note: n1, over: [c]}]", notes))).toEqual([]);
   });
 
+  test("band members may not cover the same lifelines or gap (regression: side notes)", () => {
+    const notes = {
+      nodes: "  - {id: n1, component: box, label: n}\n  - {id: n2, component: box, label: m}\n",
+      edges: "",
+      sequence: "",
+    };
+    const invalid = (rows: string) => {
+      const diagnostics = checkFigure(figure(rows, notes)).state.diagnostics.filter(
+        (d) => d.code === "layout/sequence-invalid-row",
+      );
+      return diagnostics.map((d) => d.message);
+    };
+    // A note beside a's lifeline sits in the gap the message a → b runs through.
+    const [message] = invalid("          - [ab, {note: n1, over: [a], side: right}]");
+    expect(message).toContain('message "ab"');
+    expect(message).toContain('note "n1"');
+    expect(invalid("          - [ab, {note: n1, over: [b], side: left}]")).toHaveLength(1);
+    // A self-message's loop and a note beside it, both right of c's lifeline.
+    expect(invalid("          - [cc, {note: n1, over: [c], side: right}]")).toHaveLength(1);
+    // A note over a lifeline and one beside it.
+    expect(
+      invalid("          - [{note: n1, over: [a]}, {note: n2, over: [a], side: right}]"),
+    ).toHaveLength(1);
+    // Facing sides of one gap, and a loop next to a note over the next lifeline: allowed.
+    expect(
+      invalid(
+        "          - [{note: n1, over: [a], side: right}, {note: n2, over: [b], side: left}]",
+      ),
+    ).toEqual([]);
+    expect(invalid("          - [ab, {note: n1, over: [c], side: right}]")).toEqual([]);
+  });
+
+  test("allowed band members that share a gap are laid out clear of each other", () => {
+    const p = layout(
+      figure(
+        "          - [{note: n1, over: [a], side: right}, {note: n2, over: [b]}]\n          - ab",
+        {
+          nodes:
+            "  - {id: n1, component: box, label: a wide side note}\n  - {id: n2, component: box, label: a wide note over b}\n",
+          edges: "",
+          sequence: "",
+        },
+      ),
+    );
+    expect(p.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+    expect(p.rect("n:n1").x + p.rect("n:n1").width).toBeLessThan(p.rect("n:n2").x);
+  });
+
   test("generated IDs are reserved; the auto engine cannot draw a sequence", () => {
     expect(
       errorCodes(

@@ -1672,7 +1672,7 @@
               ]
             },
             "rowGap": {
-              "description": "Space between consecutive rows. Omitted means half the profile's arrange gap.",
+              "description": "Space between consecutive rows. Omitted means a third of the profile's arrange gap.",
               "anyOf": [
                 {
                   "type": "string",
@@ -1716,7 +1716,7 @@
                   ]
                 },
                 "lineWidth": {
-                  "description": "Width of the lifelines. Omitted means the variant's.",
+                  "description": "Width of the lifelines. Omitted means the theme's thin line (or half the muted line), at least 0.5pt times the text scale, so they read lighter than the messages.",
                   "type": "string",
                   "pattern": "^(?:0\\.25|0\\.5|0\\.75|1|1\\.25|1\\.5|1\\.75|2|2\\.25|2\\.5|2\\.75|3|3\\.25|3\\.5|3\\.75|4)pt$"
                 }
@@ -1819,7 +1819,7 @@
               }
             ]
           },
-          "description": "A band: messages and notes side by side in one row, from the same top (e.g. a note on one lifeline while two others exchange a message). They may not share a lifeline."
+          "description": "A band: messages and notes side by side in one row, from the same top (e.g. a note on one lifeline while two others exchange a message). They may not cover the same lifelines or the same side of a gap."
         },
         {
           "$ref": "#/$defs/SequenceFragment"

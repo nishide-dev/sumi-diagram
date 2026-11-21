@@ -264,31 +264,48 @@ export function expandSequences(state: CheckState, locate: Locator): void {
         const rowPath = [...rowsPath, r];
         if (Array.isArray(row)) {
           const inner = rowsOf(row, rowPath);
-          const owner = new Map<number, number>();
-          let shared: number | undefined;
-          for (const [k, x] of inner.entries()) {
-            const lines =
-              x.kind === "message"
-                ? [x.from, x.to]
-                : x.kind === "note" && x.side === undefined
-                  ? Array.from({ length: x.hi - x.lo + 1 }, (_, i) => x.lo + i)
-                  : [];
-            for (const line of lines) {
-              const other = owner.get(line);
-              if (other !== undefined && other !== k) shared = line;
-              owner.set(line, k);
+          // What each member covers across the lifelines, at 4 steps per lifeline (lifeline i
+          // at 4i): a message spans its lifelines, a self-message its lifeline and the start
+          // of the gap to its right, a note over lifelines those and the edges of the gaps
+          // beside them, a note beside a lifeline the part of the gap next to it. Members
+          // that meet would be drawn over each other.
+          const extent = (x: SequenceRowX): [number, number] | undefined =>
+            x.kind === "message"
+              ? x.from === x.to
+                ? [4 * x.from, 4 * x.from + 1]
+                : [4 * Math.min(x.from, x.to), 4 * Math.max(x.from, x.to)]
+              : x.kind === "note"
+                ? x.side === "right"
+                  ? [4 * x.lo + 1, 4 * x.lo + 1]
+                  : x.side === "left"
+                    ? [4 * x.lo - 1, 4 * x.lo - 1]
+                    : [4 * x.lo - 1, 4 * x.hi + 1]
+                : undefined;
+          const describe = (x: SequenceRowX) =>
+            x.kind === "message"
+              ? `message "${x.edge.slice(2)}"`
+              : x.kind === "note"
+                ? `note "${x.node}"`
+                : "a row";
+          let clash: [SequenceRowX, SequenceRowX] | undefined;
+          for (const [k, p] of inner.entries())
+            for (const q of inner.slice(k + 1)) {
+              const [p0, p1] = extent(p) ?? [];
+              const [q0, q1] = extent(q) ?? [];
+              if (p0 === undefined || p1 === undefined || q0 === undefined || q1 === undefined)
+                continue;
+              if (clash === undefined && p0 <= q1 && q0 <= p1) clash = [p, q];
             }
-          }
-          if (shared !== undefined)
+          if (clash !== undefined)
             state.diagnostics.push(
               errorAt(
                 locate,
                 "layout/sequence-invalid-row",
-                `Two rows of a band meet the lifeline of "${participants[shared]}".`,
+                `In a band, ${describe(clash[0])} and ${describe(clash[1])} cover the same part of the lifelines and would be drawn over each other.`,
                 rowPath,
                 {
                   subject: figureSubject,
-                  hint: "Rows side by side must use different lifelines; write them as consecutive rows instead.",
+                  hint: "Rows side by side must lie on different lifelines and gaps; write them as consecutive rows instead.",
                 },
               ),
             );

@@ -559,7 +559,7 @@ export const SequenceRowSchema = z.union([
     .array(z.union([SequenceMessage, SequenceNoteSchema]))
     .min(2)
     .describe(
-      "A band: messages and notes side by side in one row, from the same top (e.g. a note on one lifeline while two others exchange a message). They may not share a lifeline.",
+      "A band: messages and notes side by side in one row, from the same top (e.g. a note on one lifeline while two others exchange a message). They may not cover the same lifelines or the same side of a gap.",
     ),
   SequenceFragmentSchema,
 ]);
@@ -581,7 +581,7 @@ export const SequenceSchema = z.strictObject({
     "Least space between neighbouring participants' boxes; the lifelines move further apart when a message label, note or fragment needs it. Omitted means the profile's arrange gap.",
   ),
   rowGap: LayoutLength.optional().describe(
-    "Space between consecutive rows. Omitted means half the profile's arrange gap.",
+    "Space between consecutive rows. Omitted means a third of the profile's arrange gap.",
   ),
   lifeline: z
     .strictObject({
@@ -596,7 +596,7 @@ export const SequenceSchema = z.strictObject({
         .describe("solid, dashed or dotted. Omitted means dashed."),
       tone: z.enum(TONE_NAMES).optional().describe("The lifelines' tone. Omitted means none."),
       lineWidth: StrokeWidth.optional().describe(
-        "Width of the lifelines. Omitted means the variant's.",
+        "Width of the lifelines. Omitted means the theme's thin line (or half the muted line), at least 0.5pt times the text scale, so they read lighter than the messages.",
       ),
     })
     .optional()

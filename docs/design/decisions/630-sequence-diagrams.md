@@ -29,7 +29,7 @@ arrange:
 - 行の種類は 4 つ: 辺の ID（メッセージ）、`{note, over, side?}`、帯（リスト）、`{fragment, rows, …}`。
 - `participants` と `rows` の名前は issue の案のまま。`fragment` の値はそのまま見出しの文字にした（`loop` / `alt` などの UML の種類は必須にしない。issue の案の `{fragment: round2, …}` の id は、見出しと別に名前を付ける用途がなかったので取らなかった）。
 - 注記の `over` は 1 人、または両端の 2 人（その間の lifeline すべてにまたがる）。Mermaid の `over A,B` と同じ読み方で、間の参加者を全部書かせない。
-- **帯**（`[a, {note: n, over: [p]}]`）は issue の案になく、run 9 の作り直しで足した。run 9 は「サーバーが状態を持たない」注記をユーザーとのやりとりの横に置いており、これを 1 行ずつに分けると screen-doc の高さ（150mm）を 15mm 超えた。同じ lifeline を使う行は並べられない（`layout/sequence-invalid-row`）。並べた行どうしが同じ列の間隔を分け合うときは、その間隔を両方の幅の和まで広げる。
+- **帯**（`[a, {note: n, over: [p]}]`）は issue の案になく、run 9 の作り直しで足した。run 9 は「サーバーが状態を持たない」注記をユーザーとのやりとりの横に置いており、これを 1 行ずつに分けると screen-doc の高さ（150mm）を 15mm 超えた。並べた行が横に重なるものは `layout/sequence-invalid-row`（重なる 2 つを名指しする）。各行が覆う範囲を lifeline 1 本を 4 刻みとした座標で表し（lifeline i は 4i）、メッセージは両端の lifeline の間、自分へのメッセージは lifeline と右の間隔の始まり、lifeline の上の注記は lifeline とその両側の間隔の端、横の注記は lifeline の隣の間隔の片側を覆うとして、覆う範囲が交わる組を拒む。同じ間隔を左右から分け合う組（`a` の右の注記と `b` の上の注記など）は許し、その間隔を両方の幅の和まで広げる。（レビューで、横の注記を範囲なしとして `[ab, {note, over: [a], side: right}]` を通していた誤りを指摘され、この判定にした。）
 
 ### 2. 展開: 普通の要素に置き換える（`src/core/figure/sequence.ts`）
 
@@ -40,7 +40,7 @@ arrange:
 - lifeline は参加者から下端の隠しジャンクションまでの `line` 辺の鎖（`seq-<n>-life-<i>-<k>`、既定は `muted`・`dashed`）。注記が lifeline の上にあるときは、注記の上下の枠のすぐ外にジャンクションを置き、その間は線を引かない。線の幅は既定でテーマの `line.thin`（なければ muted の線の半分、textScale × 0.5pt 以上）にし、メッセージより細く見せる。
 - 帯（fragment）は、隠しジャンクション 2 つ（枠の左上・右下の角）・見出しの `label` ノード・中の注記を members にした `rect` の set（`padding: 0`）にする。描き方は sets の rect と同じで、`variant`（既定 `outlined`）・`tone`・`fillOpacity` を渡す。見出しは太字（`weight` / `text` で変えられる）。
 - 生成した ID は `seq-<n>-` で始まり予約する（作者の要素と重なれば `ref/reserved-id`）。生成した要素は `doc.expanded`（`from: "sequence"`）に記録し、診断は箱の場所を指す。生成した set の診断の場所は帯の行（`doc.sequenceSets`）。
-- 誤り: 辺のない行（`layout/sequence-unknown-message`）、参加者でない端・注記（`layout/sequence-unknown-participant`）、2 回置いたメッセージ・`side` の注記に複数の参加者・lifeline を共有する帯・重複した参加者（`layout/sequence-invalid-row`）。auto エンジンは `arrange` そのものが `layout/structured-only` なので、何も足していない。
+- 誤り: 辺のない行（`layout/sequence-unknown-message`）、参加者でない端・注記（`layout/sequence-unknown-participant`）、2 回置いたメッセージ・`side` の注記に複数の参加者・横に重なる帯の行・重複した参加者（`layout/sequence-invalid-row`）。auto エンジンは `arrange` そのものが `layout/structured-only` なので、何も足していない。
 
 ノードを置く箱として扱うため、`sequenceKeys()` が箱の置く ID（参加者・注記・ジャンクション・見出し）を返し、layout の段階の「1 回だけ置く」検査も、IR の `items` もそれを使う。
 

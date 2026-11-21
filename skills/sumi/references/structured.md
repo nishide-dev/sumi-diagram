@@ -405,7 +405,9 @@ edges:
   above a note over it and resumes below it.
 - **Bands**: a list `[a, {note: n, over: [p]}]` puts messages and notes side by side in
   one row (from the same top), e.g. a note on one lifeline while two others talk. They
-  must use different lifelines (`layout/sequence-invalid-row`).
+  must not cover the same lifelines or the same side of a gap: a note beside `a` next to
+  a message from `a` is `layout/sequence-invalid-row`; a note beside `a` and one over
+  `b` share the gap between them and get room for both.
 - **Fragments**: `{fragment: "loop [until done]", rows: [...]}` frames its rows. The
   heading is written text (no UML kind is required), bold, inside the frame's top-left
   corner and left of the first lifeline it encloses; `text`, `weight`, `tone`, `variant`
@@ -423,7 +425,7 @@ edges:
   0.5pt` keeps it compact).
 - Errors: a row naming no edge (`layout/sequence-unknown-message`), an end or note on a
   node that is not a participant (`layout/sequence-unknown-participant`), a message in
-  two rows, a `side` note over several lifelines, a band sharing a lifeline
+  two rows, a `side` note over several lifelines, band rows that overlap
   (`layout/sequence-invalid-row`). Generated IDs start with `seq-<n>-` and are
   reserved. Structured only (`layout/structured-only` with `engine: auto`, like every
   arrange box). Activation bars and participants repeated at the bottom are not drawn.
