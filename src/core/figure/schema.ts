@@ -185,6 +185,20 @@ export const EDGE_LABEL_POSITIONS = ["start", "middle", "end"] as const;
 export type EdgeLabelPosition = (typeof EDGE_LABEL_POSITIONS)[number];
 
 /**
+ * `labelAt` as written (#610): one of {@link EDGE_LABEL_POSITIONS}, or a
+ * fraction (0 to 1) of the route's length from `from`.
+ */
+export type EdgeLabelAt = EdgeLabelPosition | number;
+
+/**
+ * How an edge's label is drawn (#610): `beside` the line (the default), or
+ * as a `tag` on the line, its text in a small framed box that hides the line
+ * under it. Structured layout only.
+ */
+export const EDGE_LABEL_STYLES = ["beside", "tag"] as const;
+export type EdgeLabelStyle = (typeof EDGE_LABEL_STYLES)[number];
+
+/**
  * Which side of its line an edge's label sits on, facing the way the edge
  * runs from `from` to `to` (#128). Structured layout only.
  */
@@ -1356,16 +1370,22 @@ export const EdgeSchema = z.strictObject({
   ),
   label: Label,
   labelAt: z
-    .enum(EDGE_LABEL_POSITIONS)
+    .union([z.enum(EDGE_LABEL_POSITIONS), z.number().min(0).max(1)])
     .optional()
     .describe(
-      "Where along the route the label sits: beside the first segment (start), the longest segment (middle) or the last segment (end). Omitted means next to the arrowhead, or the middle of a line without arrowheads. With route: straight or curve, start/end are near that endpoint and the default is the arc-length midpoint (structured layout only).",
+      "Where along the route the label sits: beside the first segment (start), the longest segment (middle) or the last segment (end), or a fraction of the route's length from `from` (0 to 1, e.g. 0.3), centred there on the segment it falls on. Omitted means next to the arrowhead, or the middle of a line without arrowheads (the middle of the longest segment for labelStyle: tag). With route: straight or curve, start/end are near that endpoint, a fraction is of the arc length, and the default is the arc-length midpoint (structured layout only).",
     ),
   labelSide: z
     .enum(EDGE_LABEL_SIDES)
     .optional()
     .describe(
-      "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, or the other side when that is clear. With route: straight or curve, the default is left of the local tangent and labels stay horizontal without obstacle avoidance (structured layout only).",
+      "Which side of the line the label sits on, facing from the source to the target. Omitted means above a horizontal segment and right of a vertical one, whichever way the edge runs, or the other side when that is clear. With route: straight or curve, the default is above the line (right of a vertical one) and labels stay horizontal without obstacle avoidance (structured layout only). Ignored with labelStyle: tag.",
+    ),
+  labelStyle: z
+    .enum(EDGE_LABEL_STYLES)
+    .optional()
+    .describe(
+      "How the label is drawn: beside the line (beside, the default) or as a small tag on the line (tag): the text in a thin framed box, filled with the background, that sits centred on the line and hides it there. A tag needs no room beside the line, so it fits between close columns and names a point on a line; labelAt moves it along the route (structured layout only).",
     ),
   lane: LaneSchema.optional().describe(
     "The lane of a loop, skip or bus (structured layout only): the edge leaves and enters on the lane's side and its long segment runs `offset` beyond both ends (or beyond the frame of `outside`). Edges with lanes on one side that share a source (or a target) share one lane, the farthest: a bus with one trunk. Omitted means the router's own route.",

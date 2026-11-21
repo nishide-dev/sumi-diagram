@@ -50,6 +50,26 @@ export function layoutTrial(
   }
 }
 
+/**
+ * Routes `ir` on a placement already made (`placed`, the figure's own before
+ * routing), as render does: for edits that leave the placement as it is,
+ * such as where an edge's label goes (`geometry/edge-label-detached`, #610).
+ * `undefined` if the counterfactual is invalid.
+ */
+export function routeTrial(ir: FigureIR, placed: LayoutIR): Trial | undefined {
+  try {
+    const { ir: faced, routed } = routeStructured(ir, placed, { hintTrials: false });
+    return {
+      ir: faced,
+      layout: routed.layout,
+      placed: { ir, layout: placed },
+      diagnostics: [...setOverlapDiagnostics(faced, placed), ...routed.diagnostics],
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 /** Errors and warnings of a lint run: by code and subject, counted. */
 export type Problems = Map<string, number>;
 
@@ -71,6 +91,23 @@ export function problemsOf(
   /** Called with the trial's lint context, for checks that must not depend on the configured levels. */
   inspect?: (linted: GeometryContext) => void,
 ): Problems | undefined {
+  const linted = trialContext(context, trial, assets, source);
+  if (linted === undefined) return undefined;
+  inspect?.(linted);
+  return problemsIn(linted, trial, skip);
+}
+
+/**
+ * The geometry context of a trial, as the figure's own (same configuration),
+ * for rules that also measure the trial (`geometry/edge-label-detached`):
+ * its SVG, placement and routes. `undefined` if it cannot be drawn or read.
+ */
+export function trialContext(
+  context: GeometryContext,
+  trial: Trial,
+  assets: Parameters<typeof writeStructuredSvg>[3],
+  source?: string,
+): GeometryContext | undefined {
   const fonts = getFontSet(trial.ir.meta.fontSetId);
   if (fonts === undefined) return undefined;
   const svg = inspectSvg(writeStructuredSvg(trial.ir, trial.layout, fonts, assets), trial.ir);
@@ -80,15 +117,22 @@ export function problemsOf(
     ...svg,
     value: { ...svg.value, painted: paintedInspection(trial.ir, trial.layout) },
   };
-  const config = context.lintConfig ?? resolveLintConfig();
-  const linted: GeometryContext = {
+  return {
     ...createGeometryContext(trial.ir, inspected.value, fonts),
     layout: trial.layout,
     placed: trial.placed,
-    lintConfig: config,
+    lintConfig: context.lintConfig ?? resolveLintConfig(),
     ...(source !== undefined && { source }),
   };
-  inspect?.(linted);
+}
+
+/** {@link problemsOf} on a trial's context made by {@link trialContext}. */
+export function problemsIn(
+  linted: GeometryContext,
+  trial: Trial,
+  skip: ReadonlySet<string>,
+): Problems {
+  const config = linted.lintConfig ?? resolveLintConfig();
   const counts: Problems = new Map();
   const add = (code: string, subject: unknown) => {
     const key = `${code} ${JSON.stringify(subject ?? null)}`;

@@ -4,7 +4,8 @@
  * even when nothing there is clear (`placeRequestedLabel`). The overlap that
  * remains is reported here, so the author can pick another side or segment.
  *
- * Only edges that write `labelAt` or `labelSide` are checked: the default
+ * Only edges that write `labelAt` or `labelSide` (or draw a tag, #610, whose
+ * own segment does not count) are checked: the default
  * placement and its diagnostics are unchanged (its leftovers are found by
  * the geometry lint as before). Checked on the routed Layout IR, against
  * what the geometry lint does not see for an edge's own label: routes
@@ -14,11 +15,12 @@
 
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
-import type { Diagnostic } from "../../core/diagnostics";
+import { type Diagnostic, hasErrors } from "../../core/diagnostics";
 import { EDGE_LABEL_POSITIONS, EDGE_LABEL_SIDES } from "../../core/figure/schema";
 import { groupFrontRect, groupLayerObstacles } from "../group-layers";
 import type { LayoutIR, Point, Rect } from "../ir";
-import { arrowheadRects, hasRequestedLabel } from "./labels";
+import { sampleCubic } from "./cubic";
+import { arrowheadRects, hasRequestedLabel, isTagLabel, tagBox } from "./labels";
 
 /** The open rectangles overlap (touching does not count). */
 const overlaps = (a: Rect, b: Rect): boolean =>
@@ -47,6 +49,12 @@ export function requestedLabelDiagnostics(
   ir: FigureIR,
   layout: LayoutIR,
   arrowheadOf: (edge: EdgeIR) => number,
+  /**
+   * The edges whose labels to check (default: every edge with a requested
+   * label). The router checks orthogonal labels while routing, and the tags
+   * of `route: straight` / `curve` edges once every route is drawn (#610).
+   */
+  only: (edge: EdgeIR) => boolean = () => true,
 ): Diagnostic[] {
   const byKey = new Map(ir.edges.map((e) => [e.key, e]));
   const idOf = (key: ElementKey) => {
@@ -60,10 +68,19 @@ export function requestedLabelDiagnostics(
     if (element?.kind === "edge") return `edge ${edgeName(element)}`;
     return `${element?.kind ?? "element"} "${idOf(key)}"`;
   };
+  // Zoom edges (#176): their straight lines between corners are obstacles, not routes.
+  const zoomLines = layout.edges.flatMap((e) => {
+    const edge = byKey.get(e.key);
+    const lines = e.route?.lines;
+    return edge === undefined || lines === undefined ? [] : [{ edge, lines }];
+  });
   const routed = layout.edges.flatMap((e) => {
     const edge = byKey.get(e.key);
-    const points = e.route?.points;
-    return edge === undefined || points === undefined ? [] : [{ edge, points, layout: e }];
+    const route = e.route?.points;
+    if (edge === undefined || route === undefined || e.route?.lines !== undefined) return [];
+    // A curve (#610) as the polyline it is drawn as, not its control points.
+    const points = edge.route === "curve" && route.length === 4 ? sampleCubic(route) : route;
+    return [{ edge, points, layout: e }];
   });
   const otherLabels: (readonly [ElementKey, Rect])[] = [
     ...layout.nodes.flatMap((n) => (n.label === undefined ? [] : [[n.key, n.label.box] as const])),
@@ -71,9 +88,11 @@ export function requestedLabelDiagnostics(
       n.sublabel === undefined ? [] : [[n.key, n.sublabel.box] as const],
     ),
     ...layout.groups.flatMap((g) => (g.label === undefined ? [] : [[g.key, g.label.box] as const])),
-    ...routed.flatMap(({ layout: e }) =>
-      e.route?.label === undefined ? [] : [[e.key, e.route.label.box] as const],
-    ),
+    ...routed.flatMap(({ edge, layout: e }) => {
+      const label = e.route?.label;
+      if (label === undefined) return [];
+      return [[e.key, isTagLabel(edge) ? tagBox(label.box, label) : label.box] as const];
+    }),
   ];
   const bordered = layout.groups.filter((group) => {
     const element = ir.elements.get(group.key);
@@ -87,20 +106,39 @@ export function requestedLabelDiagnostics(
 
   const diagnostics: Diagnostic[] = [];
   for (const { edge, layout: e } of routed) {
-    const box = e.route?.label?.box;
-    if (box === undefined || !hasRequestedLabel(edge)) continue;
+    const label = e.route?.label;
+    if (label === undefined || !hasRequestedLabel(edge) || !only(edge)) continue;
+    // A tag (#610) takes its drawn frame.
+    const box = isTagLabel(edge) ? tagBox(label.box, label) : label.box;
     const found: string[] = [];
+    // A tag (#610) sits on its own segment; on a straight or curved line, on its line.
+    const tag = isTagLabel(edge);
+    // A tag sits on one segment of its own route: that one is not an obstacle, its other legs
+    // are. The segment is the one through the tag's centre, so it survives a route mapped onto a
+    // tilted plane (#577), whose slanted lengths no longer pick the same longest segment. A
+    // straight or curved line is all one line under its tag.
+    const direct = edge.route !== undefined;
+    const host = tag && !direct ? hostSegment(e.route?.points ?? [], label.box) : -1;
     for (const other of routed) {
       const own = other.edge.key === edge.key;
       const points = other.points;
-      const crosses = points
-        .slice(1)
-        .some((q, i) => overlaps(segmentRect(points[i] as Point, q), box));
+      const crosses =
+        !(own && tag && direct) &&
+        points
+          .slice(1)
+          .some((q, i) => !(own && i + 1 === host) && segmentMeets(points[i] as Point, q, box));
       if (crosses) found.push(own ? "its own line" : `the line of ${elementName(other.edge.key)}`);
-      const heads = arrowheadRects(points, other.edge, arrowheadOf(other.edge));
+      const heads =
+        other.edge.route !== undefined || !axisAligned(points)
+          ? directHeads(points, other.edge, arrowheadOf(other.edge))
+          : arrowheadRects(points, other.edge, arrowheadOf(other.edge));
       if (heads.some((r) => overlaps(r, box))) {
         found.push(own ? "its own arrowhead" : `the arrowhead of ${elementName(other.edge.key)}`);
       }
+    }
+    for (const { edge: zoom, lines } of zoomLines) {
+      if (lines.some(([a, b]) => segmentMeets(a, b, box)))
+        found.push(`the line of ${elementName(zoom.key)}`);
     }
     for (const node of layout.nodes) {
       if (overlaps(node.rect, box)) found.push(elementName(node.key));
@@ -125,27 +163,143 @@ export function requestedLabelDiagnostics(
     if (found.length === 0) continue;
 
     const source = ir.sourceMap.get(edge.key);
+
     const written = [
       ...(edge.labelAt !== undefined ? [`labelAt: ${edge.labelAt}`] : []),
-      ...(edge.labelSide !== undefined ? [`labelSide: ${edge.labelSide}`] : []),
+      ...(edge.labelSide !== undefined && !tag ? [`labelSide: ${edge.labelSide}`] : []),
+      ...(tag ? ["labelStyle: tag"] : []),
     ].join(", ");
     const otherSide = EDGE_LABEL_SIDES.find((s) => s !== edge.labelSide);
     const otherAt = EDGE_LABEL_POSITIONS.filter((p) => p !== edge.labelAt);
     const tries = [
-      ...(edge.labelSide !== undefined ? [`labelSide: ${otherSide}`] : []),
-      `labelAt: ${otherAt.join(" or ")}`,
+      ...(edge.labelSide !== undefined && !tag ? [`labelSide: ${otherSide}`] : []),
+      `labelAt: ${otherAt.join(" or ")} (or a fraction of the route such as 0.3)`,
     ];
     diagnostics.push({
       code: "layout/edge-label-overlap",
       severity: "warning",
-      message: `The label of edge ${edgeName(edge)} overlaps ${list(found)}: nothing beside the segment and side it asks for (${written}) is clear.`,
+      message: tag
+        ? `The tag of edge ${edgeName(edge)} overlaps ${list(found)}: nothing on the segment it asks for (${written}) is clear.`
+        : `The label of edge ${edgeName(edge)} overlaps ${list(found)}: nothing beside the segment and side it asks for (${written}) is clear.`,
       path: source?.path ?? ["edges", edge.index],
       ...(source?.location !== undefined && { location: source.location }),
       subject: { kind: "edge", id: edge.id ?? `edges[${edge.index}]` },
-      hint: `labelAt and labelSide keep the label beside the segment and side they name, so it is not moved elsewhere. Try ${tries.join(", or ")}; remove them to let the router choose; or make room (a gap, anchors, a shorter label).`,
+      hint: tag
+        ? `A tag stays on the segment labelAt names, so it is not moved elsewhere. Try ${tries.join(", or ")}; remove labelStyle: tag to let the router place the label beside the line; or make room (a gap, anchors, a shorter label).`
+        : `labelAt and labelSide keep the label beside the segment and side they name, so it is not moved elsewhere. Try ${tries.join(", or ")}; remove them to let the router choose; or make room (a gap, anchors, a shorter label).`,
     });
   }
   return diagnostics;
+}
+
+/**
+ * The index `i` of the segment from `points[i - 1]` to `points[i]` nearest the centre of
+ * `box`: the segment a tag (#610) sits on, centred.
+ */
+function hostSegment(points: readonly Point[], box: Rect): number {
+  const c = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  let best = 1;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1] as Point;
+    const b = points[i] as Point;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const length = dx * dx + dy * dy;
+    const t =
+      length === 0 ? 0 : Math.max(0, Math.min(1, ((c.x - a.x) * dx + (c.y - a.y) * dy) / length));
+    const d = Math.hypot(a.x + t * dx - c.x, a.y + t * dy - c.y);
+    if (d < bestDistance - 1e-9) {
+      best = i;
+      bestDistance = d;
+    }
+  }
+  return best;
+}
+
+/** Whether every segment of a route runs along an axis (not a route mapped onto a tilted plane). */
+const axisAligned = (points: readonly Point[]): boolean =>
+  points.slice(1).every((q, i) => {
+    const p = points[i] as Point;
+    return Math.abs(p.x - q.x) < 1e-9 || Math.abs(p.y - q.y) < 1e-9;
+  });
+
+/**
+ * The tag overlaps of a whole figure (#610), once every route is drawn and in page coordinates:
+ * `layout/edge-label-overlap` for every tag (orthogonal, straight, curved, on a tilted plane)
+ * against every line (zoom lines included), arrowhead, node, label and border. A tag's warning
+ * from an earlier, partial check (routing before the straight, curved and zoom lines existed,
+ * or a plane routed apart from the page) is replaced, so each tag is reported at most once.
+ */
+export function withTagDiagnostics(
+  ir: FigureIR,
+  layout: LayoutIR,
+  diagnostics: readonly Diagnostic[],
+  arrowheadOf: (edge: EdgeIR) => number,
+): Diagnostic[] {
+  const tagged = (edge: EdgeIR) => isTagLabel(edge) && hasRequestedLabel(edge);
+  const tagIds = new Set(ir.edges.filter(tagged).map((e) => e.id ?? `edges[${e.index}]`));
+  if (tagIds.size === 0 || hasErrors(diagnostics)) return [...diagnostics];
+  const earlier = diagnostics.filter(
+    (d) =>
+      !(
+        d.code === "layout/edge-label-overlap" &&
+        d.subject?.kind === "edge" &&
+        tagIds.has(d.subject.id)
+      ),
+  );
+  return [...earlier, ...requestedLabelDiagnostics(ir, layout, arrowheadOf, tagged)];
+}
+
+/**
+ * Whether the segment from `a` to `b` meets the open rectangle: an
+ * axis-parallel one as its own (zero-width) rectangle, a slanted one
+ * clipped to the rectangle (Liang–Barsky), as a straight line (#610) runs.
+ */
+function segmentMeets(a: Point, b: Point, r: Rect): boolean {
+  if (a.x === b.x || a.y === b.y) return overlaps(segmentRect(a, b), r);
+  let t0 = 0;
+  let t1 = 1;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  for (const [p, q] of [
+    [-dx, a.x - r.x],
+    [dx, r.x + r.width - a.x],
+    [-dy, a.y - r.y],
+    [dy, r.y + r.height - a.y],
+  ] as const) {
+    if (p === 0) {
+      if (q <= 0) return false;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) t0 = Math.max(t0, t);
+    else t1 = Math.min(t1, t);
+  }
+  return t1 - t0 > 1e-9;
+}
+
+/**
+ * The arrowheads of a straight or curved edge (#610) as squares `arrowhead`
+ * wide about the middle of each head, along its end direction.
+ */
+function directHeads(points: readonly Point[], edge: EdgeIR, arrowhead: number): Rect[] {
+  const head = (tip: Point, from: Point): Rect => {
+    const d = Math.hypot(tip.x - from.x, tip.y - from.y) || 1;
+    const c = {
+      x: tip.x - ((tip.x - from.x) / d) * (arrowhead / 2),
+      y: tip.y - ((tip.y - from.y) / d) * (arrowhead / 2),
+    };
+    return { x: c.x - arrowhead / 2, y: c.y - arrowhead / 2, width: arrowhead, height: arrowhead };
+  };
+  const n = points.length;
+  if (n < 2) return [];
+  return [
+    ...(edge.targetArrowhead !== undefined
+      ? [head(points[n - 1] as Point, points[n - 2] as Point)]
+      : []),
+    ...(edge.sourceArrowhead !== undefined ? [head(points[0] as Point, points[1] as Point)] : []),
+  ];
 }
 
 function list(items: readonly string[]): string {

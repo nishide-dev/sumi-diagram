@@ -4,6 +4,7 @@ export * from "./density";
 export * from "./edges";
 export * from "./lint";
 export * from "./measure";
+export * from "./placement-drift";
 export * from "./proximity";
 export * from "./rules";
 export * from "./shapes";

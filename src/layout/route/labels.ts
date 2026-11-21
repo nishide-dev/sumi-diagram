@@ -11,7 +11,9 @@
  * requested segment, on the requested side, instead (`placeRequestedLabel`):
  * it moves only along that segment to keep clear of routes, group borders,
  * nodes and labels. On a short span, a colliding label can move farther
- * from the line, keeping its side (#332).
+ * from the line, keeping its side (#332). `labelAt` may also be a fraction
+ * of the route's length (#610), and `labelStyle: tag` (#610) puts the label
+ * on its line, in a framed box (`tagBox`), placed the same way with no side.
  */
 
 import type { EdgeIR } from "../../compiler/ir";
@@ -31,6 +33,62 @@ export function labelGap(
   style: Pick<EdgeIR["style"], "textScale" | "labelGap"> | undefined,
 ): number {
   return Math.round((style?.labelGap ?? EDGE_LABEL_GAP) * (style?.textScale ?? 1));
+}
+
+/**
+ * The padding of a tag (`labelStyle: tag`, #610) around its text's line box,
+ * in units: a third of the font size on the left and right, a tenth above
+ * and below (the line box already holds the half-leading).
+ */
+export function tagPadding(metrics: Pick<TextMetrics, "fontSizeUnits">): {
+  readonly x: number;
+  readonly y: number;
+} {
+  return {
+    x: Math.round(metrics.fontSizeUnits / 3),
+    y: Math.round(metrics.fontSizeUnits / 10),
+  };
+}
+
+/** The framed box of a tag around its text's line box `box` (#610). */
+export function tagBox(box: Rect, metrics: Pick<TextMetrics, "fontSizeUnits">): Rect {
+  const pad = tagPadding(metrics);
+  return {
+    x: box.x - pad.x,
+    y: box.y - pad.y,
+    width: box.width + 2 * pad.x,
+    height: box.height + 2 * pad.y,
+  };
+}
+
+/** Whether an edge's label is drawn as a tag on its line (#610). */
+export const isTagLabel = (edge: Pick<EdgeIR, "labelStyle">): boolean => edge.labelStyle === "tag";
+
+/**
+ * The point at `fraction` (0 to 1) of a route's length from its first point
+ * (#610), as the index `i` of the segment from `points[i - 1]` to
+ * `points[i]` it falls on (at a corner, the segment after it, except at the
+ * end) and the distance along that segment from `points[i - 1]`.
+ */
+export function routeFraction(
+  points: readonly Point[],
+  fraction: number,
+): { readonly index: number; readonly along: number } {
+  const lengths: number[] = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1] as Point;
+    const b = points[i] as Point;
+    lengths.push(Math.abs(a.x - b.x) + Math.abs(a.y - b.y));
+  }
+  const total = lengths.reduce((sum, l) => sum + l, 0);
+  let rest = Math.min(1, Math.max(0, fraction)) * total;
+  for (const [i, length] of lengths.entries()) {
+    if (rest < length - 1e-9 || i === lengths.length - 1) {
+      return { index: i + 1, along: Math.min(length, Math.max(0, rest)) };
+    }
+    rest -= length;
+  }
+  return { index: 1, along: 0 };
 }
 
 /** A place for a label: its center. */
@@ -212,9 +270,12 @@ export function arrowheadRects(points: readonly Point[], edge: EdgeIR, arrowhead
   return heads;
 }
 
-/** Whether an edge's label is placed by `labelAt` / `labelSide` (#128). */
+/**
+ * Whether an edge's label is placed by `labelAt` / `labelSide` (#128), or
+ * drawn as a tag (#610), which is placed the same way.
+ */
 export const hasRequestedLabel = (edge: EdgeIR): boolean =>
-  edge.labelAt !== undefined || edge.labelSide !== undefined;
+  edge.labelAt !== undefined || edge.labelSide !== undefined || isTagLabel(edge);
 
 /**
  * Places `metrics` beside the route:
@@ -233,7 +294,7 @@ export const hasRequestedLabel = (edge: EdgeIR): boolean =>
  *   is clear of the routes, the first place;
  * - without arrowheads, at the middle of the longest segment, on the same side.
  *
- * With `labelAt` or `labelSide` (#128): `placeRequestedLabel`.
+ * With `labelAt` or `labelSide` (#128), or as a tag (#610): `placeRequestedLabel`.
  */
 export function placeEdgeLabel(
   metrics: TextMetrics,
@@ -422,8 +483,12 @@ export function placeEdgeLabel(
   return placeText(metrics, chosen.center);
 }
 
-/** The label end of an edge without `labelAt`: the arrowhead's (target first), else the middle. */
+/**
+ * The label end of an edge without `labelAt`: the arrowhead's (target
+ * first), else the middle; a tag's (#610) is the middle.
+ */
 function defaultLabelAt(edge: EdgeIR): EdgeLabelPosition {
+  if (isTagLabel(edge)) return "middle";
   if (edge.targetArrowhead !== undefined) return "end";
   return edge.sourceArrowhead !== undefined ? "start" : "middle";
 }
@@ -432,11 +497,13 @@ function defaultLabelAt(edge: EdgeIR): EdgeLabelPosition {
  * The segment an edge's label goes beside under `labelAt` (#128), as the
  * index `i` of the segment from `points[i - 1]` to `points[i]` (`points` from
  * source to target): `start` the first, `end` the last, `middle` the longest
- * (the first of equals). Without `labelAt`, the default end
+ * (the first of equals), a fraction the segment it falls on
+ * (`routeFraction`, #610). Without `labelAt`, the default end
  * (`defaultLabelAt`).
  */
 export function labelSegment(points: readonly Point[], edge: EdgeIR): number {
   const at = edge.labelAt ?? defaultLabelAt(edge);
+  if (typeof at === "number") return routeFraction(points, at).index;
   if (at === "start") return 1;
   if (at === "end") return points.length - 1;
   let best = 1;
@@ -483,6 +550,12 @@ export function absoluteSide(a: Point, b: Point, labelSide: EdgeLabelSide): 1 | 
  * requested segment or side. On short spans a label that still overlaps a
  * box can move farther from the line (#332). What remains is reported as
  * `layout/edge-label-overlap` (`label-diagnostics.ts`).
+ *
+ * A fraction (#610) first centres the label on its point, kept off the
+ * segment's arrowheads (and the gap from them), and slides like `middle`.
+ * A tag (#610) is placed the same way on the line instead of beside it, its
+ * framed box (`tagBox`) kept clear: the segment it sits on is not an
+ * obstacle, and it is never lifted off the line.
  */
 function placeRequestedLabel(
   metrics: TextMetrics,
@@ -492,8 +565,11 @@ function placeRequestedLabel(
   surroundings: EdgeLabelSurroundings,
 ): TextLayout {
   const g = labelGap(edge.style);
-  const w = metrics.width;
-  const h = metrics.height;
+  const tag = isTagLabel(edge);
+  const pad = tag ? tagPadding(metrics) : { x: 0, y: 0 };
+  // The extent kept clear: a tag's framed box.
+  const w = metrics.width + 2 * pad.x;
+  const h = metrics.height + 2 * pad.y;
   const n = points.length;
   const at = edge.labelAt ?? defaultLabelAt(edge);
   const index = labelSegment(points, edge);
@@ -510,7 +586,14 @@ function placeRequestedLabel(
   let first: number;
   let lo = 0;
   let hi = length;
-  if (at === "end") {
+  if (typeof at === "number") {
+    const headStart = index === 1 && edge.sourceArrowhead !== undefined ? arrowhead : 0;
+    const headEnd = index === n - 1 && edge.targetArrowhead !== undefined ? arrowhead : 0;
+    const min = headStart + g + len / 2;
+    const max = length - headEnd - g - len / 2;
+    const along = routeFraction(points, at).along;
+    first = min <= max ? Math.min(max, Math.max(min, along)) : length / 2;
+  } else if (at === "end") {
     const head = index === n - 1 && edge.targetArrowhead !== undefined ? arrowhead : 0;
     first = length - head - g - len / 2;
     hi = first;
@@ -521,10 +604,20 @@ function placeRequestedLabel(
   } else {
     first = length / 2;
   }
+  // A tag (#610) stays on its segment: where `start` / `end` would put it past the segment's
+  // ends (a leg shorter than the arrowhead, the gap and half the tag), it is centred and kept
+  // there; what it then overlaps is `layout/edge-label-overlap`'s to report.
+  if (tag && (first < len / 2 - 1e-9 || first > length - len / 2 + 1e-9 || lo > hi + 1e-9)) {
+    first = length / 2;
+    lo = first;
+    hi = first;
+  }
 
   const segments: Rect[] = [];
   for (const route of [points, ...(surroundings.routes ?? [])]) {
     for (let i = 1; i < route.length; i++) {
+      // A tag sits on its own segment.
+      if (tag && route === points && i === index) continue;
       segments.push(segmentRect(route[i - 1] as Point, route[i] as Point));
     }
   }
@@ -548,13 +641,15 @@ function placeRequestedLabel(
       if (t >= lo - 1e-9 && t <= hi + 1e-9) offsets.add(t);
     }
   }
-  const sides: readonly (1 | -1)[] =
+  const besides: readonly (1 | -1)[] =
     edge.labelSide === undefined ? [1, -1] : [absoluteSide(a, b, edge.labelSide)];
-  const centerAt = (t: number, side: 1 | -1): Point => {
+  // A tag's one "side" (0) is on the line.
+  const sides: readonly (1 | -1 | 0)[] = tag ? [0] : besides;
+  const centerAt = (t: number, side: 1 | -1 | 0): Point => {
     const along = u(a) + dir * t;
     return flat
-      ? { x: along, y: a.y + (side > 0 ? -(g + h / 2) : g + h / 2) }
-      : { x: a.x + (side > 0 ? g + w / 2 : -(g + w / 2)), y: along };
+      ? { x: along, y: a.y - side * (g + h / 2) }
+      : { x: a.x + side * (g + w / 2), y: along };
   };
   const candidates: Candidate[] = [...offsets]
     .sort((p, q) => Math.abs(p - first) - Math.abs(q - first) || q - p)
@@ -565,20 +660,21 @@ function placeRequestedLabel(
   const clearOfRoutes = (c: Candidate) =>
     heads.every((r) => !overlaps(boxAt(c), r)) && segments.every((s) => !overlaps(near(c), s));
   const clearOfBorders = (c: Candidate) => borders.every((s) => !overlaps(near(c), s));
-  const clearOfBoxes = (c: Candidate) => boxes.every((o) => !overlaps(boxAt(c), o));
+  // A tag's frame keeps the gap from boxes too: on the line, nothing else spaces them.
+  const clearOfBoxes = (c: Candidate) => boxes.every((o) => !overlaps(tag ? near(c) : boxAt(c), o));
   const clear = candidates.filter(clearOfRoutes);
   const chosen =
     clear.find((c) => clearOfBorders(c) && clearOfBoxes(c)) ??
     clear.find(clearOfBoxes) ??
     clear[0] ??
     (candidates[0] as Candidate);
-  if (length < len + arrowhead + g && !clearOfBoxes(chosen)) {
+  if (!tag && length < len + arrowhead + g && !clearOfBoxes(chosen)) {
     const lifted = shortSpanCandidates(
       a,
       b,
       w,
       h,
-      sides,
+      besides,
       [...boxes, ...segments, ...borders, ...heads],
       g,
     ).find((c) => clearOfRoutes(c) && clearOfBorders(c) && clearOfBoxes(c) && true);

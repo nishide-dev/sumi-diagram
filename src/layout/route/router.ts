@@ -95,7 +95,7 @@ import { endpointRects } from "./endpoint-rects";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
 import { groupTitleDiagnostics } from "./group-title-diagnostics";
 import { PairHeap } from "./heap";
-import { requestedLabelDiagnostics } from "./label-diagnostics";
+import { requestedLabelDiagnostics, withTagDiagnostics } from "./label-diagnostics";
 import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
 import { type LanePlan, laneDiagnostics, planLanes } from "./lanes";
 import { groupArrowheadStems } from "./padding";
@@ -231,9 +231,16 @@ export function routeEdges(
   if (routed.layout.edges.length === layout.edges.length) return withLaneDiagnostics(ir, routed);
   const diagonal = addDirectRoutes(ir, layout, routed.layout);
   const zoom = addZoomRoutes(ir, straight.size === 0 ? layout : diagonal.layout, diagonal.layout);
+  // Tags (#610), once every route is drawn (`withTagDiagnostics`).
+  const diagnostics = withTagDiagnostics(
+    ir,
+    zoom.layout,
+    [...routed.diagnostics, ...diagonal.diagnostics, ...zoom.diagnostics],
+    (edge) => edgeArrowheadLength(edge.style),
+  );
   return withLaneDiagnostics(ir, {
     layout: deepFreeze(zoom.layout),
-    diagnostics: [...routed.diagnostics, ...diagonal.diagnostics, ...zoom.diagnostics],
+    diagnostics,
   });
 }
 

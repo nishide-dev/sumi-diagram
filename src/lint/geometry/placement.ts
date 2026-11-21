@@ -4,7 +4,7 @@
  * and a row of tokens that drifts off the column of the row above it.
  */
 
-import { labelGap } from "../../layout/route/labels";
+import { isTagLabel, labelGap } from "../../layout/route/labels";
 import type { Rect } from "../../render/geometry";
 import { unitsToPt } from "../../render/geometry";
 import { defineGeometryRule, type LintFinding } from "../rule";
@@ -51,6 +51,8 @@ export const edgeLabelHugging = defineGeometryRule({
     const findings: LintFinding[] = [];
     for (const edge of context.elements) {
       if (!isDrawnEdge(edge) || edge.drawn === undefined || edge.labels.length === 0) continue;
+      // A tag (#610) sits on its line in a frame that hides it.
+      if (edge.ir.kind === "edge" && isTagLabel(edge.ir)) continue;
       const drawn = edge.drawn;
       const gap =
         Math.min(...edge.labels.flatMap(inkLines).map((ink) => polylinesRectDistance(drawn, ink))) -
