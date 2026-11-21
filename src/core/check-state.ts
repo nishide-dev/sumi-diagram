@@ -115,6 +115,15 @@ export interface ExpandedPaint {
   readonly toneText?: true;
   /** No fill and no outline: the empty body of a glyph or set sample in a legend (#409). */
   readonly bare?: true;
+  /**
+   * Pale: the outline, fill and text move toward the canvas, e.g. a muted
+   * matrix cell or its legend sample (#612). See `paleStyle()`.
+   */
+  readonly pale?: true;
+  /** No outline, the fill and text kept: a cell of a matrix drawn with rules only (#612). */
+  readonly borderless?: true;
+  /** Half the line width: the rule between the column headers and the cells of a ruled matrix (#612). */
+  readonly thin?: true;
 }
 
 /** Where an expanded element (see {@link PartialFigure.expanded}) is written. */

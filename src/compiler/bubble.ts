@@ -85,3 +85,48 @@ export function wrapBubbleText(
     })
     .join("\n");
 }
+
+/**
+ * Font-aware wrapping at word boundaries only (#612, matrix headers): spaces,
+ * and between Japanese words as `Intl.Segmenter` finds them. A word or a
+ * formula wider than `width` stays whole on a line of its own, since a header
+ * broken inside a word ("MML / U") reads worse than one that is a little
+ * wide; a line never starts with closing punctuation. `width` is in the
+ * measurer's units, as for {@link wrapBubbleText}.
+ */
+export function wrapWords(text: string, width: number, style: CommonStyle, fonts: FontSet): string {
+  const measurer = fontSetMeasurer(fonts);
+  const measure = (s: string) => measureText(s, style, measurer)?.width ?? 0;
+  const forbiddenStart =
+    /^[、。，．！？：；）］｝〉》」』】ーぁぃぅぇぉっゃゅょァィゥェォッャュョ)\]},.;:!?]/u;
+  const words = new Intl.Segmenter("ja", { granularity: "word" });
+  return text
+    .split("\n")
+    .flatMap((paragraph) => {
+      const tokens: string[] = [];
+      // Outside math only \$ is escaped; a formula is one token.
+      for (const part of paragraph.split(/(\\\$|\$(?:\\.|[^$\\])*\$)/u)) {
+        if (part.startsWith("$") || part === "\\$") tokens.push(part);
+        else for (const { segment } of words.segment(part)) tokens.push(segment);
+      }
+      const lines: string[] = [];
+      let line = "";
+      for (const token of tokens) {
+        const next = line + token;
+        const breaks =
+          line.trim() !== "" &&
+          token.trim() !== "" &&
+          !forbiddenStart.test(token) &&
+          measure(next.trimEnd()) > width;
+        if (breaks) {
+          lines.push(line.trimEnd());
+          line = token;
+        } else {
+          line = next;
+        }
+      }
+      lines.push(line.trimEnd());
+      return lines;
+    })
+    .join("\n");
+}
