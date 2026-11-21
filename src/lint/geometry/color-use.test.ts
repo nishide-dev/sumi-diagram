@@ -231,3 +231,52 @@ describe("geometry/theme-color-use: what counts (#513 review)", () => {
     }
   });
 });
+
+describe("geometry/theme-color-use: neutral grays (#612)", () => {
+  const three = [
+    box("a", "variant: tinted, tone: blue"),
+    box("b", "variant: tinted, tone: orange"),
+    box("c", "variant: tinted, tone: green"),
+    box("d", "variant: outlined, tone: gray"),
+  ].join("\n");
+  const only = (nodes: string, overrides?: string) =>
+    figure({ nodes, ...(overrides !== undefined && { overrides }) }).replace(
+      "\n  - { id: c, component: box, label: C }\n  - { id: d, component: box, label: D }",
+      "",
+    );
+
+  test("a pale gray of the figure's own (#603 run 1: line #a3a8b4) is no fourth accent", async () => {
+    expect(await findingsOf(only(three))).toEqual([]);
+    expect(
+      await findingsOf(only(three, "{ tones: { gray: { line: '#a3a8b4', text: '#4e566b' } } }")),
+    ).toEqual([]);
+  });
+
+  test("a gray painted in a clear hue still counts", async () => {
+    const [finding] = await findingsOf(
+      only(three, "{ tones: { gray: { line: '#3060c0', text: '#203070' } } }"),
+    );
+    expect(finding?.message).toContain("4 accent tones");
+  });
+
+  test("pale muted matrix cells are neutral", async () => {
+    const source = `version: 1
+figure:
+  id: t
+  theme: sumi
+  layout:
+    arrange: { row: { gap: 6mm, items: [m] } }
+nodes:
+  - id: m
+    component: matrix
+    props:
+      classes:
+        c: { tone: blue, variant: tinted }
+        s: { tone: orange, variant: tinted }
+        w: { tone: green, variant: tinted }
+        .: { tone: gray, variant: muted }
+      cells: [ccc., s.s., ..ww]
+`;
+    expect(await findingsOf(source)).toEqual([]);
+  });
+});
