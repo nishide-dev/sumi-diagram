@@ -353,25 +353,36 @@ export function expandSequences(state: CheckState, locate: Locator): void {
           const from = participantOf(edge.from, rowPath, `The source of message "${row}",`);
           const to = participantOf(edge.to, rowPath, `The target of message "${row}",`);
           if (from === undefined || to === undefined) continue;
-          // A self-message is a loop beside its lifeline: east (the default) or west.
+          // Sumi owns a message's geometry: a straight line between the lifelines with its
+          // label above it, next to the source across several lifelines; a self-message is a
+          // loop east (or, with lane: {side: west}, west) with its label outside it.
           const lane = edge.lane;
-          if (
-            from === to &&
-            ((lane !== undefined &&
-              ((lane.side !== "east" && lane.side !== "west") || lane.outside !== undefined)) ||
-              edge.route !== undefined ||
-              edge.labelAt !== undefined ||
-              edge.labelSide !== undefined)
-          ) {
+          const self = from === to;
+          const written = [
+            ...(edge.labelAt !== undefined ? ["labelAt"] : []),
+            ...(edge.labelSide !== undefined ? ["labelSide"] : []),
+            ...(edge.fromAnchor !== undefined ? ["fromAnchor"] : []),
+            ...(edge.toAnchor !== undefined ? ["toAnchor"] : []),
+            ...(edge.route !== undefined && (self || edge.route !== "straight")
+              ? [`route: ${edge.route}`]
+              : []),
+            ...(lane !== undefined &&
+            (!self || (lane.side !== "east" && lane.side !== "west") || lane.outside !== undefined)
+              ? [self ? "a lane other than {side: east | west, offset}" : "lane"]
+              : []),
+          ];
+          if (written.length > 0) {
             state.diagnostics.push(
               errorAt(
                 locate,
                 "layout/sequence-invalid-row",
-                `Self-message "${row}" loops beside its lifeline: its lane is east or west, without outside, route, labelAt or labelSide (its label always sits outside the loop).`,
+                `${self ? "Self-message" : "Message"} "${row}" is drawn by the sequence, which places its line and label: remove ${written.join(", ")}.`,
                 rowPath,
                 {
                   subject: figureSubject,
-                  hint: "Write lane: {side: west} (or east, the default, with an optional offset) on the edge, or leave lane out; remove route, labelAt and labelSide.",
+                  hint: self
+                    ? "A self-message is a loop east of its lifeline with the label outside it; lane: {side: west} (with an optional offset) puts it west."
+                    : "A message is a straight line between the two lifelines with its label above it, in the gap next to its source when it crosses other lifelines.",
                 },
               ),
             );
@@ -393,7 +404,6 @@ export function expandSequences(state: CheckState, locate: Locator): void {
           if (fromNode === undefined || toNode === undefined) continue;
           stops[from]?.push({ id: fromNode });
           stops[to]?.push({ id: toNode });
-          const self = from === to;
           const span = Math.abs(to - from);
           // Labels sit above the line: left of travel going right, right of it going left.
           edges[index] = {
@@ -408,12 +418,10 @@ export function expandSequences(state: CheckState, locate: Locator): void {
                   labelSide: west ? "right" : "left",
                 }
               : {
-                  route: edge.route ?? "straight",
-                  labelSide: edge.labelSide ?? (to > from ? "left" : "right"),
-                  // Across several lifelines the label stays in the first gap.
-                  ...((edge.labelAt !== undefined || span > 1) && {
-                    labelAt: edge.labelAt ?? "start",
-                  }),
+                  route: "straight",
+                  labelSide: to > from ? "left" : "right",
+                  // Across several lifelines the label stays in the gap next to the source.
+                  ...(span > 1 && { labelAt: "start" }),
                 }),
           };
           out.push({

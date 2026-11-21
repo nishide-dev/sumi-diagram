@@ -391,10 +391,11 @@ edges:
 
 - **Messages** are `edges[]` with an `id` whose `from` and `to` are participants: any
   label, `variant` (replies: `dashed`), `dash`, `tone`, arrowheads. Sumi retargets each
-  to hidden junctions on the two lifelines at its row and draws it `route: straight`.
-  The label sits above the line in both directions (the `labelSide` default follows the
-  direction); a message across several lifelines keeps its label in the gap next to its
-  source (`labelAt: start`). An edge **from a participant to itself** is a
+  to hidden junctions on the two lifelines at its row; the route is always straight.
+  The label sits above the line in both directions; a message across several lifelines
+  keeps its label in the gap next to its source, clear of the lifelines it crosses. The
+  sequence owns this placement: `labelAt`, `labelSide`, `fromAnchor` / `toAnchor`, a
+  `lane` or a `route` other than `straight` on a message is `layout/sequence-invalid-row`. An edge **from a participant to itself** is a
   self-message: a loop out to the east with its label beside it (`lane: {side: west}`
   loops west instead; other lanes, `outside`, `route`, `labelAt` and `labelSide` are
   errors: the label always sits outside the loop).

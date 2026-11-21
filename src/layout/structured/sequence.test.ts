@@ -279,6 +279,39 @@ describe("sequence errors (#630)", () => {
     ).toContain("layout/sequence-unknown-participant");
   });
 
+  test("a message's line and label are the sequence's: labelAt, labelSide, anchors, other routes and lanes are errors", () => {
+    for (const fields of [
+      "labelAt: middle",
+      "labelAt: start",
+      "labelSide: right",
+      "route: curve",
+      "fromAnchor: east",
+      "toAnchor: north",
+      "lane: {side: north}",
+    ]) {
+      const text = figure("          - ca").replace(
+        "{id: ca, from: c, to: a, variant: dashed, label: done}",
+        `{id: ca, from: c, to: a, variant: dashed, label: done, ${fields}}`,
+      );
+      const found = checkFigure(text).state.diagnostics.find(
+        (d) => d.code === "layout/sequence-invalid-row",
+      );
+      expect(found?.message, fields).toContain(fields.split(":")[0] as string);
+      expect(found?.hint).toContain("next to its source");
+    }
+    // route: straight is what Sumi draws anyway: allowed.
+    const straight = figure("          - ca").replace(
+      "{id: ca, from: c, to: a, variant: dashed, label: done}",
+      "{id: ca, from: c, to: a, variant: dashed, label: done, route: straight}",
+    );
+    expect(errorCodes(straight)).toEqual([]);
+    // The default placement keeps a message across two lifelines clear of the one between.
+    const p = layout(figure("          - ca"));
+    const box = p.edge("e:ca").route?.label?.box;
+    if (!box) throw new Error("no label");
+    expect(box.x > p.cx("n:b") || box.x + box.width < p.cx("n:b")).toBe(true);
+  });
+
   test("a note beside a lifeline names one; a band's rows use different lifelines", () => {
     const notes = { nodes: "  - {id: n1, component: box, label: n}\n", edges: "", sequence: "" };
     expect(

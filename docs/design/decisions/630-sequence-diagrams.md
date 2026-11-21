@@ -35,7 +35,7 @@ arrange:
 
 検査の段階（`expandChats` の直後、link・layout の前）で、箱を普通の要素に展開する。描画・PPTX・lint は新しい種類の図形を知らなくてよい。
 
-- メッセージごとに、両端の lifeline の上に隠しジャンクション（`seq-<n>-m<k>-from` / `-to`）を作り、辺の `from` / `to` をそれに付け替え、`route: straight` にする。ラベルは行の向きに合わせて線の上（右向きは `labelSide: left`、左向きは `right`）。複数の lifeline をまたぐメッセージは、ラベルを始点側の列の間に置く（`labelAt: start`）。作者が書いた `route` / `labelAt` / `labelSide` / `lane` は残す。
+- メッセージごとに、両端の lifeline の上に隠しジャンクション（`seq-<n>-m<k>-from` / `-to`）を作り、辺の `from` / `to` をそれに付け替え、`route: straight` にする。ラベルは行の向きに合わせて線の上（右向きは `labelSide: left`、左向きは `right`）。複数の lifeline をまたぐメッセージは、ラベルを始点側の列の間に置く（`labelAt: start`）。線とラベルの置き方は sequence が決めるので、メッセージに書いた `labelAt`・`labelSide`・`fromAnchor` / `toAnchor`・`lane`・`straight` 以外の `route` は `layout/sequence-invalid-row` にした（レビューで、`labelAt: middle` を通すと途中の lifeline がラベルを横切ることを指摘され、配置が確保する場所と一致させるため、作者の指定を受けない一様な規則にした）。
 - 自分自身へのメッセージは、同じ lifeline の 2 つのジャンクションを `lane: {side: east}`（#609）でつなぐ小さなループにする（ラベルはループの右、`labelAt: middle`・`labelSide: left`）。ループの幅はプロファイルの arrange gap の 3/4。作者は `lane: {side: west}`（ループとラベルは lifeline の左の間隔に入り、ラベルはループの左）と `offset` だけを書ける。west のループは、帯の判定では lifeline と左の間隔の終わりを覆い、列の間隔は左隣との間隔をループとラベルの分だけ広げ、箱の左端もそこまで含める。north / south・`outside`・`route`・`labelAt`・`labelSide` は `layout/sequence-invalid-row`（ラベルは常にループの外側、長い辺の横。作者の指定を通すと、配置が確保した行と間隔の外にラベルが出るため）。
 - lifeline は参加者から下端の隠しジャンクションまでの `line` 辺の鎖（`seq-<n>-life-<i>-<k>`、既定は `muted`・`dashed`）。注記が lifeline の上にあるときは、注記の上下の枠のすぐ外にジャンクションを置き、その間は線を引かない。`dash: solid` は variant の破線・点線も消す（`doc.solidLifelines`、テーマの段階）。線の幅は既定でテーマの `line.thin`（なければ muted の線の半分、textScale × 0.5pt 以上）にし、メッセージより細く見せる。
 - 帯（fragment）は、隠しジャンクション 2 つ（枠の左上・右下の角）・見出しの `label` ノード・中の注記を members にした `rect` の set（`padding: 0`）にする。描き方は sets の rect と同じで、`variant`（既定 `outlined`）・`tone`・`fillOpacity` を渡す。見出しは太字（`weight` / `text` で変えられる）。
@@ -82,5 +82,6 @@ arrange:
 
 ## 互換性
 
-- 追加したフィールド・コードはすべて新しく、`sequence` を書かない図の出力（examples・ギャラリー・ゴールデン・再現図のハッシュ）はバイト単位で変わらない（`gallery:check` と全テストで確認）。
+- 追加したフィールド・コードはすべて新しく、examples・ギャラリー・ゴールデン・再現図のハッシュはバイト単位で変わらない（`gallery:check` と全テストで確認）。
+- ただし 5 のルーターの修正は、`sequence` を書かない図でも、set があり、経路やラベルがはみ出して全体が平行移動する図では set の輪郭の位置を変える（今までずれていた輪郭が、メンバーと一緒に動くようになる）。テストとギャラリーが覆う図にはこの条件のものがなかった。
 - JSON Schema（`schema/figure.v1.schema.json`）を再生成した。
