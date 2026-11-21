@@ -22,7 +22,7 @@
  */
 
 import { glyphSize } from "../../assets/glyphs";
-import { edgeArrowheadLength } from "../../layout/route/arrowhead";
+import { bundleArrowheadScale, edgeArrowheadLength } from "../../layout/route/arrowhead";
 import { strokePattern } from "../../render/stroke";
 import {
   type CheckState,
@@ -36,6 +36,7 @@ import {
 } from "../check-state";
 import { type DocPath, didYouMean } from "../diagnostics";
 import { builtinRegistry, LEGEND_ID, MATRIX_ID, TOKENS_ID } from "../registry/builtins";
+import type { Arrowhead } from "../registry/manifest";
 import {
   componentId,
   type GroupManifest,
@@ -46,7 +47,7 @@ import type { Registry } from "../registry/registry";
 import { resolveComponents } from "../registry/resolve";
 import { getTheme } from "../theme/builtin";
 import { figureTheme } from "../theme/overrides";
-import { resolveStyle } from "../theme/resolve";
+import { resolveStyle, withDash } from "../theme/resolve";
 import { withStrokes } from "../theme/strokes";
 import type { Tone } from "../theme/tones";
 import { recordExpanded, reportReservedId, takenIds } from "./expand";
@@ -55,6 +56,7 @@ import { errorAt, relatedAt } from "./report";
 import type {
   ArrangeBox,
   ArrangeItem,
+  EdgeDash,
   FigureEdge,
   FigureGlyph,
   FigureGroup,
@@ -72,6 +74,10 @@ export interface LegendEntry {
     tone?: Tone;
     lineWidth?: number;
     arrowheadScale?: number;
+    /** `dashed` or `dotted` on any variant (#614). */
+    dash?: EdgeDash;
+    /** Parallel lines of a bundle sample (#614). */
+    strands?: number;
   };
   node?: { component?: string; variant?: string; tone?: Tone; cornerRadius?: number };
   /** A matrix class (#180): `<matrix>.<class>`. */
@@ -523,6 +529,8 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           ...(entry.edge.arrowheadScale !== undefined && {
             arrowheadScale: entry.edge.arrowheadScale,
           }),
+          ...(entry.edge.dash !== undefined && { dash: entry.edge.dash }),
+          ...(entry.edge.strands !== undefined && { strands: entry.edge.strands }),
           props: {},
         };
         edges.push(edge);
@@ -541,7 +549,15 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           const resolved = registry.resolve(edge.component, "edge");
           if (resolved.ok && resolved.value.kind === "edge") {
             const id = componentId(resolved.value);
-            const base = resolveStyle(theme, { kind: "edge", id, variant: edge.variant });
+            const variantStyle = resolveStyle(theme, {
+              kind: "edge",
+              id,
+              variant: edge.variant,
+            });
+            const base =
+              edge.dash === undefined
+                ? variantStyle
+                : { ...variantStyle, style: withDash(variantStyle.style, theme, id, edge.dash) };
             const reference = resolveStyle(theme, { kind: "edge", id, variant: "default" });
             const style = withStrokes(base.style, {
               frame: false,
@@ -557,6 +573,39 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
                 Math.ceil(
                   ((2 * edgeArrowheadLength(style) + 2 * (pattern[0] + pattern[1])) / 2) * 2,
                 ) / 2,
+              );
+            }
+            if (edge.strands !== undefined && style.kind === "edge") {
+              // A bundle (#614): its heads as the compiler grows them for their forms
+              // (`bundleStyle()`), so the sample keeps room for two of them (and two periods).
+              const manifest = resolved.value;
+              const standard = builtinTheme?.arrowhead ?? "triangle";
+              const form = (head: Arrowhead | undefined) =>
+                (head ?? "triangle") === "triangle" ? standard : (head as Arrowhead);
+              const heads = [
+                ...(manifest.direction === "backward" || manifest.direction === "both"
+                  ? [form(manifest.tail)]
+                  : []),
+                ...(manifest.direction === "forward" || manifest.direction === "both"
+                  ? [form(manifest.head)]
+                  : []),
+              ];
+              const scale =
+                edge.arrowheadScale !== undefined || heads.length === 0
+                  ? (style.arrowheadScale ?? 1)
+                  : Math.max(
+                      style.arrowheadScale ?? 1,
+                      bundleArrowheadScale(style.strokeWidth.units, edge.strands, heads),
+                    );
+              const head = edgeArrowheadLength({ ...style, arrowheadScale: scale });
+              const periods = pattern === undefined ? 0 : 2 * (pattern[0] + pattern[1]);
+              // Visible line between the heads: at least an ordinary sample's (its line less
+              // its one head), and two dash periods on a dashed one; units here, `line` in pt.
+              const stem = Math.max(sizes.line * 2 - edgeArrowheadLength(style), 0);
+              line = Math.max(
+                line,
+                Math.ceil(((Math.max(heads.length, 1) * head + Math.max(periods, stem)) / 2) * 2) /
+                  2,
               );
             }
           }

@@ -8,7 +8,7 @@
  * Overlaps combine the tints relative to the canvas ({@link overlapTint}).
  */
 
-import type { SetVariant } from "../figure/schema";
+import type { SetVariant, TextRole } from "../figure/schema";
 import { deltaE, fromOklch, toOklch } from "./color-math";
 import { resolveStyle } from "./resolve";
 import type { Theme } from "./schema";
@@ -46,6 +46,10 @@ export interface SetStyleOptions {
   readonly figure?: Pick<FigureStrokes, "frameWidth" | "cornerRadius"> | undefined;
   /** The set's own `lineWidth` and `cornerRadius` (#427), in pt. */
   readonly element?: Pick<ElementStrokes, "lineWidth" | "cornerRadius"> | undefined;
+  /** The label's size as a role of the theme's text (#614); omitted means the group title's. */
+  readonly text?: TextRole | undefined;
+  /** The label's weight (#614); omitted means the group title's. */
+  readonly weight?: "regular" | "bold" | undefined;
 }
 
 const HEX = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i;
@@ -168,6 +172,22 @@ export function overlapTint(
     : mixTints(colors, canvas);
 }
 
+/**
+ * The size of a set's label for a text role (#614): `heading` (the default) is
+ * the group title's, `body` a box's text, `small` the theme's small (edge)
+ * text and `large` 1.5 times a box's text, as a node's `text`.
+ */
+function setFontSize(theme: Theme, heading: StyleLength, text: TextRole | undefined): StyleLength {
+  if (text === undefined || text === "heading") return heading;
+  const sized = (kind: "node" | "edge", id: "sumi/box" | "sumi/line") =>
+    resolveStyle(theme, { kind, id, variant: "default" }).style.fontSize;
+  const body = sized("node", "sumi/box");
+  if (text === "body") return body;
+  if (text === "small") return sized("edge", "sumi/line");
+  const units = Math.round(body.units * 1.5);
+  return { pt: units / 2, units };
+}
+
 /** Resolves the style of a set under `theme` (already carrying the figure's tone overrides). */
 export function resolveSetStyle(theme: Theme, options: SetStyleOptions): SetStyle {
   const { variant, tone } = options;
@@ -210,9 +230,9 @@ export function resolveSetStyle(theme: Theme, options: SetStyleOptions): SetStyl
     strokeDash: variant === "dashed" ? Math.max(1, dashed.strokeDash) : 0,
     ...(variant === "dotted" && { strokeDotted: true as const }),
     opacity: 1,
-    fontSize: frame.fontSize,
+    fontSize: setFontSize(theme, frame.fontSize, options.text),
     fontColor: line?.fontColor ?? ink,
-    bold: frame.bold,
+    bold: options.weight === undefined ? frame.bold : options.weight === "bold",
     italic: frame.italic,
     mono: frame.mono,
     fill: tinted

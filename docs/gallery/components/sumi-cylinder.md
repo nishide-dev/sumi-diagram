@@ -10,6 +10,7 @@ A cylinder, e\.g\. for storage\.
 | --- | --- | --- | --- |
 | <code>width</code> | <code>string</code> | no | Explicit width as a length such as &quot;30mm&quot; or &quot;40pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
 | <code>height</code> | <code>string</code> | no | Explicit height as a length such as &quot;10mm&quot; or &quot;20pt&quot; \(rounded to the nearest 0\.5pt\)\. Omitted means sized to the label\. |
+| <code>capDepth</code> | <code>string</code> | no | Depth of each elliptical cap, e\.g\. &quot;2pt&quot; for a flat cylinder about as tall as a box beside it \(structured layout only, rounded to the nearest 0\.5pt\)\. The cylinder sized to its label is the label, its padding and three cap depths tall \(the top cap's full ellipse and the front of the bottom one\); with props\.height a cap is at most a third of the height\. Omitted means 12pt on cylinders 50pt tall or more \(deeper from 70pt\) and shallower on shorter ones\. |
 
 | <code>minimal</code> | <code>academic</code> | <code>slides</code> | <code>color</code> | <code>paper</code> | <code>llama</code> | <code>sumi</code> | <code>sumi\-dark</code> |
 | --- | --- | --- | --- | --- | --- | --- | --- |

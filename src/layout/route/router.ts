@@ -90,15 +90,16 @@ import {
 import { deepFreeze } from "../structured/engine";
 import { arrowheadLength, edgeArrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
-import { addDirectRoutes, isDirectEdge } from "./diagonal";
+import { addDirectRoutes, isDirectEdge, shiftOutline } from "./diagonal";
 import { endpointRects } from "./endpoint-rects";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
 import { groupTitleDiagnostics } from "./group-title-diagnostics";
 import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
 import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
+import { type LanePlan, laneDiagnostics, planLanes } from "./lanes";
 import { groupArrowheadStems } from "./padding";
-import { separateParallelRuns, separateSameSideRuns } from "./parallel";
+import { keepClearOfLanes, separateParallelRuns, separateSameSideRuns } from "./parallel";
 import { routeWithPlanes } from "./planes";
 import {
   bottomOf,
@@ -109,6 +110,7 @@ import {
   opposite,
   resolveEnds,
   rightOf,
+  SIDE_DIR,
   STRAIGHT_MARGIN,
   straightenable,
   straightPlacement,
@@ -226,13 +228,26 @@ export function routeEdges(
           ...raw,
           diagnostics: verifiedGridHints(ir, layout, raw.diagnostics),
         };
-  if (routed.layout.edges.length === layout.edges.length) return routed;
+  if (routed.layout.edges.length === layout.edges.length) return withLaneDiagnostics(ir, routed);
   const diagonal = addDirectRoutes(ir, layout, routed.layout);
   const zoom = addZoomRoutes(ir, straight.size === 0 ? layout : diagonal.layout, diagonal.layout);
-  return {
+  return withLaneDiagnostics(ir, {
     layout: deepFreeze(zoom.layout),
     diagnostics: [...routed.diagnostics, ...diagonal.diagnostics, ...zoom.diagnostics],
-  };
+  });
+}
+
+/**
+ * The routes as drawn checked against their lanes (#609): an edge whose
+ * route does not run on its lane, and that the router has not already
+ * reported, gets `layout/lane-blocked` too (never a lane ignored silently).
+ */
+function withLaneDiagnostics(ir: FigureIR, result: RouteResult): RouteResult {
+  if (!ir.edges.some((e) => e.lane !== undefined)) return result;
+  const extra = laneDiagnostics(ir, result.layout, result.diagnostics);
+  return extra.length === 0
+    ? result
+    : { layout: result.layout, diagnostics: [...result.diagnostics, ...extra] };
 }
 
 /**
@@ -538,6 +553,8 @@ class Router {
 
   /** Also a grid line at the end of each stub that has a room beyond it (see `routeEdges`). */
   readonly #stubLines: boolean;
+  /** The lanes the edges ask for (#609), by edge key. */
+  #lanes: ReadonlyMap<ElementKey, LanePlan> = new Map();
 
   constructor(
     ir: FigureIR,
@@ -574,6 +591,7 @@ class Router {
     const layoutEdges = new Map(this.#layout.edges.map((e) => [e.key, e]));
     const resolved = resolveEnds(ir, this.#layout);
     const stems = groupArrowheadStems(ir, this.#layout);
+    this.#lanes = planLanes(ir, this.#layout);
     for (const [index, edge] of ir.edges.entries()) {
       this.#reportStraightOffSide(edge, resolved[index]);
     }
@@ -641,7 +659,23 @@ class Router {
     for (const edge of routable) this.#reportUnaligned(edge);
 
     const routes = new Map<ElementKey, Point[]>();
+    this.#reportSplitBuses(routable);
+    // Lanes first (#609): they are the author's routes, and the others keep clear of them.
+    const onLanes = new Set<ElementKey>();
     for (const edge of routable) {
+      const plan = this.#lanes.get(edge.ir.key);
+      if (plan === undefined) continue;
+      const drawn = plan.problem ?? this.#laneRoute(edge, plan);
+      if ("reason" in drawn) {
+        this.#reportLane(edge.ir, plan, drawn.reason, drawn.related);
+        continue;
+      }
+      this.#occupy(drawn.cells, edge);
+      routes.set(edge.ir.key, drawn.points);
+      onLanes.add(edge.ir.key);
+    }
+    for (const edge of routable) {
+      if (onLanes.has(edge.ir.key)) continue;
       // First within a corridor around the ends, then on the whole grid.
       let cells = this.#route(edge, ROUTE.corridor) ?? this.#route(edge, Infinity);
       if (cells === undefined) {
@@ -694,15 +728,255 @@ class Router {
     const byKey = new Map(routable.map((e) => [e.ir.key, e] as const));
     const shares = (a: ElementKey, b: ElementKey) =>
       sharable(byKey.get(a) as Edge, byKey.get(b) as Edge);
-    separateParallelRuns(routes, parallelEdges, obstacles, shares);
+    separateParallelRuns(routes, parallelEdges, obstacles, shares, onLanes);
     separateSameSideRuns(
       routes,
       parallelEdges,
       obstacles,
       this.#layout.groups.map((g) => g.rect),
       shares,
+      onLanes,
+    );
+    keepClearOfLanes(
+      routes,
+      parallelEdges,
+      obstacles,
+      this.#layout.groups.map((g) => g.rect),
+      shares,
+      onLanes,
     );
     return { layout: this.#result(routable, routes), diagnostics: this.#diagnostics };
+  }
+
+  /**
+   * The route of an edge on its lane (#609): straight out of the source to
+   * the lane line, along it, and straight into the target. It is drawn as it
+   * is, or not at all: the reason is returned when it would pass through or
+   * along a node, through a group's title or a caption, on a group's frame,
+   * or along another edge's route, or when a leg is shorter than the
+   * straight run its end needs (the stub, and an arrowhead's length).
+   */
+  #laneRoute(
+    edge: Edge,
+    plan: LanePlan,
+  ): { cells: number[]; points: Point[] } | { reason: string; related: ElementKey[] } {
+    const { from, to } = edge;
+    const fail = (reason: string, related: ElementKey[] = []) => ({ reason, related });
+    const pt = (units: number) => Number((units / 2).toFixed(2));
+    for (const [end, side, which] of [
+      [from, plan.from, "source"],
+      [to, plan.to, "target"],
+    ] as const) {
+      if (end.junction || side === undefined) continue;
+      if (end.side !== side || end.dir !== SIDE_DIR[side])
+        return fail(
+          `the ${which} "${this.#id(end.key)}" has a fixed point that is not on its ${side} side`,
+          [end.key],
+        );
+    }
+    const onLane = (p: Point): Point =>
+      plan.axis === "x" ? { x: plan.at, y: p.y } : { x: p.x, y: plan.at };
+    const a = onLane(from.port);
+    const b = onLane(to.port);
+    const length = (p: Point, q: Point) => Math.abs(p.x - q.x) + Math.abs(p.y - q.y);
+    for (const [end, need, at, which, arrow] of [
+      [from, edge.fromLane, a, "source", edge.ir.sourceArrowhead !== undefined],
+      [to, edge.toLane, b, "target", edge.ir.targetArrowhead !== undefined],
+    ] as const) {
+      if (end.junction) continue;
+      const leg = length(end.port, at);
+      if (leg < need - 1e-9)
+        return fail(
+          `the lane is ${pt(leg)}pt from the ${which} "${this.#id(end.key)}", short of the ${pt(need)}pt the line needs straight ${which === "source" ? "out of" : "into"} it (${arrow ? "its arrowhead and the clearance" : "the clearance"})`,
+          [end.key],
+        );
+    }
+    const corners = [from.port, a, b, to.port].filter(
+      (p, i, all) => i === 0 || length(p, all[i - 1] as Point) > 1e-9,
+    );
+    // Nodes and junctions in the way, named by the segments that meet them.
+    const own = new Set([from.key, to.key]);
+    const segments = corners.slice(1).map((q, i) => [corners[i] as Point, q] as const);
+    const meets = (r: Rect, [p, q]: readonly [Point, Point], open: boolean) => {
+      const [x0, x1] = [Math.min(p.x, q.x), Math.max(p.x, q.x)];
+      const [y0, y1] = [Math.min(p.y, q.y), Math.max(p.y, q.y)];
+      return open
+        ? x0 < rightOf(r) && x1 > r.x && y0 < bottomOf(r) && y1 > r.y
+        : x0 <= rightOf(r) && x1 >= r.x && y0 <= bottomOf(r) && y1 >= r.y;
+    };
+    const fromJunction = this.#junctions.indexOf(from.key);
+    const toJunction = this.#junctions.indexOf(to.key);
+    const cells = [this.#pointIndex(from.port)];
+    let blocked = false;
+    const along = new Set<number>();
+    for (const corner of corners.slice(1)) {
+      const target = this.#pointIndex(corner);
+      const p0 = cells.at(-1) as number;
+      const x0 = this.#X[p0 % this.#NX] as number;
+      const y0 = this.#Y[Math.floor(p0 / this.#NX)] as number;
+      const dir = corner.x > x0 ? 0 : corner.y > y0 ? 1 : corner.x < x0 ? 2 : 3;
+      for (let p = p0; p !== target; ) {
+        const q = this.#neighbour(p, dir);
+        if (q < 0) throw new Error(`internal error: lane of ${edge.ir.key} leaves the grid`);
+        const horizontal = dir % 2 === 0;
+        const step = Math.min(p, q);
+        if ((horizontal ? this.#blockH : this.#blockV)[step] === 1) blocked = true;
+        const junction = this.#junctionAt[q] as number;
+        if (junction >= 0 && junction !== fromJunction && junction !== toJunction) blocked = true;
+        const steps = horizontal ? this.#stepsH : this.#stepsV;
+        const byStep = horizontal ? this.#edgesH : this.#edgesV;
+        if (steps.other(step, edge.net) || this.#unsharable(byStep, step, edge))
+          for (const index of byStep.get(step) ?? []) {
+            const other = this.#edges[index] as Edge;
+            if (other.net !== edge.net || !sharable(other, edge)) along.add(index);
+          }
+        cells.push(q);
+        p = q;
+      }
+    }
+    if (blocked) {
+      const blockers = this.#obstacles
+        .filter((o) => !own.has(o.key) && segments.some((s) => meets(o.rect, s, false)))
+        .map((o) => o.key);
+      const names = blockers.map((key) => `"${this.#id(key)}"`).join(", ");
+      return fail(
+        blockers.length === 0
+          ? "it would run through or along a node"
+          : `it would run through or along ${names}`,
+        blockers,
+      );
+    }
+    for (const group of this.#layout.groups) {
+      const title = group.label?.box;
+      if (title !== undefined && segments.some((s) => meets(title, s, true)))
+        return fail(`it would run through the title of group "${this.#id(group.key)}"`, [
+          group.key,
+        ]);
+    }
+    for (const node of this.#layout.nodes) {
+      const element = this.#ir.elements.get(node.key);
+      if (element?.kind !== "node" || element.labelBelow !== true) continue;
+      for (const box of [node.label?.box, node.sublabel?.box])
+        if (box !== undefined && segments.some((s) => meets(box, s, true)))
+          return fail(`it would run through the caption of "${this.#id(node.key)}"`, [node.key]);
+    }
+    const [lo, hi] = [
+      Math.min(...[a, b].map((p) => (plan.axis === "x" ? p.y : p.x))),
+      Math.max(...[a, b].map((p) => (plan.axis === "x" ? p.y : p.x))),
+    ];
+    for (const group of this.#layout.groups) {
+      const element = this.#ir.elements.get(group.key);
+      const frame = element?.kind === "group" ? groupFrontRect(element, group.rect) : group.rect;
+      const faces = plan.axis === "x" ? [frame.x, rightOf(frame)] : [frame.y, bottomOf(frame)];
+      const [f0, f1] = plan.axis === "x" ? [frame.y, bottomOf(frame)] : [frame.x, rightOf(frame)];
+      if (
+        faces.some((f) => Math.abs(f - plan.at) < 0.01) &&
+        Math.min(hi, f1) - Math.max(lo, f0) > 0.01
+      )
+        return fail(`it would run on the frame of group "${this.#id(group.key)}"`, [group.key]);
+    }
+    if (along.size > 0) {
+      const others = [...along].map((index) => (this.#edges[index] as Edge).ir);
+      return fail(
+        `it would run along ${others.map((e) => (e.id === undefined ? `edges[${e.index}]` : `edge "${e.id}"`)).join(", ")}`,
+      );
+    }
+    const points = this.#points(edge, cells);
+    const short = shortArrowEnd(edge.ir, from, to, points);
+    if (short !== undefined)
+      return fail(`the straight segment at the ${short} would be shorter than its arrowhead`);
+    return { cells, points };
+  }
+
+  /**
+   * `layout/lane-bus-split` (warning, #609): edges of one bus (lanes on one
+   * side sharing a source or a target) whose shared end resolved to
+   * different points, so they are separate nets and share no trunk: written
+   * anchors that differ, or ends shared out or split apart by the end
+   * resolution. Said from the resolved ends, before routing: each edge is
+   * then drawn on its lane, or, where it would run along another's, routed
+   * without it (`layout/lane-blocked`).
+   */
+  #reportSplitBuses(edges: readonly Edge[]): void {
+    const byKey = new Map(edges.map((e) => [e.ir.key, e] as const));
+    const seen = new Set<string>();
+    for (const edge of edges) {
+      const plan = this.#lanes.get(edge.ir.key);
+      if (plan === undefined || plan.problem !== undefined || plan.bus.length < 2) continue;
+      const id = plan.bus.join(" ");
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const members = plan.bus.flatMap((key) => {
+        const member = byKey.get(key);
+        const memberPlan = this.#lanes.get(key);
+        return member === undefined || memberPlan?.problem !== undefined ? [] : [member];
+      });
+      for (const which of ["from", "to"] as const) {
+        const ends = new Map<ElementKey, Edge[]>();
+        for (const member of members) {
+          const list = ends.get(member[which].key) ?? [];
+          list.push(member);
+          ends.set(member[which].key, list);
+        }
+        for (const [element, list] of ends) {
+          if (list.length < 2) continue;
+          const point = (e: Edge) => `${e[which].port.x} ${e[which].port.y} ${e[which].dir}`;
+          if (list.every((e) => point(e) === point(list[0] as Edge))) continue;
+          const field = which === "from" ? "fromAnchor" : "toAnchor";
+          const names = list
+            .map((e) => (e.ir.id === undefined ? `edges[${e.ir.index}]` : `"${e.ir.id}"`))
+            .join(", ");
+          const written = list.some((e) => e.ir[field] !== undefined);
+          const first = list[0] as Edge;
+          const source = this.#ir.sourceMap.get(first.ir.key);
+          this.#diagnostics.push({
+            code: "layout/lane-bus-split",
+            severity: "warning",
+            message: `Edges ${names} ${which === "from" ? "leave" : "enter"} "${this.#id(element)}" with lanes on its ${plan.side} side (one bus), but their ends meet it at different points${written ? ` (their ${field}s differ)` : ""}, so they are separate lines and cannot share a trunk. Where one of their lanes would run along another, the later edge is routed without its lane (layout/lane-blocked).`,
+            path: [...(source?.path ?? ["edges", first.ir.index]), "lane"],
+            ...(source?.location !== undefined && { location: source.location }),
+            subject: { kind: "edge", id: first.ir.id ?? `edges[${first.ir.index}]` },
+            hint: written
+              ? `Write the same ${field} on each of them (or none) so the bus shares one trunk, or give them lanes on different sides.`
+              : "Anchor the shared end at one point on each of them so the bus shares one trunk.",
+            related: list.slice(1).map((e) => {
+              const at = this.#ir.sourceMap.get(e.ir.key);
+              return {
+                ...(at !== undefined && { path: at.path }),
+                ...(at?.location !== undefined && { location: at.location }),
+                message: "Another edge of the bus.",
+              };
+            }),
+          });
+        }
+      }
+    }
+  }
+
+  /** `layout/lane-blocked` (warning, #609): the lane is not drawn, and why. */
+  #reportLane(edge: EdgeIR, plan: LanePlan, reason: string, related: readonly ElementKey[]): void {
+    const source = this.#ir.sourceMap.get(edge.key);
+    const name = edge.id === undefined ? `edges[${edge.index}]` : `"${edge.id}"`;
+    const outside = edge.lane?.outside;
+    this.#diagnostics.push({
+      code: "layout/lane-blocked",
+      severity: "warning",
+      message: `The lane of edge ${name} from "${this.#id(edge.from)}" to "${this.#id(edge.to)}" (${plan.side}${outside === undefined ? "" : ` of "${this.#id(outside)}"`}) cannot be drawn: ${reason}. The edge is routed without it.`,
+      path: [...(source?.path ?? ["edges", edge.index]), "lane"],
+      ...(source?.location !== undefined && { location: source.location }),
+      subject: { kind: "edge", id: edge.id ?? `edges[${edge.index}]` },
+      hint: "Change lane.offset (farther out clears what is in the way; nearer keeps clear of an outer route), name another lane.outside or side, or move the element in the way.",
+      ...(related.length > 0 && {
+        related: related.map((key) => {
+          const at = this.#ir.sourceMap.get(key);
+          return {
+            ...(at !== undefined && { path: at.path }),
+            ...(at?.location !== undefined && { location: at.location }),
+            message: `"${this.#id(key)}" is involved.`,
+          };
+        }),
+      }),
+    });
   }
 
   /** Try all directions at arrowed junctions, with the same hard stub as a port. */
@@ -1167,6 +1441,10 @@ class Router {
           }
         }
       }
+      // The line of a lane (#609).
+      const lane = this.#lanes.get(edge.ir.key);
+      if (lane !== undefined && lane.problem === undefined)
+        (lane.axis === "x" ? xs : ys).add(lane.at);
       const jog = tightJog(edge.from, edge.to, edge.fromLane, edge.toLane);
       if (jog !== undefined) {
         for (const p of jog) {
@@ -1857,6 +2135,16 @@ class Router {
       nodes,
       edges: routed,
       nets,
+      // Sets (#407) move with their members (a route beyond the top or left shifts them all).
+      ...(moved &&
+        layout.sets && {
+          sets: layout.sets.map((set) => ({
+            ...set,
+            rect: rect(set.rect),
+            outline: shiftOutline(set.outline, dx, dy),
+            ...(set.label && { label: text(set.label) }),
+          })),
+        }),
     });
   }
 }

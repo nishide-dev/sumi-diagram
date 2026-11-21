@@ -135,6 +135,9 @@ Apply one edit and re-check: independent savings are not additive.
 | `layout/chat-unknown-speaker`, `layout/chat-unknown-avatar` | use a name in `chat.speakers` / an existing avatar node ID ([chat](structured.md#chat-conversations)) |
 | `layout/chat-non-bubble` | message `node` must reference a `bubble` node |
 | `layout/chat-overflow` (render, warning) | widen `chat.width`, lower `maxWidth` or shorten the meta note; visuals retain their authored sizes |
+| `layout/sequence-unknown-message` | a sequence row names no edge: give the message edge an `id` and use it, or write `{note, over}` for a note ([sequence](structured.md#sequence-diagrams)) |
+| `layout/sequence-unknown-participant` | a message's `from` / `to` or a note's `over` is not in `participants`: add it there, or use a participant |
+| `layout/sequence-invalid-row` | a message with `labelAt`, `labelSide`, anchors, a `lane` or a `route` other than `straight` (the sequence draws it straight with the label above, next to the source across several lifelines; a self-message is a loop east, or `lane: {side: west}`, with its label outside), a note over several lifelines that cannot widen (render: a circle, a fixed `props.width`; use a box or group), a participant listed twice, a message placed by two rows (add another edge), a `side` note over several lifelines (name one), or a band whose rows overlap: the same lifelines, or the same side of a gap (a message from `a` and a note beside `a`, a self-message and a note right of its lifeline); the message names both; write them as consecutive rows |
 | `layout/no-route` (render) | the ends touch (`gap: 0`), are closer than the arrowhead, or are boxed in (the message and `related` name the node, often an `attach`ed one); on a `zoom` edge the ends overlap | widen that `gap` (arrows need about 1.5mm in `academic` / `paper`, 2.5mm in `minimal` / `color`, 4mm in `slides`; even a `line` needs > 0), anchor other sides ([spacing](structured.md#spacing-that-routes)); for `zoom` put the view beside, above or below the source |
 | `layout/unknown-align-item`, `layout/duplicate-align-item`, `layout/invalid-align` | an `align` entry names no node or group (edges cannot be aligned), names one twice, or has fewer than two IDs; an entry with both or neither of `x` / `y` is `schema/invalid-value` ([align](structured.md#aligning-across-trees)) |
 | `layout/unsatisfied-align` (render, warning) | the constraint could not be met; drawn closest, the message gives the distance | follow the hint: items share a box (use different boxes or wrap one in its own `stack` / `row`; an item directly in a stack moves sideways, one in a row up or down, without a wrapper) or another constraint pulls them apart; for table headings `align: start` on the parent row |
@@ -148,6 +151,9 @@ Apply one edit and re-check: independent savings are not additive.
 | `layout/set-size-too-small` (render, warning) | the members of a set do not fit its exact `width` / `height`; the outline stays as large as they need | make the size larger, move the members closer, use a smaller `padding`, or drop the exact size ([sets](structured.md#set-enclosures)) |
 | `layout/straight-off-side` (render, warning) | a `straight` end has no side facing the other end in line with its centre (past the 3pt corner margin, diagonal, overlapping, or parallel edges from a wide element into a narrow one) | line them up in the tree (`align`), widen the box, put `straight` on the wide end, write `straight:span` at both ends when the boxes share a span, or write a side anchor; verified recommendations: [grids](structured.md#grids) |
 | `layout/unaligned-ends` (render, warning) | facing ends are within 1pt of alignment but shared ports, anchors or side limits prevent straightening | align with the painted lip, remove the neighbour's anchor, or give one end an unshared point with room |
+| `layout/lane-blocked` (render, warning) | an edge's `lane` cannot be drawn as asked; the message says why (a node, title, caption, frame or edge in the way, an end sticking out across the lane, an anchor on another side, an offset shorter than the arrowhead needs) and the edge is routed without it | a larger `lane.offset` (or a smaller one to stay inside an outer route), another `outside` or `side`, or move what is in the way ([lanes](structured.md#lanes-loops-skips-and-buses-lane)) |
+| `layout/lane-bus-split` (render, warning) | edges of one bus (lanes on one side sharing a source or a target) meet their shared element at different points (different `fromAnchor` / `toAnchor`), so they are separate lines and cannot share a trunk (a lane that would run along another's is then routed without it, `layout/lane-blocked`) | write the same anchor on each of them, or none |
+| `layout/invalid-lane`, `layout/unknown-lane-outside` | `lane` on an edge with `route`, a self-loop or a cell end; `lane.outside` names no node or group | remove `lane` or the conflicting field; use the hint's ID |
 | `layout/edge-crossing` (render, info) | two lines cross (at most 10 listed): optional; move the edge earlier in `edges`, use anchors, rearrange; keep unavoidable ones ([crossings](structured.md#crossings-layoutedge-crossing)) |
 
 ## Structural lint (`lint/*`)
@@ -184,6 +190,7 @@ per-figure suppression: mention kept warnings in your report.
 | `pdf/*` (`input-too-large`, `missing-font`, `unresolved-font`, `engine-unavailable`, `conversion-failed`), `pptx/*` conversion codes (same names) | PDF / picture PPTX conversion failed; nothing written | `sumi doctor` for fonts; else report the message (the SVG still renders) |
 | `pptx/unsupported-size` | a slide side over 56 inches, an SVG without valid pt dimensions, or (editable) `fit: scale` shrinking text below 1pt | a smaller profile only if the user agrees; for tiny text use picture PPTX or shrink less; invalid SVG dimensions are a bug |
 | `pptx/experimental-editable`, `pptx/glued-routing` (warnings) | explicit experimental editable export; glued routes become straight, labels fixed | report the boundaries; keep picture PPTX unless editable was requested |
+| `pptx/bundle-as-one-line` (warning) | editable PPTX draws a `strands` bundle as one connector | keep picture PPTX, PDF or SVG for the parallel lines, or say the bundle must be redrawn |
 | `pptx/unsupported-asset`, `pptx/unsupported-geometry` | editable PPTX cannot carry icons, images, HTML, or this SVG/arrowhead/glued self-loop; nothing written | default picture PPTX (freeform mode for self-loops); report unexpected structures |
 
 ## Geometry lint (`geometry/*`)
@@ -210,14 +217,14 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/translucent-over-color` | warning | a fill with opacity below 1 over a surface that is not white (a panel, another fill); its colour then depends on what lies beneath: opaque pale colour on a white panel instead |
 | `geometry/low-stroke-contrast` | info / warning | an edge (info under 3:1, warning under 1.5:1) or an outline-only node's frame (info under 2:1) barely stands out from the colour painted behind it. Darken the line or its tone, or lighten the panel; group frames, operators, junctions, zoom lines and dimmed elements are not checked |
 | `geometry/color-on-panel` | info | a group filled with a non-white colour holds three or more coloured nodes or sets (own chroma ≥0.025; a node with a `tone` other than `gray` counts from chroma 0.008, so pale tones such as sumi's blue count like green): the colours compete with the panel's. Keep the panel white with a thin frame (`paper`'s default), colour only what carries meaning. Not counted in `maxWarnings` |
-| `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (`path` points at `props`), shorten or break the label, or use a roomier shape (`box`); when scaled, sizes include printed and pre-scale (YAML-unit) values, including rotated label bounds |
+| `geometry/label-overflow` | error | remove or enlarge explicit `width`/`height` (`path` points at `props`): the hint ends with the size that fits on a 0.5mm grid (taller, wider or both, the smallest), marked `Verified:` when a trial layout confirmed it without new errors or warnings (at most 4 nodes per figure); shorten or break the label, or use a roomier shape (`box`); when scaled, sizes include printed and pre-scale (YAML-unit) values, including rotated label bounds |
 | `geometry/out-of-canvas` | error | shorten labels; if it persists, a Sumi bug |
 | `geometry/node-overlap` | warning | review explicit sizes; auto: same group; structured: an attached node in a `gap` overlaps its neighbour: put it in the tree, attach to a free side, or widen the `gap` ([attach](structured.md#attach-side-notes)) |
 | `geometry/label-collision` | warning | a label overlaps another label, a shape or a group border, or an `attach`ed label touches another text ("touches", gap < 1pt): shorten; move a group title with `labelAt`; auto: change `direction` or grouping; structured: place the edge label, change `gap`, anchors or attach side |
 | `geometry/edge-crosses-label` | warning | auto: connect elements inside the group rather than the group, change `direction`, shorten the label; both: move the group's title away from the entering edge with `labelAt` ([titles](structured.md#group-titles-and-captions)); structured: or enter from the side with an anchor |
 | `geometry/edge-through-node` | warning | an edge crosses a node it does not connect (a `route: straight` line also when it only brushes the outline): change `direction` or grouping, or use side anchors |
 | `geometry/arrowhead-on-bend` | warning | the straight run from a tip to the preceding bend is shorter than the head (structured head = 4 + 4 × stroke width in 0.5pt units; D2 triangle and open markers only): move the anchor, widen the gap, or rearrange |
-| `geometry/dash-hidden` | warning | less than about two dash or dot periods fit on a painted subpath, including legend samples; rounded segments and sharp branch junctions restart the pattern, and arrowhead shape affects the available wire: increase the gap or edge length, or use a smaller `arrowheadScale` |
+| `geometry/dash-hidden` | warning | less than about two dash or dot periods fit on a painted subpath, including legend samples; rounded segments and sharp branch junctions restart the pattern, and arrowhead shape affects the available wire: increase the gap or edge length, or use a smaller `arrowheadScale`. The pieces of a sequence's lifelines between rows are not measured (they read as one line) |
 | `geometry/theme-color-use` | info | the theme (`sumi`, `sumi-dark`) prefers a gray base, at most three accent tones and `tinted` / `outlined` / `emphasis` over blocks of colour: more `gray`-excluded tones, or more node area in `filled` / `solid` with a tone, or any `solid` node with a tone (use `emphasis` for the dark block), than its `colorUse` allows. Recolour the named tones to gray or a kept tone, and the named nodes to `tinted`; or `--rule geometry/theme-color-use=off` |
 | `geometry/arrowhead-cramped` | info | a structured head has under 1pt of visible stem before a bend (the router aims at 2pt before `fit`; after rounding and `fit`; a straight edge is reported too when length minus its heads is under 1pt; not for invisible or legend edges): tight group padding grows automatically; else widen the gap, change anchors, reduce shrinking. Promote with `{"rules":{"geometry/arrowhead-cramped":"warning"}}` |
 | `geometry/edge-label-hugging` | info | structured: an edge label's glyphs are under 1pt (printed, about 0.35mm) from its own line without touching it. A theme that sets `edgeLabelGap` (`sumi`, `sumi-dark`: 6 units, about 1mm) compares the drawn clearance with 75% of that gap times `textScale` instead; other themes keep 1pt and the router's 1.5pt gap (0.4-0.5mm), which is not flagged; auto (D2) is exempt: move the label with `labelAt` / `labelSide` to a longer segment, widen the gap before the arrowhead, or shorten it |
@@ -239,6 +246,7 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/set-outline-crosses-text` | warning | a set's outline crosses or touches (within 0.5pt) text it does not enclose: a non-member's label, a group title or caption, an edge label; a member's own text and text wholly inside the outline are fine | move the members or the text apart, use a smaller `padding`, or fit closer with `shape: ellipse` + `angle: auto` |
 | `geometry/badge-collision` | warning | a badge touches labels, other bodies, badges, edges or the canvas edge (its own body may overlap): change the corner, increase gaps / margin; invalid badge icons: `asset/unknown-icon` at `badge.icon` |
 | `geometry/glyph-collision` | warning | a glyph (feature vector, dot, pill) touches other bodies, labels, badges, glyphs, edges or the canvas edge, or covers its own text (its own body and icon may be touched): change `at`, `dx` / `dy` or `size`, attach the edge elsewhere, or increase gaps / margin |
+| `geometry/content-band` | info | structured: a group made taller than its content by its box (`align: stretch`, `justify: stretch`) centres the content, leaving at least 4mm empty above and below it. The hint `contentAlign: top` is checked by laying the figure out, routing and linting it again (at most 4 groups per figure; same size, content under the title, no new error or warning). Apply it to put the content under the title (sibling panels then start their first rows on one line; `matchLabelHeight` for titles of different heights), or keep the centring if intended |
 | `geometry/group-empty-area` | info | at least 75% of a group's frame lies outside its title and direct children (occupancy estimate; nested groups count fully; tokens/matrix/legend frames skipped; not counted in `maxWarnings`): consider `align: stretch` with inner `justify: stretch`, `justify: space-between`, smaller gaps, or do not stretch the panel; intentional whitespace needs no change |
 | `geometry/sparse-figure` | info | paper profile or `figure.target`; at least 30 drawn nodes, node bodies/text/badges/glyphs cover under 34% of the canvas and each node gets more than 330mm² of printed canvas (not counted in `maxWarnings`): see [density](#density-of-paper-figures) |
 | `geometry/icon-family-mix` | info | node icons from both families (`tabler/*` and `emoji/*`) in one figure: use one family, or suppress when the mix is the point (not counted in `maxWarnings`) |
@@ -254,29 +262,54 @@ explicit `props`: those findings point at `label`; partial or explicit ones at `
 
 ## Too wide: the width breakdown
 
-`geometry/exceeds-page-width` (render / `lint --geometry`) keeps its hint short and
-in the order you act on it: **1.** `Width to remove` (the overflow in mm), **2.** `Sets
-the width`: the row, grid or auto footprint that sets the page width and its three
-widest items (a grid item names its column or span), **3.** `Verified layout edits`:
-concrete edits (row `gap`, grid `columnGap`, explicit node `width`, `attach.gap`; tried
-in order of their own size) recommended only if the trial shows a smaller width, ranked
-by mm saved (up to 3; trial reductions are independent, not additive), and **4.** the
-reminder that Sumi never shrinks a figure on its own. The fine-grained breakdown is not
-in the hint: it follows as `related` notes (and in `--json` under `related`): every
-item width and the total of observed gaps of the widest run, the descendant runs, the
-horizontal overhang of attached nodes beyond their container, the largest label
-overhang and the top-level span. **Auto:** only the top-level horizontal footprint and
-observed gaps, not ELK's internal layers or spacing; no trials run. Overlapping
-x-ranges and grid spans are merged, blank tracks cannot be reconstructed; margins,
-strokes, edges and labels can also widen the page. Lengths are printed mm;
-`geometry/heavy-scaling` shows the same headline for the natural, pre-scaling width,
-so it remains available under `fit: scale`.
+`geometry/exceeds-page-width` (render / `lint --geometry`) keeps its hint in the order
+you act on it:
 
-Procedure: apply the hint's edit (or shorten labels), re-run, repeat: a second
-row may become the widest. If it is still too wide, build candidates from the
-[options](layout-tips.md#when-width-runs-short) (auto: the other `direction`;
-structured: [rows](layout-tips.md#folding-a-flow-into-rows), smaller `gap`s, panels;
-`figure.fit: scale`) and compare them measured; a wider profile is the user's decision.
+1. `Width to remove`: the overflow in mm.
+2. `Width path` (structured): from the page (margins + arranged content) down to the item
+   that sets the width, in **natural widths** (what each needs before a parent stretches
+   it): a row's items and `n × gap`, a group's content and padding (`profile default` or
+   `props.padding`), a stack's widest item and the next widest. Under `align: stretch` all
+   items of a stack are drawn equally wide; the path still names the one that sets the
+   width, with the natural widths of the others. It ends at `Widest contributor`: a node,
+   a legend / tokens / matrix (sized by its own props: `perRow`, `cellWidth`), a group
+   whose title is wider than its content, a `place` box (its written coordinates), or a
+   `sequence` box: the distances between its lifelines and what sets the widest
+   (`participantGap`, a message label, a note or a fragment frame).
+3. `Fits <max>`: values that make the figure fit, each **tried**: the figure is laid out,
+   routed, drawn and linted with that one change, and it is shown only if the page then
+   fits and no new error or warning appears (`geometry/relocatable-node` counts only when
+   your config raises it to warning or error). One value at a time (a row's or grid's gap,
+   a group's `props.padding`, a node's explicit `width`, a sequence's `participantGap`;
+   smallest change first, up to 3); if none is enough alone, all of them together, each
+   giving its share (`(together)`). For a sequence whose gaps are set by message labels,
+   folding the widest label (then all of them) onto two lines is tried too.
+   Apply one, re-run. `would fit but adds <code>` names a value that fits but breaks
+   something else (an edge label no longer fits, a cramped arrowhead): choose another.
+   When nothing fits, the hint says how much the path can give at most, and lists the
+   partial edits a trial verified (`Verified layout edits`, ranked by mm saved; not
+   additive).
+4. The reminder that Sumi never shrinks a figure on its own.
+
+The fine-grained breakdown of the painted geometry follows as `related` notes (and in
+`--json` under `related`): the widest painted run with its items and observed gaps, the
+descendant runs, the overhang of attached nodes, the largest label and the top-level
+span. For the whole tree, before or after it fits, run `sumi render --explain-width`
+(stderr; `--json` adds `widthTree`): every group, box and node with its natural width,
+padding, gaps, grid columns and stretched width, `*` marking what sets the width. It
+changes nothing in the output.
+
+**Auto:** only the top-level horizontal footprint and observed gaps, not ELK's internal
+layers or spacing; no trials run. Lengths are printed mm; `geometry/heavy-scaling` shows
+the same headline for the natural, pre-scaling width (values that fit without scaling).
+Trials need a figure of at most 240 elements without external or HTML assets; at most 8
+trial layouts run per diagnostic.
+
+Procedure: apply a `Fits` value (or shorten labels), re-run. If nothing fits, build
+candidates from the [options](layout-tips.md#when-width-runs-short) (auto: the other
+`direction`; structured: [rows](layout-tips.md#folding-a-flow-into-rows), panels, the
+[default sizes](sizes.md) to plan them; `figure.fit: scale`) and compare them measured; a
+wider profile is the user's decision.
 
 ## Density of paper figures
 

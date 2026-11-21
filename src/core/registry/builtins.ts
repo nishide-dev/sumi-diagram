@@ -12,6 +12,8 @@ import {
   ArrowheadScale,
   CornerRadius,
   checkGlyph,
+  EDGE_DASHES,
+  EDGE_STRANDS_RANGE,
   glyphShape,
   IconSize,
   ID_PATTERN,
@@ -755,6 +757,20 @@ const legendEntry = z
         arrowheadScale: ArrowheadScale.optional().describe(
           "The size of the sample line's arrowheads, as an edge's arrowheadScale. Omitted means the figure's or 1.",
         ),
+        dash: z
+          .enum(EDGE_DASHES)
+          .optional()
+          .describe(
+            "The dash of the sample line, as an edge's dash (dashed or dotted on any variant). Omitted means the variant's own line.",
+          ),
+        strands: z
+          .int()
+          .min(EDGE_STRANDS_RANGE.min)
+          .max(EDGE_STRANDS_RANGE.max)
+          .optional()
+          .describe(
+            "The number of parallel lines of the sample, as an edge's strands (2 to 5). Omitted means one line.",
+          ),
       })
       .optional()
       .describe(
@@ -1479,6 +1495,20 @@ const zoom: EdgeManifest = {
   engines: ["structured"],
 };
 
+/**
+ * A cylinder (#614 adds `props.capDepth`): the size props of every shape, and
+ * the depth of its elliptical caps, so a cylinder beside boxes can be about as
+ * tall as they are.
+ */
+const cylinder: NodeManifest = {
+  ...node("cylinder", "cylinder", "A cylinder, e.g. for storage."),
+  props: sizeProps.extend({
+    capDepth: SizeLength.optional().describe(
+      'Depth of each elliptical cap, e.g. "2pt" for a flat cylinder about as tall as a box beside it (structured layout only, rounded to the nearest 0.5pt). The cylinder sized to its label is the label, its padding and three cap depths tall (the top cap\'s full ellipse and the front of the bottom one); with props.height a cap is at most a third of the height. Omitted means 12pt on cylinders 50pt tall or more (deeper from 70pt) and shallower on shorter ones.',
+    ),
+  }),
+};
+
 /** The built-in manifests, in catalog order. */
 export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   node("box", "rectangle", "A rectangle; the general-purpose node."),
@@ -1488,7 +1518,7 @@ export const BUILTIN_MANIFESTS: readonly ComponentManifest[] = [
   node("diamond", "diamond", "A diamond, e.g. for decisions."),
   node("hexagon", "hexagon", "A hexagon."),
   node("parallelogram", "parallelogram", "A parallelogram, e.g. for input or output."),
-  node("cylinder", "cylinder", "A cylinder, e.g. for storage."),
+  cylinder,
   node("document", "document", "A page with a wavy bottom edge, e.g. for documents."),
   outline("trapezoid", "A trapezoid with a wider top and a narrower bottom."),
   outline("bowtie", "A bowtie silhouette with two opposing tapered halves and a central waist."),

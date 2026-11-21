@@ -1,0 +1,43 @@
+# An agent's tool-call loop: the model asks for tools until it can answer.
+version: 1
+figure:
+  id: agent-loop
+  theme: sumi
+  profile: screen-doc
+  themeOverrides: {textScale: 1.5}
+  layout:
+    arrange:
+      sequence:
+        participants: [user, agent, model, tools]
+        rows:
+          - ask
+          - prompt
+          - fragment: "loop [until no tool call]"
+            tone: blue
+            variant: dashed
+            fillOpacity: 0.08
+            rows:
+              - tool_use
+              - run
+              - {note: sandbox, over: [tools]}
+              - result
+              - next
+          - reply
+          - check
+          - answer
+nodes:
+  - {id: user, component: box, label: User, weight: bold}
+  - {id: agent, component: box, label: Agent, weight: bold}
+  - {id: model, component: box, label: LLM, weight: bold, tone: blue, variant: tinted}
+  - {id: tools, component: box, label: Tools, weight: bold, tone: orange, variant: tinted}
+  - {id: sandbox, component: box, variant: dashed, label: "runs in a sandbox"}
+edges:
+  - {id: ask, from: user, to: agent, label: question}
+  - {id: prompt, from: agent, to: model, label: "messages + tool specs"}
+  - {id: tool_use, from: model, to: agent, variant: dashed, label: tool_use}
+  - {id: run, from: agent, to: tools, label: "call(args)"}
+  - {id: result, from: tools, to: agent, variant: dashed, label: tool_result}
+  - {id: next, from: agent, to: model, label: "messages + result"}
+  - {id: reply, from: model, to: agent, variant: dashed, label: final text}
+  - {id: check, from: agent, to: agent, label: check policy}
+  - {id: answer, from: agent, to: user, variant: dashed, label: answer}

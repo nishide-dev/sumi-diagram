@@ -5,6 +5,7 @@ import { expandCuboidDims } from "./cuboid";
 import { checkLayout } from "./layout";
 import { linkFigure } from "./link";
 import type { FigureDocument } from "./schema";
+import { expandSequences } from "./sequence";
 import { checkSets } from "./sets";
 import { validateFigure } from "./validate";
 import { type Locator, parseYaml } from "./yaml";
@@ -55,6 +56,7 @@ export function checkFigureSource(text: string, options: CheckFigureOptions = {}
   const locate = overrideLocator(parsed.source.locate, options.overrides);
   applyOverrides(state.doc, options.overrides);
   expandChats(state, locate, value);
+  expandSequences(state, locate);
   expandCuboidDims(state, locate);
   linkFigure(state, locate);
   checkLayout(state, locate);

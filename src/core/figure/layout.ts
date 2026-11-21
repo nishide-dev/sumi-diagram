@@ -5,9 +5,9 @@
  * - With the `auto` engine, every structured-only field (`figure.layout.arrange`,
  *   `figure.layout.align`, `figure.layout.alignGrowth` (#333), `figure.layout.fanIn` (#134),
  *   `figure.layout.density` (#182), `figure.layout.straighten` (#618),
- *   `group.arrange`, `node.attach`, `node.sublabel` (#184),
+ *   `group.arrange`, `group.contentAlign` / `matchLabelHeight` (#613), `node.attach`, `node.sublabel` (#184),
  *   `node.labelRotation` (#178), `edge.fromAnchor` / `toAnchor`,
- *   `edge.labelAt` / `labelSide` (#128)) is an error: it would otherwise be
+ *   `edge.labelAt` / `labelSide` (#128), `edge.lane` (#609), `edge.strands` (#614)) is an error: it would otherwise be
  *   ignored silently.
  * - With the `structured` engine, every node and group must be placed exactly
  *   once: as an item of one arrange tree (`figure.layout.arrange` for the root,
@@ -50,6 +50,7 @@ import {
   SIDES,
   type Side,
 } from "./schema";
+import { sequenceItemPath, sequenceKeys } from "./sequence";
 import type { Locator } from "./yaml";
 
 /** A parsed edge anchor. */
@@ -184,7 +185,12 @@ function checkAuto(state: CheckState, locate: Locator): void {
     const subject = { kind: "group", id: group.id } as const;
     if (group.arrange !== undefined)
       report("arrange", ["groups", index, "arrange"], groupKey(group.id), subject);
-    for (const field of ["lineWidth", "cornerRadius"] as const) {
+    for (const field of [
+      "lineWidth",
+      "cornerRadius",
+      "contentAlign",
+      "matchLabelHeight",
+    ] as const) {
       if (group[field] !== undefined)
         report(field, ["groups", index, field], groupKey(group.id), subject);
     }
@@ -228,8 +234,10 @@ function checkAuto(state: CheckState, locate: Locator): void {
       "labelAt",
       "labelSide",
       "route",
+      "lane",
       "lineWidth",
       "arrowheadScale",
+      "strands",
     ] as const) {
       if (edge[field] !== undefined) {
         report(field, ["edges", index, field], edgeKey(edge.id, index), subject);
@@ -320,6 +328,26 @@ function checkStructured(state: CheckState, locate: Locator): void {
               );
           } else add({ id, path: itemPath, via: "arrange", owner, silent });
         }
+      return;
+    }
+    if (box.sequence !== undefined) {
+      const sequence = doc.sequences?.find((s) => s.spec === box.sequence);
+      if (sequence === undefined) return;
+      for (const id of sequenceKeys(sequence)) {
+        const itemPath = sequenceItemPath(sequence, id);
+        if (!elements.has(id) && !isInvalidId(id)) {
+          if (collectionsReadable && !silent)
+            push(
+              errorAt(
+                locate,
+                "layout/unknown-item",
+                `Unknown sequence item "${id}"; participants and notes must be node or group IDs.`,
+                itemPath,
+                { subject: ownerSubject, hint: unknownHint(id) },
+              ),
+            );
+        } else add({ id, path: itemPath, via: "arrange", owner, silent });
+      }
       return;
     }
     for (const kind of ["stack", "row", "grid", "place"] as const) {
@@ -702,7 +730,53 @@ function checkStructured(state: CheckState, locate: Locator): void {
     }
   }
 
-  // 9. Align constraints (#132): about the figure, so they invalidate nothing.
+  // 9. Lanes (#609): a known `outside`, on an edge the router draws.
+  for (const [index, edge] of (doc.edges ?? []).entries()) {
+    if (edge?.lane === undefined || invalid.has(edgeKey(edge.id, index))) continue;
+    const subject = { kind: "edge", id: edge.id ?? `edges[${index}]` } as const;
+    const lanePath = ["edges", index, "lane"];
+    const conflict =
+      edge.route !== undefined
+        ? `route: ${edge.route} draws the edge as one ${edge.route === "curve" ? "curve" : "line"}`
+        : refOwner(edge.from) === refOwner(edge.to)
+          ? "the edge is a self-loop (route: curve draws loops out of one side)"
+          : edge.from.includes(".") || edge.to.includes(".")
+            ? "an end is a cell or block, drawn as one straight line"
+            : undefined;
+    if (conflict !== undefined) {
+      push(
+        errorAt(
+          locate,
+          "layout/invalid-lane",
+          `The lane of edge ${edge.id === undefined ? `edges[${index}]` : `"${edge.id}"`} cannot be drawn: ${conflict}.`,
+          lanePath,
+          {
+            atKey: true,
+            subject,
+            hint: "Remove lane, or remove what conflicts with it: lanes are for orthogonal routes between two elements.",
+          },
+        ),
+        edgeKey(edge.id, index),
+      );
+      continue;
+    }
+    const outside = edge.lane.outside;
+    if (outside !== undefined && !elements.has(outside) && !isInvalidId(outside)) {
+      if (!collectionsReadable) continue;
+      push(
+        errorAt(
+          locate,
+          "layout/unknown-lane-outside",
+          `Unknown lane.outside "${outside}" in edge ${edge.id === undefined ? `edges[${index}]` : `"${edge.id}"`}; name the node or group the lane runs outside of.`,
+          [...lanePath, "outside"],
+          { subject, hint: unknownHint(outside) },
+        ),
+        edgeKey(edge.id, index),
+      );
+    }
+  }
+
+  // 10. Align constraints (#132): about the figure, so they invalidate nothing.
   if (collectionsReadable) checkAlign(state, locate, elements, isInvalidId, unknownHint);
 }
 

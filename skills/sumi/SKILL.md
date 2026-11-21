@@ -97,7 +97,7 @@ is the `figure.themeOverrides.textScale` that fixes it (`sumi`: 2 for slides, 1.
 
 ### 4. Write the figure
 
-**Start from the closest base layout.** Pick one by structure in the [layouts index](layouts/README.md) and view its PNG; plan the adaptation (labels, counts, tones, theme and profile from step 1), saying which layout you used. None fits: plan from scratch.
+**Start from the closest base layout.** Pick one by structure in the [layouts index](layouts/README.md) and view its PNG; plan the adaptation (labels, counts, tones, theme and profile from step 1), saying which layout you used. None fits: plan from scratch, first checking the [layout tips table](references/layout-tips.md) for a built-in arrangement (a sequence diagram is a [`sequence` box](references/structured.md#sequence-diagrams), not hand-placed lifelines).
 
 **Non-trivial layout? Then mock it up** (several panels, loops, state machines, sets, taxonomies, anything whose
 arrangement is not obvious, however few nodes; skip only for an obvious one-directional flow): sketch the planned figure as an HTML/CSS page at real size
@@ -176,7 +176,7 @@ Write PDF or PPTX (one picture) only when asked ([output formats](references/fig
 Geometry errors exit 1 but **the SVG is still written**. It prints `Wrote figure.svg:
 <W>mm × <H>mm (…)`; `--json` has `size` (`widthMm`, `heightMm`, limits, `fits`; `scale` if scaled).
 
-- `geometry/exceeds-page-width` / `-height`: the width hint measures where the width goes and, if a trial verified it, names an edit: apply one, re-run ([width breakdown](references/diagnostics.md#too-wide-the-width-breakdown)). Else compare the [options](references/layout-tips.md#when-width-runs-short) and what each costs. A wider profile is the user's choice: ask, never switch on your own.
+- `geometry/exceeds-page-width` / `-height`: the width hint follows the natural widths to the item that sets the width (`Widest contributor`) and gives values that fit (`Fits …`: a gap, a group's `props.padding` or a node's `width`, each tried as a trial layout): apply one, re-run ([width breakdown](references/diagnostics.md#too-wide-the-width-breakdown)). Else compare the [options](references/layout-tips.md#when-width-runs-short) and what each costs. A wider profile is the user's choice: ask, never switch on your own. Plan widths before the first render with the [default sizes](references/sizes.md); `sumi render --explain-width` prints every group's width, padding and gaps.
 - `figure.target` adds `geometry/exceeds-target-height` (over budget) and
   `geometry/placement-usage` (reserved area: compare candidates by it).
 - Geometry warnings (`edge-crosses-label`, `label-collision`, …): try the

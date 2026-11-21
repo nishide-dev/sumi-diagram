@@ -25,6 +25,7 @@ import {
   type JsonValue,
   refOwner,
 } from "./figure/schema";
+import type { SequenceExpansion } from "./figure/sequence";
 import type { TokensExpansion } from "./figure/tokens";
 import type { ResolvedComponent } from "./registry/manifest";
 import type { ResolvedStyle } from "./theme/style";
@@ -66,6 +67,12 @@ export interface PartialFigure {
    */
   captions?: ReadonlyMap<number, CaptionOrigin>;
   chats?: readonly ChatExpansion[];
+  /** Sequence diagrams (#630), expanded into junctions, lifelines and frames. */
+  sequences?: readonly SequenceExpansion[];
+  /** The fragment frames of sequences (#630) among `sets`: index → the fragment's row. */
+  sequenceSets?: ReadonlyMap<number, DocPath>;
+  /** Lifelines of sequences written `dash: solid` (#630): drawn solid even on a dashed variant. */
+  solidLifelines?: ReadonlySet<ElementKey>;
   /**
    * Legends expanded into a frame group and its parts (#131), in the order
    * of the legend nodes. Set by `expandLegends()`.
@@ -122,7 +129,7 @@ export interface ExpandedPaint {
 /** Where an expanded element (see {@link PartialFigure.expanded}) is written. */
 export interface ExpandedOrigin {
   /** What it was expanded from. */
-  from: "caption" | "legend" | "tokens" | "matrix" | "chat" | "dims";
+  from: "caption" | "legend" | "tokens" | "matrix" | "chat" | "dims" | "sequence";
   /** The field it stands for, e.g. `["groups", 2, "caption"]` or a legend entry. */
   path: DocPath;
   /** Whom diagnostics about it name: the captioned group, or the legend, tokens or matrix node. */

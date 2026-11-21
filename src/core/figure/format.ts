@@ -287,9 +287,33 @@ function reorderDocument(contents: unknown): void {
   }
 }
 
+/** A sequence fragment's keys (#630): the heading and its looks, then the rows. */
+const SEQUENCE_FRAGMENT_ORDER = [
+  "fragment",
+  "variant",
+  "tone",
+  "fillOpacity",
+  "text",
+  "weight",
+  "rows",
+];
+
 /** Puts every arrange box and grid cell wrapper in schema order. */
 function reorderArrange(box: unknown): void {
   if (!isMap(box)) return;
+  const sequence = box.get("sequence", true);
+  if (isMap(sequence)) {
+    sortMap(sequence, ["participants", "participantGap", "rowGap", "lifeline", "rows"]);
+    const rows = (list: unknown) => {
+      if (!isSeq(list)) return;
+      for (const row of list.items) {
+        if (!isMap(row)) continue;
+        sortMap(row, row.has("note") ? ["note", "over", "side"] : SEQUENCE_FRAGMENT_ORDER);
+        rows(row.get("rows", true));
+      }
+    };
+    rows(sequence.get("rows", true));
+  }
   for (const kind of ["stack", "row", "grid", "place", "chat"]) {
     const spec = box.get(kind, true);
     if (!isMap(spec)) continue;

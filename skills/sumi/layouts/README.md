@@ -12,7 +12,9 @@ placeholder.
 ## How to use
 
 1. Match the request to the table below by structure, not by topic. None fits: use the
-   closest [example](../examples/README.md) instead, or start from scratch.
+   closest [example](../examples/README.md) instead, or start from scratch (messages
+   between parties in time order are a sequence diagram: start from the `sequence-diagram`
+   layout below, never from hand-placed lifelines).
 2. View the PNG, read the YAML header and the YAML, and plan the adaptation: what to
    keep, change, add or delete. Then mock it up when the [mockup](../references/mockup.md)
    step requires it, and only then adapt the YAML. Say which layout you started from
@@ -52,6 +54,7 @@ profile is the usual `figure.theme` / `figure.profile` edit (a slide needs
 | [feature-table](feature-table/feature-table.sumi.yaml) | A methods × properties `matrix` (one column) | Related-work or capability comparison with the proposed row standing out | [PNG](feature-table/feature-table.png) |
 | [ablation-grid](ablation-grid/ablation-grid.sumi.yaml) | One row per variant of the same pipeline with components removed | Ablations: full model vs w/o A vs w/o B | [PNG](ablation-grid/ablation-grid.png) |
 | [loop-cycle](loop-cycle/loop-cycle.sumi.yaml) | A ring of three stages, entered from above and left at the side | A loop that must read as a loop (generate, evaluate, update) | [PNG](loop-cycle/loop-cycle.png) |
+| [sequence-diagram](sequence-diagram/sequence-diagram.sumi.yaml) | A `sequence` box: three participants with lifelines, messages and dashed replies in rows, a note, a self-message and a loop fragment | The order of messages between a few parties: protocols, API exchanges, an agent calling tools | [PNG](sequence-diagram/sequence-diagram.png) |
 | [state-machine](state-machine/state-machine.sumi.yaml) | Start dot, four states, labelled transitions, a self-loop, an end ring | Protocols, lifecycles, modes with retries | [PNG](state-machine/state-machine.png) |
 | [agent-loop](agent-loop/agent-loop.sumi.yaml) | Observe → plan → act closed through the environment, memory and tools beside | LLM agents, controllers, planners with side resources | [PNG](agent-loop/agent-loop.png) |
 | [decision-tree](decision-tree/decision-tree.sumi.yaml) | One root question, two follow-ups, four outcome leaves | Choosing by a few yes/no questions | [PNG](decision-tree/decision-tree.png) |

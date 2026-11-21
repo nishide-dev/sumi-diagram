@@ -83,13 +83,15 @@ into panels. Measure candidates instead of applying a rule:
 ### When width runs short
 
 No option always wins; each spends something different. Combine them (shorter
-labels plus a small scale) and compare the results as above.
+labels plus a small scale) and compare the results as above. Estimate widths before
+rendering from the [default sizes, gaps and paddings](sizes.md); after rendering,
+`sumi render --explain-width` shows where each millimetre goes.
 
 | Option | Costs | Consider when |
 | --- | --- | --- |
 | shorten labels | detail (moves to caption or text) | labels set the box widths (width breakdown); symbols or abbreviations are defined in the text. Keep the meaning. A tall block can turn its title (`labelRotation: -90`) |
 | merge steps | content granularity | neighbouring steps are one sentence in the text and not the point of the figure. **Ask the user** |
-| tighten spacing (`density: compact`, smaller `gap`s) | separation of groups | gaps are a large share of the width; inside/between-group spacing stays distinct |
+| tighten spacing (`density: compact`, smaller `gap`s, a group's `props.padding`) | separation of groups | gaps or panel padding are a large share of the width (the hint's `Width path` shows both; `Fits` gives values a trial verified); inside/between-group spacing stays distinct |
 | scale (`figure.fit: scale`) | final text and line size | the scaled text keeps headroom over the venue minimum (easy at 5pt, rarely at 9pt or on slides). Unavailable when the minimum equals the theme's smallest text (`paper` 7pt edge labels and sublabels at a 7pt minimum) |
 | fold into rows | height (reserved area) and reading continuity | scaling would break the minimum; there is a natural break; the height budget has room; a long chain in a narrow column |
 | split into panels | cross-referencing between panels | there are two or more topics, each readable alone |
@@ -256,7 +258,10 @@ names its Sumi means.
   (e.g. bottom to top for a stack of layers); a fold or turn has a reason. Side paths
   (residuals, skips, feedback) run beside it, never back across it. *Sumi:* the
   root `stack: {direction: up}` or `row`; side entries with `toAnchor: west`;
-  main-path edges first in `edges` (earlier edges route straighter).
+  main-path edges first in `edges` (earlier edges route straighter); a loop, skip or
+  return line with `lane: {side, offset, outside}` keeps its long segment beside the
+  path or outside a panel ([lanes](structured.md#lanes-loops-skips-and-buses-lane)),
+  never hidden junctions or extra padding.
 - **One focus.** The one or two elements the figure is about stand out; the rest
   is quieter; a compared baseline is pale. *Sumi:* `emphasis`, `solid`, operator
   `size: large` for the focus; pastel `filled` for the rest; `dim: true` on a
@@ -516,8 +521,15 @@ the reference's arrangement), then map each look you want to a field:
 | coloured lines | `tone` on the edge |
 | thin 0.5pt frames and lines, small arrowheads (paper figures usually want this; heavy default lines are the commonest difference from the original) | `themeOverrides: {lineWidth: 0.5pt, frameWidth: 0.5pt, arrowheadScale: 0.6}` ([line weights](figure-format.md#themes-and-profiles)) |
 | dotted coloured lines | edge `variant: dotted` + `tone` (`lineWidth: 0.5pt` for one edge) |
+| a pale dotted (or dashed) line, and its legend sample | `variant: muted` + `dash: dotted` on the edge and on the legend `edge` entry ([dash](structured.md#dashes-on-any-variant-dash)) |
+| several parallel streams along one path (multi-stream residuals, a bus) | edge `strands: 4` ([bundles](structured.md#bundles-of-parallel-lines-strands)) |
+| a repeated block inside a repeated block (`×4` inside `N×`) | a `dashed` inner group with an attached `×4`, an attached `bracket` + `N×` on the outer one ([nested repeats](structured.md#nested-repeats)) |
+| a flat storage cylinder as tall as the boxes beside it | `cylinder` with `props.capDepth: 2pt` |
+| a bold title on a band (a set) | `text: heading`, `weight: bold` on the set |
+| a sequence diagram (lifelines, ordered messages, replies, notes, loop / alt frames) | an [arrange box `sequence`](structured.md#sequence-diagrams) (0.20.0): `participants` and `rows` of edge IDs, `{note, over}` and `{fragment, rows}`; no coordinates, junctions or lifeline edges to write. Start from the [sequence-diagram](../layouts/sequence-diagram/sequence-diagram.sumi.yaml) layout |
 | a white framed panel (`paper`'s default), a panel without a frame, a shaded gray panel (only if the reference has one), a dashed panel | group (default) / `plain` / `filled` / `dashed`, with `caption: (a) …` |
 | panels of equal height with captions on one line | the panels in one `row` with `align: stretch` ([captions](structured.md#group-titles-and-captions)) |
+| stretched panels whose content starts right under the title (no empty band above), column headings on one line | `contentAlign: top` on each panel; titles of one and two lines: also `matchLabelHeight: <name>` ([stretched panels](structured.md#group-titles-and-captions)) |
 | panels separated by a dashed vertical (or horizontal) line | a `separator` between them ([recipe below](#two-panels-with-a-dashed-divider)) |
 | a pale panel (a variant compared against) | `dim: true` on the group ([dimmed](figure-format.md#dimmed-groups)) |
 | dashed lines from a block to the panel that enlarges it | an edge `component: zoom` ([zoom](structured.md#zoom-callouts)) |

@@ -1,0 +1,45 @@
+# Layout: a sequence diagram with three participants, ordered messages and replies, a note,
+#   a self-message and a loop fragment.
+#
+# Use when: the order of messages between a few parties is the point (a protocol, an API
+#   exchange, an agent calling tools, a request through services), with replies, a step one
+#   party does alone and a part that repeats.
+# Structure: one `sequence` box; the participants are ordinary boxes heading the lifelines;
+#   each row is an edge ID (a message, top to bottom), a note over a lifeline, or a fragment
+#   framing rows with a heading; replies are `variant: dashed` edges going back; the
+#   self-message is an edge from a participant to itself. Sumi places every row and spaces
+#   the lifelines for the labels: no coordinates are written.
+# Change: the participant and message labels; add a message: add the edge (with an `id`)
+#   and put its ID in `rows` where it happens; add a participant: add its node and its ID to
+#   `participants`; wrap rows in `{fragment: "...", rows: [...]}` for a loop or an
+#   alternative; `[a, {note: n, over: [p]}]` puts a note beside a message in one row.
+# Lint: `lint --geometry` 0 errors, 0 warnings, no infos.
+version: 1
+figure:
+  id: sequence-diagram
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      sequence:
+        participants: [a, b, c]
+        rows:
+          - request
+          - lookup
+          - fragment: "loop [for each item]"
+            rows: [fetch, item]
+          - {note: note, over: [b]}
+          - combine
+          - reply
+nodes:
+  - {id: a, component: box, label: Participant A, weight: bold}
+  - {id: b, component: box, label: Participant B, weight: bold, tone: blue, variant: tinted}
+  - {id: c, component: box, label: Participant C, weight: bold}
+  - {id: note, component: box, variant: dashed, label: Note on B}
+edges:
+  - {id: request, from: a, to: b, label: request}
+  - {id: lookup, from: b, to: c, label: query}
+  - {id: fetch, from: b, to: c, label: fetch item}
+  - {id: item, from: c, to: b, variant: dashed, label: item}
+  - {id: combine, from: b, to: b, label: combine}
+  - {id: reply, from: b, to: a, variant: dashed, label: response}
