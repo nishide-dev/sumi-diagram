@@ -419,3 +419,66 @@ describe("drift detection in trials does not depend on the rules' levels (#610)"
     });
   }
 });
+
+describe("zoom lines in the tag check (#610)", () => {
+  const figure = `version: 1
+figure:
+  id: zoomtag
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 6mm, items: [x, {stack: {gap: 14mm, items: [p, q]}}, y]}
+nodes:
+  - {id: x, component: box, label: X, props: {width: 8mm, height: 3mm}}
+  - {id: p, component: box, label: P}
+  - {id: q, component: box, label: Q}
+  - {id: y, component: box, label: Y, props: {width: 20mm, height: 3mm}}
+edges:
+  - {from: x, to: y, component: zoom}
+  - {from: p, to: q, route: straight, label: tagged, labelStyle: tag}
+`;
+
+  test("a straight tag across a zoom line is reported", async () => {
+    const result = await renderFigure(figure);
+    const warned = result.diagnostics.filter((d) => d.code === "layout/edge-label-overlap");
+    expect(warned).toHaveLength(1);
+    expect(warned[0]?.message).toContain('the line of edge edges[0] ("x" → "y")');
+  });
+});
+
+describe("a touching label in a trial with edge-label-touches-line off (#610)", () => {
+  test("is still recorded", async () => {
+    const source = row("  - {from: d, to: e, label: grads}");
+    const { rendered } = await render(source);
+    const context = {
+      ...geometryContextFor(rendered),
+      lintConfig: resolveLintConfig({ rules: { [EDGE_LABEL_TOUCHES_LINE]: "off" } }),
+    };
+    const placed = context.placed;
+    if (placed === undefined) throw new Error("not placed");
+    const seen = asHintTrial(() => {
+      const trial = routeTrial(placed.ir, placed.layout);
+      if (trial === undefined) throw new Error("no trial");
+      const linted = trialContext(context, trial, undefined);
+      if (linted === undefined) throw new Error("no trial context");
+      // The trial's line moved through the middle of the letters.
+      const edge = linted.elements.find((e) => e.ir.kind === "edge");
+      const box = edge?.labels[0]?.visibleLines[0];
+      if (edge === undefined || box === undefined) throw new Error("no label");
+      const y = box.y + box.height / 2;
+      edge.drawn = [
+        [
+          { x: box.x - 20, y },
+          { x: box.x + box.width + 20, y },
+        ],
+      ];
+      return lintTrial(linted, trial);
+    });
+    expect(seen.bySubject.get(JSON.stringify({ kind: "edge", id: "edges[0]" }))).toContain(
+      EDGE_LABEL_TOUCHES_LINE,
+    );
+    const none: TrialLint = { problems: new Map(), bySubject: new Map() };
+    expect(driftsAdded(none, seen)).toBe(true);
+  });
+});

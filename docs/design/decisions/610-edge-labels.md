@@ -14,7 +14,7 @@
 
 ### 1. `route: straight` / `curve` のラベルの既定の側
 
-`labelSide` を書かないとき、線の向きによらず**線の上**に置く。垂直の線（x 成分が 0）では**右**。直交のルーターの既定（横の線分の上、縦の線分の右）と同じ言い方になる。
+`labelSide` を書かないとき、線の向きによらず**線の上**に置く。垂直の線、および垂直から **5° 以内**の線では**右**。直交のルーターの既定（横の線分の上、縦の線分の右）と同じ言い方になる。
 
 - 実装: `direct-label.ts` の `readingSide(ux, uy)`。左法線 `(uy, −ux)` の係数として、`ux > 0` なら左（= 上）、`ux < 0` なら右（= 上）。垂直から 5° 以内（`STEEP_DEGREES`、|ux| ≤ sin 5°）は垂直とみなし、下向きで左（= 右）、上向きで右（= 右）。曲線は中点の接線で同じ判定をする。
 - `labelSide` を書いた辺は従来どおり「source → target に向かって左右」。自己ループの外側の既定（`loopLabelEdge`）も変えない（明示の `labelSide` として渡す）。
@@ -64,7 +64,9 @@
 
 ## 互換性
 
-- 出力が変わる図: `skills/sumi/layouts/loop-cycle`（下の弧の「scores」が線の下から上=輪の内側へ）だけ。examples（ピン留めした再現を含む）、`docs/gallery/`、`docs/assets` は変わらない（`bun run gallery` の差分が loop-cycle の SVG のみ。`SUMI_UPDATE_REPRODUCTIONS` なしで `reproduction-hashes.test.ts` が通る）。
+- **見た目が変わる図**: `skills/sumi/layouts/loop-cycle` の 1 枚だけ（下の弧の「scores」が線の下から上=輪の内側へ）。
+- **見た目は変わらず再生成した出力**: loop-cycle のプレビュー PNG と `previews.json`（上の変更に追随）、compare-rows の SVG（YAML 冒頭の Lint のコメントを更新したため、埋め込んだソースのメタデータだけが変わる）。
+- examples（ピン留めした再現を含む）、`docs/gallery/`、`docs/assets` は変わらない（`SUMI_UPDATE_REPRODUCTIONS` なしで `reproduction-hashes.test.ts` が通る）。
 - 直交のルーターで置くラベルの位置は変わらない（`labelStyle` を書かない限り、`placeEdgeLabel` の既定の経路は同じ）。
 - 新しい lint の指摘: compare-rows（detached、info）。テストの fixture では `literal-newline`・`rag-compare-a` が detached（info）。touches-line はリポジトリの図に 0 件。
 - スキーマ: `labelAt` は文字列か数、`labelStyle` は新しい項目。既存の YAML はそのまま有効。

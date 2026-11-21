@@ -68,6 +68,12 @@ export function requestedLabelDiagnostics(
     if (element?.kind === "edge") return `edge ${edgeName(element)}`;
     return `${element?.kind ?? "element"} "${idOf(key)}"`;
   };
+  // Zoom edges (#176): their straight lines between corners are obstacles, not routes.
+  const zoomLines = layout.edges.flatMap((e) => {
+    const edge = byKey.get(e.key);
+    const lines = e.route?.lines;
+    return edge === undefined || lines === undefined ? [] : [{ edge, lines }];
+  });
   const routed = layout.edges.flatMap((e) => {
     const edge = byKey.get(e.key);
     const route = e.route?.points;
@@ -125,6 +131,10 @@ export function requestedLabelDiagnostics(
       if (heads.some((r) => overlaps(r, box))) {
         found.push(own ? "its own arrowhead" : `the arrowhead of ${elementName(other.edge.key)}`);
       }
+    }
+    for (const { edge: zoom, lines } of zoomLines) {
+      if (lines.some(([a, b]) => segmentMeets(a, b, box)))
+        found.push(`the line of ${elementName(zoom.key)}`);
     }
     for (const node of layout.nodes) {
       if (overlaps(node.rect, box)) found.push(elementName(node.key));
