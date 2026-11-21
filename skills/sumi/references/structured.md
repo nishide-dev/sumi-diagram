@@ -205,6 +205,7 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
 | `enclose` | `body` (default) fits member bodies and badges; `footprint` also includes their glyphs before adding padding. Larger outlines can cover nearby non-members. |
 | `overlap` | `mix` (default) or `multiply` (legacy). `figure.setOverlap` sets the figure-wide default; a set overrides it. All participating sets contribute, including five or more; if they disagree, `multiply` wins. Unfilled sets do not paint overlaps. At the 1024-region budget, `layout/set-overlap-budget` warns that deeper intersections can omit colors; reduce overlaps or split the figure. |
 | `label`, `labelAt` | outside the outline: `top` (default), `bottom`, `left`, `right`, or beside a diagonal extreme `top-left`, `top-right`, `bottom-left`, `bottom-right`. For a label inside, make a `label` node a member |
+| `text`, `weight` | the label's size as a role of the theme's text, as a node's `text`: `small`, `body`, `heading` (default: the group-title size) or `large`; `weight: bold` / `regular` (default: the group title's). E.g. a band title `text: heading, weight: bold`, a quiet tag `text: small` |
 | `tone`, `variant` | the tone's line color draws outline, label and an opaque tint, gray without a tone. Light canvases mix into white; dark canvases mix into the canvas color. `default` tint + outline, `filled` tint, `outlined` outline, `dashed`; `fillOpacity` (0..1) is the tint's strength (0.2 default, 0.28 `filled`), not transparency, so the set looks the same over a panel |
 
 - A member may be a whole [token sequence](#token-sequences) (the tokens node's ID): it
@@ -900,6 +901,48 @@ an `html` leaf with an inline `font-size` ([html](html.md); not editable PPTX):
 - {id: lx, component: html, props: {viewport: 40x20, width: 40pt, html: '<span style="font-family:var(--sumi-font);font-size:14px">L×</span>'}}
 ```
 
+<a id="nested-repeats"></a>**Nested repeats** (a block repeated `N×` whose inside repeats `×4`) need no
+special field: put the inner repeated part in a `dashed` group with an attached
+`×4` label, and gather the outer block with an attached [bracket](#brackets) whose
+own attached label is the outer count. Each count sits beside the frame it counts:
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: nested-repeat
+  theme: sumi
+  layout:
+    arrange: {stack: {gap: 5mm, items: [hout, block, hin]}}
+groups:
+  - id: block
+    arrange: {stack: {gap: 4mm, items: [add, unit]}}
+  - id: unit
+    variant: dashed
+    arrange: {stack: {gap: 3mm, items: [swish, norm, dense]}}
+nodes:
+  - {id: hin, component: label, label: '$h_i$'}
+  - {id: hout, component: label, label: '$h_{i+1}$'}
+  - {id: dense, component: box, label: Dense, matchWidth: unit}
+  - {id: norm, component: box, label: LayerNorm, matchWidth: unit}
+  - {id: swish, component: box, label: Swish, matchWidth: unit}
+  - {id: add, component: operator, props: {symbol: plus}}
+  - {id: x4, component: label, label: ×4, attach: {to: unit, side: east, gap: 2mm}}
+  - {id: br, component: bracket, attach: {to: block, side: east, gap: 2mm}}
+  - {id: xn, component: label, label: N×, text: large, attach: {to: br, side: east, gap: 1mm}}
+edges:
+  - {from: hin, to: dense}
+  - {from: dense, to: norm}
+  - {from: norm, to: swish}
+  - {from: swish, to: add}
+  - {from: add, to: hout}
+```
+
+The inner count is attached inside the outer frame (it joins the frame's group), so the
+outer frame grows to hold it; the bracket and the outer count take width beside the
+frame: reserve it in the page budget, or put the outer count on the `west` side where
+a skip line does not run.
+
 **An attached node takes no space in the tree**: neighbours are placed as if
 it were absent. Attached into the `gap` between two items it can overlap the
 next one (`geometry/node-overlap`, `geometry/label-collision`) or block the
@@ -1488,6 +1531,46 @@ edges:
   - {from: act, to: plan, lane: {side: north}, label: retry}
 ```
 
+### Dashes on any variant (`dash`)
+
+`dash: dashed | dotted` draws an edge's line with the theme's dashes or round dots
+**whatever its variant**: `variant: muted, dash: dotted` is a pale dotted line (an echo,
+an optional return), `variant: emphasis, dash: dashed` a heavy dashed one. The variant
+keeps its color and width; a `tone` still colours it. Works in both engines (`auto`
+draws dots as D2's finest dash). A legend `edge` entry takes the same `dash`.
+
+### Bundles of parallel lines (`strands`)
+
+`strands: 2–5` draws one edge as that many **parallel lines** along its route (e.g. the
+four residual streams of a hyper-connection, a multi-lane bus): two line widths apart,
+they follow every turn (rounded about one centre) and end under one arrowhead, which
+grows to cover the bundle unless the edge writes `arrowheadScale`. The route is the
+edge's own (anchors, `lane`, `route: straight` work as usual); a curve or a `zoom` edge
+cannot be a bundle (`component/invalid-prop`). Structured layout only. A legend `edge`
+entry takes `strands` too.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: bundle-streams
+  theme: sumi
+  layout:
+    arrange: {stack: {gap: 5mm, items: [out, mix, in]}}
+nodes:
+  - {id: in, component: label, label: '$X_l$'}
+  - {id: mix, component: box, label: '$B_l$', tone: purple, variant: tinted}
+  - {id: out, component: label, label: '$X_{l+1}$'}
+edges:
+  - {from: in, to: mix, strands: 4, tone: purple}
+  - {from: mix, to: out, strands: 4, tone: purple}
+```
+
+- The router plans the route as one line: keep other edges away from a bundle (their own
+  anchors or a `gap`); a line running on a bundle is `geometry/edge-near-edge`. Do not
+  share a source port with a single line (give each its own `fromAnchor`).
+- The editable PPTX draws a bundle as one line; the SVG, PDF and image PPTX draw every line.
+
 ### Crossings (`layout/edge-crossing`)
 
 The router does not forbid crossings. `sumi render` (and `lint --geometry`) reports
@@ -1512,7 +1595,9 @@ icon one text line tall, or `iconSize` / `iconTone` as `iconSize` / `tone` on a 
 `set: {tone: green, variant: dashed, fillOpacity: 0.3}` (a small tinted
 rectangle painted like a [set](#set-enclosures)). A paired arrow is
 `edge: {component: double-arrow, tone: red}`; edge variants are `default`,
-`dashed`, `emphasis`, `muted` (there is no dotted line). Samples are drawn by the
+`dashed`, `dotted`, `emphasis`, `muted`, and an edge entry also takes `dash: dashed | dotted`
+(dashes or dots on any variant, e.g. `{variant: muted, dash: dotted}` for a pale dotted line)
+and `strands: 2–5` (a [bundle](#bundles-of-parallel-lines-strands) sample). Samples are drawn by the
 same theme rules as real edges, nodes, glyphs and sets, so no colours are written. A `node` sample takes `component`, `variant`, `tone` and `cornerRadius` (e.g. `3pt`, to match rounded nodes). The legend's own `label` is its title;
 `variant: plain` drops the frame; `tone` colours it. Entry text is left-aligned (a
 wrapped `\n` entry keeps its lines flush left); `textAlign: center | right` on the legend

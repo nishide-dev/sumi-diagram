@@ -191,6 +191,21 @@ export type EdgeLabelPosition = (typeof EDGE_LABEL_POSITIONS)[number];
 export const EDGE_LABEL_SIDES = ["left", "right"] as const;
 export type EdgeLabelSide = (typeof EDGE_LABEL_SIDES)[number];
 
+/**
+ * The dash of an edge's line apart from its variant (#614): `dashed` takes the
+ * theme's dashed edge's dashes and `dotted` its round dots, on any variant (a
+ * muted, emphasis or toned line).
+ */
+export const EDGE_DASHES = ["dashed", "dotted"] as const;
+export type EdgeDash = (typeof EDGE_DASHES)[number];
+
+/** Fewest and most parallel lines of a bundle edge (`edges[].strands`, #614). */
+export const EDGE_STRANDS_RANGE = { min: 2, max: 5 } as const;
+
+/** The size of a text as a role of the theme's text (nodes' and sets' `text`). */
+export const TEXT_ROLES = ["small", "body", "heading", "large"] as const;
+export type TextRole = (typeof TEXT_ROLES)[number];
+
 /** Cross-axis alignment inside a stack or row. */
 export const ARRANGE_ALIGNS = ["start", "center", "end", "stretch"] as const;
 export type ArrangeAlign = (typeof ARRANGE_ALIGNS)[number];
@@ -1080,7 +1095,7 @@ export const NodeSchema = z.strictObject({
       'Structured layout: a second, smaller text under the label, e.g. a size "32 × 32 × 4" under "Noise". Drawn at 7/8 of the label\'s font size (rounded down to 0.5pt); newlines break lines and label math is allowed. Needs a label.',
     ),
   text: z
-    .enum(["small", "body", "heading", "large"])
+    .enum(TEXT_ROLES)
     .optional()
     .describe(
       "Structured layout: the size of the node's label as a role of the theme's text, not a free size: small (the theme's small text, e.g. a caption or a muted note), body (the variant's own size, the default), heading (the theme's group-title size, e.g. a row title or a method name) or large (1.5 times the body size, e.g. a repeat count like \"L×\"). The sublabel is drawn at 7/8 of it. Follows figure.themeOverrides.textScale.",
@@ -1236,6 +1251,20 @@ export const EdgeSchema = z.strictObject({
   arrowheadScale: ArrowheadScale.optional().describe(
     "Size of this edge's arrowheads as a multiple (0.5 to 2) of what its width gives; the router keeps room for the scaled head. Omitted means figure.themeOverrides.arrowheadScale or 1. Structured layout only.",
   ),
+  dash: z
+    .enum(EDGE_DASHES)
+    .optional()
+    .describe(
+      "Draw the line dashed (the theme's dashed edge's dashes) or dotted (round dots), whatever the variant: e.g. variant: muted with dash: dotted for a pale dotted line. Omitted means the variant's own line (solid unless the variant is dashed or dotted).",
+    ),
+  strands: z
+    .int()
+    .min(EDGE_STRANDS_RANGE.min)
+    .max(EDGE_STRANDS_RANGE.max)
+    .optional()
+    .describe(
+      "Draw the edge as a bundle of this many parallel lines (2 to 5) along its route, e.g. 4 for four residual streams: the lines are two line widths apart, follow every turn, and end under one arrowhead grown to cover the bundle (unless arrowheadScale is written). Structured layout only; not with route: curve or a zoom edge. Omitted means one line.",
+    ),
   props: Props,
 });
 
@@ -1280,6 +1309,18 @@ export const SetSchema = z.strictObject({
     .optional()
     .describe(
       "Where the label sits outside the outline: top, top-right, right, bottom-right, bottom, bottom-left, left or top-left. Omitted means top.",
+    ),
+  text: z
+    .enum(TEXT_ROLES)
+    .optional()
+    .describe(
+      "The size of the set's label as a role of the theme's text: small (the theme's small text), body (a box's text), heading (the group-title size, the default) or large (1.5 times a box's text), e.g. heading with weight: bold for the title of a band. Follows figure.themeOverrides.textScale.",
+    ),
+  weight: z
+    .enum(["regular", "bold"])
+    .optional()
+    .describe(
+      "The weight of the set's label (bold needs a bold face in the theme's font). Omitted means the group title's weight.",
     ),
   padding: LayoutLength.optional().describe(
     "Room between the members and the outline. Omitted means the profile's group padding.",

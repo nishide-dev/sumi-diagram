@@ -46,7 +46,7 @@ import type { Registry } from "../registry/registry";
 import { resolveComponents } from "../registry/resolve";
 import { getTheme } from "../theme/builtin";
 import { figureTheme } from "../theme/overrides";
-import { resolveStyle } from "../theme/resolve";
+import { resolveStyle, withDash } from "../theme/resolve";
 import { withStrokes } from "../theme/strokes";
 import type { Tone } from "../theme/tones";
 import { recordExpanded, reportReservedId, takenIds } from "./expand";
@@ -55,6 +55,7 @@ import { errorAt, relatedAt } from "./report";
 import type {
   ArrangeBox,
   ArrangeItem,
+  EdgeDash,
   FigureEdge,
   FigureGlyph,
   FigureGroup,
@@ -72,6 +73,10 @@ export interface LegendEntry {
     tone?: Tone;
     lineWidth?: number;
     arrowheadScale?: number;
+    /** `dashed` or `dotted` on any variant (#614). */
+    dash?: EdgeDash;
+    /** Parallel lines of a bundle sample (#614). */
+    strands?: number;
   };
   node?: { component?: string; variant?: string; tone?: Tone; cornerRadius?: number };
   /** A matrix class (#180): `<matrix>.<class>`. */
@@ -523,6 +528,8 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           ...(entry.edge.arrowheadScale !== undefined && {
             arrowheadScale: entry.edge.arrowheadScale,
           }),
+          ...(entry.edge.dash !== undefined && { dash: entry.edge.dash }),
+          ...(entry.edge.strands !== undefined && { strands: entry.edge.strands }),
           props: {},
         };
         edges.push(edge);
@@ -541,7 +548,15 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           const resolved = registry.resolve(edge.component, "edge");
           if (resolved.ok && resolved.value.kind === "edge") {
             const id = componentId(resolved.value);
-            const base = resolveStyle(theme, { kind: "edge", id, variant: edge.variant });
+            const variantStyle = resolveStyle(theme, {
+              kind: "edge",
+              id,
+              variant: edge.variant,
+            });
+            const base =
+              edge.dash === undefined
+                ? variantStyle
+                : { ...variantStyle, style: withDash(variantStyle.style, theme, id, edge.dash) };
             const reference = resolveStyle(theme, { kind: "edge", id, variant: "default" });
             const style = withStrokes(base.style, {
               frame: false,

@@ -89,6 +89,7 @@ import {
   planeFrameOf,
   unmapPoint,
 } from "../layout/plane";
+import { strandSpacing } from "../layout/route/arrowhead";
 import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
 import { groupArrowheadStems } from "../layout/route/padding";
 import { edgeArrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
@@ -96,6 +97,7 @@ import { setOverlaps } from "../layout/set-overlap";
 import { ellipseSegments, outlinePolygon } from "../layout/set-shape";
 import { fontFileFor } from "../lint/geometry/measure";
 import { cylinderPathData, shapeOutline } from "../lint/geometry/shapes";
+import { bundleStrands, strandPathData } from "./bundle";
 import { drawNodeOutline } from "./compose";
 import { subsetFont } from "./font-subset";
 import { HATCH, hatchSegments } from "./hatch";
@@ -374,7 +376,7 @@ function nodeShape(node: NodeIR, r: Rect, outline?: readonly Point[]): string {
       return polygon(outline.points, paints);
     }
     case "cylinder": {
-      const { body, rim } = cylinderPathData(r, n);
+      const { body, rim } = cylinderPathData(r, n, node.capDepth);
       return `<path d="${body}"${paints}/><path d="${rim}"${paints}/>`;
     }
     case "document": {
@@ -879,9 +881,40 @@ function wires(
     ElementKey,
     { pieces: [Point, Point][]; arcs: Arc[]; dashLengths?: number[] }
   >();
+  // Bundles (#614): their own parallel lines along the route, no trunk merging.
+  for (const placed of layout.edges) {
+    const edge = edges.get(placed.key);
+    if (edge?.strands === undefined || placed.route === undefined) continue;
+    if (edge.route === "curve" || placed.route.lines !== undefined) continue;
+    const width = edge.style.strokeWidth.units;
+    const length = edgeArrowheadLength(edge.style);
+    const scale = headScale(placed.key, placed.route.points);
+    // The lines stop at the head's base, which covers them all.
+    const base = (head: Arrowhead | undefined) =>
+      head === undefined || head === "none" || head === "cross" ? 0 : length;
+    const trimmed = trimEnd(
+      trimEnd(placed.route.points, base(edge.targetArrowhead) * scale.target).reverse(),
+      base(edge.sourceArrowhead) * scale.source,
+    ).reverse();
+    const strands = bundleStrands(
+      trimmed,
+      edge.strands,
+      strandSpacing(width),
+      sharp ? 0 : WIRE_CORNER_RADIUS,
+    );
+    painted.set(placed.key, {
+      pieces: strands.flatMap((strand) => strand.pieces.map(([a, b]): [Point, Point] => [a, b])),
+      arcs: strands.flatMap((strand) => [...strand.arcs]),
+    });
+    if (strands.length === 0) continue;
+    const markup = `<path class="sumi-wire sumi-bundle" d="${strands.map((strand) => strandPathData(strand, n)).join(" ")}" fill="none"${strokeAttributes(edge.style)} ${joinsOf(edge.style)}${opacity(edge.style)}/>`;
+    if (defer.has(placed.key)) deferred.set(placed.key, markup);
+    else out.push(markup);
+  }
   // Correspondence lines are independent: no trunk merging or junction rounding.
   for (const placed of layout.edges) {
     const edge = edges.get(placed.key);
+    if (edge?.strands !== undefined) continue;
     if (edge?.route === "curve" && placed.route !== undefined) {
       const length = edgeArrowheadLength(edge.style);
       const curve = trimCubic(
@@ -944,7 +977,7 @@ function wires(
       const route = routes.get(key);
       const points = route?.route?.points;
       if (edge === undefined || route === undefined || points === undefined) continue;
-      if (route.route?.lines !== undefined) continue;
+      if (route.route?.lines !== undefined || edge.strands !== undefined) continue;
       drawn.push({ key, edge, route, wire: wirePoints(edge, points, headScale(key, points)) });
     }
     // A hidden junction joins its routes when they all reach its center in one line style.

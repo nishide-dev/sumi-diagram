@@ -336,6 +336,12 @@ export interface NodeIR extends ObjectIRBase {
   readonly width?: StyleLength;
   /** Explicit height from props or a mark's size; omitted means sized to the label. */
   readonly height?: StyleLength;
+  /**
+   * A cylinder's written cap depth in units (#614, `props.capDepth`): each
+   * elliptical cap is this deep (at most a third of the height) instead of
+   * `cylinderArc()`'s depth for the height.
+   */
+  readonly capDepth?: number;
   readonly style: NodeStyle;
   /** Structured layout: placed beside another element instead of in an arrange tree. */
   readonly attach?: AttachIR;
@@ -510,6 +516,11 @@ export interface EdgeIR extends ElementIRBase {
    * with straight lines instead of a routed path. Absent for a routed edge.
    */
   readonly routing?: EdgeRouting;
+  /**
+   * `strands` (#614): the edge is drawn as this many parallel lines along its
+   * route (`bundleStrands()`), under one arrowhead. Absent for one line.
+   */
+  readonly strands?: number;
 }
 
 export type ElementIR = NodeIR | GroupIR | EdgeIR;
@@ -881,6 +892,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         ...(mark !== undefined && { mark: freezeMark(mark) }),
         ...(typeof width === "number" && { width: lengthOf(width) }),
         ...(typeof height === "number" && { height: lengthOf(height) }),
+        ...(typeof component.props.capDepth === "number" && {
+          capDepth: component.props.capDepth * 2,
+        }),
         ...(isCuboid &&
           n.label.trim() === "" &&
           n.icon === undefined &&
@@ -1038,6 +1052,8 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           square: figure.themeOverrides?.nodeCorners === "square",
           figure: figure.themeOverrides,
           element: set,
+          text: set.text,
+          weight: set.weight,
         }),
         source: sourceEntry(["sets", index]),
       }),
@@ -1327,6 +1343,7 @@ function edgeIR(
       e.route === undefined &&
       manifest.routing === undefined && { faceDirect: true as const }),
     ...(manifest.routing !== undefined && { routing: manifest.routing }),
+    ...(e.strands !== undefined && { strands: e.strands }),
   });
 }
 

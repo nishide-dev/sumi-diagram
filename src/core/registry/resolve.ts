@@ -230,6 +230,50 @@ export function resolveComponents(
         () => [...element.path, "props", "padding"],
       );
     }
+    // A bundle (#614) is drawn along a routed or straight path: a curve or a zoom has none.
+    if (element.kind === "edge" && element.path[0] === "edges") {
+      const raw = state.doc.edges?.[element.path[1] as number];
+      if (
+        raw?.strands !== undefined &&
+        (raw.route === "curve" || (manifest.kind === "edge" && manifest.routing === "zoom"))
+      ) {
+        report(
+          [
+            {
+              code: "component/invalid-prop",
+              severity: "error",
+              message:
+                raw.route === "curve"
+                  ? "A bundle (strands) is drawn along a routed or straight line, not a curve."
+                  : "A zoom edge cannot be a bundle (strands): it draws its own two lines.",
+              hint: "Remove strands, or route the edge orthogonally (omit route) or straight.",
+            },
+          ],
+          () => [...element.path, "strands"],
+        );
+        state.invalid.add(element.key);
+        continue;
+      }
+    }
+    if (
+      element.kind === "node" &&
+      element.props.capDepth !== undefined &&
+      manifest.kind === "node" &&
+      manifest.shape === "cylinder" &&
+      engine !== "structured"
+    ) {
+      report(
+        [
+          {
+            code: "layout/structured-only",
+            severity: "error",
+            message: "A cylinder's cap depth is drawn by the structured layout engine only.",
+            hint: "Set figure.layout.arrange (or engine: structured), or remove props.capDepth.",
+          },
+        ],
+        () => [...element.path, "props", "capDepth"],
+      );
+    }
     if (element.kind === "group" && element.props.layers !== undefined) {
       if (engine !== "structured") {
         report(

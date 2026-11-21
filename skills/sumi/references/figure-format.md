@@ -301,7 +301,13 @@ their own `properties`, `enum`, `const` and `anyOf`.
 
 - Sizes (`props.width` / `height`): lengths with a unit (`mm`, `cm`, `in`, `pt`),
   rounded to the nearest 0.5pt (`12mm` = 34.02pt becomes 34pt, silently). Omit sizes unless
-  needed: nodes are sized to their labels.
+  needed: nodes are sized to their labels. When a written size is too small for the label,
+  `geometry/label-overflow`'s hint gives the size that fits (`Verified: props.height: 19.5mm
+  …` when a trial layout confirmed it); write that size.
+- `cylinder` `props.capDepth` (structured): the depth of each elliptical cap, e.g. `2pt` for
+  a flat cylinder about as tall as the boxes beside it (the default caps are 12pt deep on a
+  cylinder sized to its label). A cylinder sized to its label is the label plus three cap
+  depths tall.
 - `label` (`sumi/label`) draws text without a border and needs a non-empty label.
 - **Shapes**: `box`, `square`, `circle`, `ellipse`, `diamond`, `hexagon`,
   `parallelogram`, `cylinder`, `document`. `circle` and `square` keep 1:1.
@@ -554,6 +560,9 @@ Colours are strict `#RRGGBB` and apply before inherited dimming.
   the frame; in a legend `edge` entry the sample's), `arrowheadScale` on an edge, `cornerRadius`
   on a node, group or set. `variant: dotted` on an edge, `container` or set draws round dots
   three line widths apart (the theme's `dashed` colours and fill); use `dashed` for dashes.
+  An edge's `dash: dashed | dotted` puts dashes or dots on any variant (`variant: muted, dash:
+  dotted` is a pale dotted line; both engines), and `strands: 2–5` draws it as a bundle of
+  parallel lines ([bundles](structured.md#bundles-of-parallel-lines-strands)).
   Editable PPTX uses PowerPoint's round-dot preset and the nearest of its three head sizes.
 
 <a id="text-scale"></a>**Text scale.** `themeOverrides.textScale` (a multiple of 0.25, 0.5 to 4) multiplies the

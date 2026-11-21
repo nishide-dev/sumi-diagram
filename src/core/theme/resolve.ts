@@ -17,6 +17,7 @@
  * takes the theme's dim colors.
  */
 
+import { bundleArrowheadScale } from "../../layout/route/arrowhead";
 import { type CheckState, type ElementKey, figureElements, groupKey } from "../check-state";
 import type { Diagnostic, DocPath } from "../diagnostics";
 import { chatVisuals } from "../figure/chat";
@@ -95,6 +96,23 @@ export interface StyleResolution<K extends ComponentKind = ComponentKind> {
  * dashes, so no theme needs a layer of its own.
  */
 export const DOTTED_VARIANT = "dotted";
+
+/**
+ * An edge style drawn with `dash` (#614) whatever its variant: `dashed` takes
+ * the dashes of the component's `dashed` variant under the theme (at least
+ * level 1), `dotted` its round dots. The variant's color and width stay.
+ */
+export function withDash<S extends { strokeDash: number; strokeDotted?: true }>(
+  style: S,
+  theme: Theme,
+  id: ComponentId,
+  dash: "dashed" | "dotted",
+): S {
+  if (dash === "dotted") return Object.freeze({ ...style, strokeDash: 0, strokeDotted: true });
+  const dashed = resolveStyle(theme, { kind: "edge", id, variant: "dashed" }).style.strokeDash;
+  const { strokeDotted: _, ...solid } = style;
+  return Object.freeze({ ...solid, strokeDash: Math.max(1, dashed) }) as S;
+}
 
 /** Resolves the effective style of a component variant under a theme. */
 export function resolveStyle<K extends ComponentKind>(
@@ -450,6 +468,22 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
         reference,
       });
       if (frame) style = withRadius(style, overrides?.cornerRadius);
+    }
+    if (style.kind === "edge" && entry.kind === "edge" && entry.element.dash !== undefined)
+      style = withDash(style, theme, id, entry.element.dash);
+    // A bundle's one arrowhead grows to cover its lines (#614) unless the edge writes its own size.
+    if (
+      style.kind === "edge" &&
+      entry.kind === "edge" &&
+      entry.element.strands !== undefined &&
+      entry.element.arrowheadScale === undefined
+    ) {
+      const scale = Math.max(
+        style.arrowheadScale ?? 1,
+        bundleArrowheadScale(style.strokeWidth.units, entry.element.strands),
+      );
+      if (scale !== (style.arrowheadScale ?? 1))
+        style = Object.freeze({ ...style, arrowheadScale: scale });
     }
     if (style.kind === "node" && entry.kind === "node")
       style = withTextStyle(style, theme, entry.element);

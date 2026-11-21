@@ -241,6 +241,8 @@ describe("sets section (#407)", () => {
       "shape",
       "angle",
       "labelAt",
+      "text",
+      "weight",
       "padding",
       "width",
       "height",

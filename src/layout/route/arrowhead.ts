@@ -37,3 +37,21 @@ export const GROUP_STEM_CORNER_UNITS = 4;
  * so the writer can round a corner without reaching the arrowhead.
  */
 export const WIRE_CORNER_RADIUS = 8;
+
+/**
+ * The distance between the centres of two neighbouring lines of a bundle
+ * (#614, `edges[].strands`): two line widths, so the gap between them is one
+ * line width at any width.
+ */
+export const strandSpacing = (strokeUnits: number): number => 2 * strokeUnits;
+
+/**
+ * The arrowhead scale a bundle of `strands` lines needs so one head covers it
+ * (#614): the head (as wide as it is long) at least `2 · strands` line widths
+ * wide, which leaves half a line width of head beside the outer lines; in
+ * quarter steps, between 1 and 2 (the largest scale).
+ */
+export function bundleArrowheadScale(strokeUnits: number, strands: number): number {
+  const needed = (2 * strands * strokeUnits) / arrowheadLength(strokeUnits);
+  return Math.min(2, Math.max(1, Math.ceil(needed * 4 - 1e-9) / 4));
+}
