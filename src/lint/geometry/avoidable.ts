@@ -714,6 +714,8 @@ export const avoidableBend = defineGeometryRule({
       const edge = element.ir;
       if (edge.kind !== "edge" || !isDrawnEdge(element) || element.route === undefined) continue;
       if (edge.routing === "zoom" || edge.route === "curve" || edge.route === "straight") continue;
+      // A lane (#609) is the author's route: its bends are asked for.
+      if (edge.lane !== undefined) continue;
       const line = element.route[0];
       if (line === undefined || element.route.length !== 1) continue;
       const points = corners(line);

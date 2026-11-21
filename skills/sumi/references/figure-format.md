@@ -46,7 +46,7 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | group | **`id`**, `label`, `labelAt`, `caption`, `component`, `variant`, `tone`, `dim`, `group`, `arrange`¹ | component `container`, variant `default`, no tone, not dimmed, no parent |
 | node | **`id`**, **`component`**, `label`, `sublabel`¹, `sublabelInk`¹, `text`¹, `weight`¹, `labelRotation`¹, `textAlign`¹, `grow`¹, `matchWidth`¹, `variant`, `tone`, `mono`, `icon`, `iconSize`, `iconAt`¹, `badge`, `glyphs`, `props`, `group`, `attach`¹ | variant `default`, no label, no tone, no group, grow `1` |
 | set¹ | **`id`**, **`members`**, `label`, `labelAt`, `shape`, `angle`, `padding`, `width`, `height`, `minWidth`, `minHeight`, `enclose`, `variant`, `tone`, `fillOpacity` | shape `circle`, labelAt `top`, enclose `body`, variant `default`, no tone (gray), padding = the profile's group padding |
-| edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `route`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
+| edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `route`¹, `lane`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`):
 [structured](structured.md) (`grow`: [filling extra height](structured.md#arrange-trees); `matchWidth`: [equal widths](structured.md#arrange-trees)).

@@ -45,7 +45,7 @@ with `figure.layout.arrange` is structured, one without it auto**; an
 explicit `engine: auto` wins. Under auto, every structured-only field
 (`arrange`, `align`, `alignGrowth`, `fanIn`, `density`, `straighten`, `attach`, `sublabel`,
 `labelRotation`, `textAlign`, `grow`, `fromAnchor` / `toAnchor`, group `props.plane`, edge
-`labelAt` / `labelSide` / `route`, and the `legend`, `tokens`, `matrix`, `bracket`, `cuboid`,
+`labelAt` / `labelSide` / `route` / `lane`, and the `legend`, `tokens`, `matrix`, `bracket`, `cuboid`,
 `separator`, `block-arrow`, `triangle-arrow`, `chevron` and `zoom` components) is `layout/structured-only`: remove it or
 make the figure structured. Group `labelAt` and `caption`, icons, images,
 tones, `operator`, `junction`, `dim` and the paper variants work in both.
@@ -1361,6 +1361,76 @@ edges:
   - {from: infer, to: store}
   - {from: train, to: store}
   - {from: prep, to: store}
+```
+
+### Lanes: loops, skips and buses (`lane`)
+
+A loop back over a row, a skip around a framed block or a return line under the whole
+figure needs its long segment in a chosen place. Write **`lane`** on the edge instead of
+hidden junctions, extra padding or `route: curve`:
+
+- **`lane: {side: north}`**: the edge leaves its source and enters its target on the
+  north side, and the long segment runs `offset` beyond the farther of the two north
+  faces. `side` is `north`, `east`, `south` or `west`; **`offset`** defaults to 6pt (more
+  where the arrowhead and a corner need it, 10pt on a 1pt line).
+- **`outside: <group or node>`**: the lane runs `offset` beyond that element's frame
+  instead (its title too, when the title sits outside the frame on that side): the frame a
+  skip goes around, the panel a loop goes over. An end wholly beyond the lane (a source to
+  the left of a `west` lane) uses the side facing it, so a bus can run beside its targets.
+- **Bus**: edges with lanes on one side that share a source (or a target) share one
+  lane, the farthest of theirs, and one trunk; give each `outside: <its target>` to run
+  the trunk just beside a column of targets. The shared end must be one point: different
+  anchors there (`"east:0.3"` and `"east:0.7"`) split the bus into separate lines,
+  `layout/lane-bus-split` (warning), and a lane that would then run along another's is
+  routed without it (`layout/lane-blocked`).
+- An anchor on the lane's side keeps its position (`toAnchor: "west:0.3"`); one on
+  another side, or `straight`, conflicts. Lanes are drawn first; the other edges keep
+  clear of them, and a run drawn beside a lane is moved a lane gap away; nothing moves a lane (no separation, no `straighten`, no
+  `geometry/avoidable-bend`).
+- A lane that cannot be drawn as asked (it would run through or along a node, through a
+  title or caption, on a group's frame or along another edge, an end sticks out across it,
+  or the offset is shorter than the arrowhead needs) is `layout/lane-blocked` (warning,
+  with the reason): the edge is routed without it. A larger `offset` usually clears it.
+  `lane` with `route`, on a self-loop or a cell end is `layout/invalid-lane`; an unknown
+  `outside` is `layout/unknown-lane-outside`.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: lanes
+  theme: sumi
+  profile: paper-single
+  layout:
+    arrange:
+      stack:
+        direction: up
+        gap: 4mm
+        items: [x, split, unit, add, {row: {gap: 8mm, items: [plan, act]}}]
+groups:
+  - id: unit
+    variant: dashed
+    arrange:
+      stack: {direction: up, gap: 3mm, items: [dense, norm]}
+nodes:
+  - {id: x, component: label, label: $h_i$}
+  - {id: split, component: junction}
+  - {id: dense, component: box, label: Dense}
+  - {id: norm, component: box, label: LayerNorm}
+  - {id: add, component: operator, props: {symbol: plus}}
+  - {id: plan, component: box, label: Plan}
+  - {id: act, component: box, label: Act}
+edges:
+  - {from: x, to: split, component: line}
+  - {from: split, to: dense}
+  - {from: dense, to: norm}
+  - {from: norm, to: add}
+  - {from: add, to: plan}
+  - {from: plan, to: act}
+  # the skip around the dashed block, 4mm outside its frame
+  - {from: split, to: add, lane: {side: west, outside: unit, offset: 4mm}}
+  # the loop back over the two boxes
+  - {from: act, to: plan, lane: {side: north}, label: retry}
 ```
 
 ### Crossings (`layout/edge-crossing`)
