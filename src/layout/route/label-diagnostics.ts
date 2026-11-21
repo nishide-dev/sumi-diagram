@@ -19,7 +19,7 @@ import type { Diagnostic } from "../../core/diagnostics";
 import { EDGE_LABEL_POSITIONS, EDGE_LABEL_SIDES } from "../../core/figure/schema";
 import { groupFrontRect, groupLayerObstacles } from "../group-layers";
 import type { LayoutIR, Point, Rect } from "../ir";
-import { arrowheadRects, hasRequestedLabel, isTagLabel, labelSegment } from "./labels";
+import { arrowheadRects, hasRequestedLabel, isTagLabel, labelSegment, tagBox } from "./labels";
 
 /** The open rectangles overlap (touching does not count). */
 const overlaps = (a: Rect, b: Rect): boolean =>
@@ -72,9 +72,11 @@ export function requestedLabelDiagnostics(
       n.sublabel === undefined ? [] : [[n.key, n.sublabel.box] as const],
     ),
     ...layout.groups.flatMap((g) => (g.label === undefined ? [] : [[g.key, g.label.box] as const])),
-    ...routed.flatMap(({ layout: e }) =>
-      e.route?.label === undefined ? [] : [[e.key, e.route.label.box] as const],
-    ),
+    ...routed.flatMap(({ edge, layout: e }) => {
+      const label = e.route?.label;
+      if (label === undefined) return [];
+      return [[e.key, isTagLabel(edge) ? tagBox(label.box, label) : label.box] as const];
+    }),
   ];
   const bordered = layout.groups.filter((group) => {
     const element = ir.elements.get(group.key);
@@ -88,8 +90,10 @@ export function requestedLabelDiagnostics(
 
   const diagnostics: Diagnostic[] = [];
   for (const { edge, layout: e } of routed) {
-    const box = e.route?.label?.box;
-    if (box === undefined || !hasRequestedLabel(edge)) continue;
+    const label = e.route?.label;
+    if (label === undefined || !hasRequestedLabel(edge)) continue;
+    // A tag (#610) takes its drawn frame.
+    const box = isTagLabel(edge) ? tagBox(label.box, label) : label.box;
     const found: string[] = [];
     // A tag (#610) sits on its own segment.
     const host = isTagLabel(edge) ? labelSegment(e.route?.points ?? [], edge) : -1;

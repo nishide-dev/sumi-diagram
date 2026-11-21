@@ -8,14 +8,20 @@
 
 import { describe, expect, test } from "bun:test";
 import { compileFigure } from "../compiler/compile";
+import { asHintTrial } from "../layout/hint-trials";
 import type { EdgeLayout, Point, Rect } from "../layout/ir";
 import { tagBox } from "../layout/route/labels";
 import {
   drifts,
+  driftsAdded,
   EDGE_LABEL_DETACHED,
   EDGE_LABEL_TOUCHES_LINE,
+  edgeLabelDetached,
   geometryContextFor,
+  inkGlyphs,
+  inkLines,
   lintGeometry,
+  type TrialLint,
 } from "../lint/geometry";
 import { type RenderedStructuredFigure, renderFigure } from "./render";
 
@@ -249,5 +255,97 @@ describe("geometry/edge-label-detached and edge-label-touches-line (#610)", () =
     const found = drifts(context);
     expect(found.map((d) => d.kind)).toEqual(["touching"]);
     expect(EDGE_LABEL_TOUCHES_LINE).toBe("geometry/edge-label-touches-line");
+  });
+
+  test("a line through the space between two words does not touch them", async () => {
+    const { rendered } = await render(row("  - {from: d, to: e, label: left right}"));
+    const context = geometryContextFor(rendered);
+    const edge = context.elements.find((e) => e.ir.kind === "edge");
+    const measured = edge?.labels[0];
+    if (edge === undefined || measured === undefined) throw new Error("no label");
+    const glyphs = inkGlyphs(measured).sort((a, b) => a.x - b.x);
+    // "left" then "right": the space lies between the 4th and 5th glyph.
+    const t = glyphs[3] as Rect;
+    const r = glyphs[4] as Rect;
+    const x = (t.x + t.width + r.x) / 2;
+    expect(r.x - (t.x + t.width)).toBeGreaterThan(1);
+    const box = measured.visibleLines[0] as Rect;
+    edge.drawn = [
+      [
+        { x, y: box.y - 20 },
+        { x, y: box.y + box.height + 20 },
+      ],
+    ];
+    // The line box would count it as touching; the glyphs do not.
+    expect(inkLines(measured).some((ink) => ink.x < x && x < ink.x + ink.width)).toBe(true);
+    expect(drifts(context).filter((d) => d.kind === "touching")).toEqual([]);
+  });
+
+  test("inside a trial the rules only detect, so a trial can see other labels drift", async () => {
+    const source = loop;
+    const { rendered } = await render(source);
+    const context = { ...geometryContextFor(rendered), source };
+    const found = asHintTrial(() => edgeLabelDetached.run(context, undefined));
+    expect(found).toHaveLength(1);
+    expect(found[0]?.hint).not.toContain("Verified");
+    expect(found[0]?.hint).not.toContain("None of");
+  });
+
+  test("a trial that makes another label drift is turned down", () => {
+    const lint = (entries: [string, string[]][]): TrialLint => ({
+      problems: new Map(),
+      bySubject: new Map(entries.map(([k, v]) => [k, new Set(v)])),
+    });
+    const before = lint([['{"kind":"edge","id":"edges[5]"}', [EDGE_LABEL_DETACHED]]]);
+    expect(driftsAdded(before, lint([]))).toBe(false);
+    expect(
+      driftsAdded(before, lint([['{"kind":"edge","id":"edges[6]"}', [EDGE_LABEL_DETACHED]]])),
+    ).toBe(true);
+    expect(
+      driftsAdded(before, lint([['{"kind":"edge","id":"edges[1]"}', [EDGE_LABEL_TOUCHES_LINE]]])),
+    ).toBe(true);
+  });
+});
+
+describe("tag frames in layout/edge-label-overlap (#610)", () => {
+  test("a tag whose frame, not its text, reaches a node is reported", async () => {
+    // The frame is wider than the text: on a span that holds the text but not the frame.
+    const figure = (gap: string) => `version: 1
+figure:
+  id: tight
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: ${gap}, items: [a, b]}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+edges:
+  - {from: a, to: b, label: tagged, labelStyle: tag}
+`;
+    const sizes: { gap: number; text: number; frame: number; warned: boolean }[] = [];
+    for (const mm of [9, 10, 11, 12, 13, 14, 16]) {
+      const { rendered, diagnostics } = await render(figure(`${mm}mm`));
+      const e = edgeAt(rendered, 0);
+      const label = e.route?.label;
+      if (label === undefined) throw new Error("no label");
+      const a = rendered.layout.nodes.find((n) => n.key === rendered.compiled.ir.nodes[0]?.key)
+        ?.rect as Rect;
+      const b = rendered.layout.nodes.find((n) => n.key === rendered.compiled.ir.nodes[1]?.key)
+        ?.rect as Rect;
+      const frame = tagBox(label.box, label);
+      const hits = (r: Rect) =>
+        r.x < b.x && r.x + r.width > a.x + a.width && (r.x < a.x + a.width || r.x + r.width > b.x);
+      sizes.push({
+        gap: mm,
+        text: hits(label.box) ? 1 : 0,
+        frame: hits(frame) ? 1 : 0,
+        warned: diagnostics.some((d) => d.code === "layout/edge-label-overlap"),
+      });
+    }
+    // Wherever the frame reaches a node, the warning is there, even if the text is clear.
+    for (const s of sizes) if (s.frame) expect(s.warned).toBe(true);
+    expect(sizes.some((s) => s.frame && !s.text)).toBe(true);
   });
 });

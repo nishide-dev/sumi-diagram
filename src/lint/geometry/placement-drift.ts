@@ -39,7 +39,7 @@ import { resolveLintConfig } from "../config";
 import { defineGeometryRule, isGeometryRule, type LintFinding } from "../rule";
 import { isDrawnEdge, isStructured, mmText } from "./common";
 import type { GeometryContext, GeometryElement } from "./context";
-import { inkLines } from "./measure";
+import { inkGlyphs } from "./measure";
 import { polylinesRectDistance } from "./proximity";
 import { newProblems, type Problems, routeTrial, type Trial, trialContext } from "./trial";
 
@@ -52,10 +52,12 @@ export const DETACHED_FONT_SIZES = 0.75;
 /** At most this many trial routings per figure (besides the one of the figure as it is). */
 export const MAX_LABEL_TRIALS = 8;
 
-/** Trials are linted by every geometry rule but these (they would start trials of their own, or are this one). */
+/**
+ * Trials are linted by every geometry rule but these, which would start trials of their own.
+ * This file's two rules do run in a trial, where they only detect (`inHintTrial`): a trial that
+ * moves another edge's label off or onto its line is turned down.
+ */
 const SKIP: ReadonlySet<string> = new Set([
-  EDGE_LABEL_DETACHED,
-  EDGE_LABEL_TOUCHES_LINE,
   // By id, not imported: those modules sit in the rule list's import cycle.
   "geometry/relocatable-node",
   "geometry/content-band",
@@ -100,12 +102,15 @@ function routerPlaced(element: GeometryElement): element is GeometryElement & { 
   );
 }
 
-/** Stroke to letters (drawn units) of an edge's label from its own line, and the limit for it. */
+/**
+ * Stroke to letters (drawn units) of an edge's label from its own line, glyph by glyph
+ * (`inkGlyphs`: a line through the space between words touches nothing), and the limit for it.
+ */
 function measure(element: GeometryElement): { gap: number; limit: number } | undefined {
   const edge = element.ir;
   const drawn = element.drawn;
   if (edge.kind !== "edge" || drawn === undefined || element.labels.length === 0) return undefined;
-  const inks = element.labels.flatMap(inkLines);
+  const inks = element.labels.flatMap(inkGlyphs);
   if (inks.length === 0) return undefined;
   const gap =
     Math.min(...inks.map((ink) => polylinesRectDistance(drawn, ink))) - element.strokeInset;
@@ -136,7 +141,7 @@ export type LabelVerdict =
     };
 
 /** A trial's errors and warnings (as `problemsIn`), and every finding's rule by subject (any level). */
-interface TrialLint {
+export interface TrialLint {
   readonly problems: Problems;
   readonly bySubject: ReadonlyMap<string, ReadonlySet<string>>;
 }
@@ -162,6 +167,15 @@ function lintTrial(linted: GeometryContext, trial: Trial): TrialLint {
     }
   }
   return { problems, bySubject };
+}
+
+const DRIFT_CODES = [EDGE_LABEL_DETACHED, EDGE_LABEL_TOUCHES_LINE];
+
+/** Whether `after` reports a drifting label for a subject `before` did not. */
+export function driftsAdded(before: TrialLint, after: TrialLint): boolean {
+  return [...after.bySubject].some(([subject, codes]) =>
+    DRIFT_CODES.some((code) => codes.has(code) && !before.bySubject.get(subject)?.has(code)),
+  );
 }
 
 const withEdit = (ir: FigureIR, key: ElementKey, edit: LabelEdit): FigureIR => {
@@ -249,6 +263,9 @@ export function labelTrials(context: GeometryContext, found: readonly Drift[]): 
         const subject = JSON.stringify(drift.edge.subject ?? null);
         const had = before.bySubject.get(subject) ?? new Set<string>();
         if ([...(after.bySubject.get(subject) ?? [])].some((code) => !had.has(code))) continue;
+        // No other label drifts that did not before (these rules' findings are infos, or
+        // warnings counted above only by subject).
+        if (driftsAdded(before, after)) continue;
         return { ok: true, edit, ...(gap !== undefined && { gap }) };
       }
       return { ok: false, reason: "none" };

@@ -356,7 +356,28 @@ const SKIPPED = /[\p{Cc}\p{Default_Ignorable_Code_Point}]/u;
  * runs (#93), an icon (#94), a glyph without outline data.
  */
 export function inkLines(measured: MeasuredLabel): Rect[] {
-  if (measured.runs !== undefined || measured.fontPath === "") return measured.visibleLines;
+  return glyphInk(measured).map(
+    (line) => (line.glyphs ? unionOf(line.glyphs) : undefined) ?? line.box,
+  );
+}
+
+/**
+ * The ink of a label glyph by glyph (#610): each drawn glyph's outline
+ * bounds, so a line through the space between two words or letters does not
+ * count as touching them. A line whose outlines are not all known keeps its
+ * line box (as {@link inkLines}); a label drawn as runs (#93) gives each
+ * run's box.
+ */
+export function inkGlyphs(measured: MeasuredLabel): Rect[] {
+  if (measured.runs !== undefined && measured.fontPath !== "")
+    return measured.runs.flat().flatMap((run) => (INVISIBLE.test(run.text) ? [] : [run.box]));
+  return glyphInk(measured).flatMap((line) => line.glyphs ?? [line.box]);
+}
+
+/** Per visible line: its line box, and its glyphs' bounds when every visible glyph has an outline. */
+function glyphInk(measured: MeasuredLabel): { box: Rect; glyphs?: Rect[] }[] {
+  if (measured.runs !== undefined || measured.fontPath === "")
+    return measured.visibleLines.map((box) => ({ box }));
   const metrics = loadFontMetrics(measured.fontPath);
   const scale = measured.label.fontSizeUnits / metrics.unitsPerEm;
   const ascent = metrics.hhea.ascender * scale;
@@ -366,7 +387,8 @@ export function inkLines(measured: MeasuredLabel): Rect[] {
     rotation === undefined ? undefined : { degrees: -rotation.degrees, center: rotation.center };
   const lines =
     back === undefined ? measured.lines : measured.lines.map((line) => turnRect(line, back));
-  const ink: Rect[] = [];
+  const turn = (r: Rect) => (rotation === undefined ? r : turnRect(r, rotation));
+  const out: { box: Rect; glyphs?: Rect[] }[] = [];
   for (const [i, text] of measured.texts.entries()) {
     const line = lines[i];
     if (line === undefined || INVISIBLE.test(text)) continue;
@@ -393,9 +415,13 @@ export function inkLines(measured: MeasuredLabel): Rect[] {
       }
       pen += metrics.advanceOf(codePoint) * scale;
     }
-    ink.push((known ? unionOf(glyphs) : undefined) ?? line);
+    out.push(
+      known && glyphs.length > 0
+        ? { box: turn(line), glyphs: glyphs.map(turn) }
+        : { box: turn(line) },
+    );
   }
-  return rotation === undefined ? ink : ink.map((rect) => turnRect(rect, rotation));
+  return out;
 }
 
 /** Measures a label with the font set's file for each font class. */

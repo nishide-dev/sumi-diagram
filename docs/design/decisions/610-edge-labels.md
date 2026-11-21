@@ -35,14 +35,14 @@
 - 形: 文字の行の箱に、左右に文字サイズの 1/3、上下に 1/10 の余白を足した角丸の枠（`tagBox`）。塗りは下に塗られている色（`labelBackground`: キャンバスかグループの塗り）で、線を隠す。枠は線の色、線の太さ（最大 0.5pt）、破線の辺でも実線。SVG では `<text>` の直前の `<rect class="sumi-edge-tag">`。編集可能 PPTX はラベルの直前の `rect` を背景として読むので、塗りは残る（枠線は描かない）。
 - 置き場: 直交では `labelAt` と同じ仕組み（`placeRequestedLabel`）で、側の代わりに線の上（オフセット 0）。既定の線分は**最長の線分の中央**（矢じりの横ではない。名札は線の途中を指すため）。自分の載る線分は障害物にしないが、ほかの線分・矢じり・枠・ノード・ラベルからは gap を保つ（ノードとは、横に置くラベルと違って線からの gap がないので、枠を gap だけ広げて判定する）。短い区間でも線から持ち上げない。`labelSide` は無視する。
 - `straight` / `curve` では中心を線上の点に置く（法線方向のずれなし）。
-- 自分の線分は `layout/edge-label-overlap` の「its own line」に数えない。`geometry/edge-label-hugging` は札を見ない（枠が線を隠すので、文字と線の距離は意味がない）。
+- `layout/edge-label-overlap` は札について文字の箱ではなく**描く枠（`tagBox`）**で重なりを見る（ほかのラベルとして並ぶ札も枠）。自分の載る線分は「its own line」に数えない。hint の試行もこの診断を数えるので、枠で確かめる。`geometry/edge-label-hugging` は札を見ない（枠が線を隠すので、文字と線の距離は意味がない）。
 - auto（D2）の図では `layout/structured-only`（error）。
 
 ### 4. lint: `geometry/edge-label-detached`（info）・`geometry/edge-label-touches-line`（warning）
 
 ルーターが自分で置いたラベル（直交の辺で `labelAt`・`labelSide`・`labelStyle` なし、凡例の見本でない）だけを見る。書いて置かせたラベルは `layout/edge-label-overlap` の担当。`straight` / `curve` のラベルは作りから gap を保つので見ない。
 
-- 距離: 文字の輪郭（`inkLines`）と、描かれた自分の線（`drawn`、線幅の半分を引く）の最短距離。`geometry/edge-label-hugging` と同じ測り方。
+- 距離: 文字の**グリフごと**の輪郭の外接矩形（`inkGlyphs`。フォントの `glyf` から。輪郭のわからない行は行の箱、runs のラベルは run ごとの箱）と、描かれた自分の線（`drawn`、線幅の半分を引く）の最短距離。行ごとの和集合（`inkLines`、hugging の測り方）では、語と語の間の空白を通る線まで「触れる」になり、warning が誤って出るため（レビューの指摘）。
 - **detached**: 距離 > ラベルの gap（`labelGap`: テーマの `edgeLabelGap` × `textScale`）＋ 文字サイズの 3/4。ふつうに置いたラベルは gap ＋ 0.3em 程度（sumi で 8.5 units）で、持ち上げられたものは 18〜76 units だった（下記）。info とした: 文字は読めるが、どの線のラベルかが曖昧になる。
 - **touches-line**: 距離 ≤ 0（文字が線に触れるか、線が文字を横切る）。warning とした（`layout/edge-label-overlap` と同じ重さ）。
 - **hint は実際に配線し直して確かめる**（#607・#613・#621 と同じ `trial.ts` の型）:
@@ -51,7 +51,7 @@
   3. 合格の条件: 試行にエラーがない、キャンバスが大きくならない、`labelAt` ならラベルが線から 0 より大きく上限以下（札なら線の上）、図全体で新しい error / warning がない、**その辺について新しい指摘がない**（info を含む: 角に寄った札、線に押し付けられたラベルなど）。
   4. 最初に合格した編集を `Verified: setting edges[6].labelAt to start puts the label 1.58mm from its line (...)` の形で hint にする。どれも合格しなければ、一般的な案と「試した編集はどれも通らなかった」ことを書く。
   - 基準: 図そのものも一度だけ配線し直し、キャンバスと全ラベルの位置が描いた図と一致するときだけ比べる（一致しなければ「確かめられなかった」）。
-  - 費用: ラベルが流れていなければ何もしない。流れていれば、図あたり最大 8 回の配線（＋基準 1 回）。`HintTrials` の対象（要素 80 以下）で HTML・外部画像のない図に限る。試行の中ではこの 2 つと `relocatable-node`・`content-band`（自分で試行を始める規則）を動かさない。試行の中で呼ばれたときは試行を始めず、指摘だけする。
+  - 費用: ラベルが流れていなければ何もしない。流れていれば、図あたり最大 8 回の配線（＋基準 1 回）。`HintTrials` の対象（要素 80 以下）で HTML・外部画像のない図に限る。試行の中では `relocatable-node`・`content-band`（自分で試行を始める規則）を動かさない。この 2 つの規則は試行の中でも動かし、そこでは試行を始めず検出だけする（`inHintTrial`）。基準にない「ほかのラベルの detached / touches-line」が試行に出たら、その編集は通さない（ある辺のラベルを動かして別の辺のラベルを線から押し出す・線に載せる編集を見逃さない。レビューの指摘）。
 
 ## 採らなかった案
 
