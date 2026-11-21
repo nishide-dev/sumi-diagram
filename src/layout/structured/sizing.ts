@@ -58,6 +58,8 @@ export function naturalSize(
   shape: NodeShape,
   label: LabelBox | undefined,
   padding: NodePadding,
+  /** A cylinder's written cap depth in units (#614, `props.capDepth`). */
+  capDepth?: number,
 ): Size {
   const w = label?.width ?? 0;
   const h = label?.height ?? 0;
@@ -110,6 +112,12 @@ export function naturalSize(
       return { width, height };
     }
     case "cylinder": {
+      // A written cap depth (#614): the padded label plus three caps of that depth.
+      if (capDepth !== undefined)
+        return {
+          width: padded.width,
+          height: Math.ceil(cylinderMinHeight(padded.height, capDepth)),
+        };
       // Caps deepen on tall cylinders (#547): the body between them keeps the padded height.
       const height = padded.height + 3 * CYLINDER_ARC_UNITS;
       return {
@@ -135,11 +143,12 @@ export function naturalSize(
 export function labelCenter(
   shape: NodeShape,
   rect: { x: number; y: number; width: number; height: number },
+  capDepth?: number,
 ) {
   const x = rect.x + rect.width / 2;
   switch (shape) {
     case "cylinder": {
-      const arc = cylinderArc(rect.height);
+      const arc = cylinderArc(rect.height, capDepth);
       return { x, y: rect.y + 2 * arc + (rect.height - 3 * arc) / 2 };
     }
     case "document":
@@ -180,7 +189,7 @@ function outlineOf(node: Pick<NodeIR, "key" | "render">) {
  * auto engine's two-pass sizing), rounded up to whole units.
  */
 export function nodeSize(
-  node: Pick<NodeIR, "key" | "shape" | "sizing" | "render" | "width" | "height">,
+  node: Pick<NodeIR, "key" | "shape" | "sizing" | "render" | "width" | "height" | "capDepth">,
   label: LabelBox | undefined,
   padding: NodePadding,
 ): Size {
@@ -188,7 +197,7 @@ export function nodeSize(
     const side = node.width?.units ?? node.height?.units;
     if (side !== undefined) return { width: side, height: side };
   }
-  let natural = naturalSize(node.shape, label, padding);
+  let natural = naturalSize(node.shape, label, padding, node.capDepth);
   const outline = outlineOf(node);
   if (outline !== undefined) {
     // Footprints need a positive label box.
@@ -210,11 +219,11 @@ export function nodeSize(
  * against), otherwise {@link labelCenter} of its shape.
  */
 export function nodeLabelCenter(
-  node: Pick<NodeIR, "key" | "shape" | "render">,
+  node: Pick<NodeIR, "key" | "shape" | "render" | "capDepth">,
   rect: { x: number; y: number; width: number; height: number },
 ) {
   const outline = outlineOf(node);
-  if (outline === undefined) return labelCenter(node.shape, rect);
+  if (outline === undefined) return labelCenter(node.shape, rect, node.capDepth);
   const { safeArea } = outline.renderer.draw(rect, outline.params);
   return { x: safeArea.x + safeArea.width / 2, y: safeArea.y + safeArea.height / 2 };
 }

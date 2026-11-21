@@ -96,6 +96,23 @@ export interface StyleResolution<K extends ComponentKind = ComponentKind> {
  */
 export const DOTTED_VARIANT = "dotted";
 
+/**
+ * An edge style drawn with `dash` (#614) whatever its variant: `dashed` takes
+ * the dashes of the component's `dashed` variant under the theme (at least
+ * level 1), `dotted` its round dots. The variant's color and width stay.
+ */
+export function withDash<S extends { strokeDash: number; strokeDotted?: true }>(
+  style: S,
+  theme: Theme,
+  id: ComponentId,
+  dash: "dashed" | "dotted",
+): S {
+  if (dash === "dotted") return Object.freeze({ ...style, strokeDash: 0, strokeDotted: true });
+  const dashed = resolveStyle(theme, { kind: "edge", id, variant: "dashed" }).style.strokeDash;
+  const { strokeDotted: _, ...solid } = style;
+  return Object.freeze({ ...solid, strokeDash: Math.max(1, dashed) }) as S;
+}
+
 /** Resolves the effective style of a component variant under a theme. */
 export function resolveStyle<K extends ComponentKind>(
   theme: Theme,
@@ -450,6 +467,13 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
         reference,
       });
       if (frame) style = withRadius(style, overrides?.cornerRadius);
+    }
+    if (style.kind === "edge" && entry.kind === "edge" && entry.element.dash !== undefined)
+      style = withDash(style, theme, id, entry.element.dash);
+    // A sequence's lifelines written `dash: solid` (#630) are solid whatever their variant.
+    if (style.kind === "edge" && state.doc.solidLifelines?.has(entry.key)) {
+      const { strokeDotted: _, ...solid } = style;
+      style = Object.freeze({ ...solid, strokeDash: 0 });
     }
     if (style.kind === "node" && entry.kind === "node")
       style = withTextStyle(style, theme, entry.element);

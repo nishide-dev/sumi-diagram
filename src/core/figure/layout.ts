@@ -7,7 +7,7 @@
  *   `figure.layout.density` (#182), `figure.layout.straighten` (#618),
  *   `group.arrange`, `group.contentAlign` / `matchLabelHeight` (#613), `node.attach`, `node.sublabel` (#184),
  *   `node.labelRotation` (#178), `edge.fromAnchor` / `toAnchor`,
- *   `edge.labelAt` / `labelSide` (#128), `edge.labelStyle` (#610), `edge.lane` (#609)) is an error: it would otherwise be
+ *   `edge.labelAt` / `labelSide` (#128), `edge.labelStyle` (#610), `edge.lane` (#609), `edge.strands` (#614)) is an error: it would otherwise be
  *   ignored silently.
  * - With the `structured` engine, every node and group must be placed exactly
  *   once: as an item of one arrange tree (`figure.layout.arrange` for the root,
@@ -50,6 +50,7 @@ import {
   SIDES,
   type Side,
 } from "./schema";
+import { sequenceItemPath, sequenceKeys } from "./sequence";
 import type { Locator } from "./yaml";
 
 /** A parsed edge anchor. */
@@ -237,6 +238,7 @@ function checkAuto(state: CheckState, locate: Locator): void {
       "lane",
       "lineWidth",
       "arrowheadScale",
+      "strands",
     ] as const) {
       if (edge[field] !== undefined) {
         report(field, ["edges", index, field], edgeKey(edge.id, index), subject);
@@ -327,6 +329,26 @@ function checkStructured(state: CheckState, locate: Locator): void {
               );
           } else add({ id, path: itemPath, via: "arrange", owner, silent });
         }
+      return;
+    }
+    if (box.sequence !== undefined) {
+      const sequence = doc.sequences?.find((s) => s.spec === box.sequence);
+      if (sequence === undefined) return;
+      for (const id of sequenceKeys(sequence)) {
+        const itemPath = sequenceItemPath(sequence, id);
+        if (!elements.has(id) && !isInvalidId(id)) {
+          if (collectionsReadable && !silent)
+            push(
+              errorAt(
+                locate,
+                "layout/unknown-item",
+                `Unknown sequence item "${id}"; participants and notes must be node or group IDs.`,
+                itemPath,
+                { subject: ownerSubject, hint: unknownHint(id) },
+              ),
+            );
+        } else add({ id, path: itemPath, via: "arrange", owner, silent });
+      }
       return;
     }
     for (const kind of ["stack", "row", "grid", "place"] as const) {

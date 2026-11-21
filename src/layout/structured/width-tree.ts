@@ -51,6 +51,21 @@ export interface WidthEntry {
   readonly span?: number;
   /** Grid items: the width the item needs of its columns (its centring included), in pt. */
   readonly trackPt?: number;
+  /**
+   * Sequence boxes (#630): the distance between each pair of neighbouring
+   * lifelines in pt, what sets it (`participantGap`, or a message label, note
+   * or frame), and the box's `participantGap` in pt (`written`: in the YAML).
+   */
+  readonly sequence?: {
+    readonly gaps: readonly {
+      readonly between: readonly [string, string];
+      readonly pt: number;
+      readonly reason: string;
+      /** The message whose label sets the gap, if one does. */
+      readonly edge?: ElementKey;
+    }[];
+    readonly participantGap: { readonly pt: number; readonly written: boolean };
+  };
   /** Generated contents measured as a whole (their own props size them). */
   readonly leaf?: WidthLeafKind;
   readonly children: readonly WidthEntry[];
@@ -72,10 +87,11 @@ export function widthPath(root: WidthEntry): WidthEntry[] {
   const path: WidthEntry[] = [root];
   let at = root;
   while (at.children.length > 0) {
-    // A group whose title is wider than its content, and a place or chat box
-    // (its written coordinates or chat width span it), end the path.
+    // A group whose title is wider than its content, and a place, chat or
+    // sequence box (its written coordinates, chat width or lifeline gaps span
+    // it), end the path.
     if (at.kind === "group" && at.titlePt !== undefined) break;
-    if (at.kind === "place" || at.kind === "chat") break;
+    if (at.kind === "place" || at.kind === "chat" || at.kind === "sequence") break;
     const next = widest(at.children);
     if (next === undefined) break;
     path.push(next);

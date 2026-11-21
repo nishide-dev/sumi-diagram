@@ -90,7 +90,7 @@ import {
 import { deepFreeze } from "../structured/engine";
 import { arrowheadLength, edgeArrowheadLength, WIRE_CORNER_RADIUS } from "./arrowhead";
 import { crossingDiagnostics } from "./crossings";
-import { addDirectRoutes, isDirectEdge } from "./diagonal";
+import { addDirectRoutes, isDirectEdge, shiftOutline } from "./diagonal";
 import { endpointRects } from "./endpoint-rects";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
 import { groupTitleDiagnostics } from "./group-title-diagnostics";
@@ -2142,6 +2142,16 @@ class Router {
       nodes,
       edges: routed,
       nets,
+      // Sets (#407) move with their members (a route beyond the top or left shifts them all).
+      ...(moved &&
+        layout.sets && {
+          sets: layout.sets.map((set) => ({
+            ...set,
+            rect: rect(set.rect),
+            outline: shiftOutline(set.outline, dx, dy),
+            ...(set.label && { label: text(set.label) }),
+          })),
+        }),
     });
   }
 }

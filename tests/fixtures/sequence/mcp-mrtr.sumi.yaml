@@ -1,0 +1,71 @@
+# MCP 2026-07-28, Multi Round-Trip Requests (basic workflow): #603 run 9 redrawn with a sequence box.
+version: 1
+figure:
+  id: mcp-mrtr
+  theme: sumi
+  profile: screen-doc
+  themeOverrides: {textScale: 1.5}
+  layout:
+    arrange:
+      stack:
+        items:
+          - sequence:
+              participants: [p_user, p_client, p_server]
+              rows:
+                - fragment: Round 1
+                  variant: filled
+                  fillOpacity: 0.1
+                  rows:
+                    - call1
+                    - {note: n_input, over: [p_server]}
+                    - result1
+                    - {note: payload1, over: [p_client], side: right}
+                - [prompt, {note: n_nostate, over: [p_server]}]
+                - provide
+                - fragment: Round 2 (retry)
+                  variant: filled
+                  fillOpacity: 0.1
+                  rows:
+                    - {note: payload2, over: [p_client], side: right}
+                    - call2
+                    - {note: n_done, over: [p_server]}
+                    - result2
+          - key
+groups:
+  - id: payload1
+    variant: plain
+    props: {padding: 0.5pt}
+    arrange: {row: {items: [req1, st1]}}
+  - id: payload2
+    variant: plain
+    props: {padding: 0.5pt}
+    arrange: {row: {items: [resp2, st2]}}
+nodes:
+  - {id: p_user, component: box, label: User, weight: bold, props: {width: 24mm}}
+  - {id: p_client, component: box, label: Client, weight: bold, props: {width: 24mm}}
+  - {id: p_server, component: box, label: Server, weight: bold, props: {width: 24mm}}
+  - {id: n_input, component: box, label: needs input}
+  - {id: n_nostate, component: box, label: keeps no state, variant: dashed}
+  - {id: n_done, component: box, label: "rebuilds state,\ncompletes"}
+  - {id: req1, component: box, label: inputRequests, tone: blue, variant: tinted}
+  - {id: st1, component: box, label: requestState, tone: orange, variant: tinted}
+  - {id: resp2, component: box, label: inputResponses, tone: blue, variant: tinted}
+  - {id: st2, component: box, label: requestState, tone: orange, variant: tinted}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {edge: {}, label: request}
+        - {edge: {variant: dashed}, label: response}
+        - {node: {tone: blue, variant: tinted}, label: input exchange}
+        - {node: {tone: orange, variant: tinted}, label: opaque to the client}
+edges:
+  - {id: call1, from: p_client, to: p_server, label: "tools/call (id: 1)"}
+  - {id: result1, from: p_server, to: p_client, variant: dashed, label: "InputRequiredResult (id: 1)"}
+  - {id: prompt, from: p_client, to: p_user, label: prompts for input}
+  - {id: provide, from: p_user, to: p_client, variant: dashed, label: provides responses}
+  - {id: call2, from: p_client, to: p_server, label: "tools/call (id: 2, new id)"}
+  - {id: result2, from: p_server, to: p_client, variant: dashed, label: "CallToolResult (id: 2)"}
+  - {from: st1, to: st2, route: straight, dash: dotted, tone: orange, label: echoed unchanged, labelSide: right}

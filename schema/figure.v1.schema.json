@@ -987,6 +987,20 @@
             "minimum": 0.5,
             "maximum": 2
           },
+          "dash": {
+            "description": "Draw the line dashed (the theme's dashed edge's dashes) or dotted (round dots), whatever the variant: e.g. variant: muted with dash: dotted for a pale dotted line. Omitted means the variant's own line (solid unless the variant is dashed or dotted).",
+            "type": "string",
+            "enum": [
+              "dashed",
+              "dotted"
+            ]
+          },
+          "strands": {
+            "description": "Draw the edge as a bundle of this many parallel lines (2 to 5) along its route, e.g. 4 for four residual streams: the lines are two line widths apart, follow every turn, and end under one arrowhead grown to cover the bundle, up to twice its size (unless arrowheadScale is written); a head still too small for it (a box or diamond on a thick line) draws the lines closer together under it. Structured layout only; not with route: curve or a zoom edge. Omitted means one line.",
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 5
+          },
           "props": {
             "description": "Component props, validated against the component manifest.",
             "default": {},
@@ -1082,6 +1096,24 @@
               "bottom-left",
               "left",
               "top-left"
+            ]
+          },
+          "text": {
+            "description": "The size of the set's label as a role of the theme's text: small (the theme's small text), body (a box's text), heading (the group-title size, the default) or large (1.5 times a box's text), e.g. heading with weight: bold for the title of a band. Follows figure.themeOverrides.textScale.",
+            "type": "string",
+            "enum": [
+              "small",
+              "body",
+              "heading",
+              "large"
+            ]
+          },
+          "weight": {
+            "description": "The weight of the set's label (bold needs a bold face in the theme's font). Omitted means the group title's weight.",
+            "type": "string",
+            "enum": [
+              "regular",
+              "bold"
             ]
           },
           "padding": {
@@ -1242,7 +1274,7 @@
                   }
                 ]
               },
-              "description": "Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat)."
+              "description": "Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat / sequence)."
             }
           },
           "required": [
@@ -1311,7 +1343,7 @@
                   }
                 ]
               },
-              "description": "Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat)."
+              "description": "Node or group IDs, or nested arrange boxes (stack / row / grid / place / chat / sequence)."
             }
           },
           "required": [
@@ -1623,12 +1655,266 @@
             "items"
           ],
           "additionalProperties": false
+        },
+        "sequence": {
+          "type": "object",
+          "properties": {
+            "participants": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+              },
+              "description": "The node or group IDs heading the lifelines, left to right (any component: a box, an icon, a group)."
+            },
+            "rows": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "description": "Top to bottom: edge IDs (messages), {note, over}, bands [a, b] of both side by side, and {fragment, rows}. The y of every row follows from this order."
+            },
+            "participantGap": {
+              "description": "Least space between neighbouring participants' boxes; the lifelines move further apart when a message label, note or fragment needs it. Omitted means the profile's arrange gap.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                },
+                {
+                  "const": 0
+                }
+              ]
+            },
+            "rowGap": {
+              "description": "Space between consecutive rows. Omitted means a third of the profile's arrange gap.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|\\d+(\\.\\d+)?(mm|cm|in|pt))$"
+                },
+                {
+                  "const": 0
+                }
+              ]
+            },
+            "lifeline": {
+              "description": "How the lifelines are drawn (generated line edges).",
+              "type": "object",
+              "properties": {
+                "variant": {
+                  "description": "The line component's variant. Omitted means muted.",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "dash": {
+                  "description": "solid, dashed or dotted. Omitted means dashed.",
+                  "type": "string",
+                  "enum": [
+                    "solid",
+                    "dashed",
+                    "dotted"
+                  ]
+                },
+                "tone": {
+                  "description": "The lifelines' tone. Omitted means none.",
+                  "type": "string",
+                  "enum": [
+                    "gray",
+                    "red",
+                    "orange",
+                    "yellow",
+                    "green",
+                    "blue",
+                    "purple",
+                    "pink"
+                  ]
+                },
+                "lineWidth": {
+                  "description": "Width of the lifelines. Omitted means the theme's thin line (or half the muted line), at least 0.5pt times the text scale, so they read lighter than the messages.",
+                  "type": "string",
+                  "pattern": "^(?:0\\.25|0\\.5|0\\.75|1|1\\.25|1\\.5|1\\.75|2|2\\.25|2\\.5|2\\.75|3|3\\.25|3\\.5|3\\.75|4)pt$"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "participants",
+            "rows"
+          ],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false,
-      "description": "A stack (vertical), row (horizontal), row-major grid, rigid coordinate placement, or chat conversation column.",
+      "description": "A stack (vertical), row (horizontal), row-major grid, rigid coordinate placement, chat conversation column, or sequence diagram.",
       "minProperties": 1,
       "maxProperties": 1
+    },
+    "__schema0": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+          "description": "A message: the ID of an edge whose from and to are participants (the same one for a self-message)."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "note": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+              "description": "The node (or group) of the note: any component, placed on the lifelines named by over."
+            },
+            "over": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+              },
+              "description": "The participants the note lies over: one, or the two outermost of several neighbours (the note widens to span every lifeline from the leftmost to the rightmost named, so it must be a component that can stretch: not a circle or other fixed shape, nor one with props.width). With side, exactly one."
+            },
+            "side": {
+              "description": "Place the note beside the lifeline (on this side) instead of over it; the lifeline then runs on unbroken. Omitted means over the lifelines, which stop at the note's top and resume below it.",
+              "type": "string",
+              "enum": [
+                "left",
+                "right"
+              ]
+            }
+          },
+          "required": [
+            "note",
+            "over"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "minItems": 2,
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                "description": "A message: the ID of an edge whose from and to are participants (the same one for a self-message)."
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                    "description": "The node (or group) of the note: any component, placed on the lifelines named by over."
+                  },
+                  "over": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                    },
+                    "description": "The participants the note lies over: one, or the two outermost of several neighbours (the note widens to span every lifeline from the leftmost to the rightmost named, so it must be a component that can stretch: not a circle or other fixed shape, nor one with props.width). With side, exactly one."
+                  },
+                  "side": {
+                    "description": "Place the note beside the lifeline (on this side) instead of over it; the lifeline then runs on unbroken. Omitted means over the lifelines, which stop at the note's top and resume below it.",
+                    "type": "string",
+                    "enum": [
+                      "left",
+                      "right"
+                    ]
+                  }
+                },
+                "required": [
+                  "note",
+                  "over"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "description": "A band: messages and notes side by side in one row, from the same top (e.g. a note on one lifeline while two others exchange a message). They may not cover the same lifelines or the same side of a gap."
+        },
+        {
+          "$ref": "#/$defs/SequenceFragment"
+        }
+      ]
+    },
+    "SequenceFragment": {
+      "type": "object",
+      "properties": {
+        "fragment": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The frame's heading, written as it should read, e.g. \"loop [until done]\" or \"alt [cache hit]\"; no UML kind is required."
+        },
+        "rows": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "description": "The rows the frame encloses (messages, notes and nested fragments)."
+        },
+        "variant": {
+          "description": "The frame's paint, as a rect set's: default (tint and outline), filled, outlined, dashed or dotted. Omitted means outlined.",
+          "type": "string",
+          "enum": [
+            "default",
+            "filled",
+            "outlined",
+            "dashed",
+            "dotted"
+          ]
+        },
+        "tone": {
+          "description": "Color category of the frame (outline, tint) and its heading. Omitted means gray.",
+          "type": "string",
+          "enum": [
+            "gray",
+            "red",
+            "orange",
+            "yellow",
+            "green",
+            "blue",
+            "purple",
+            "pink"
+          ]
+        },
+        "fillOpacity": {
+          "description": "Strength of the tint (0..1), as a set's fillOpacity.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "text": {
+          "description": "The size of the heading: small, body (the default), heading or large.",
+          "type": "string",
+          "enum": [
+            "small",
+            "body",
+            "heading",
+            "large"
+          ]
+        },
+        "weight": {
+          "description": "The weight of the heading. Omitted means bold.",
+          "type": "string",
+          "enum": [
+            "regular",
+            "bold"
+          ]
+        }
+      },
+      "required": [
+        "fragment",
+        "rows"
+      ],
+      "additionalProperties": false,
+      "description": "A frame around consecutive rows with a heading at its top left (outside the first lifeline it encloses), drawn as a rect set."
     },
     "AlignConstraint": {
       "type": "object",
@@ -1675,9 +1961,9 @@
       ]
     },
     "JsonValue": {
-      "$ref": "#/$defs/__schema0"
+      "$ref": "#/$defs/__schema1"
     },
-    "__schema0": {
+    "__schema1": {
       "anyOf": [
         {
           "type": "string"
@@ -1694,7 +1980,7 @@
         {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/__schema0"
+            "$ref": "#/$defs/__schema1"
           }
         },
         {
@@ -1703,7 +1989,7 @@
             "type": "string"
           },
           "additionalProperties": {
-            "$ref": "#/$defs/__schema0"
+            "$ref": "#/$defs/__schema1"
           }
         }
       ]

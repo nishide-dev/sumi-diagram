@@ -521,6 +521,12 @@ the reference's arrangement), then map each look you want to a field:
 | coloured lines | `tone` on the edge |
 | thin 0.5pt frames and lines, small arrowheads (paper figures usually want this; heavy default lines are the commonest difference from the original) | `themeOverrides: {lineWidth: 0.5pt, frameWidth: 0.5pt, arrowheadScale: 0.6}` ([line weights](figure-format.md#themes-and-profiles)) |
 | dotted coloured lines | edge `variant: dotted` + `tone` (`lineWidth: 0.5pt` for one edge) |
+| a pale dotted (or dashed) line, and its legend sample | `variant: muted` + `dash: dotted` on the edge and on the legend `edge` entry ([dash](structured.md#dashes-on-any-variant-dash)) |
+| several parallel streams along one path (multi-stream residuals, a bus) | edge `strands: 4` ([bundles](structured.md#bundles-of-parallel-lines-strands)) |
+| a repeated block inside a repeated block (`×4` inside `N×`) | a `dashed` inner group with an attached `×4`, an attached `bracket` + `N×` on the outer one ([nested repeats](structured.md#nested-repeats)) |
+| a flat storage cylinder as tall as the boxes beside it | `cylinder` with `props.capDepth: 2pt` |
+| a bold title on a band (a set) | `text: heading`, `weight: bold` on the set |
+| a sequence diagram (lifelines, ordered messages, replies, notes, loop / alt frames) | an [arrange box `sequence`](structured.md#sequence-diagrams) (0.20.0): `participants` and `rows` of edge IDs, `{note, over}` and `{fragment, rows}`; no coordinates, junctions or lifeline edges to write. Start from the [sequence-diagram](../layouts/sequence-diagram/sequence-diagram.sumi.yaml) layout |
 | a white framed panel (`paper`'s default), a panel without a frame, a shaded gray panel (only if the reference has one), a dashed panel | group (default) / `plain` / `filled` / `dashed`, with `caption: (a) …` |
 | panels of equal height with captions on one line | the panels in one `row` with `align: stretch` ([captions](structured.md#group-titles-and-captions)) |
 | stretched panels whose content starts right under the title (no empty band above), column headings on one line | `contentAlign: top` on each panel; titles of one and two lines: also `matchLabelHeight: <name>` ([stretched panels](structured.md#group-titles-and-captions)) |

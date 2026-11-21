@@ -52,6 +52,7 @@ import type {
   Side,
 } from "../core/figure/schema";
 import { refCell, refOwner } from "../core/figure/schema";
+import { type SequenceExpansion, type SequenceRowX, sequenceKeys } from "../core/figure/sequence";
 import { nodeOrder } from "../core/figure/tokens";
 import {
   cuboidOffset,
@@ -93,6 +94,7 @@ import {
 } from "../core/theme/style";
 import type { Tone } from "../core/theme/tones";
 import { ptToD2Units } from "../core/units";
+import { bundleArrowheadScale } from "../layout/route/arrowhead";
 import { wrapBubbleText } from "./bubble";
 import { withStretchOutlines } from "./stretch-outlines";
 
@@ -138,8 +140,10 @@ export interface FigureMetaIR {
  * layout engine supplies the defaults (§6.21).
  */
 export interface ArrangeBoxIR {
-  readonly kind: "stack" | "row" | "grid" | "place" | "chat";
+  readonly kind: "stack" | "row" | "grid" | "place" | "chat" | "sequence";
   readonly chat?: { readonly widthPt: number; readonly rows: readonly ChatRowIR[] };
+  /** A sequence diagram (#630): the engine places every item from these rows. */
+  readonly sequence?: SequenceIR;
   /** Coordinate centers in pt, parallel to items; place boxes are rigid. */
   readonly positionsPt?: readonly (readonly [number, number])[];
   /** Place boxes only: items whose center is the body without attached nodes (#517), parallel to items. */
@@ -170,6 +174,57 @@ export interface ArrangeBoxIR {
    */
   readonly growFirst?: true;
 }
+
+/** A sequence diagram (#630, `core/figure/sequence.ts`), with IDs resolved to keys. */
+export interface SequenceIR {
+  /** The heads of the lifelines, left to right. */
+  readonly participants: readonly ElementKey[];
+  readonly rows: readonly SequenceRowIR[];
+  /** The hidden junction at the bottom of each lifeline, parallel to `participants`. */
+  readonly ends: readonly ElementKey[];
+  readonly participantGapPt?: number;
+  readonly rowGapPt?: number;
+  readonly source: SourceMapEntry;
+}
+
+/** A row of a sequence; `from`, `to`, `lo` and `hi` are indices into `participants`. */
+export type SequenceRowIR =
+  | {
+      readonly kind: "message";
+      /** The edge, retargeted to the two junctions. */
+      readonly edge: ElementKey;
+      readonly from: number;
+      readonly to: number;
+      readonly fromNode: ElementKey;
+      readonly toNode: ElementKey;
+      /** A self-message looping west of its lifeline; east otherwise. */
+      readonly west?: true;
+      readonly source: SourceMapEntry;
+    }
+  | {
+      readonly kind: "note";
+      readonly node: ElementKey;
+      readonly lo: number;
+      readonly hi: number;
+      readonly side?: "left" | "right";
+      /** Junctions on the note's top and bottom border, one per lifeline from `lo` to `hi`. */
+      readonly tops: readonly ElementKey[];
+      readonly bottoms: readonly ElementKey[];
+      readonly source: SourceMapEntry;
+    }
+  | {
+      readonly kind: "band";
+      readonly rows: readonly SequenceRowIR[];
+      readonly source: SourceMapEntry;
+    }
+  | {
+      readonly kind: "fragment";
+      readonly label: ElementKey;
+      readonly topLeft: ElementKey;
+      readonly bottomRight: ElementKey;
+      readonly rows: readonly SequenceRowIR[];
+      readonly source: SourceMapEntry;
+    };
 
 export interface ChatRowIR {
   readonly node: ElementKey;
@@ -337,6 +392,12 @@ export interface NodeIR extends ObjectIRBase {
   readonly width?: StyleLength;
   /** Explicit height from props or a mark's size; omitted means sized to the label. */
   readonly height?: StyleLength;
+  /**
+   * A cylinder's written cap depth in units (#614, `props.capDepth`): each
+   * elliptical cap is this deep (at most a third of the height) instead of
+   * `cylinderArc()`'s depth for the height.
+   */
+  readonly capDepth?: number;
   readonly style: NodeStyle;
   /** Structured layout: placed beside another element instead of in an arrange tree. */
   readonly attach?: AttachIR;
@@ -513,6 +574,13 @@ export interface EdgeIR extends ElementIRBase {
    * with straight lines instead of a routed path. Absent for a routed edge.
    */
   readonly routing?: EdgeRouting;
+  /**
+   * `strands` (#614): the edge is drawn as this many parallel lines along its
+   * route (`bundleStrands()`), under one arrowhead. Absent for one line.
+   */
+  readonly strands?: number;
+  /** A piece of a sequence diagram's lifeline (#630): a generated line between two of its rows. */
+  readonly lifeline?: true;
 }
 
 export type ElementIR = NodeIR | GroupIR | EdgeIR;
@@ -698,7 +766,17 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
     return caption === undefined ? endpointKey(attach.to) : nodeKey(caption);
   };
   const arrangeOf = (box: ArrangeBox, path: DocPath) =>
-    arrangeIR(box, endpointKey, captions, captionGapPt, "center", path, sourceEntry, doc.chats);
+    arrangeIR(
+      box,
+      endpointKey,
+      captions,
+      captionGapPt,
+      "center",
+      path,
+      sourceEntry,
+      doc.chats,
+      doc.sequences,
+    );
 
   const chatWidths = new Map<ElementKey, number>();
   const chatParts = chatVisuals(state);
@@ -884,6 +962,9 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
         ...(mark !== undefined && { mark: freezeMark(mark) }),
         ...(typeof width === "number" && { width: lengthOf(width) }),
         ...(typeof height === "number" && { height: lengthOf(height) }),
+        ...(typeof component.props.capDepth === "number" && {
+          capDepth: component.props.capDepth * 2,
+        }),
         ...(isCuboid &&
           n.label.trim() === "" &&
           n.icon === undefined &&
@@ -1041,8 +1122,10 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           square: figure.themeOverrides?.nodeCorners === "square",
           figure: figure.themeOverrides,
           element: set,
+          text: set.text,
+          weight: set.weight,
         }),
-        source: sourceEntry(["sets", index]),
+        source: sourceEntry(doc.sequenceSets?.get(index) ?? ["sets", index]),
       }),
     );
   }
@@ -1307,7 +1390,12 @@ function edgeIR(
     direction,
     ...(source && { sourceArrowhead: shape(manifest.tail) }),
     ...(target && { targetArrowhead: shape(manifest.head) }),
-    style: styleOf(state, key, "edge"),
+    style: bundleStyle(
+      styleOf(state, key, "edge"),
+      e,
+      source ? shape(manifest.tail) : undefined,
+      target ? shape(manifest.head) : undefined,
+    ),
     ...anchorIR("fromAnchor", e.fromAnchor),
     ...anchorIR("toAnchor", e.toAnchor),
     ...(e.fromAnchor === STRAIGHT_SPAN_ANCHOR && { fromSpan: true as const }),
@@ -1331,6 +1419,8 @@ function edgeIR(
       e.route === undefined &&
       manifest.routing === undefined && { faceDirect: true as const }),
     ...(manifest.routing !== undefined && { routing: manifest.routing }),
+    ...(e.strands !== undefined && { strands: e.strands }),
+    ...(state.doc.expanded?.get(key)?.from === "sequence" && { lifeline: true as const }),
   });
 }
 
@@ -1389,7 +1479,61 @@ function arrangeIR(
   path: DocPath = [],
   sourceEntry?: (path: DocPath) => SourceMapEntry,
   chats?: readonly ChatExpansion[],
+  sequences?: readonly SequenceExpansion[],
 ): ArrangeBoxIR {
+  if (box.sequence) {
+    const sequence = sequences?.find((s) => s.spec === box.sequence);
+    if (!sequence) throw new Error("internal error: unexpanded sequence");
+    const source = (path: DocPath) => sourceEntry?.(path) ?? { path };
+    const rowIR = (row: SequenceRowX): SequenceRowIR =>
+      row.kind === "message"
+        ? freeze({
+            kind: "message",
+            edge: row.edge as ElementKey,
+            from: row.from,
+            to: row.to,
+            fromNode: keyOf(row.fromNode),
+            toNode: keyOf(row.toNode),
+            ...(row.west && { west: true as const }),
+            source: source(row.path),
+          })
+        : row.kind === "band"
+          ? freeze({ kind: "band", rows: freeze(row.rows.map(rowIR)), source: source(row.path) })
+          : row.kind === "note"
+            ? freeze({
+                kind: "note",
+                node: keyOf(row.node),
+                lo: row.lo,
+                hi: row.hi,
+                ...(row.side !== undefined && { side: row.side }),
+                tops: freeze(row.tops.map(keyOf)),
+                bottoms: freeze(row.bottoms.map(keyOf)),
+                source: source(row.path),
+              })
+            : freeze({
+                kind: "fragment",
+                label: keyOf(row.label),
+                topLeft: keyOf(row.topLeft),
+                bottomRight: keyOf(row.bottomRight),
+                rows: freeze(row.rows.map(rowIR)),
+                source: source(row.path),
+              });
+    return freeze({
+      kind: "sequence",
+      direction: "down",
+      sequence: freeze({
+        participants: freeze(sequence.participants.map(keyOf)),
+        rows: freeze(sequence.rows.map(rowIR)),
+        ends: freeze(sequence.ends.map(keyOf)),
+        ...(sequence.spec.participantGap !== undefined && {
+          participantGapPt: sequence.spec.participantGap,
+        }),
+        ...(sequence.spec.rowGap !== undefined && { rowGapPt: sequence.spec.rowGap }),
+        source: source([...sequence.path, "sequence"]),
+      }),
+      items: freeze(sequenceKeys(sequence).map(keyOf)),
+    });
+  }
   if (box.chat) {
     const chat = chats?.find((c) => c.spec === box.chat);
     if (!chat) throw new Error("internal error: unexpanded chat");
@@ -1451,6 +1595,7 @@ function arrangeIR(
         [...path, kind, "items", index, ...(wrapped ? ["item"] : [])],
         sourceEntry,
         chats,
+        sequences,
       );
     }
     const caption = captions.get(item);
@@ -1684,6 +1829,29 @@ function imageIR(
 }
 
 /** A size prop in pt (rounded to a multiple of 0.5pt by the manifest). */
+/**
+ * A bundle's style (#614): its one arrowhead at each end grows to cover the
+ * bundle for that head's form (`bundleArrowheadScale()`) unless the edge
+ * writes its own `arrowheadScale`; never smaller than the figure's scale.
+ */
+function bundleStyle(
+  style: EdgeStyle,
+  edge: FigureEdge,
+  tail: Arrowhead | undefined,
+  head: Arrowhead | undefined,
+): EdgeStyle {
+  if (edge.strands === undefined || edge.arrowheadScale !== undefined) return style;
+  const heads = [tail, head].filter((h) => h !== undefined && h !== "none");
+  if (heads.length === 0) return style;
+  const scale = Math.max(
+    style.arrowheadScale ?? 1,
+    bundleArrowheadScale(style.strokeWidth.units, edge.strands, heads),
+  );
+  return scale === (style.arrowheadScale ?? 1)
+    ? style
+    : freeze({ ...style, arrowheadScale: scale });
+}
+
 function lengthOf(pt: number): StyleLength {
   return freeze({ pt, units: pt * 2 });
 }

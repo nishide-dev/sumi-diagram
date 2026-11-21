@@ -9,7 +9,7 @@ Feature versions and what to do on an older CLI:
 [figure-format](figure-format.md#feature-versions).
 
 Contents: [minimal example](#minimal-example) · [engine rules](#engine-rules) ·
-[arrange trees](#arrange-trees) · [grids](#grids) · [coordinates](#coordinate-placement) · [panel separators](#panel-separators) · [flow arrows](#flow-arrows) ·
+[arrange trees](#arrange-trees) · [sequence diagrams](#sequence-diagrams) · [grids](#grids) · [coordinates](#coordinate-placement) · [panel separators](#panel-separators) · [flow arrows](#flow-arrows) ·
 [group titles and captions](#group-titles-and-captions) · [sublabels](#sublabels) ·
 [turned labels](#turned-labels) · [text align](#text-align) · [attach](#attach-side-notes) ·
 [align](#aligning-across-trees) · [tables](#tables) ·
@@ -63,7 +63,7 @@ tones, `operator`, `junction`, `dim` and the paper variants work in both.
 figure:
   layout:
     arrange:                   # root tree: places the root elements
-      row:                     # exactly one of stack / row / grid / place / chat
+      row:                     # exactly one of stack / row / grid / place / chat / sequence
         gap: 6mm               # default 4mm (8mm on slides; 2.5mm with density: compact)
         align: end             # start | center | end | stretch (cross axis)
         items:                 # IDs of nodes / groups, or nested boxes
@@ -205,6 +205,7 @@ members are node or group IDs (a group stands for its whole frame; `unknown memb
 | `enclose` | `body` (default) fits member bodies and badges; `footprint` also includes their glyphs before adding padding. Larger outlines can cover nearby non-members. |
 | `overlap` | `mix` (default) or `multiply` (legacy). `figure.setOverlap` sets the figure-wide default; a set overrides it. All participating sets contribute, including five or more; if they disagree, `multiply` wins. Unfilled sets do not paint overlaps. At the 1024-region budget, `layout/set-overlap-budget` warns that deeper intersections can omit colors; reduce overlaps or split the figure. |
 | `label`, `labelAt` | outside the outline: `top` (default), `bottom`, `left`, `right`, or beside a diagonal extreme `top-left`, `top-right`, `bottom-left`, `bottom-right`. For a label inside, make a `label` node a member |
+| `text`, `weight` | the label's size as a role of the theme's text, as a node's `text`: `small`, `body`, `heading` (default: the group-title size) or `large`; `weight: bold` / `regular` (default: the group title's). E.g. a band title `text: heading, weight: bold`, a quiet tag `text: small` |
 | `tone`, `variant` | the tone's line color draws outline, label and an opaque tint, gray without a tone. Light canvases mix into white; dark canvases mix into the canvas color. `default` tint + outline, `filled` tint, `outlined` outline, `dashed`; `fillOpacity` (0..1) is the tint's strength (0.2 default, 0.28 `filled`), not transparency, so the set looks the same over a panel |
 
 - A member may be a whole [token sequence](#token-sequences) (the tokens node's ID): it
@@ -348,6 +349,93 @@ inline math. Both use `llama`, need no scaling and have no lint diagnostics.
 Use `|-` for explicit multi-line answers; keep each `$...$` expression short
 enough to fit the bubble, since math expressions do not wrap internally.
 
+
+## Sequence diagrams
+
+A **`sequence`** arrange box (0.20.0) draws a sequence diagram from ordinary nodes and
+edges: `participants` head the lifelines (any node or group: a box, an icon, a tinted
+box), each **row** is an edge ID (a message, top to bottom), a note or a fragment, and
+Sumi decides every coordinate. Adding a message is one edge and one row; nothing else
+moves by hand.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: sequence
+  theme: sumi
+  layout:
+    arrange:
+      sequence:
+        participants: [client, api, db]
+        rows:
+          - get
+          - {note: auth, over: [api]}
+          - fragment: "loop [each page]"
+            rows: [query, rows]
+          - [merge, {note: cache, over: [db]}]
+          - ok
+nodes:
+  - {id: client, component: box, label: Client, weight: bold}
+  - {id: api, component: box, label: API, weight: bold, tone: blue, variant: tinted}
+  - {id: db, component: box, label: Database, weight: bold}
+  - {id: auth, component: box, variant: dashed, label: checks the token}
+  - {id: cache, component: box, variant: dashed, label: warms its cache}
+edges:
+  - {id: get, from: client, to: api, label: GET /items}
+  - {id: query, from: api, to: db, label: SELECT page}
+  - {id: rows, from: db, to: api, variant: dashed, label: rows}
+  - {id: merge, from: api, to: api, label: merge}
+  - {id: ok, from: api, to: client, variant: dashed, label: 200 OK}
+```
+
+- **Messages** are `edges[]` with an `id` whose `from` and `to` are participants: any
+  label, `variant` (replies: `dashed`), `dash`, `tone`, arrowheads. Sumi retargets each
+  to hidden junctions on the two lifelines at its row; the route is always straight.
+  The label sits above the line in both directions; a message across several lifelines
+  keeps its label in the gap next to its source, clear of the lifelines it crosses. The
+  sequence owns this placement: `labelAt`, `labelSide`, `fromAnchor` / `toAnchor`, a
+  `lane` or a `route` other than `straight` on a message is `layout/sequence-invalid-row`. An edge **from a participant to itself** is a
+  self-message: a loop out to the east with its label beside it (`lane: {side: west}`
+  loops west instead; other lanes, `outside`, `route`, `labelAt` and `labelSide` are
+  errors: the label always sits outside the loop).
+- **Lifelines** are generated `line` edges, `muted` and `dashed`, thinner than the
+  messages (the theme's thin line). `lifeline: {variant, dash: solid | dashed | dotted,
+  tone, lineWidth}` changes them; `dash: solid` is solid even on a dashed variant.
+- **Notes**: `{note: <node>, over: [p]}` centres a node on one lifeline;
+  `over: [p, q]` widens it to span every lifeline from p to q (so it must stretch: a box
+  or group, not a circle or a node with `props.width`); `side: right | left`
+  (with one participant) puts it beside the lifeline instead. A lifeline stops just
+  above a note over it and resumes below it.
+- **Bands**: a list `[a, {note: n, over: [p]}]` puts messages and notes side by side in
+  one row (from the same top), e.g. a note on one lifeline while two others talk. They
+  must not cover the same lifelines or the same side of a gap: a note beside `a` next to
+  a message from `a` is `layout/sequence-invalid-row`; a note beside `a` and one over
+  `b` share the gap between them and get room for both.
+- **Fragments**: `{fragment: "loop [until done]", rows: [...]}` frames its rows. The
+  heading is written text (no UML kind is required), bold, inside the frame's top-left
+  corner and left of the first lifeline it encloses; `text`, `weight`, `tone`, `variant`
+  (the paint of a rect set: `outlined` by default, `filled` / `dashed` with
+  `fillOpacity` for a band) style it. Fragments nest. For `alt` with an else branch,
+  write two fragments one after the other.
+- **Spacing**: lifelines are as far apart as the labels, notes and frames between them
+  need, at least `participantGap` (default: the profile's arrange gap) between the
+  participants' boxes; rows are `rowGap` apart (default: a third of it). Participants
+  are bottom-aligned. When the figure is too wide, the `geometry/exceeds-page-width`
+  hint names the gap that sets the width and tries a smaller `participantGap` and
+  folding the widest message labels onto two lines.
+- Any other edge (not in `rows`) is routed as usual, e.g. a dotted arrow between two
+  notes. A group as a note holds several boxes (a `plain` group with `props.padding:
+  0.5pt` keeps it compact).
+- Errors: a row naming no edge (`layout/sequence-unknown-message`), an end or note on a
+  node that is not a participant (`layout/sequence-unknown-participant`), a message in
+  two rows, a `side` note over several lifelines, band rows that overlap
+  (`layout/sequence-invalid-row`). Generated IDs start with `seq-<n>-` and are
+  reserved. Structured only (`layout/structured-only` with `engine: auto`, like every
+  arrange box). Activation bars and participants repeated at the bottom are not drawn.
+
+The [sequence-diagram](../layouts/sequence-diagram/sequence-diagram.sumi.yaml) layout is a
+lint-clean starting point.
 ## Side inputs on a main flow
 
 Put the main node and its side inputs in a **stack with `centerOn`**, inside
@@ -899,6 +987,48 @@ an `html` leaf with an inline `font-size` ([html](html.md); not editable PPTX):
 ```yaml
 - {id: lx, component: html, props: {viewport: 40x20, width: 40pt, html: '<span style="font-family:var(--sumi-font);font-size:14px">L×</span>'}}
 ```
+
+<a id="nested-repeats"></a>**Nested repeats** (a block repeated `N×` whose inside repeats `×4`) need no
+special field: put the inner repeated part in a `dashed` group with an attached
+`×4` label, and gather the outer block with an attached [bracket](#brackets) whose
+own attached label is the outer count. Each count sits beside the frame it counts:
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: nested-repeat
+  theme: sumi
+  layout:
+    arrange: {stack: {gap: 5mm, items: [hout, block, hin]}}
+groups:
+  - id: block
+    arrange: {stack: {gap: 4mm, items: [add, unit]}}
+  - id: unit
+    variant: dashed
+    arrange: {stack: {gap: 3mm, items: [swish, norm, dense]}}
+nodes:
+  - {id: hin, component: label, label: '$h_i$'}
+  - {id: hout, component: label, label: '$h_{i+1}$'}
+  - {id: dense, component: box, label: Dense, matchWidth: unit}
+  - {id: norm, component: box, label: LayerNorm, matchWidth: unit}
+  - {id: swish, component: box, label: Swish, matchWidth: unit}
+  - {id: add, component: operator, props: {symbol: plus}}
+  - {id: x4, component: label, label: ×4, attach: {to: unit, side: east, gap: 2mm}}
+  - {id: br, component: bracket, attach: {to: block, side: east, gap: 2mm}}
+  - {id: xn, component: label, label: N×, text: large, attach: {to: br, side: east, gap: 1mm}}
+edges:
+  - {from: hin, to: dense}
+  - {from: dense, to: norm}
+  - {from: norm, to: swish}
+  - {from: swish, to: add}
+  - {from: add, to: hout}
+```
+
+The inner count is attached inside the outer frame (it joins the frame's group), so the
+outer frame grows to hold it; the bracket and the outer count take width beside the
+frame: reserve it in the page budget, or put the outer count on the `west` side where
+a skip line does not run.
 
 **An attached node takes no space in the tree**: neighbours are placed as if
 it were absent. Attached into the `gap` between two items it can overlap the
@@ -1509,6 +1639,46 @@ edges:
   - {from: act, to: plan, lane: {side: north}, label: retry}
 ```
 
+### Dashes on any variant (`dash`)
+
+`dash: dashed | dotted` draws an edge's line with the theme's dashes or round dots
+**whatever its variant**: `variant: muted, dash: dotted` is a pale dotted line (an echo,
+an optional return), `variant: emphasis, dash: dashed` a heavy dashed one. The variant
+keeps its color and width; a `tone` still colours it. Works in both engines (`auto`
+draws dots as D2's finest dash). A legend `edge` entry takes the same `dash`.
+
+### Bundles of parallel lines (`strands`)
+
+`strands: 2–5` draws one edge as that many **parallel lines** along its route (e.g. the
+four residual streams of a hyper-connection, a multi-lane bus): two line widths apart,
+they follow every turn (rounded about one centre) and end under one arrowhead, which
+grows (up to 2×) to cover the bundle unless the edge writes `arrowheadScale`; under a head still too narrow (a box or diamond on a thick line) the lines are drawn closer together. The route is the
+edge's own (anchors, `lane`, `route: straight` work as usual); a curve or a `zoom` edge
+cannot be a bundle (`component/invalid-prop`). Structured layout only. A legend `edge`
+entry takes `strands` too.
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: bundle-streams
+  theme: sumi
+  layout:
+    arrange: {stack: {gap: 5mm, items: [out, mix, in]}}
+nodes:
+  - {id: in, component: label, label: '$X_l$'}
+  - {id: mix, component: box, label: '$B_l$', tone: purple, variant: tinted}
+  - {id: out, component: label, label: '$X_{l+1}$'}
+edges:
+  - {from: in, to: mix, strands: 4, tone: purple}
+  - {from: mix, to: out, strands: 4, tone: purple}
+```
+
+- The router plans the route as one line: keep other edges away from a bundle (their own
+  anchors or a `gap`); a line running on a bundle is `geometry/edge-near-edge`. Do not
+  share a source port with a single line (give each its own `fromAnchor`).
+- The editable PPTX draws a bundle as one line and says so (`pptx/bundle-as-one-line`); the SVG, PDF and picture PPTX draw every line.
+
 ### Crossings (`layout/edge-crossing`)
 
 The router does not forbid crossings. `sumi render` (and `lint --geometry`) reports
@@ -1533,7 +1703,9 @@ icon one text line tall, or `iconSize` / `iconTone` as `iconSize` / `tone` on a 
 `set: {tone: green, variant: dashed, fillOpacity: 0.3}` (a small tinted
 rectangle painted like a [set](#set-enclosures)). A paired arrow is
 `edge: {component: double-arrow, tone: red}`; edge variants are `default`,
-`dashed`, `emphasis`, `muted` (there is no dotted line). Samples are drawn by the
+`dashed`, `dotted`, `emphasis`, `muted`, and an edge entry also takes `dash: dashed | dotted`
+(dashes or dots on any variant, e.g. `{variant: muted, dash: dotted}` for a pale dotted line)
+and `strands: 2–5` (a [bundle](#bundles-of-parallel-lines-strands) sample). Samples are drawn by the
 same theme rules as real edges, nodes, glyphs and sets, so no colours are written. A `node` sample takes `component`, `variant`, `tone` and `cornerRadius` (e.g. `3pt`, to match rounded nodes). The legend's own `label` is its title;
 `variant: plain` drops the frame; `tone` colours it. Entry text is left-aligned (a
 wrapped `\n` entry keeps its lines flush left); `textAlign: center | right` on the legend
