@@ -89,7 +89,7 @@ import {
   planeFrameOf,
   unmapPoint,
 } from "../layout/plane";
-import { strandSpacing } from "../layout/route/arrowhead";
+import { bundleSpacing } from "../layout/route/arrowhead";
 import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
 import { groupArrowheadStems } from "../layout/route/padding";
 import { edgeArrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
@@ -97,7 +97,7 @@ import { setOverlaps } from "../layout/set-overlap";
 import { ellipseSegments, outlinePolygon } from "../layout/set-shape";
 import { fontFileFor } from "../lint/geometry/measure";
 import { cylinderPathData, shapeOutline } from "../lint/geometry/shapes";
-import { bundleStrands, strandHeadInset, strandPathData } from "./bundle";
+import { bundleStrands, strandHeadInset, strandLength, strandPathData } from "./bundle";
 import { drawNodeOutline } from "./compose";
 import { subsetFont } from "./font-subset";
 import type { PathSegment } from "./geometry";
@@ -920,7 +920,7 @@ function wires(
     const strands = bundleStrands(
       placed.route.points,
       edge.strands,
-      strandSpacing(width),
+      bundleSpacing(width, edge.strands, length, [edge.sourceArrowhead, edge.targetArrowhead]),
       sharp ? 0 : WIRE_CORNER_RADIUS,
       (offset) => ({
         start: strandHeadInset(edge.sourceArrowhead, length, width, offset) * scale.source,
@@ -930,6 +930,8 @@ function wires(
     painted.set(placed.key, {
       pieces: strands.flatMap((strand) => strand.pieces.map(([a, b]): [Point, Point] => [a, b])),
       arcs: strands.flatMap((strand) => [...strand.arcs]),
+      // Each line is one continuous dash pattern: its whole length, as `geometry/dash-hidden` reads.
+      dashLengths: strands.map(strandLength),
     });
     if (strands.length === 0) continue;
     const markup = `<path class="sumi-wire sumi-bundle" d="${strands.map((strand) => strandPathData(strand, n)).join(" ")}" fill="none"${strokeAttributes(edge.style)} ${joinsOf(edge.style)}${opacity(edge.style)}/>`;

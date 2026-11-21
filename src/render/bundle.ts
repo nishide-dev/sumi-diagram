@@ -262,3 +262,13 @@ export function strandPathData(strand: Strand, n: (value: number) => string): st
     )
     .join(" ");
 }
+
+/** The length of a strand: its straight pieces and its quarter circles (`πr/2` each). */
+export function strandLength(strand: Strand): number {
+  const straight = strand.pieces.reduce((sum, [a, b]) => sum + distance(a, b), 0);
+  const arcs = strand.arcs.reduce(
+    (sum, arc) => sum + ((Math.PI / 2) * distance(arc.from, arc.to)) / Math.SQRT2,
+    0,
+  );
+  return straight + arcs;
+}

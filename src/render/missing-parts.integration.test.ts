@@ -256,37 +256,75 @@ edges:
     expect(strands.map((s) => s.offset)).toEqual([-8, -4, 0, 4, 8]);
   });
 
-  for (const head of ["triangle", "arrow", "open", "diamond", "circle", "box"] as const) {
-    test(`every strand meets a ${head} head`, async () => {
-      const figure = await render(two("strands: 3"));
-      if (!("layout" in figure)) throw new Error("structured figure expected");
-      const ir = {
-        ...figure.compiled.ir,
-        edges: figure.compiled.ir.edges.map((e) => ({ ...e, targetArrowhead: head })),
-      };
-      const fonts = getFontSet(ir.meta.fontSetId);
-      if (fonts === undefined) throw new Error("no fonts");
-      const svg = writeStructuredSvg(ir, figure.layout, fonts);
-      const d = /<path class="sumi-wire sumi-bundle" d="([^"]+)"/.exec(svg)?.[1] ?? "";
-      const ends = d
-        .split("M ")
-        .filter((part) => part.trim() !== "")
-        .map((part) => {
-          const numbers = part
-            .trim()
-            .split(/[ LC]+/)
-            .filter(Boolean)
-            .map(Number);
-          return { x: numbers.at(-2) as number, y: numbers.at(-1) as number };
-        });
-      expect(ends).toHaveLength(3);
-      const group = /<g class="[^"]*sumi-kind-edge"[^>]*>(.*?)<\/g>/.exec(svg)?.[1] ?? "";
-      const width = (figure.compiled.ir.edges[0]?.style.strokeWidth.units ?? 0) as number;
-      // The distance from a strand's end to the head's outline: within half a line width.
-      const outline = headOutline(group);
-      for (const end of ends) expect(outline(end)).toBeLessThanOrEqual(width / 2 + 1e-6);
-    });
+  // Every head form × line width × strand count: each strand ends on the head's outline.
+  for (const lineWidth of ["0.5pt", "1pt", "1.5pt", "2pt", "3pt"]) {
+    for (const strands of [2, 3, 4, 5]) {
+      test(`every strand meets every head: ${lineWidth}, ${strands} strands`, async () => {
+        const figure = await render(two(`strands: ${strands}, lineWidth: ${lineWidth}`));
+        if (!("layout" in figure)) throw new Error("structured figure expected");
+        const fonts = getFontSet(figure.compiled.ir.meta.fontSetId);
+        if (fonts === undefined) throw new Error("no fonts");
+        for (const head of ["triangle", "arrow", "open", "diamond", "circle", "box"] as const) {
+          const ir = {
+            ...figure.compiled.ir,
+            edges: figure.compiled.ir.edges.map((e) => ({
+              ...e,
+              targetArrowhead: head,
+              // The scale the compiler gives a bundle under this head.
+              style: {
+                ...e.style,
+                arrowheadScale: bundleArrowheadScale(e.style.strokeWidth.units, strands, [head]),
+              },
+            })),
+          };
+          const svg = writeStructuredSvg(ir, figure.layout, fonts);
+          const d = /<path class="sumi-wire sumi-bundle" d="([^"]+)"/.exec(svg)?.[1] ?? "";
+          const ends = d
+            .split("M ")
+            .filter((part) => part.trim() !== "")
+            .map((part) => {
+              const numbers = part
+                .trim()
+                .split(/[ LC]+/)
+                .filter(Boolean)
+                .map(Number);
+              return { x: numbers.at(-2) as number, y: numbers.at(-1) as number };
+            });
+          expect(ends).toHaveLength(strands);
+          const group = /<g class="[^"]*sumi-kind-edge"[^>]*>(.*?)<\/g>/.exec(svg)?.[1] ?? "";
+          const width = ir.edges[0]?.style.strokeWidth.units ?? 0;
+          const outline = headOutline(group);
+          for (const end of ends) {
+            const off = outline(end);
+            if (off > width / 2 + 1e-6)
+              throw new Error(`${head}: a strand ends ${off} off the head`);
+          }
+        }
+      });
+    }
   }
+
+  test("a long dashed bundle with bends shows its dashes: no dash-hidden", async () => {
+    const text = `version: 1
+figure:
+  id: dashed-bundle
+  theme: sumi
+  layout:
+    arrange: {row: {gap: 6mm, items: [a, b]}}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+edges:
+  - {from: a, to: b, strands: 2, dash: dashed, lineWidth: 4pt, lane: {side: north, offset: 12mm}}
+`;
+    const report = await lintRenderedFigure(text, { file: "dashed.sumi.yaml" });
+    const figure = await render(text);
+    // The route bends twice (up, across, down) and no straight piece is long enough for two periods alone.
+    const d = /sumi-bundle" d="([^"]+)"/.exec(figure.svg)?.[1] ?? "";
+    expect(d.split("M ").filter((part) => part.trim() !== "")).toHaveLength(2);
+    expect(d).toContain("C ");
+    expect(report.diagnostics.filter((d) => d.code === "geometry/dash-hidden")).toEqual([]);
+  });
 
   test("the editable PPTX says it draws a bundle as one line", async () => {
     const figure = await render(two("strands: 4"));

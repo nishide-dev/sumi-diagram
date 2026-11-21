@@ -17,7 +17,6 @@
  * takes the theme's dim colors.
  */
 
-import { bundleArrowheadScale } from "../../layout/route/arrowhead";
 import { type CheckState, type ElementKey, figureElements, groupKey } from "../check-state";
 import type { Diagnostic, DocPath } from "../diagnostics";
 import { chatVisuals } from "../figure/chat";
@@ -471,20 +470,6 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
     }
     if (style.kind === "edge" && entry.kind === "edge" && entry.element.dash !== undefined)
       style = withDash(style, theme, id, entry.element.dash);
-    // A bundle's one arrowhead grows to cover its lines (#614) unless the edge writes its own size.
-    if (
-      style.kind === "edge" &&
-      entry.kind === "edge" &&
-      entry.element.strands !== undefined &&
-      entry.element.arrowheadScale === undefined
-    ) {
-      const scale = Math.max(
-        style.arrowheadScale ?? 1,
-        bundleArrowheadScale(style.strokeWidth.units, entry.element.strands),
-      );
-      if (scale !== (style.arrowheadScale ?? 1))
-        style = Object.freeze({ ...style, arrowheadScale: scale });
-    }
     if (style.kind === "node" && entry.kind === "node")
       style = withTextStyle(style, theme, entry.element);
     if (style.kind === "edge" && theme.edgeLabelGap !== undefined)

@@ -1544,7 +1544,7 @@ draws dots as D2's finest dash). A legend `edge` entry takes the same `dash`.
 `strands: 2–5` draws one edge as that many **parallel lines** along its route (e.g. the
 four residual streams of a hyper-connection, a multi-lane bus): two line widths apart,
 they follow every turn (rounded about one centre) and end under one arrowhead, which
-grows to cover the bundle unless the edge writes `arrowheadScale`. The route is the
+grows (up to 2×) to cover the bundle unless the edge writes `arrowheadScale`; under a head still too narrow (a box or diamond on a thick line) the lines are drawn closer together. The route is the
 edge's own (anchors, `lane`, `route: straight` work as usual); a curve or a `zoom` edge
 cannot be a bundle (`component/invalid-prop`). Structured layout only. A legend `edge`
 entry takes `strands` too.

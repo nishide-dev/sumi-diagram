@@ -92,6 +92,7 @@ import {
 } from "../core/theme/style";
 import type { Tone } from "../core/theme/tones";
 import { ptToD2Units } from "../core/units";
+import { bundleArrowheadScale } from "../layout/route/arrowhead";
 import { wrapBubbleText } from "./bubble";
 import { withStretchOutlines } from "./stretch-outlines";
 
@@ -1320,7 +1321,12 @@ function edgeIR(
     direction,
     ...(source && { sourceArrowhead: shape(manifest.tail) }),
     ...(target && { targetArrowhead: shape(manifest.head) }),
-    style: styleOf(state, key, "edge"),
+    style: bundleStyle(
+      styleOf(state, key, "edge"),
+      e,
+      source ? shape(manifest.tail) : undefined,
+      target ? shape(manifest.head) : undefined,
+    ),
     ...anchorIR("fromAnchor", e.fromAnchor),
     ...anchorIR("toAnchor", e.toAnchor),
     ...(e.fromAnchor === STRAIGHT_SPAN_ANCHOR && { fromSpan: true as const }),
@@ -1697,6 +1703,29 @@ function imageIR(
 }
 
 /** A size prop in pt (rounded to a multiple of 0.5pt by the manifest). */
+/**
+ * A bundle's style (#614): its one arrowhead at each end grows to cover the
+ * bundle for that head's form (`bundleArrowheadScale()`) unless the edge
+ * writes its own `arrowheadScale`; never smaller than the figure's scale.
+ */
+function bundleStyle(
+  style: EdgeStyle,
+  edge: FigureEdge,
+  tail: Arrowhead | undefined,
+  head: Arrowhead | undefined,
+): EdgeStyle {
+  if (edge.strands === undefined || edge.arrowheadScale !== undefined) return style;
+  const heads = [tail, head].filter((h) => h !== undefined && h !== "none");
+  if (heads.length === 0) return style;
+  const scale = Math.max(
+    style.arrowheadScale ?? 1,
+    bundleArrowheadScale(style.strokeWidth.units, edge.strands, heads),
+  );
+  return scale === (style.arrowheadScale ?? 1)
+    ? style
+    : freeze({ ...style, arrowheadScale: scale });
+}
+
 function lengthOf(pt: number): StyleLength {
   return freeze({ pt, units: pt * 2 });
 }

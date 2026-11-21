@@ -1263,7 +1263,7 @@ export const EdgeSchema = z.strictObject({
     .max(EDGE_STRANDS_RANGE.max)
     .optional()
     .describe(
-      "Draw the edge as a bundle of this many parallel lines (2 to 5) along its route, e.g. 4 for four residual streams: the lines are two line widths apart, follow every turn, and end under one arrowhead grown to cover the bundle (unless arrowheadScale is written). Structured layout only; not with route: curve or a zoom edge. Omitted means one line.",
+      "Draw the edge as a bundle of this many parallel lines (2 to 5) along its route, e.g. 4 for four residual streams: the lines are two line widths apart, follow every turn, and end under one arrowhead grown to cover the bundle, up to twice its size (unless arrowheadScale is written); a head still too small for it (a box or diamond on a thick line) draws the lines closer together under it. Structured layout only; not with route: curve or a zoom edge. Omitted means one line.",
     ),
   props: Props,
 });
