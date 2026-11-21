@@ -1138,6 +1138,12 @@ export const MATRIX_MAX_SIDE = 64;
 export const MATRIX_ROW_HEADER_SIDES = ["left", "right"] as const;
 /** Where a matrix draws its column headers (#180). */
 export const MATRIX_COLUMN_HEADER_SIDES = ["top", "bottom"] as const;
+/**
+ * Where a matrix draws its label (#612): `top` inside the frame, above the
+ * column headers; `above-left`, `above` and `above-right` outside it, so the
+ * frame is the headers and cells alone and edges reach them.
+ */
+export const MATRIX_LABEL_POSITIONS = ["top", "above-left", "above", "above-right"] as const;
 /** Fill patterns of a matrix class (#180): `hatch` draws diagonal lines over the fill. */
 export const MATRIX_PATTERNS = ["hatch"] as const;
 
@@ -1334,16 +1340,37 @@ const matrix: NodeManifest = {
         "Space between the headers and the cells. Omitted means gap.",
       ),
       headerWidth: SizeLength.optional().describe(
-        "The width of every row header. Omitted means each is as wide as its text (aligned to the cells).",
+        "The width of every row header (and the corner). Omitted means each is as wide as its text (aligned to the cells).",
       ),
+      wrapHeaders: z
+        .boolean()
+        .optional()
+        .describe(
+          "true (since 0.20.0): break header text between words (spaces, or Japanese word boundaries) so it fits; a word wider than the width stays whole: a column header within columnHeaderWidth (the cell width by default), a row header and the corner within headerWidth (only when it is given). A newline in a header always breaks the line. Omitted means each header is one line per written line.",
+        ),
+      columnHeaderWidth: SizeLength.optional().describe(
+        "With wrapHeaders (since 0.20.0): the width column headers wrap to, centered over their column; wider than the cell, the text reaches into the gap between columns. Omitted means the cell width.",
+      ),
+      labelAt: z
+        .enum(MATRIX_LABEL_POSITIONS)
+        .optional()
+        .describe(
+          "Where the label (title) sits (since 0.20.0). top (default): inside the frame, above the column headers, so edges stop at the frame's padding. above-left, above, above-right: outside, above the frame, which then has no padding (as flush): edges end at the headers and cells.",
+        ),
+      rules: z
+        .boolean()
+        .optional()
+        .describe(
+          "true (since 0.20.0): draw the matrix as a table with rules only, as in a paper's results table: cells without a border (fills and text stay), a rule above and below the table and a thinner one between the column headers and the cells. headerGap is the room between a rule and the text. Omitted means every cell has its border.",
+        ),
       variant: VariantField.optional().describe(
-        "The variant of every cell, as on a box (a class's variant overrides it). Omitted means default.",
+        "The variant of every cell, as on a box (a class's variant overrides it). Omitted means default. A muted cell is drawn pale: its border, fill and text move toward the canvas (since 0.20.0).",
       ),
       flush: z
         .boolean()
         .optional()
         .describe(
-          "true: no group padding around the cells, so neighboring elements (e.g. a header row of tokens) touch the matrix's edge. Needs a matrix without a label. Omitted means the profile's group padding.",
+          "true: no group padding around the cells, so neighboring elements (e.g. a header row of tokens) touch the matrix's edge. Needs a matrix without a label, or with labelAt above, above-left or above-right. Omitted means the profile's group padding.",
         ),
     })
     .superRefine((props, ctx) => {
@@ -1427,6 +1454,13 @@ const matrix: NodeManifest = {
           ["columns"],
           `${props.columns.length} column headers for ${width} columns`,
           "Give one column header per cell of a row.",
+        );
+      }
+      if (props.columnHeaderWidth !== undefined && props.wrapHeaders !== true) {
+        issue(
+          ["columnHeaderWidth"],
+          "columnHeaderWidth is the width column headers wrap to, so it needs wrapHeaders: true",
+          "Add wrapHeaders: true, or remove columnHeaderWidth.",
         );
       }
       if (props.corner !== undefined && (props.rows === undefined || props.columns === undefined)) {

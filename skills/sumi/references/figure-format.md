@@ -88,7 +88,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.16.0 | `sets`: overlapping enclosures for Venn diagrams and hyperedges (`shape: ellipse` with `angle`: tilted ellipses); node `glyphs`; `legend` samples `icon` / `glyph` / `set`, `flow`, `perRow`, `heading`, `labelAt`; node `iconSize` (and a legend `icon` entry's) sizes an icon without an enclosing shape; a `tone` on an icon-only `label` colours the icon (a legend `icon` entry: `iconTone`); stroke options: `themeOverrides` `lineWidth` / `frameWidth` / `arrowheadScale` / `cornerRadius`, element `lineWidth` / `cornerRadius` / `arrowheadScale`, `dotted` variant; `block-arrow`, `triangle-arrow`, `chevron` flow markers |
 | 0.16.1 | Set `enclose: footprint` includes member glyphs and padding; the default `body` preserves existing outlines. |
 | 0.19.0 | `cuboid`: a solid drawn in oblique projection, with `dims`; `figure.projection` (`angle`, `depthScale`); container `props.plane` (`floor` / `wall`): a tilted plane group, with `props.contents: projected` laying node outlines, arrowheads and a `matrix` flat on it; `cuboid` `cells` / `highlight` and `<node>.<name>` zoom ends |
-| 0.20.0 | `sequence` arrange box (participants, lifelines, message rows, notes, bands, fragments); edge `dash` / `strands`, set `text` / `weight`, cylinder `capDepth` |
+| 0.20.0 | `sequence` arrange box (participants, lifelines, message rows, notes, bands, fragments); edge `dash` / `strands`, set `text` / `weight`, cylinder `capDepth`; `matrix` `labelAt: above` (title outside, no padding), `wrapHeaders` / `columnHeaderWidth`, `rules: true` (a table with rules only); `muted` matrix cells drawn pale |
 
 ## IDs
 

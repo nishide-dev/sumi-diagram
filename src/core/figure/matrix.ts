@@ -23,6 +23,15 @@
  * row headers on the left), so headers of different widths stay beside the
  * cells.
  *
+ * Since 0.20.0 (#612): `labelAt: above*` draws the title outside the frame,
+ * which then has no padding (as `flush`), so edges reach the headers and
+ * cells; `wrapHeaders` breaks header text to the column (or `headerWidth`)
+ * in the IR, where the font is known (`MatrixPartExpansion.wrap`); `rules`
+ * draws the cells without borders (`doc.paints` `borderless`) between three
+ * `sumi/separator` rules, `<matrix>-rule-top`, `-rule-mid` (thin, under the
+ * column headers) and `-rule-bottom`; and a cell whose variant is `muted` is
+ * drawn pale (`doc.paints` `pale`).
+ *
  * The expansion runs after the `component` stage (the props are validated
  * there: known classes, rows of one length, one header per row and column),
  * resolves the parts through the same stage and records each part's origin
@@ -42,7 +51,13 @@ import {
   nodeKey,
 } from "../check-state";
 import { type DocPath, didYouMean } from "../diagnostics";
-import { MATRIX_ID, type MatrixEntry, matrixRowEntries } from "../registry/builtins";
+import {
+  MATRIX_ID,
+  type MATRIX_LABEL_POSITIONS,
+  type MatrixEntry,
+  matrixRowEntries,
+  SEPARATOR_ID,
+} from "../registry/builtins";
 import type { Registry } from "../registry/registry";
 import { isBlankForD2, resolveComponents } from "../registry/resolve";
 import type { Tone } from "../theme/tones";
@@ -94,10 +109,21 @@ export interface MatrixProps {
   variant?: string;
   /** No group padding around the cells (#280). */
   flush?: boolean;
+  /** Where the title sits (#612): `top` inside the frame, `above*` outside it. */
+  labelAt?: (typeof MATRIX_LABEL_POSITIONS)[number];
+  /** Break header text to fit (#612). */
+  wrapHeaders?: boolean;
+  /** pt: the width column headers wrap to (#612). */
+  columnHeaderWidth?: number;
+  /** A table with rules only (#612). */
+  rules?: boolean;
 }
 
 /** The component of a matrix's cells. */
 const CELL_COMPONENT = "sumi/box";
+
+/** The variant a matrix draws pale (#612): its cells and their legend samples. */
+export const MUTED_VARIANT = "muted";
 
 /** The cell width when `cellWidth` is omitted, in pt. */
 export const MATRIX_CELL_PT = 10;
@@ -106,11 +132,13 @@ export const MATRIX_CELL_PT = 10;
 export interface MatrixPartExpansion extends CellFields {
   /** The ID of the node it was expanded into. */
   readonly id: string;
-  readonly kind: "cell" | "row" | "column" | "corner";
+  readonly kind: "cell" | "row" | "column" | "corner" | "rule";
   /** A cell's class name (an ellipsis cell has one only when it was written). */
   readonly class?: string;
   /** The symbol of an ellipsis cell (#280). */
   readonly ellipsis?: string;
+  /** pt: a header's text is broken to fit this width (`wrapHeaders`, #612). */
+  readonly wrap?: number;
 }
 
 /** A matrix node and what it was expanded into (`doc.matrices`). */
@@ -127,7 +155,7 @@ export interface MatrixExpansion {
   readonly cellVariant: string;
   /** Where the cells' variant is written (`props.variant`), if it is. */
   readonly cellVariantPath?: DocPath;
-  /** The frame has no padding (`props.flush`, #280). */
+  /** The frame has no padding (`props.flush`, #280, or a title above it, #612). */
   readonly flush?: true;
   /** The parts: the cells row by row, then the row headers, column headers and corner. */
   readonly parts: readonly MatrixPartExpansion[];
@@ -139,7 +167,11 @@ export const matrixPartIds = {
   row: (id: string, row: number) => `${id}-row-${row}`,
   column: (id: string, column: number) => `${id}-col-${column}`,
   corner: (id: string) => `${id}-corner`,
+  rule: (id: string, at: MatrixRule) => `${id}-rule-${at}`,
 };
+
+/** The rules of a matrix drawn with `rules` (#612), top to bottom. */
+export type MatrixRule = "top" | "mid" | "bottom";
 
 /** The path of a class's field, if the class writes it. */
 function classField(
@@ -223,12 +255,13 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
 
     const props = component.props as unknown as MatrixProps;
     const propsPath: DocPath = [...matrixPath, "props"];
-    if (props.flush === true && !isBlankForD2(node.label)) {
+    const titleOutside = props.labelAt?.startsWith("above") === true;
+    if (props.flush === true && !titleOutside && !isBlankForD2(node.label)) {
       fail(
         "component/invalid-prop",
-        `Invalid prop "flush" for ${MATRIX_ID}: a flush matrix has no padding, so it cannot draw its label as a title.`,
+        `Invalid prop "flush" for ${MATRIX_ID}: a flush matrix has no padding, so it cannot draw its label as a title inside its frame.`,
         [...propsPath, "flush"],
-        "Remove flush, or remove the matrix's label and put a title next to it with a label node.",
+        "Set labelAt: above to draw the title above the frame (a matrix with it has no padding anyway), or remove flush.",
       );
       continue;
     }
@@ -277,6 +310,13 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
     for (const r of (props.rows ?? []).keys()) partIds.push(ids.row(node.id, r + 1));
     for (const c of (props.columns ?? []).keys()) partIds.push(ids.column(node.id, c + 1));
     if (props.corner !== undefined) partIds.push(ids.corner(node.id));
+    const rules: MatrixRule[] =
+      props.rules !== true
+        ? []
+        : props.columns === undefined
+          ? ["top", "bottom"]
+          : ["top", "mid", "bottom"];
+    for (const at of rules) partIds.push(ids.rule(node.id, at));
     const longest = partIds.reduce((a, b) => (b.length > a.length ? b : a), "");
     if (!ID_PATTERN.test(longest)) {
       fail(
@@ -397,12 +437,18 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
           continue;
         }
         const variant = classField(propsPath, name ?? "", cls, "variant") ?? variantPath ?? path;
+        const cellVariant = cls.variant ?? props.variant ?? "default";
+        const paint: ExpandedPaint = {
+          ...(cls.pattern === "hatch" && { hatch: true }),
+          ...(cellVariant === MUTED_VARIANT && { pale: true }),
+          ...(props.rules === true && { borderless: true }),
+        };
         addPart(
           {
             id,
             component: CELL_COMPONENT,
             label: entry.text ?? "",
-            variant: cls.variant ?? props.variant ?? "default",
+            variant: cellVariant,
             ...(cls.tone !== undefined && { tone: cls.tone }),
             props: size(cellWidth, cellHeight),
             group: node.id,
@@ -422,7 +468,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
             },
           },
           `cell ${r + 1}, ${c + 1} (class ${JSON.stringify(name)}) ${of}`,
-          cls.pattern === "hatch" ? { hatch: true } : undefined,
+          Object.keys(paint).length > 0 ? paint : undefined,
         );
         items.push(id);
       }
@@ -436,6 +482,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
       sizePaths: Record<string, DocPath>,
       name: string,
       kind: MatrixPartExpansion["kind"],
+      wrap: number | undefined,
     ) => {
       const label = typeof written === "string" ? written : written.label;
       const tone = typeof written === "string" ? undefined : written.tone;
@@ -452,6 +499,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
         {
           kind,
           path,
+          ...(wrap !== undefined && { wrap }),
           fields: {
             label: typeof written === "string" ? path : [...path, "label"],
             component: path,
@@ -466,6 +514,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
       return id;
     };
     const headerWidthPath: DocPath = [...propsPath, "headerWidth"];
+    const wrapHeaders = props.wrapHeaders === true;
     const rowHeaders = (props.rows ?? []).map((written, r) =>
       header(
         ids.row(node.id, r + 1),
@@ -483,6 +532,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
         },
         `the header of row ${r + 1} ${of}`,
         "row",
+        wrapHeaders ? props.headerWidth : undefined,
       ),
     );
     const columnHeaders = (props.columns ?? []).map((written, c) =>
@@ -495,6 +545,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
         { "props.width": widthPath, props: widthPath },
         `the header of column ${c + 1} ${of}`,
         "column",
+        wrapHeaders ? (props.columnHeaderWidth ?? cellWidth) : undefined,
       ),
     );
     const corner =
@@ -510,17 +561,43 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
               : { "props.width": headerWidthPath, props: headerWidthPath },
             `the corner ${of}`,
             "corner",
+            wrapHeaders ? props.headerWidth : undefined,
           );
+    // The rules of a table drawn with rules only (#612): separators that span the frame.
+    const ruleIds = new Map<MatrixRule, string>();
+    for (const at of rules) {
+      const id = ids.rule(node.id, at);
+      const rulesPath: DocPath = [...propsPath, "rules"];
+      addPart(
+        {
+          id,
+          component: SEPARATOR_ID,
+          label: "",
+          variant: "solid",
+          props: {},
+          group: node.id,
+        },
+        {
+          kind: "rule",
+          path: rulesPath,
+          fields: { label: rulesPath, component: rulesPath, variant: rulesPath, props: rulesPath },
+        },
+        `the ${at === "mid" ? "middle" : at} rule ${of}`,
+        at === "mid" ? { thin: true } : undefined,
+      );
+      ruleIds.set(at, id);
+    }
 
     // The frame takes the matrix node's place: its ID, parent and position.
     const frame: FigureGroup = {
       id: node.id,
       label: node.label,
+      ...(titleOutside && { labelAt: props.labelAt }),
       component: "sumi/container",
       variant: "plain",
       ...(node.tone !== undefined && { tone: node.tone }),
       ...(node.group !== undefined && { group: node.group }),
-      arrange: matrixArrange(props, cellRows, rowHeaders, columnHeaders, corner),
+      arrange: matrixArrange(props, cellRows, rowHeaders, columnHeaders, corner, ruleIds),
     };
     groups.push(frame);
     nodes[index] = undefined;
@@ -537,7 +614,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
       path: matrixPath,
       variant: component.variant,
       classes: props.classes,
-      ...(props.flush === true && { flush: true as const }),
+      ...((props.flush === true || titleOutside) && { flush: true as const }),
       cellVariant: props.variant ?? "default",
       ...(variantPath !== undefined && { cellVariantPath: variantPath }),
       parts,
@@ -554,13 +631,19 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
   invalidateDependents(state);
 }
 
-/** The frame's arrange tree (see the module comment). */
+/**
+ * The frame's arrange tree (see the module comment). With `rules` (#612) the
+ * rules go between its parts: a separator spans the stack it is in whatever
+ * its alignment, so each rule runs under the row headers too, and `headerGap`
+ * is the room on either side of a rule.
+ */
 function matrixArrange(
   props: MatrixProps,
   cellRows: readonly ArrangeItem[][],
   rowHeaders: readonly string[],
   columnHeaders: readonly string[],
   corner: string | undefined,
+  rules: ReadonlyMap<MatrixRule, string>,
 ): ArrangeBox {
   const gap = props.gap ?? 0;
   const headerGap = props.headerGap ?? gap;
@@ -583,15 +666,28 @@ function matrixArrange(
     return header === undefined ? cells(items) : beside(header, cells(items));
   });
   const body: ArrangeBox = { stack: { direction: "down", gap, align, items: rows } };
-  if (columnHeaders.length === 0) return body;
-  const heads = cells([...columnHeaders]);
-  const top = corner === undefined ? heads : beside(corner, heads);
-  return {
-    stack: {
-      direction: "down",
-      gap: headerGap,
-      align,
-      items: props.columnsAt === "top" ? [top, body] : [body, top],
-    },
+  const rule = (at: MatrixRule): ArrangeItem[] => {
+    const id = rules.get(at);
+    return id === undefined ? [] : [id];
   };
+  let parts: ArrangeItem[] = [body];
+  if (columnHeaders.length > 0) {
+    // Wrapped headers of different heights sit on the cells' side (#612).
+    const heads: ArrangeBox =
+      props.wrapHeaders === true
+        ? {
+            row: {
+              direction: "right",
+              gap,
+              align: props.columnsAt === "top" ? "end" : "start",
+              items: [...columnHeaders],
+            },
+          }
+        : cells([...columnHeaders]);
+    const top = corner === undefined ? heads : beside(corner, heads);
+    parts = props.columnsAt === "top" ? [top, ...rule("mid"), body] : [body, ...rule("mid"), top];
+  }
+  if (rules.size > 0) parts = [...rule("top"), ...parts, ...rule("bottom")];
+  else if (parts.length === 1) return body;
+  return { stack: { direction: "down", gap: headerGap, align, items: parts } };
 }
