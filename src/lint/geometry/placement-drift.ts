@@ -54,8 +54,9 @@ export const MAX_LABEL_TRIALS = 8;
 
 /**
  * Trials are linted by every geometry rule but these, which would start trials of their own.
- * This file's two rules do run in a trial, where they only detect (`inHintTrial`): a trial that
- * moves another edge's label off or onto its line is turned down.
+ * `geometry/edge-label-detached` and `geometry/edge-label-touches-line` are not run from the
+ * configuration in a trial either: `lintTrial` detects drifting labels itself, at any level, so
+ * a trial that moves another edge's label off or onto its line is turned down.
  */
 const SKIP: ReadonlySet<string> = new Set([
   // By id, not imported: those modules sit in the rule list's import cycle.
@@ -140,13 +141,17 @@ export type LabelVerdict =
       readonly reason: "inside" | "large" | "failed" | "baseline" | "budget" | "none";
     };
 
-/** A trial's errors and warnings (as `problemsIn`), and every finding's rule by subject (any level). */
+/**
+ * A trial's errors and warnings (as `problemsIn`), and every finding's rule by subject (any
+ * level). Drifting labels are always detected here, whatever level the configuration gives
+ * this file's rules (even off): a verified hint must not move another label off or onto its line.
+ */
 export interface TrialLint {
   readonly problems: Problems;
   readonly bySubject: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
-function lintTrial(linted: GeometryContext, trial: Trial): TrialLint {
+export function lintTrial(linted: GeometryContext, trial: Trial): TrialLint {
   const config = linted.lintConfig ?? resolveLintConfig();
   const problems: Problems = new Map();
   const bySubject = new Map<string, Set<string>>();
@@ -160,16 +165,24 @@ function lintTrial(linted: GeometryContext, trial: Trial): TrialLint {
   for (const d of trial.diagnostics)
     add(d.code, d.subject, d.severity === "error" || d.severity === "warning");
   for (const { rule, severity, options, explicitSeverity } of config.rules) {
-    if (!isGeometryRule(rule) || SKIP.has(rule.id)) continue;
+    if (!isGeometryRule(rule) || SKIP.has(rule.id) || DRIFT_CODES.includes(rule.id)) continue;
     for (const f of rule.run(linted, options)) {
       const level = explicitSeverity ? severity : (f.severity ?? severity);
       add(rule.id, f.subject, level === "error" || level === "warning");
     }
   }
+  // Detection only, independent of the configuration (see above).
+  for (const drift of drifts(linted)) {
+    add(
+      drift.kind === "detached" ? EDGE_LABEL_DETACHED : EDGE_LABEL_TOUCHES_LINE,
+      drift.edge.subject,
+      false,
+    );
+  }
   return { problems, bySubject };
 }
 
-const DRIFT_CODES = [EDGE_LABEL_DETACHED, EDGE_LABEL_TOUCHES_LINE];
+const DRIFT_CODES: readonly string[] = [EDGE_LABEL_DETACHED, EDGE_LABEL_TOUCHES_LINE];
 
 /** Whether `after` reports a drifting label for a subject `before` did not. */
 export function driftsAdded(before: TrialLint, after: TrialLint): boolean {

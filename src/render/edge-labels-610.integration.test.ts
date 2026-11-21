@@ -11,6 +11,7 @@ import { compileFigure } from "../compiler/compile";
 import { asHintTrial } from "../layout/hint-trials";
 import type { EdgeLayout, Point, Rect } from "../layout/ir";
 import { tagBox } from "../layout/route/labels";
+import { resolveLintConfig } from "../lint/config";
 import {
   drifts,
   driftsAdded,
@@ -21,8 +22,10 @@ import {
   inkGlyphs,
   inkLines,
   lintGeometry,
+  lintTrial,
   type TrialLint,
 } from "../lint/geometry";
+import { routeTrial, trialContext } from "../lint/geometry/trial";
 import { type RenderedStructuredFigure, renderFigure } from "./render";
 
 async function render(source: string) {
@@ -348,4 +351,71 @@ edges:
     for (const s of sizes) if (s.frame) expect(s.warned).toBe(true);
     expect(sizes.some((s) => s.frame && !s.text)).toBe(true);
   });
+});
+
+describe("tags of straight and curved edges, checked once every route is drawn (#610)", () => {
+  // A tag on a/c's line, with b's box right on it; the edge a → c skips over b.
+  const over = (route: string) => `version: 1
+figure:
+  id: direct
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 12mm, items: [a, b, c]}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+  - {id: c, component: box, label: C}
+edges:
+  - {from: a, to: c, route: ${route}, label: over, labelStyle: tag}
+`;
+
+  for (const route of ["straight", "curve"]) {
+    test(`a ${route} tag whose frame sits on a node is reported`, async () => {
+      const result = await renderFigure(over(route));
+      const warned = result.diagnostics.filter((d) => d.code === "layout/edge-label-overlap");
+      expect(warned).toHaveLength(1);
+      expect(warned[0]?.message).toContain('node "b"');
+      expect(warned[0]?.message).not.toContain("its own line");
+    });
+  }
+
+  test("a clear straight or curved tag is not", async () => {
+    for (const route of ["straight", "curve"]) {
+      const source = row(`  - {from: d, to: b, route: ${route}, label: up, labelStyle: tag}`);
+      const result = await renderFigure(source);
+      expect(
+        result.diagnostics.filter((d) => d.code === "layout/edge-label-overlap"),
+        route,
+      ).toEqual([]);
+    }
+  });
+});
+
+describe("drift detection in trials does not depend on the rules' levels (#610)", () => {
+  for (const off of [EDGE_LABEL_DETACHED, EDGE_LABEL_TOUCHES_LINE]) {
+    test(`with ${off} off, a trial still sees a detached label`, async () => {
+      const { rendered } = await render(loop);
+      const context = {
+        ...geometryContextFor(rendered),
+        lintConfig: resolveLintConfig({ rules: { [off]: "off" } }),
+      };
+      const placed = context.placed;
+      if (placed === undefined) throw new Error("not placed");
+      const seen = asHintTrial(() => {
+        const trial = routeTrial(placed.ir, placed.layout);
+        if (trial === undefined) throw new Error("no trial");
+        const linted = trialContext(context, trial, undefined);
+        if (linted === undefined) throw new Error("no trial context");
+        return lintTrial(linted, trial);
+      });
+      expect(seen.bySubject.get(JSON.stringify({ kind: "edge", id: "edges[5]" }))).toContain(
+        EDGE_LABEL_DETACHED,
+      );
+      // And a trial in which it appears for another edge is turned down.
+      const none: TrialLint = { problems: new Map(), bySubject: new Map() };
+      expect(driftsAdded(none, seen)).toBe(true);
+    });
+  }
 });

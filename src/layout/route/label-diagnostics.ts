@@ -19,6 +19,7 @@ import type { Diagnostic } from "../../core/diagnostics";
 import { EDGE_LABEL_POSITIONS, EDGE_LABEL_SIDES } from "../../core/figure/schema";
 import { groupFrontRect, groupLayerObstacles } from "../group-layers";
 import type { LayoutIR, Point, Rect } from "../ir";
+import { sampleCubic } from "./cubic";
 import { arrowheadRects, hasRequestedLabel, isTagLabel, labelSegment, tagBox } from "./labels";
 
 /** The open rectangles overlap (touching does not count). */
@@ -48,6 +49,12 @@ export function requestedLabelDiagnostics(
   ir: FigureIR,
   layout: LayoutIR,
   arrowheadOf: (edge: EdgeIR) => number,
+  /**
+   * The edges whose labels to check (default: every edge with a requested
+   * label). The router checks orthogonal labels while routing, and the tags
+   * of `route: straight` / `curve` edges once every route is drawn (#610).
+   */
+  only: (edge: EdgeIR) => boolean = () => true,
 ): Diagnostic[] {
   const byKey = new Map(ir.edges.map((e) => [e.key, e]));
   const idOf = (key: ElementKey) => {
@@ -63,8 +70,11 @@ export function requestedLabelDiagnostics(
   };
   const routed = layout.edges.flatMap((e) => {
     const edge = byKey.get(e.key);
-    const points = e.route?.points;
-    return edge === undefined || points === undefined ? [] : [{ edge, points, layout: e }];
+    const route = e.route?.points;
+    if (edge === undefined || route === undefined || e.route?.lines !== undefined) return [];
+    // A curve (#610) as the polyline it is drawn as, not its control points.
+    const points = edge.route === "curve" && route.length === 4 ? sampleCubic(route) : route;
+    return [{ edge, points, layout: e }];
   });
   const otherLabels: (readonly [ElementKey, Rect])[] = [
     ...layout.nodes.flatMap((n) => (n.label === undefined ? [] : [[n.key, n.label.box] as const])),
@@ -91,22 +101,27 @@ export function requestedLabelDiagnostics(
   const diagnostics: Diagnostic[] = [];
   for (const { edge, layout: e } of routed) {
     const label = e.route?.label;
-    if (label === undefined || !hasRequestedLabel(edge)) continue;
+    if (label === undefined || !hasRequestedLabel(edge) || !only(edge)) continue;
     // A tag (#610) takes its drawn frame.
     const box = isTagLabel(edge) ? tagBox(label.box, label) : label.box;
     const found: string[] = [];
-    // A tag (#610) sits on its own segment.
-    const host = isTagLabel(edge) ? labelSegment(e.route?.points ?? [], edge) : -1;
+    // A tag (#610) sits on its own segment; on a straight or curved line, on its line.
+    const tag = isTagLabel(edge);
+    const direct = edge.route !== undefined;
+    const host = tag && !direct ? labelSegment(e.route?.points ?? [], edge) : -1;
     for (const other of routed) {
       const own = other.edge.key === edge.key;
       const points = other.points;
-      const crosses = points
-        .slice(1)
-        .some(
-          (q, i) => !(own && i + 1 === host) && overlaps(segmentRect(points[i] as Point, q), box),
-        );
+      const crosses =
+        !(own && tag && direct) &&
+        points
+          .slice(1)
+          .some((q, i) => !(own && i + 1 === host) && segmentMeets(points[i] as Point, q, box));
       if (crosses) found.push(own ? "its own line" : `the line of ${elementName(other.edge.key)}`);
-      const heads = arrowheadRects(points, other.edge, arrowheadOf(other.edge));
+      const heads =
+        other.edge.route !== undefined
+          ? directHeads(points, other.edge, arrowheadOf(other.edge))
+          : arrowheadRects(points, other.edge, arrowheadOf(other.edge));
       if (heads.some((r) => overlaps(r, box))) {
         found.push(own ? "its own arrowhead" : `the arrowhead of ${elementName(other.edge.key)}`);
       }
@@ -134,7 +149,7 @@ export function requestedLabelDiagnostics(
     if (found.length === 0) continue;
 
     const source = ir.sourceMap.get(edge.key);
-    const tag = isTagLabel(edge);
+
     const written = [
       ...(edge.labelAt !== undefined ? [`labelAt: ${edge.labelAt}`] : []),
       ...(edge.labelSide !== undefined && !tag ? [`labelSide: ${edge.labelSide}`] : []),
@@ -161,6 +176,57 @@ export function requestedLabelDiagnostics(
     });
   }
   return diagnostics;
+}
+
+/**
+ * Whether the segment from `a` to `b` meets the open rectangle: an
+ * axis-parallel one as its own (zero-width) rectangle, a slanted one
+ * clipped to the rectangle (Liang–Barsky), as a straight line (#610) runs.
+ */
+function segmentMeets(a: Point, b: Point, r: Rect): boolean {
+  if (a.x === b.x || a.y === b.y) return overlaps(segmentRect(a, b), r);
+  let t0 = 0;
+  let t1 = 1;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  for (const [p, q] of [
+    [-dx, a.x - r.x],
+    [dx, r.x + r.width - a.x],
+    [-dy, a.y - r.y],
+    [dy, r.y + r.height - a.y],
+  ] as const) {
+    if (p === 0) {
+      if (q <= 0) return false;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) t0 = Math.max(t0, t);
+    else t1 = Math.min(t1, t);
+  }
+  return t1 - t0 > 1e-9;
+}
+
+/**
+ * The arrowheads of a straight or curved edge (#610) as squares `arrowhead`
+ * wide about the middle of each head, along its end direction.
+ */
+function directHeads(points: readonly Point[], edge: EdgeIR, arrowhead: number): Rect[] {
+  const head = (tip: Point, from: Point): Rect => {
+    const d = Math.hypot(tip.x - from.x, tip.y - from.y) || 1;
+    const c = {
+      x: tip.x - ((tip.x - from.x) / d) * (arrowhead / 2),
+      y: tip.y - ((tip.y - from.y) / d) * (arrowhead / 2),
+    };
+    return { x: c.x - arrowhead / 2, y: c.y - arrowhead / 2, width: arrowhead, height: arrowhead };
+  };
+  const n = points.length;
+  if (n < 2) return [];
+  return [
+    ...(edge.targetArrowhead !== undefined
+      ? [head(points[n - 1] as Point, points[n - 2] as Point)]
+      : []),
+    ...(edge.sourceArrowhead !== undefined ? [head(points[0] as Point, points[1] as Point)] : []),
+  ];
 }
 
 function list(items: readonly string[]): string {

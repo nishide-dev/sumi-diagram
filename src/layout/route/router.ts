@@ -96,7 +96,7 @@ import { gridSpanHint, verifiedGridHints } from "./grid-hint";
 import { groupTitleDiagnostics } from "./group-title-diagnostics";
 import { PairHeap } from "./heap";
 import { requestedLabelDiagnostics } from "./label-diagnostics";
-import { arrowheadRects, hasRequestedLabel, placeEdgeLabel } from "./labels";
+import { arrowheadRects, hasRequestedLabel, isTagLabel, placeEdgeLabel } from "./labels";
 import { type LanePlan, laneDiagnostics, planLanes } from "./lanes";
 import { groupArrowheadStems } from "./padding";
 import { keepClearOfLanes, separateParallelRuns, separateSameSideRuns } from "./parallel";
@@ -231,9 +231,20 @@ export function routeEdges(
   if (routed.layout.edges.length === layout.edges.length) return withLaneDiagnostics(ir, routed);
   const diagonal = addDirectRoutes(ir, layout, routed.layout);
   const zoom = addZoomRoutes(ir, straight.size === 0 ? layout : diagonal.layout, diagonal.layout);
+  // The tags of straight and curved edges (#610), once every route is drawn: their frames
+  // against the routes, arrowheads, nodes, labels and borders (the orthogonal labels were
+  // checked while routing).
+  const tags = hasErrors(diagonal.diagnostics)
+    ? []
+    : requestedLabelDiagnostics(
+        ir,
+        zoom.layout,
+        (edge) => edgeArrowheadLength(edge.style),
+        (edge) => isDirectEdge(edge) && isTagLabel(edge),
+      );
   return withLaneDiagnostics(ir, {
     layout: deepFreeze(zoom.layout),
-    diagnostics: [...routed.diagnostics, ...diagonal.diagnostics, ...zoom.diagnostics],
+    diagnostics: [...routed.diagnostics, ...diagonal.diagnostics, ...zoom.diagnostics, ...tags],
   });
 }
 
