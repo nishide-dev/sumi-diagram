@@ -29,14 +29,14 @@ arrange:
 - 行の種類は 4 つ: 辺の ID（メッセージ）、`{note, over, side?}`、帯（リスト）、`{fragment, rows, …}`。
 - `participants` と `rows` の名前は issue の案のまま。`fragment` の値はそのまま見出しの文字にした（`loop` / `alt` などの UML の種類は必須にしない。issue の案の `{fragment: round2, …}` の id は、見出しと別に名前を付ける用途がなかったので取らなかった）。
 - 注記の `over` は 1 人、または両端の 2 人（その間の lifeline すべてにまたがる）。Mermaid の `over A,B` と同じ読み方で、間の参加者を全部書かせない。
-- **帯**（`[a, {note: n, over: [p]}]`）は issue の案になく、run 9 の作り直しで足した。run 9 は「サーバーが状態を持たない」注記をユーザーとのやりとりの横に置いており、これを 1 行ずつに分けると screen-doc の高さ（150mm）を 15mm 超えた。並べた行が横に重なるものは `layout/sequence-invalid-row`（重なる 2 つを名指しする）。各行が覆う範囲を lifeline 1 本を 4 刻みとした座標で表し（lifeline i は 4i）、メッセージは両端の lifeline の間、自分へのメッセージは lifeline と右の間隔の始まり、lifeline の上の注記は lifeline とその両側の間隔の端、横の注記は lifeline の隣の間隔の片側を覆うとして、覆う範囲が交わる組を拒む。同じ間隔を左右から分け合う組（`a` の右の注記と `b` の上の注記など）は許し、その間隔を両方の幅の和まで広げる。（レビューで、横の注記を範囲なしとして `[ab, {note, over: [a], side: right}]` を通していた誤りを指摘され、この判定にした。）
+- **帯**（`[a, {note: n, over: [p]}]`）は issue の案になく、run 9 の作り直しで足した。run 9 は「サーバーが状態を持たない」注記をユーザーとのやりとりの横に置いており、これを 1 行ずつに分けると screen-doc の高さ（150mm）を 15mm 超えた。並べた行が横に重なるものは `layout/sequence-invalid-row`（重なる 2 つを名指しする）。各行が覆う範囲を lifeline 1 本を 4 刻みとした座標で表し（lifeline i は 4i）、メッセージは両端の lifeline の間、自分へのメッセージは lifeline とループのある側の間隔の端（east なら右の間隔の始まり、west なら左の間隔の終わり）、lifeline の上の注記は lifeline とその両側の間隔の端、横の注記は lifeline の隣の間隔の片側を覆うとして、覆う範囲が交わる組を拒む。同じ間隔を左右から分け合う組（`a` の右の注記と `b` の上の注記など）は許し、その間隔を両方の幅の和まで広げる。（レビューで、横の注記を範囲なしとして `[ab, {note, over: [a], side: right}]` を通していた誤りを指摘され、この判定にした。）
 
 ### 2. 展開: 普通の要素に置き換える（`src/core/figure/sequence.ts`）
 
 検査の段階（`expandChats` の直後、link・layout の前）で、箱を普通の要素に展開する。描画・PPTX・lint は新しい種類の図形を知らなくてよい。
 
 - メッセージごとに、両端の lifeline の上に隠しジャンクション（`seq-<n>-m<k>-from` / `-to`）を作り、辺の `from` / `to` をそれに付け替え、`route: straight` にする。ラベルは行の向きに合わせて線の上（右向きは `labelSide: left`、左向きは `right`）。複数の lifeline をまたぐメッセージは、ラベルを始点側の列の間に置く（`labelAt: start`）。作者が書いた `route` / `labelAt` / `labelSide` / `lane` は残す。
-- 自分自身へのメッセージは、同じ lifeline の 2 つのジャンクションを `lane: {side: east}`（#609）でつなぐ小さなループにする（ラベルはループの右、`labelAt: middle`・`labelSide: left`）。ループの幅はプロファイルの arrange gap の 3/4。作者は `lane: {side: west}`（ラベルはループの左）と `offset` だけを書ける。north / south・`outside`・`route` は `layout/sequence-invalid-row`（帯の判定と列の間隔は、実際にループがある側で計算する）。
+- 自分自身へのメッセージは、同じ lifeline の 2 つのジャンクションを `lane: {side: east}`（#609）でつなぐ小さなループにする（ラベルはループの右、`labelAt: middle`・`labelSide: left`）。ループの幅はプロファイルの arrange gap の 3/4。作者は `lane: {side: west}`（ループとラベルは lifeline の左の間隔に入り、ラベルはループの左）と `offset` だけを書ける。west のループは、帯の判定では lifeline と左の間隔の終わりを覆い、列の間隔は左隣との間隔をループとラベルの分だけ広げ、箱の左端もそこまで含める。north / south・`outside`・`route`・`labelAt`・`labelSide` は `layout/sequence-invalid-row`（ラベルは常にループの外側、長い辺の横。作者の指定を通すと、配置が確保した行と間隔の外にラベルが出るため）。
 - lifeline は参加者から下端の隠しジャンクションまでの `line` 辺の鎖（`seq-<n>-life-<i>-<k>`、既定は `muted`・`dashed`）。注記が lifeline の上にあるときは、注記の上下の枠のすぐ外にジャンクションを置き、その間は線を引かない。`dash: solid` は variant の破線・点線も消す（`doc.solidLifelines`、テーマの段階）。線の幅は既定でテーマの `line.thin`（なければ muted の線の半分、textScale × 0.5pt 以上）にし、メッセージより細く見せる。
 - 帯（fragment）は、隠しジャンクション 2 つ（枠の左上・右下の角）・見出しの `label` ノード・中の注記を members にした `rect` の set（`padding: 0`）にする。描き方は sets の rect と同じで、`variant`（既定 `outlined`）・`tone`・`fillOpacity` を渡す。見出しは太字（`weight` / `text` で変えられる）。
 - 生成した ID は `seq-<n>-` で始まり予約する（作者の要素と重なれば `ref/reserved-id`）。生成した要素は `doc.expanded`（`from: "sequence"`）に記録し、診断は箱の場所を指す。生成した set の診断の場所は帯の行（`doc.sequenceSets`）。

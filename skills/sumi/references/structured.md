@@ -396,7 +396,8 @@ edges:
   direction); a message across several lifelines keeps its label in the gap next to its
   source (`labelAt: start`). An edge **from a participant to itself** is a
   self-message: a loop out to the east with its label beside it (`lane: {side: west}`
-  loops west instead; other lanes, `outside` and `route` are errors).
+  loops west instead; other lanes, `outside`, `route`, `labelAt` and `labelSide` are
+  errors: the label always sits outside the loop).
 - **Lifelines** are generated `line` edges, `muted` and `dashed`, thinner than the
   messages (the theme's thin line). `lifeline: {variant, dash: solid | dashed | dotted,
   tone, lineWidth}` changes them; `dash: solid` is solid even on a dashed variant.

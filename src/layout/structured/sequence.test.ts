@@ -375,15 +375,24 @@ describe("sequence errors (#630)", () => {
     expect(
       errorCodes(figure("          - [bb, {note: n1, over: [b], side: left}]", west)),
     ).toContain("layout/sequence-invalid-row");
-    for (const lane of ["{side: north}", "{side: east, outside: a}"])
+    for (const fields of [
+      "lane: {side: north}",
+      "lane: {side: east, outside: a}",
+      "route: curve",
+      // The label always sits outside the loop, beside its long segment.
+      "labelSide: right",
+      "labelAt: start",
+      "lane: {side: west}, labelSide: left",
+    ])
       expect(
         errorCodes(
           figure("          - bb", {
             nodes: "",
-            edges: `  - {id: bb, from: b, to: b, lane: ${lane}}\n`,
+            edges: `  - {id: bb, from: b, to: b, ${fields}}\n`,
             sequence: "",
           }),
         ),
+        fields,
       ).toContain("layout/sequence-invalid-row");
   });
 
@@ -422,8 +431,9 @@ describe("sequence errors (#630)", () => {
     );
     const life = p.ir.edges.find((e) => e.key === "e:seq-1-life-1-1");
     expect(life?.variant).toBe("dashed");
-    expect((life?.style as { strokeDash?: number }).strokeDash).toBe(0);
-    expect((life?.style as { strokeDotted?: true }).strokeDotted).toBeUndefined();
+    const lifeStyle = life?.style as { strokeDash?: number; strokeDotted?: true } | undefined;
+    expect(lifeStyle?.strokeDash).toBe(0);
+    expect(lifeStyle?.strokeDotted).toBeUndefined();
     const dotted = layout(
       figure("          - ab", {
         nodes: "",
@@ -432,6 +442,8 @@ describe("sequence errors (#630)", () => {
       }),
     );
     const plain = dotted.ir.edges.find((e) => e.key === "e:seq-1-life-1-1");
-    expect((plain?.style as { strokeDotted?: true }).strokeDotted).toBeUndefined();
+    const plainStyle = plain?.style as { strokeDotted?: true } | undefined;
+    expect(plainStyle).toBeDefined();
+    expect(plainStyle?.strokeDotted).toBeUndefined();
   });
 });

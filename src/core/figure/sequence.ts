@@ -359,17 +359,19 @@ export function expandSequences(state: CheckState, locate: Locator): void {
             from === to &&
             ((lane !== undefined &&
               ((lane.side !== "east" && lane.side !== "west") || lane.outside !== undefined)) ||
-              edge.route !== undefined)
+              edge.route !== undefined ||
+              edge.labelAt !== undefined ||
+              edge.labelSide !== undefined)
           ) {
             state.diagnostics.push(
               errorAt(
                 locate,
                 "layout/sequence-invalid-row",
-                `Self-message "${row}" loops beside its lifeline: its lane is east or west, without outside or route.`,
+                `Self-message "${row}" loops beside its lifeline: its lane is east or west, without outside, route, labelAt or labelSide (its label always sits outside the loop).`,
                 rowPath,
                 {
                   subject: figureSubject,
-                  hint: "Write lane: {side: west} (or east, the default, with an optional offset) on the edge, or leave lane out.",
+                  hint: "Write lane: {side: west} (or east, the default, with an optional offset) on the edge, or leave lane out; remove route, labelAt and labelSide.",
                 },
               ),
             );
@@ -401,9 +403,9 @@ export function expandSequences(state: CheckState, locate: Locator): void {
             ...(self
               ? {
                   lane: { side: west ? "west" : "east", offset: lane?.offset ?? loopPt },
-                  labelAt: edge.labelAt ?? "middle",
+                  labelAt: "middle",
                   // Outside the loop: right of the downward segment going east, left going west.
-                  labelSide: edge.labelSide ?? (west ? "right" : "left"),
+                  labelSide: west ? "right" : "left",
                 }
               : {
                   route: edge.route ?? "straight",
