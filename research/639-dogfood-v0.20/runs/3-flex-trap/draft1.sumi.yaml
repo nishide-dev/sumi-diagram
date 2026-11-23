@@ -1,0 +1,181 @@
+version: 1
+figure:
+  id: flex-trap
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 5mm
+        items:
+          - row: {gap: 6mm, align: stretch, items: [pa, divider, pb]}
+          - pc
+          - key
+    align:
+      - {y: [a_t3, a_p2]}
+      - {y: [b_t3, b_p1]}
+groups:
+  - id: pa
+    label: (a) Left-to-right order
+    labelAt: top-left
+    variant: plain
+    arrange:
+      stack:
+        gap: 6mm
+        items:
+          - row:
+              gap: 8mm
+              align: center
+              items:
+                - stack:
+                    gap: 2mm
+                    items:
+                      - row: {gap: 2mm, align: center, items: [a_l1, a_t1]}
+                      - row: {gap: 2mm, align: center, items: [a_l2, a_t2]}
+                      - row: {gap: 2mm, align: center, items: [a_l3, a_t3]}
+                - stack: {gap: 3mm, items: [a_p1, a_p2, a_p3]}
+          - a_out
+  - id: pb
+    label: (b) Arbitrary order (confident first)
+    labelAt: top-left
+    variant: plain
+    arrange:
+      stack:
+        gap: 6mm
+        items:
+          - row:
+              gap: 8mm
+              align: end
+              items:
+                - stack:
+                    gap: 2mm
+                    items:
+                      - row: {gap: 2mm, align: center, items: [b_l1, b_t1]}
+                      - row: {gap: 2mm, align: center, items: [b_l2, b_t2]}
+                      - row: {gap: 2mm, align: center, items: [b_l3, b_t3]}
+                - b_p1
+          - b_out
+  - id: pc
+    label: "(c) JustGRPO: left-to-right in RL only"
+    labelAt: top-left
+    arrange:
+      row:
+        gap: 6mm
+        align: center
+        items: [c_tok, c_model, c_lik, c_grpo, c_flow, inf]
+  - id: inf
+    label: Inference
+    labelAt: top-left
+    variant: plain
+    arrange:
+      stack:
+        gap: 2mm
+        items:
+          - row: {gap: 2mm, align: center, items: [i_l1, i_t1]}
+          - row: {gap: 2mm, align: center, items: [i_l2, i_t2]}
+          - i_note
+nodes:
+  - {id: a_l1, component: label, variant: muted, label: 't=1'}
+  - id: a_t1
+    component: tokens
+    props:
+      width: 6mm
+      height: 6mm
+      gap: 1mm
+      cells: [{tone: gray, variant: tinted}, {tone: blue, variant: tinted}, {label: M, variant: muted}, {label: M, variant: muted}, {label: M, variant: muted}, {label: M, variant: muted}, {label: M, variant: muted}]
+  - {id: a_l2, component: label, variant: muted, label: 't=2'}
+  - id: a_t2
+    component: tokens
+    props:
+      width: 6mm
+      height: 6mm
+      gap: 1mm
+      cells: [{tone: gray, variant: tinted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}, {label: M, variant: muted}, {label: M, variant: muted}, {label: M, variant: muted}, {label: M, variant: muted}]
+  - {id: a_l3, component: label, variant: muted, label: 't=3'}
+  - id: a_t3
+    component: tokens
+    props:
+      width: 6mm
+      height: 6mm
+      gap: 1mm
+      cells: [{tone: gray, variant: tinted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}, {id: f, tone: orange, variant: tinted}, {label: M, variant: muted}, {label: M, variant: muted}, {label: M, variant: muted}]
+  - {id: b_l1, component: label, variant: muted, label: 't=1'}
+  - id: b_t1
+    component: tokens
+    props:
+      width: 6mm
+      height: 6mm
+      gap: 1mm
+      cells: [{tone: gray, variant: tinted}, {label: M, variant: muted}, {label: M, variant: muted}, {label: M, variant: muted}, {tone: blue, variant: tinted}, {label: M, variant: muted}, {tone: blue, variant: tinted}]
+  - {id: b_l2, component: label, variant: muted, label: 't=2'}
+  - id: b_t2
+    component: tokens
+    props:
+      width: 6mm
+      height: 6mm
+      gap: 1mm
+      cells: [{tone: gray, variant: tinted}, {tone: blue, variant: tinted}, {label: M, variant: muted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}]
+  - {id: b_l3, component: label, variant: muted, label: 't=3'}
+  - id: b_t3
+    component: tokens
+    props:
+      width: 6mm
+      height: 6mm
+      gap: 1mm
+      cells: [{tone: gray, variant: tinted}, {tone: blue, variant: tinted}, {id: f, tone: orange, variant: tinted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}]
+  - {id: a_fork, component: label, variant: muted, label: "fork decided\nat high entropy", attach: {to: a_t3.f, side: south, gap: 2mm}}
+  - {id: a_p1, component: box, label: path 1, props: {width: 14mm}}
+  - {id: a_p2, component: box, label: path 2, props: {width: 14mm}}
+  - {id: a_p3, component: box, label: path 3, props: {width: 14mm}}
+  - {id: a_out, component: label, label: "diverse reasoning paths:\nPass@k keeps rising with k"}
+  - {id: b_fork, component: label, variant: muted, label: "fork filled last,\nentropy already low", attach: {to: b_t3.f, side: south, gap: 2mm}}
+  - {id: b_p1, component: box, label: path 1, props: {width: 14mm}}
+  - {id: b_out, component: label, label: "solutions collapse: flatter Pass@k,\nmostly a subset of (a)"}
+  - {id: divider, component: separator, variant: dashed}
+  - id: c_tok
+    component: tokens
+    props:
+      width: 6mm
+      height: 6mm
+      gap: 1mm
+      cells: [{tone: gray, variant: tinted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}, {label: M, variant: muted}, {label: M, variant: muted}]
+  - {id: c_tok_note, component: label, variant: muted, label: "past observed, future masked", attach: {to: c_tok, side: south, gap: 2mm}}
+  - {id: c_model, component: box, label: dLLM}
+  - {id: c_lik, component: box, label: "exact likelihood\n$\\prod_k p_\\theta(x_k \\mid x_{<k})$"}
+  - {id: c_grpo, component: box, label: GRPO, variant: emphasis}
+  - {id: c_flow, component: block-arrow}
+  - {id: i_l1, component: label, variant: muted, label: 't=1'}
+  - id: i_t1
+    component: tokens
+    props:
+      width: 6mm
+      height: 6mm
+      gap: 1mm
+      cells: [{tone: gray, variant: tinted}, {label: M, variant: muted}, {tone: blue, variant: tinted}, {label: M, variant: muted}, {tone: blue, variant: tinted}, {label: M, variant: muted}]
+  - {id: i_l2, component: label, variant: muted, label: 't=2'}
+  - id: i_t2
+    component: tokens
+    props:
+      width: 6mm
+      height: 6mm
+      gap: 1mm
+      cells: [{tone: gray, variant: tinted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}, {tone: blue, variant: tinted}]
+  - {id: i_note, component: label, variant: muted, label: parallel decoding kept}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {tone: gray, variant: tinted}, label: prompt}
+        - {node: {tone: blue, variant: tinted}, label: decoded token}
+        - {node: {variant: muted}, label: masked token (M)}
+        - {node: {tone: orange, variant: tinted}, label: forking token (e.g. Therefore)}
+edges:
+  - {from: a_t3, to: a_p1}
+  - {from: a_t3, to: a_p2}
+  - {from: a_t3, to: a_p3}
+  - {from: b_t3, to: b_p1}
+  - {from: c_tok, to: c_model}
+  - {from: c_model, to: c_lik}
+  - {from: c_lik, to: c_grpo}

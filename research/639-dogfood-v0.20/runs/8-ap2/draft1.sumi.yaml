@@ -1,0 +1,55 @@
+version: 1
+figure:
+  id: ap2-human-present
+  theme: sumi
+  profile: screen-doc
+  themeOverrides:
+    textScale: 1.5
+  layout:
+    arrange:
+      stack:
+        align: center
+        items:
+          - sequence:
+              participants: [user, ts, sa, cp, merchant, mpp]
+              rows:
+                - fragment: "Phase 1: Shopping"
+                  rows: [start, cart, checkout, options-req, options]
+                - fragment: "Phase 2: Payment"
+                  rows: [content, render, consent, sign, mandates, pm, token-note, token, submit, verify-cm, initiate, verify-pm, receipt-sa, receipt-cp, creceipt]
+          - key
+nodes:
+  - {id: user, component: box, label: User, weight: bold, icon: tabler/user}
+  - {id: ts, component: box, label: Trusted Surface, weight: bold, icon: tabler/device-mobile}
+  - {id: sa, component: box, label: Shopping Agent, weight: bold, icon: tabler/robot, tone: blue, variant: tinted}
+  - {id: cp, component: box, label: "Credential\nProvider", weight: bold, icon: tabler/credit-card}
+  - {id: merchant, component: box, label: Merchant, weight: bold, icon: tabler/building-store}
+  - {id: mpp, component: box, label: "Merchant Payment\nProcessor", weight: bold, icon: tabler/building-bank}
+  - id: key
+    component: legend
+    props:
+      flow: row
+      entries:
+        - {edge: {tone: orange}, label: carries a user-signed Mandate}
+        - {edge: {tone: green, variant: dashed}, label: signed receipt}
+edges:
+  - {id: start, from: user, to: sa, label: start shopping}
+  - {id: cart, from: sa, to: merchant, label: assemble cart}
+  - {id: checkout, from: merchant, to: sa, variant: dashed, label: merchant-signed Checkout}
+  - {id: options-req, from: sa, to: cp, label: get instrument options}
+  - {id: options, from: cp, to: sa, variant: dashed, label: Instrument Options}
+  - {id: content, from: sa, to: ts, label: Checkout + Payment Mandate content}
+  - {id: render, from: ts, to: user, label: show Mandate content}
+  - {id: consent, from: user, to: ts, variant: dashed, label: authenticate + consent}
+  - {id: sign, from: ts, to: ts, label: "sign both with user_sk,\nlinked by checkout_jwt hash"}
+  - {id: mandates, from: ts, to: sa, variant: dashed, tone: orange, label: signed Checkout + Payment Mandates}
+  - {id: pm, from: sa, to: cp, tone: orange, label: Payment Mandate}
+  - {id: token-note, from: cp, to: cp, label: "verify, create token\n(may ask the Network)"}
+  - {id: token, from: cp, to: sa, variant: dashed, label: payment token}
+  - {id: submit, from: sa, to: merchant, tone: orange, label: token + Checkout Mandate}
+  - {id: verify-cm, from: merchant, to: merchant, label: verify vs cart}
+  - {id: initiate, from: merchant, to: mpp, label: "token + checkout_jwt hash"}
+  - {id: verify-pm, from: mpp, to: mpp, label: "verify Payment Mandate\nin token", lane: {side: west}}
+  - {id: receipt-sa, from: mpp, to: sa, variant: dashed, tone: green, label: Payment Receipt}
+  - {id: receipt-cp, from: mpp, to: cp, variant: dashed, tone: green, label: Payment Receipt}
+  - {id: creceipt, from: merchant, to: sa, variant: dashed, tone: green, label: Checkout Receipt}
