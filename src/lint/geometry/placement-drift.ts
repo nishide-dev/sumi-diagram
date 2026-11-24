@@ -33,13 +33,15 @@ import { loadFigureAssets } from "../../assets/load";
 import type { EdgeIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { formatDocPath } from "../../core/diagnostics";
+import type { Point } from "../../core/geometry";
 import { asHintTrial, HintTrials, inHintTrial } from "../../layout/hint-trials";
+import { edgeArrowheadLength } from "../../layout/route/arrowhead";
 import { hasRequestedLabel, labelGap } from "../../layout/route/labels";
 import { resolveLintConfig } from "../config";
 import { defineGeometryRule, isGeometryRule, type LintFinding } from "../rule";
 import { isDrawnEdge, isStructured, mmText } from "./common";
 import type { GeometryContext, GeometryElement } from "./context";
-import { inkGlyphs } from "./measure";
+import { inkGlyphs, inkLines } from "./measure";
 import { polylinesRectDistance } from "./proximity";
 import { newProblems, type Problems, routeTrial, type Trial, trialContext } from "./trial";
 
@@ -321,9 +323,11 @@ function findingsOf(context: GeometryContext, kind: Drift["kind"]): LintFinding[
     } else {
       const general =
         kind === "detached"
-          ? "Place the label with labelAt (start, middle, end or a fraction such as 0.3) and labelSide, draw it on the line with labelStyle: tag, or widen the gap so the span can hold it."
-          : "Place the label with labelAt (start, middle, end or a fraction such as 0.3) and labelSide, draw it on the line with labelStyle: tag, or lengthen the segment it sits beside.";
-      hint = [general, REASONS[verdict.reason]].filter(Boolean).join(" ");
+          ? "Draw the label on its line with labelStyle: tag, place it with labelAt (start, middle, end or a fraction such as 0.3) and labelSide, or widen the gap so the span can hold it."
+          : "Draw the label on its line with labelStyle: tag, place it with labelAt (start, middle, end or a fraction such as 0.3) and labelSide, or lengthen the segment it sits beside.";
+      hint = [general, spanAdvice(context, edge), REASONS[verdict.reason]]
+        .filter(Boolean)
+        .join(" ");
     }
     const text = JSON.stringify(edge.labels.map((l) => l.texts.join(" ")).join(" "));
     return [
@@ -341,6 +345,42 @@ function findingsOf(context: GeometryContext, kind: Drift["kind"]): LintFinding[
 }
 
 const cache = new WeakMap<GeometryContext, LabelVerdict[]>();
+
+/**
+ * A concrete placement (#642): how long the longest straight run of the
+ * edge's line is, and how long a run the label needs beside it (its letters
+ * along the run, the label gap at each end and an arrowhead), so the hint
+ * can say by how much to lengthen the span. Empty when the run is already
+ * long enough (the label drifted for another reason) or unknown.
+ */
+function spanAdvice(context: GeometryContext, edge: GeometryElement): string {
+  const ir = edge.ir;
+  if (ir.kind !== "edge") return "";
+  let longest: { length: number; horizontal: boolean } | undefined;
+  for (const line of edge.route ?? []) {
+    for (let i = 0; i + 1 < line.length; i++) {
+      const a = line[i] as Point;
+      const b = line[i + 1] as Point;
+      const length = Math.hypot(b.x - a.x, b.y - a.y);
+      if (longest === undefined || length > longest.length)
+        longest = { length, horizontal: Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) };
+    }
+  }
+  const inks = edge.labels.flatMap(inkLines);
+  if (longest === undefined || inks.length === 0) return "";
+  const extent = longest.horizontal
+    ? Math.max(...inks.map((r) => r.x + r.width)) - Math.min(...inks.map((r) => r.x))
+    : Math.max(...inks.map((r) => r.y + r.height)) - Math.min(...inks.map((r) => r.y));
+  const needed = extent + 2 * labelGap(ir.style) + edgeArrowheadLength(ir.style);
+  if (longest.length >= needed) return "";
+  const tag = extent + edgeArrowheadLength(ir.style);
+  const lengthen = `lengthen the span by about ${mmText(context, needed - longest.length, 1)} (a larger gap between its ends, or the ends further apart)`;
+  return `Its longest straight run is ${mmText(context, longest.length, 1)}, and the label needs about ${mmText(context, needed, 1)} beside it: ${
+    longest.length >= tag
+      ? `labelStyle: tag fits on that run, or ${lengthen}.`
+      : `${lengthen}; a tag needs about ${mmText(context, tag, 1)} of the run too, or shorten the label.`
+  }`;
+}
 
 export const edgeLabelDetached = defineGeometryRule({
   id: EDGE_LABEL_DETACHED,

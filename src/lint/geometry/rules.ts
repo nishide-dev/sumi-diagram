@@ -51,6 +51,7 @@ import { obstaclesCrossedByRoute, type RouteObstacle, segmentCrossesRegion } fro
 import { groupEmptySpace } from "./empty-space";
 import { iconFamilyMix, iconOveruse } from "./icons";
 import { microJogLengths } from "./jogs";
+import { edgeLabelAmbiguous } from "./label-ambiguity";
 import { type FitSize, fitSentence, fitTrials, fittingSize } from "./label-fit";
 import { inkLines, unionOf } from "./measure";
 import { regionsOverlap } from "./outlines";
@@ -2236,6 +2237,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   edgeLabelOnCorner,
   edgeLabelDetached,
   edgeLabelTouchesLine,
+  edgeLabelAmbiguous,
   tokenColumnDrift,
   aspectDistorted,
   reversedEdge,

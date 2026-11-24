@@ -20,7 +20,12 @@ import {
 import { type DocPath, hasErrors, type SourceLocation } from "../core/diagnostics";
 import { type ChatExpansion, chatKeys, chatVisuals } from "../core/figure/chat";
 import type { FigureCheck } from "../core/figure/check";
-import { type EdgeAnchor, parseAnchor, STRAIGHT_SPAN_ANCHOR } from "../core/figure/layout";
+import {
+  type EdgeAnchor,
+  parseAnchor,
+  parseBlockAnchor,
+  STRAIGHT_SPAN_ANCHOR,
+} from "../core/figure/layout";
 import type {
   AlignConstraint,
   AlignGrowthMode,
@@ -553,6 +558,13 @@ export interface EdgeIR extends ElementIRBase {
   /** The end is written `straight:span` (#545): straight through the middle of the span the ends share. */
   readonly fromSpan?: true;
   readonly toSpan?: true;
+  /**
+   * The end is written `block` / `block:<side>` (#642): it meets the element as a whole, at the
+   * middle of a side (`fromAnchor` holds the side when one is named), with a bracket along that
+   * side when the element draws no frame of its own (tokens, a matrix, a plain group).
+   */
+  readonly fromBlock?: true;
+  readonly toBlock?: true;
   /** Structured layout: where along the route the label sits (#128). Absent when not written. */
   readonly labelAt?: EdgeLabelAt;
   /** Structured layout: the side of the line, facing from source to target (#128). Absent when not written. */
@@ -1405,6 +1417,10 @@ function edgeIR(
     ...anchorIR("toAnchor", e.toAnchor),
     ...(e.fromAnchor === STRAIGHT_SPAN_ANCHOR && { fromSpan: true as const }),
     ...(e.toAnchor === STRAIGHT_SPAN_ANCHOR && { toSpan: true as const }),
+    ...(e.fromAnchor !== undefined &&
+      parseBlockAnchor(e.fromAnchor) !== undefined && { fromBlock: true as const }),
+    ...(e.toAnchor !== undefined &&
+      parseBlockAnchor(e.toAnchor) !== undefined && { toBlock: true as const }),
     ...(e.labelAt !== undefined && { labelAt: e.labelAt }),
     ...(e.labelSide !== undefined && { labelSide: e.labelSide }),
     ...(e.labelStyle !== undefined && { labelStyle: e.labelStyle }),
@@ -1456,6 +1472,13 @@ function anchorIR<F extends "fromAnchor" | "toAnchor">(
   value: string | undefined,
 ): Partial<Record<F, EdgeAnchor>> {
   if (value === undefined) return {};
+  // `block` (#642): the middle of the named side, or no anchor (the router picks the side and
+  // `fromBlock` / `toBlock` keeps the end at its middle).
+  const block = parseBlockAnchor(value);
+  if (block !== undefined)
+    return block.side === undefined
+      ? {}
+      : ({ [field]: freeze({ side: block.side, offset: 0.5 }) } as Partial<Record<F, EdgeAnchor>>);
   // The layout stage reports malformed anchors, so an error-free figure has none.
   const anchor = parseAnchor(value);
   if (anchor === undefined) throw new Error(`internal error: invalid anchor "${value}"`);

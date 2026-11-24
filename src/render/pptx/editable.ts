@@ -1747,6 +1747,17 @@ export function svgToEditablePptx(
           for (const outline of frame.outlines()) output.push(headShape(outline, next++));
         }
       }
+      // The brackets of `block` ends (#642): open freeforms in the line's paint, like the SVG's.
+      for (const bracket of childElements(group).filter((e) =>
+        classList(e).includes("sumi-edge-bracket"),
+      )) {
+        const parsed = parsePath(attribute(bracket, "d") ?? "");
+        if (!parsed.ok) throw new Error(`Unreadable bracket of edge ${key}`);
+        for (const segments of splitSubpaths(parsed.segments))
+          output.push(
+            headShape({ segments, closed: false, source: bracket, strokeScale: 1 }, next++),
+          );
+      }
       const children = childElements(group);
       const texts = children.filter((e) => e.name === "text");
       // A glued connector cannot be interrupted; hide it on the canvas only.
@@ -1842,4 +1853,14 @@ export function svgToEditablePptx(
     }
     return fail(error instanceof Error ? error.message : String(error));
   }
+}
+
+/** A path's subpaths, each starting at its `M`. */
+function splitSubpaths(segments: readonly PathSegment[]): PathSegment[][] {
+  const out: PathSegment[][] = [];
+  for (const segment of segments) {
+    if (segment.command === "M" || out.length === 0) out.push([]);
+    out.at(-1)?.push(segment);
+  }
+  return out;
 }

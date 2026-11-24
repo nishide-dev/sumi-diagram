@@ -167,6 +167,8 @@ const anchorText = (side: Side, offset: number) =>
   Math.abs(offset - 0.5) < 1e-9 ? side : `${side}:${offset}`;
 
 const writtenAnchor = (edge: EdgeIR, field: "fromAnchor" | "toAnchor"): Anchor | undefined => {
+  // A `block` end (#642) holds the middle of the whole element: not a position to tune.
+  if ((field === "fromAnchor" ? edge.fromBlock : edge.toBlock) === true) return undefined;
   const value = edge[field];
   return typeof value === "object" ? value : undefined;
 };

@@ -1218,6 +1218,7 @@ function edgeGroup(
   groups: readonly PaintedGroup[],
   canvas: string,
   plane?: PlaneFrame,
+  bracketMarkup = "",
 ): string {
   const { style } = edge;
   const width = style.strokeWidth.units;
@@ -1249,7 +1250,18 @@ function edgeGroup(
       (isTagLabel(edge) ? tagFrame(edge, layoutLabel, groups, canvas) : "") +
       label(layoutLabel, style.fontColor);
   }
-  return `<g class="${elementClass(edge.key)} sumi-kind-edge"${opacity(style)}>${connection}${heads}${labelSvg}</g>`;
+  return `<g class="${elementClass(edge.key)} sumi-kind-edge"${opacity(style)}>${connection}${bracketMarkup}${heads}${labelSvg}</g>`;
+}
+
+/**
+ * The brackets of an edge's `block` ends (#642, `block-bracket.ts`): solid,
+ * in the line's color and width, with square corners, so a dashed line still
+ * meets a clear bracket.
+ */
+function bracketMarkup(edge: EdgeIR, brackets: readonly (readonly Point[])[] | undefined): string {
+  if (brackets === undefined || brackets.length === 0) return "";
+  const { style } = edge;
+  return `<path class="sumi-edge-bracket" d="${brackets.map((b) => pathData(b)).join(" ")}" fill="none" stroke="${paint(style.stroke)}" stroke-width="${n(style.strokeWidth.units)}" stroke-linejoin="miter" stroke-linecap="butt"/>`;
 }
 
 /**
@@ -1548,6 +1560,7 @@ export function writeStructuredSvg(
         painted,
         canvas,
         planarFrames.get(placed.key),
+        bracketMarkup(edge, placed.route?.brackets),
       ),
     );
     useText(placed.route?.label);

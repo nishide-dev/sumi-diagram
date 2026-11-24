@@ -1,6 +1,7 @@
 import { checkAssets } from "../assets/check";
 import { captionLocator, clampCaptionPaths, expandCaptions } from "./figure/caption";
 import { type CheckFigureOptions, checkFigureSource, type FigureCheck } from "./figure/check";
+import { checkBlockAnchors } from "./figure/layout";
 import { expandLegends } from "./figure/legend";
 import { expandMatrices } from "./figure/matrix";
 import { expandTokens, remapTokensPaths, tokensLocator } from "./figure/tokens";
@@ -48,6 +49,8 @@ export function checkFigure(text: string, options: CheckOptions = {}): FigureChe
   expandLegends(state, registry, check.locate);
   // Tokens (#181) become one node per cell; cell references become their IDs.
   expandTokens(state, registry, check.locate);
+  // `block` anchors (#642) name a whole tokens row, matrix or group: known once both are expanded.
+  checkBlockAnchors(state, check.locate);
   checkAssets(state, check.locate);
   styleFigure(state, check.locate);
   constrainFigure(state, check.locate, { fonts: labelFontUsages(state) });

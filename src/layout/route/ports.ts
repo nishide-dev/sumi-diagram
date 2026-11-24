@@ -801,6 +801,8 @@ function arrangeSides(
  * `straight` (#179) where it resolves to a side. Such an end never spreads.
  */
 function holdsPosition(edge: EdgeIR, rectOf: (key: ElementKey) => Rect): boolean {
+  // A `block` end (#642) holds the middle of its side.
+  if (edge.toBlock === true) return true;
   if (edge.toAnchor === undefined) return false;
   if (edge.toAnchor !== STRAIGHT_ANCHOR) return true;
   return "offset" in straightPlacement(rectOf(edge.to), rectOf(edge.from), edge.toSpan === true);
@@ -1466,9 +1468,13 @@ function resolveEndsWith(
   };
   const chooseWith = (...args: Parameters<typeof chooseSide>): Choice | undefined => {
     const choice = chooseSide(...args);
-    return choice !== undefined && args[0].centerPorts === true
-      ? { ...choice, plain: true }
-      : choice;
+    if (choice === undefined) return choice;
+    // A `block` end (#642) sits at the middle of its side, whatever side was picked, and is
+    // never shared out or moved: it stands for the whole element.
+    const [edge, , , , isSource] = args;
+    if ((isSource ? edge.fromBlock : edge.toBlock) === true && choice.fixed !== true)
+      return { ...choice, offset: 0.5, anchored: true, straight: false };
+    return edge.centerPorts === true ? { ...choice, plain: true } : choice;
   };
   /**
    * An end nobody anchored, on a node wider than the node at the other end
@@ -1532,7 +1538,8 @@ function resolveEndsWith(
         edge,
         from,
         to,
-        edge.fromAnchor ?? autoStraight(edge, from, to, edge.toAnchor),
+        edge.fromAnchor ??
+          (edge.fromBlock === true ? undefined : autoStraight(edge, from, to, edge.toAnchor)),
         true,
         spread.get(endKey(index, true)),
       ),
@@ -1540,7 +1547,8 @@ function resolveEndsWith(
         edge,
         to,
         from,
-        edge.toAnchor ?? autoStraight(edge, to, from, edge.fromAnchor),
+        edge.toAnchor ??
+          (edge.toBlock === true ? undefined : autoStraight(edge, to, from, edge.fromAnchor)),
         false,
         spread.get(endKey(index, false)),
       ),
