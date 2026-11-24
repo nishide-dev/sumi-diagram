@@ -1,0 +1,110 @@
+<!doctype html>
+<!-- Mockup template: paste the sizes from Sumi, set the colours from the theme (see mockup.md), set the page size, draw. -->
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  /* Sizes: replace this block with `sumi catalog --sizes --css --profile <id> --theme <id>` (its @font-face
+     lines load the theme's bundled fonts). Never edit the values by hand. */
+  /* BEGIN SUMI SIZES */
+/* sumi catalog --sizes --css --profile paper-double --theme sumi --text-scale 1 */
+:root {
+  --font: "Sumi Latin", "Sumi", "Inter", "BIZ UDPGothic", sans-serif;  /* font set sumi/inter-biz-ud-gothic */
+  --fs-node: 8;          /* pt: node text */
+  --fs-group: 9;         /* pt: group title */
+  --fs-edge: 7;          /* pt: edge label (profile minimum 7pt) */
+  --frame-w: 1;          /* pt: a node's frame */
+  --group-frame-w: 0.5;  /* pt: a group's frame */
+  --edge-w: 1;           /* pt: an edge */
+  --radius: 0pt;         /* a node's corners */
+  --gap: 4mm;            /* between the items of a row, stack or grid */
+  --group-pad: 2.82mm;   /* a group's padding, each side */
+  --node-pad-x: 2.47mm;  /* a box's padding left and right of its label */
+  --node-pad-y: 1.23mm;  /* a box's padding above and below its label */
+  --box-h: 6mm;          /* a one-line box's height */
+  --op: 5.64mm;          /* an operator */
+  --op-large: 8.47mm;    /* an operator, size: large */
+  --op-xlarge: 11.29mm;  /* an operator, size: xlarge */
+  --margin: 1.94mm;      /* around the figure */
+  --page-w: 180mm;       /* the profile's page width */
+}
+  /* END SUMI SIZES */
+  :root {
+    --canvas: #ffffff; --ink: #30364f; --panel: #ffffff;       /* theme canvas, text/line colour, group fill */
+    --frame: #a9aebc;                                          /* group frame (sumi #a9aebc, sumi-dark #6f7791) */
+    --blue: #d9e4e6; --blue-line: #3d5d77;                     /* one fill + one line per tone you use */
+    --gray: #e1dece; --gray-line: #4e566b; --orange:#efdfce; --orange-line:#814b2d; --ink2:#30364f;
+    --arrow: #30364f;                                          /* arrowhead / edge colour */
+    --pt: 0.3528mm;                                            /* 1pt */
+  }
+  @page { size: 180mm 104mm; margin: 0 }                       /* the real figure size */
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 180mm; height: 104mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  /* left/top are the element's centre in mm: they map 1:1 to `place` with unit: 1mm (origin: body for groups).
+     Without a width a box takes Sumi's natural size: its label plus --node-pad-x, at least --box-h high. */
+  .box, .op, .group { position: absolute; box-sizing: border-box; translate: -50% -50% }
+  .box { display: flex; align-items: center; justify-content: center; text-align: center; white-space: pre;
+         min-height: var(--box-h); padding: var(--node-pad-y) var(--node-pad-x);
+         border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: #fff; border-radius: var(--radius) }
+  .tinted-blue { background: var(--blue); border-color: var(--blue-line) }
+  .op { width: var(--op); height: var(--op); border-radius: 50%; border: calc(var(--frame-w) * var(--pt)) solid var(--ink);
+        display: flex; align-items: center; justify-content: center }      /* .large: --op-large, .xlarge: --op-xlarge */
+  .op.large { width: var(--op-large); height: var(--op-large) }
+  .op.xlarge { width: var(--op-xlarge); height: var(--op-xlarge) }
+  .group { padding: var(--group-pad); background: var(--panel); border: calc(var(--group-frame-w) * var(--pt)) solid var(--frame) }
+  .group > .title { position: absolute; left: 0; bottom: 100%; font-weight: bold; font-size: calc(var(--fs-group) * var(--pt)) }  /* title above the border */
+  .overflow { outline: 0.6mm dashed red }                       /* set by the script below: Sumi would report geometry/label-overflow */
+  svg.edges { position: absolute; inset: 0; width: 180mm; height: 104mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: calc(var(--edge-w) * 0.3528) }  /* inside the svg 1 unit = 1mm */
+  svg.edges text { font-size: calc(var(--fs-edge) * 0.3528px); fill: var(--ink) }  /* edge labels, in mm units */
+  svg.edges marker path { fill: var(--arrow) }
+</style>
+<style>
+.c{position:absolute;translate:-50% -50%;box-sizing:border-box;width:6mm;height:6mm;border:calc(var(--frame-w)*var(--pt)) solid;display:flex;align-items:center;justify-content:center;font-size:calc(var(--fs-node)*var(--pt))}
+.M{background:#fff;border-color:var(--gray-line);color:var(--gray-line)}
+.D{background:var(--blue);border-color:var(--blue-line)}
+.P{background:var(--gray);border-color:var(--gray-line)}
+.F{background:var(--orange);border-color:var(--orange-line)}
+.lab{position:absolute;translate:-50% -50%;white-space:pre;text-align:center;font-size:calc(var(--fs-edge)*var(--pt));color:var(--gray-line)}
+.ttl{position:absolute;font-weight:bold;font-size:calc(var(--fs-group)*var(--pt))}
+.emph{background:var(--ink2);color:#fff;font-weight:bold;border-color:var(--ink2)}
+.sep{position:absolute;border-left:0.4mm dashed var(--gray-line)}
+.grp{position:absolute;border:calc(var(--group-frame-w)*var(--pt)) solid var(--frame)}
+</style>
+<div id="fig"></div>
+<script>
+const f=document.getElementById('fig');
+function el(cls,x,y,txt='',st=''){const d=document.createElement('div');d.className=cls;d.style.cssText=`left:${x}mm;top:${y}mm;`+st;d.textContent=txt;f.appendChild(d);return d}
+function row(x0,y,spec,lab){ if(lab) el('lab',x0-6,y,lab); [...spec].forEach((k,i)=>el('c '+k,x0+i*7,y,k=='M'?'M':''));}
+// panel a
+el('ttl',4,3,'(a) Left-to-right order').style.cssText+='left:4mm;top:3mm';
+row(14,15,'PDMMMMM','t=1');row(14,23,'PDDMMMM','t=2');row(14,31,'PDDFMMM','t=3');
+el('lab',35,39,'fork decided\nat high entropy');
+el('box',78,22,'path 1','width:14mm');el('box',78,31,'path 2','width:14mm');el('box',78,40,'path 3','width:14mm');
+el('lab',45,51,'diverse reasoning paths: Pass@k keeps rising with k');
+// divider
+const s=el('sep',90,30,'','left:90mm;top:3mm;height:52mm;translate:none');
+// panel b
+el('ttl',94,3,'(b) Arbitrary order (most confident first)').style.cssText+='left:94mm;top:3mm';
+row(104,15,'PMMMDMD','t=1');row(104,23,'PDMDDDD','t=2');row(104,31,'PDFDDDD','t=3');
+el('lab',118,39,'fork filled last,\nentropy already low');
+el('box',168,31,'path 1','width:14mm');
+el('lab',135,51,'solutions collapse: flatter Pass@k, mostly a subset of (a)');
+// panel c
+el('grp',2,58,'','left:2mm;top:58mm;width:176mm;height:36mm;translate:none');
+el('ttl',5,61,'(c) JustGRPO: left-to-right only during RL').style.cssText+='left:5mm;top:61mm';
+row(14,76,'PDDDMM','');
+el('lab',31,84,'past observed, future masked');
+el('box',62,76,'dLLM','');
+el('box',90,76,'exact likelihood\n∏ p(x_k | x_<k)','');
+el('box',120,76,'GRPO','').classList.add('emph');
+el('ttl',140,61,'Inference').style.cssText+='left:134mm;top:62mm';
+row(140,72,'PMDMDM','t=1');row(140,80,'PDDDDD','t=2');
+el('lab',157,88,'parallel decoding kept');
+row(20,99,'P','');el('lab',29,99,'prompt');row(42,99,'D','');el('lab',53,99,'decoded');row(68,99,'M','');el('lab',78,99,'masked');row(92,99,'F','');el('lab',113,99,'forking token (e.g. Therefore)');
+</script>
+<svg class="edges" viewBox="0 0 180 104"><defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2" markerHeight="2" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+<path class="e" d="M60 31 H64 V22 H70" marker-end="url(#ah)"/><path class="e" d="M60 31 H70" marker-end="url(#ah)"/><path class="e" d="M64 31 V40 H70" marker-end="url(#ah)"/>
+<path class="e" d="M150 31 H160" marker-end="url(#ah)"/>
+<path class="e" d="M53 76 H56" marker-end="url(#ah)"/><path class="e" d="M68 76 H76" marker-end="url(#ah)"/><path class="e" d="M104 76 H113" marker-end="url(#ah)"/>
+<path d="M127 73 H131 V70 L135 76 L131 82 V79 H127Z" fill="#30364f"/>
+</svg>

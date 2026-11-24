@@ -1,0 +1,62 @@
+# Olmo 3 model flow (arXiv 2512.13961, Sections 2.1, 2.2, 3.4-3.6, 4, 5.2.2, 6).
+# Started from the pipeline-branch-merge layout (fork into rows) with compare-rows' shared columns.
+version: 1
+figure:
+  id: olmo3-model-flow
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 4mm
+        items: [base_training, base, split, post_training]
+groups:
+  - id: base_training
+    label: "(a) Base model training · Dolma 3"
+    labelAt: above-left
+    arrange:
+      row: {gap: 4mm, items: [pretrain, midtrain, longctx]}
+  - id: post_training
+    label: "(b) Post-training · Dolci"
+    labelAt: above-left
+    arrange:
+      grid:
+        columns: 4
+        rowGap: 4mm
+        columnGap: 4mm
+        items:
+          [think_sft, think_dpo, think_rl, think,
+           inst_sft, inst_dpo, inst_rl, instruct,
+           ~, ~, zero_rl, rlzero]
+nodes:
+  - {id: pretrain, component: box, label: Pretraining, sublabel: "Dolma 3 Mix\n≤ 5.9T tokens", tone: blue, variant: tinted}
+  - {id: midtrain, component: box, label: Midtraining, sublabel: "Dolmino Mix\n100B tokens", tone: blue, variant: tinted}
+  - {id: longctx, component: box, label: Long context, sublabel: "Longmino Mix\n50B–100B tokens", tone: blue, variant: tinted}
+  - {id: base, component: box, label: Olmo 3 Base, sublabel: "7B · 32B", variant: emphasis}
+  - {id: split, component: junction}
+  - {id: think_sft, component: box, label: SFT, tone: green, variant: tinted}
+  - {id: think_dpo, component: box, label: DPO, tone: green, variant: tinted}
+  - {id: think_rl, component: box, label: RLVR, tone: green, variant: tinted}
+  - {id: think, component: box, label: Olmo 3 Think, sublabel: "7B · 32B", variant: emphasis}
+  - {id: inst_sft, component: box, label: SFT, tone: green, variant: tinted}
+  - {id: inst_dpo, component: box, label: DPO, tone: green, variant: tinted}
+  - {id: inst_rl, component: box, label: RLVR, tone: green, variant: tinted}
+  - {id: instruct, component: box, label: Olmo 3 Instruct, sublabel: "7B · 32B", variant: emphasis}
+  - {id: zero_rl, component: box, label: RLVR, tone: green, variant: tinted}
+  - {id: rlzero, component: box, label: Olmo 3 RL-Zero, sublabel: "7B", variant: emphasis}
+edges:
+  - {from: pretrain, to: midtrain}
+  - {from: midtrain, to: longctx}
+  - {from: longctx, to: base}
+  - {from: base, to: split, component: line}
+  - {from: split, to: inst_sft, toAnchor: west}
+  - {from: split, to: think_sft, toAnchor: west, route: curve}
+  - {from: split, to: zero_rl, toAnchor: west, route: curve, label: "math · code · IF · general"}
+  - {from: think_sft, to: think_dpo}
+  - {from: think_dpo, to: think_rl}
+  - {from: think_rl, to: think}
+  - {from: inst_sft, to: inst_dpo}
+  - {from: inst_dpo, to: inst_rl}
+  - {from: inst_rl, to: instruct}
+  - {from: zero_rl, to: rlzero}
+  - {from: think_sft, to: inst_sft, variant: dashed, label: warm start}

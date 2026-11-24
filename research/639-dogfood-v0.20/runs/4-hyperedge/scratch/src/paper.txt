@@ -1,0 +1,1191 @@
+         HyperEdge: An Edge CDN Infrastructure
+           for Cost Efficient Video Streaming
+Dehui Wei, National University of Singapore; Jiao Zhang, Beijing University of Posts
+ and Telecommunications, and Purple Mountain Laboratories; Haozhe Li, Rui Han,
+         Zhichen Xue, Yajie Peng, Xiaofei Pang, and Yan Ma, ByteDance;
+                    Jialin Li, National University of Singapore
+               https://www.usenix.org/conference/nsdi26/presentation/wei
+
+
+
+
+This paper is included in the Proceedings of the 23rd USENIX Symposium
+          on Networked Systems Design and Implementation.
+                        May 4–6, 2026 • Renton, WA, USA
+                                ISBN 978-1-939133-54-0
+
+
+             Open access to the Proceedings of the 23rd USENIX Symposium
+           on Networked Systems Design and Implementation is sponsored by
+     HyperEdge: An Edge CDN Infrastructure for Cost Efficient Video Streaming
+
+                       Dehui Wei‡,§ Jiao Zhang‡,¶,∗ Haozhe Li† Rui Han† Zhichen Xue†
+                                Yajie Peng† Xiaofei Pang† Yan Ma† Jialin Li§
+                § School of Computing, National University of Singapore   ‡ Beijing University of Posts and Telecommunications
+
+                                                ¶ Purple Mountain Laboratories    † ByteDance
+
+
+
+
+                               Abstract                                   global devices, including set-top boxes, smart home gadgets,
+   As ByteDance’s business expands, the cost of video stream-             dormant servers, and more. These edge devices have signif-
+ing using content delivery networks (CDN) has become pro-                 icantly lower per-unit hardware, bandwidth, electricity, and
+hibitively high. We have discovered a sea of under-utilized               management cost than their data center counterparts [31, 66].
+edge devices with the potential to reduce content distribution            More importantly, harnessing edge devices enables better
+cost. The unreliable performance of an edge network, how-                 resource elasticity [68]. The network can scale up or down dy-
+ever, presents deep challenges to video streaming services. In            namically based on demand, and only pays for the resources
+this work, we introduce HyperEdge, an edge-assisted content               required to serve the traffic.
+delivery system for video streaming. HyperEdge seamlessly                    Leveraging edge networks for content delivery, however,
+integrates the robustness of a conventional CDN with the cost-            comes at a performance trade-off [36]. Edge devices are
+efficiency of an edge network. It offers dependable streaming             highly heterogeneous: They exhibit large variance in their
+quality to users while minimizing traffic expenses. Hyper-                network bandwidth, storage capacity, and computing capa-
+Edge employs a centralized tracker cluster to optimize con-               bilities; they are dispersed across large geographic locations,
+tent distribution to a pool of edge devices, based on real-time           regional networks, and ISPs, without any central manage-
+monitoring. To ensure satisfactory video playback quality,                ment; most of these devices are behind a private network,
+we develop a novel multi-path protocol for client-edge video              requiring lengthy Network Address Translation (NAT) pene-
+transmission. Having been in stable operation for six years,              tration [15, 16] during connection setup. Such factors present
+HyperEdge manages over a hundred thousand edge devices,                   formidable challenges to provide the strict real-time content
+serving about a hundred million users daily, and saving hun-              delivery requirements of our services [17].
+dreds of millions of dollars in content delivery cost annually.              In this paper, we present HyperEdge, ByteDance’s content
+                                                                          delivery system for video streaming. HyperEdge employs
+                                                                          a pool of underutilized low-cost devices outside our man-
+1     Introduction                                                        aged data centers and networks. The system delivers video
+                                                                          streaming quality on par with dedicated CDN infrastructure,
+At ByteDance, we rely heavily on content delivery networks                despite all the shortcomings of an edge network. HyperEdge
+(CDNs) [42] to serve billions of global users across our wide             carefully incorporates centralized management to address
+range of products and services. As business continues to grow,            the performance challenges of edge devices. We divide the
+we are forced to increase the capacity of our CDN provision-              content distribution responsibility between a fast but simple
+ing from third-party providers to meet the surging demand.                data transmission plane, and a centrally managed decision-
+This continuous expansion comes with a steep cost increase                making engine. This centralized control plane consists of a
+associated with content delivery. Relying on central CDN                  cluster of trackers running in our data centers. Centralization
+infrastructure also leads to poor agility and flexibility [44, 65].       enables the trackers to have a global view of edge device
+Even though our user traffic exhibits high temporal variance,             status, content location, network traffic, user demand, and ser-
+we have to over provision CDN bandwidth for peak traffic.                 vice requirements. Trackers can therefore make fine-grained
+These compounding factors have led to an unsustainable in-                and optimized resource allocation, content distribution, and
+crease in ByteDance’s expenses on CDN.                                    client-to-device mapping decisions.
+   How to reduce content delivery cost? Our investigation
+                                                                             The vast amount of edge devices power the HyperEdge
+discovered a sea of underutilized resources scattered across
+                                                                          data plane. As any single device may not have the compu-
+    * Jiao Zhang is the corresponding author.                             tational power or network bandwidth to deliver the required
+
+
+
+USENIX Association                              23rd USENIX Symposium on Networked Systems Design and Implementation                2635
+video streaming speed, we design a novel multi-site parallel       users to fetch data from servers in proximity to reduce ac-
+downloading scheme. Specifically, clients establish connec-        cess latency [4]. A CDN integrates its own DNS servers to
+tions to multiple edge devices caching the requested video and     redirect user requests to edge servers [41]. On a cache miss,
+schedule concurrent video transmission from all connected          an edge retrieves the file from a server higher following a
+devices. Our transmission scheme aggregates computation            hierarchical model. To maintain fast and reliable video trans-
+and network capacity from a pool of devices while meeting          mission, CDN clusters deploy powerful rack servers and use
+playback deadlines, ensuring video downloading performance         dedicated commercial networks from large ISPs [63]. Content
+that complies with our business requirements.                      providers rely heavily on CDNs for reliable video services
+   Even with careful designs, edge networks alone are insuffi-     to ensure low-latency and high-performance video streaming.
+cient to ensure our content delivery Service Level Objectives      Traditional CDN operators handle higher demand by scaling
+(SLOs): Long latency of NAT punching lengthens the video           out their server infrastructure to expand the cache hierarchy.
+loading time; failures of edge devices and network issues are      This expansion comes with substantial scaling costs [2, 25].
+common, leading to unreliable transmission performance. To         Our short video business (Douyin) has reported yearly traffic
+address such issues, we deploy a hybrid architecture that com-     expenses exceeding billions of RMB.
+bines HyperEdge with a traditional CDN. The CDN serves
+three purposes: It provides a video content “backend storage”
+for HyperEdge; its more predictable performance is leveraged       2.2 Opportunity: Edge Devices For Cost Re-
+to reduce video loading time; it serves as a fallback option           duction
+when the quality of service of HyperEdge drops below the
+                                                                   In the markets in which ByteDance operates, there exists an
+SLO. However, we do not provision the CDN to serve peak
+                                                                   abundance of under-utilized resources nestled within house-
+user traffic. Instead, we rely on HyperEdge for cost-effective
+                                                                   hold devices such as set-top boxes, smart home appliances,
+and elastic capacity provisioning. By carefully scheduling
+                                                                   and occasionally idle servers. We refer to them as hyper-
+CDN traffic, this hybrid approach only adds marginal cost to
+                                                                   edge devices, or Hdevices, to differentiate them from the
+our content delivery infrastructure.
+                                                                   narrower class of edge servers used by CDNs. Hdevices, of-
+   HyperEdge has served as ByteDance’s main content distri-
+                                                                   ten geographically closer to users, represent an untapped po-
+bution engine for over six years. It has grown to 100,000 edge
+                                                                   tential for content storage and distribution. They also offer
+devices distributed across our deployed regions mainly covers
+                                                                   cost-saving opportunities compared to CDN infrastructure.
+Asia-Pacific and South America regions currently. Serving
+                                                                   This cost-saving comes from two main factors: 1) Inexpen-
+close to a hundred million daily users, HyperEdge processes
+                                                                   sive resources: Compared to data center rack servers, edge
+more than ten billion daily playbacks and handles tens of
+                                                                   devices have lower hardware and utility cost. Moreover, by
+terabytes of video traffic per day. Our strategy of embrac-
+                                                                   sharing the hardware with the user, we can tap into the under-
+ing external edge devices has led to an annual cost saving
+                                                                   utilized portion of their resources at a fraction of the overall
+of hundreds of millions of dollars. Critically, our large-scale
+                                                                   cost. 2) Avoiding expensive dedicated networks: Traditional
+A/B testing results demonstrate that the cost-efficiency of
+                                                                   CDNs spend a major fraction of their infrastructure budget
+our HyperEdge design does not lead to any compromises in
+                                                                   on dedicated commercial networks [7] . Hdevices, however,
+user experience. We provide more detailed experiences of
+                                                                   are connected to cheaper public networks. In our operating
+deploying HyperEdge in Appendix A.
+                                                                   regions, the cost difference between the two network types is
+                                                                   substantial * . By exploiting the under-utilized network band-
+2     Background and Motivation                                    width, particularly for uploading, the cost of using Hdevices
+                                                                   is further reduced. In §5, we provide a detailed cost analysis
+Videos have emerged as the dominant content in today’s inter-      of leveraging edge devices for content distribution.
+net landscape. Our video hosting services, in particular, have
+demonstrated an expedited growth pattern. The growth in
+                                                                   Performance limitations. While using edge devices has
+video popularity has resulted in rapid increase in video stream-
+                                                                   the potential to reduce content delivery cost, they present per-
+ing network traffic. This massive traffic surge has brought
+                                                                   formance challenges to meet our video business requirements.
+challenges to the content delivery network infrastructure to
+                                                                   Hdevices in our deployment typically offer limited storage
+continue delivering high-quality video services.
+                                                                   capacity and computational power. Figure 1 shows the CDF
+                                                                   of network bandwidth (top) and available storage capacity
+2.1    Content Distribution Networks                               (bottom) based on 250,000 Hdevice samples. We observe that
+                                                                   90% of the devices have an upload bandwidth less than 54
+Traditional Content Delivery Networks (CDNs) are built as
+                                                                   Mbps, and more than 90% has less than 67 GB of storage.
+highly centralized and structured server-to-client systems.
+CDNs deploy dedicated server clusters across vast geographi-          * The degree of cost differences is region-specific. We are aware of other
+cal locations. They scale content delivery capacity and enable     geographical regions where the difference is significantly smaller.
+
+
+
+
+2636    23rd USENIX Symposium on Networked Systems Design and Implementation                                         USENIX Association
+                                                                   hierarchical approach.
+                                                                      Instead, HyperEdge adopts a flat architecture among Hde-
+                                                                   vices. All devices are egalitarian with no specific hierarchy.
+                                                                   However, individual devices lack a global view of both video
+                                                                   request demand and hardware resource distributions. Making
+                                                                   device-local caching and content delivery decisions would
+                                                                   not respond promptly to rapid changes in content popular-
+                                                                   ity [35, 45], which can occur within minutes in real-world
+                                                                   workloads [8, 68]. A decentralized design is also prone to
+                                                                   load problems, particularly given the uneven resource dis-
+                                                                   tribution of the heterogeneous Hdevices. To address these
+                                                                   challenges, HyperEdge heavily incorporates centralization in
+                                                                   its core design. Specifically, a centralized tracker system col-
+Figure 1: Resource distribution of Hdevices, including net-        lects global traffic demand information and Hdevice metrics.
+work bandwidth (top) and storage capacity (bottom). Hde-           The system then leverages its vantage point to make globally
+vices are typically weaker than dedicated CDN servers and          optimal video distribution decisions; it also mediates all client
+exhibit substantial resource heterogeneity.                        video requests, ensuring sufficient transmission resources to
+                                                                   satisfy SLOs while balancing Hdevice resource utilization.
+Notably, 23% of the devices have bandwidth below 5 Mbps            Comparison to peer-assisted CDNs. Another line of work
+and 8.5% with less than 10 GB of storage, indicating a consid-     proposes to use P2P for content distribution [10, 21, 43, 55,
+erable proportion of highly constrained nodes. In comparison,      62, 65, 69]. These peers are fully voluntary and autonomous;
+CDN servers typically offer 1–10 Gbps uplink and several           they can join and leave the network at will and are not under
+terabytes of storage; they are also configured with consistent     the control of the CDN provider. The distribution of content
+and reliable hardware [39]. Moreover, Hdevices has a churn         to peer devices is also decentralized. In contrast, HyperEdge
+rate of 5%–10%, further complicating resource availability.        operates on a fundamentally different deployment model. We
+   Furthermore, Hdevices exhibit high resource heterogene-         rent edge devices from third-party vendors, which grants us
+ity. In our dataset, device bandwidth ranges from below 1          full control over the number, identities, and operational be-
+Mbps to over 10 Gbps, and storage capacity spans from a            havior of the Hdevices. HyperEdge thus remains a server-
+few gigabytes to 4.8 TB. These wide disparities complicate         to-client system with centralized control, albeit composed of
+system scheduling, making the design of a one-size-fits-all de-    highly heterogeneous, low-power edge devices rather than
+livery strategy challenging. Other co-located services on the      traditional, rack-mounted CDN servers. We have deployed
+devices also impose performance interference. Collectively,        Hdevices across multiple continents; the deployment model
+these factors lead to highly unpredictable device performance.     also allows us to provision these edge devices based on traffic
+   Hole punching overhead. Most Hdevices operate within            demand. This model better aligns with our business require-
+Local Area Networks (LAN) [71], behind Network Address             ments, where predictability, accountability, and service-level
+Translation (NAT) barriers. Connecting to such devices in-         guarantees are essential. We include more detailed compar-
+troduces long delays in the video playback startup time [32].      isons to P2P-assisted CDNs in §7.
+Moreover, the complexities associated with NAT punching            HyperEdge optimizations. Several concurrent efforts focus
+increase the likelihood of connection failures, further compli-    on individual components and optimizations of HyperEdge.
+cating user experiences.                                           Zhang et al. [67] augment our multi-path transmission pro-
+                                                                   tocol with a resource-aware biasing mechanism. The mech-
+                                                                   anism directs more video traffic towards cheaper or higher-
+2.3    The HyperEdge Approach
+                                                                   quality devices, alleviating resource imbalances across the
+How should we organize the vast and heterogeneous pool             edge network. Twist [56] implements a novel joint flow con-
+of Hdevices to deliver high-quality video services that meet       trol algorithm to further improve the throughput of our multi-
+the strict SLO requirements? A natural design is to replicate      path transmission protocol. Wei et al. [57] propose a preload-
+the hierarchical architecture used in traditional CDNs. How-       ing algorithm to balance the cost and transmission quality
+ever, edge devices experience more frequent cache misses           in the multi-path design, and optimize transmission schedul-
+due to limited available storage space and dynamic content         ing [58] to further enhance its delivery efficiency. All these
+popularity patterns. They thus require more frequent data re-      solutions build upon the foundation of HyperEdge. We are the
+trieval from higher-level caches or a CDN, generating substan-     first to present a complete and systematic description of the
+tial bandwidth cost. Furthermore, their longer RTTs impose         design and implementation of HyperEdge, covering its video
+higher latency penalties in each hierarchy traversal. Therefore,   transmission protocol, centralized tracker design, content dis-
+these resource-constrained devices do not match a traditional      tribution strategy, and Hdevice management. Our work also
+
+
+
+USENIX Association                         23rd USENIX Symposium on Networked Systems Design and Implementation               2637
+          Video Data Download                             Tracker                            data centers. We use standard replication and partitioning
+          Content Distribution
+                                   Index Map         State Database                          techniques for fault tolerance and scaling. Specifically, we
+                                   a        Frequency Statistics                             deploy multiple Redis [47] servers across data centers, and
+           2
+                                                                          Dedicated
+                                   b        Resource Allocation
+                                                                        server cluster
+                                                                                             apply asynchronous primary-backup replication. The tracker
+       External
+        CDN
+                             3
+                                                                           d
+                                                                                         f
+                                                                                             system acts as the main control plane for HyperEdge. It con-
+                                                             c
+           1                                                                                 tains two main subcomponents. The first component serves
+                                       4                                                     as a “frontend” metadata store for end users. It maintains a
+                    Client                                       HyperEdge Device
+
+                                           Send Request                   e Fetch
+                                                                                             table that maps video ID to a list of Hdevices that cache the
+                                                                            Video            video. User devices query this tracker component when down-
+                                           Replay Data
+               Installed Library                                                             loading video segments from HyperEdge. The component
+               on User Devices     5                        Underutilized Resources
+                                                                                             also tracks user query statistics for analyzing content popu-
+                                                                                             larity distribution. The second tracker component manages
+                                                                                             Hdevices. It operates a database that maintains the state of
+Figure 2: HyperEdge architecture overview. The figure shows                                  Hdevices, such as their locations, bandwidth consumption,
+the main components of HyperEdge and its two primary work-                                   and disk utilization. The component leverages detailed Hde-
+flows - video downloading and content distribution.                                          vice information for making fine-grained resource allocation
+                                                                                             and video distribution decisions.
+                                                                                                The client-side library is linked into each video stream-
+quantifies the concrete cost savings of edge-assisted content                                ing application. It manages video transmission scheduling,
+delivery in a globally deployed system, while demonstrating                                  Hdevice filtering, pre-loading, and transport-level flow and
+its video delivery quality on par with centralized CDNs.                                     congestion control. The library is responsible for ensuring the
+                                                                                             quality of video playback experience to users.
+3   HyperEdge Overview
+                                                                                             Video downloading. Figure 2 illustrates the video down-
+Figure 2 shows the overall system architecture of Hyper-                                     loading process. 1 The client library requests the external
+Edge. The HyperEdge system consists of a client-side library                                 CDN to download the first few segments of the target video.
+that runs on end-user devices, a tracker cluster deployed in                                 Using the faster CDN minimizes the initial video loading
+ByteDance data centers, and a set of Hdevices with under-                                    time. The library stops downloading from the CDN once it
+utilized resources running in dispersed locations. An external                               establishes connections to the Hdevices. 2 In parallel to the
+CDN offers auxiliary support for content delivery.                                           first step, the library sends a request to the HyperEdge tracker
+   Each video is uniquely identified by an ID. Due to the                                    cluster. The request contains the ID of the target video. 3
+unique characteristics of short video streaming, we partition                                The tracker queries the content distribution map and returns a
+each video into equal-length (in duration) segments. The de-                                 list of Hdevices storing the video segments to the client. 4
+fault segment length is 10 seconds. The external CDN stores                                  The client establishes connections to the returned Hdevices,
+all videos. As this paper focuses on the design of HyperEdge,                                potentially applying NAT punching for Hdevices behind pri-
+we treat the external CDN as a black box; readers interested                                 vate networks. 5 The client library starts downloading the
+in their designs may refer to prior literature [40].                                         remaining video segments. To mask the low and unreliable
+   Hdevices are provisioned by third-party vendors.                                          transmission performance of Hdevices, the client receives
+ByteDance does not have direct ownership of their physical                                   video data concurrently from all connected Hdevices using a
+infrastructure. However, by renting from the vendors,                                        multipath transmission scheme.
+ByteDance is authorized to use the compute, storage, and
+network resources on each Hdevice. Each Hdevice runs an                                      Content distribution. Figure 2 also shows the content dis-
+authorized HyperEdge runtime that connects to our tracker                                    tribution process. a The tracker records per-video download
+system. This allows the tracker to apply centralized content                                 frequency over five-minute intervals, using it as feedback
+distribution policies on the distributed Hdevices.                                           metric to gauge video popularity. b The tracker tallies the
+   Each Hdevice stores a set of video files in its local memory                              available Hdevice resources in each region. This information
+and storage devices. Hdevices typically store whole videos,                                  is combined with video popularity to derive the optimal video
+instead of individual segments, so the tracker only needs to                                 caching distribution, both regionally and per-server. c Period-
+map video IDs instead of segment IDs. These Hdevices are                                     ically, each Hdevice sends a keepalive message to the tracker,
+purely passive: Clients pull videos from them, and the tracker                               reporting its status. d When replying to a keepalive, the
+instructs them to store specific videos. Such a design reduces                               tracker piggybacks a list of new video IDs that the Hdevice
+the computational requirement on Hdevices, a good match                                      should cache. e The Hdevice fetches each new video using
+for their weaker and heterogeneous computational power.                                      the download protocol analogous to the client library and
+   The tracker system runs geo-distributedly over multiple                                   stores the videos locally. f After the download completes,
+
+
+
+2638    23rd USENIX Symposium on Networked Systems Design and Implementation                                                          USENIX Association
+        Client                 Hdevices                                                                        a successful connection. Timeout in receiving responses
+               Try new con                                                                      Path 1
+                          nection                                                                              typically indicates that the device is behind a private networks.
+                                                                                            3
+                                                                                    1                          The library applies standard hole punching techniques [20]
+                                                                           e   st
+                   Success                Packet receive queue     Re
+                                                                        qu
+                                                                                        1
+                                                                                                3
+                                                                                                               to penetrate NAT barriers for such devices. Once established,
+                                          1   2   3                         ta
+                      Fail                                                Da                        Path 2     the client sends periodic keep-alive messages to maintain the
+                                                                               t            2
+                 Hole punch
+                           ing
+                                                                 Reques                                        connection with the device.
+                                                                        Data                2
+                                                                  Requ
+                                                                          est
+                                                                                    4                 Path n
+                                                                                                                  Even with hole punching, a client may not connect to all
+                    Download                                                                    5
+                                                                 Data
+                                                                                4
+                                                                                                               Hdevices in the tracker list. The library uses the first eight
+           Establishment complete.                                                      5
+           Start multipath transmission                                                                        successful connections for video transmission; we call this set
+                                                                                                               of devices the active transmission set. The design simultane-
+Figure 3: The process of client establishing connections (left)                                                ously serves as a filtering mechanism: Devices that complete
+and multi-path parallel transmission (right) with Hdevices.                                                    connection establishment faster typically indicate better net-
+                                                                                                               work conditions such as RTT. However, due to their unreliable
+                                                                                                               nature, devices in the active set may be disconnected or fluc-
+the Hdevice sends a confirmation back to the tracker. The                                                      tuate in their transmission speed. To maintain service quality,
+tracker updates the video ID to Hdevice map accordingly.                                                       the library continuously makes connection attempts to the
+                                                                                                               remaining Hdevices in the list, and keeps those connections
+                                                                                                               in a backup pool. It also monitors the performance of the con-
+4     Design Details
+                                                                                                               nections in the active set, including RTT, packet loss rate, and
+In this section, we detail the design of HyperEdge as                                                          transmission rate. Devices that drop below a quality threshold
+overviewed in §3. We first describe the communication library                                                  are immediately replaced by connections in the backup pool,
+loaded on each client (§4.1); next, we discuss how trackers                                                    maintaining the overall transmission quality of the active set.
+distribute video files and manage Hdevices (§4.2); lastly, we                                                     A connection to an Hdevice incurs low resource overhead
+detail the design of our Hdevice system (§4.3).                                                                (a few buffers and periodic keepalive messages), so the client
+                                                                                                               library keeps device connections for a short period (two min-
+                                                                                                               utes by default) after video download. We observe temporal
+4.1     Client-side Transmission                                                                               localities in our workloads: Some users revisit previously
+The client-side library plays a pivotal role in orchestrating                                                  viewed videos within a few minutes. Therefore, the library
+network transmission to download data from heterogeneous                                                       also implements a cache for video content with an aggressive
+video sources, including Hdevices and the CDN. The library                                                     expiration policy. Caching content longer has diminishing
+consists of three main modules: 1 a connection manager that                                                    returns based on our large-scale A/B tests; a larger DRAM
+queries the Tracker for appropriate Hdevices and establishes                                                   cache size also increases the crash rate on user devices.
+connections (§4.1.1); 2 a transmission scheduler that pro-                                                        HyperEdge encodes multiple bitrates of a video into sep-
+vides rapid and orderly data arrival in the presence of diverse                                                arate files. When requesting a video, the video application
+path qualities (§4.1.2); 3 a segment selector that switches                                                    selects a particular bitrate based on recent network statistics
+downloading between external CDN and HyperEdge to speed                                                        and fetches the corresponding file. HyperEdge currently does
+up playback initiation and handle failures graciously (§4.1.3).                                                not support dynamically switching bitrates during video play-
+                                                                                                               back, as it requires lengthy connection re-establishment and
+                                                                                                               adds complexity to the system. When the network fails to
+                                                                                                               sustain the current bitrate, HyperEdge falls back to the CDN
+4.1.1   Connection Management                                                                                  or switches to alternative Hdevices.
+The client library maintains connections to both CDN and
+Hdevices. We use standard approaches to establish connec-                                                      4.1.2   Multi-path Parallel Transmission Protocol
+tions to the external CDN, i.e., through content-agnostic DNS
+queries to nearby edge servers via HTTP [6]. The library                                                       To provide satisfactory video playback quality, HyperEdge
+caches CDN connections across video downloads to amortize                                                      needs to ensure video download throughput above an SLO
+the overhead of establishing connections.                                                                      RSLO . Since the performance of a single Hdevice is likely be-
+   For each requested video, a client receives a list of Hdevices                                              low this target, clients perform concurrent transmissions with
+that store the video data from the tracker (§4.2). By default,                                                 all Hdevices in the active set, with the goal of aggregating
+the list contains up to 20 Hdevices and their addresses; the                                                   their transmission throughput. This is, however, a challeng-
+client attempts to establish connections to all of them. The left                                              ing task. First, unlike traditional transport protocols, video
+of Figure 3 shows the procedure for establishing connections.                                                  data is transmitted along multiple network paths with distinct
+For each Hdevice, the client first sends a UDP packet directly                                                 path conditions. Second, in contrast to MPTCP algorithms,
+to the listed address. A response from the device signals                                                      the client is communicating with multiple data servers for a
+
+
+
+USENIX Association                                                      23rd USENIX Symposium on Networked Systems Design and Implementation                              2639
+                                                    Send a packet
+                                                  Socket
+                                                                                            Hdevice connection. The scheduler learns each path’s true
+                                                                                            performance by monitoring how many bytes actually arrive
+               Congestion Contol:                      Scheduler:
+                   Update CWND
+                                              …
+                                                        Calculate Packet Number             over time on the path and how long each packet takes – includ-
+                                                         Queue-Direct-Access
+                    Path1            Path2                                                  ing any retransmissions – rather than relying on a congestion
+               Reliability Layer:
+                 Global Receive Queue                  Global Request Queue
+                                                                                            window. It uses these measured performance to estimate the
+                  1 2 3      5    ..                    .. 8 7 6 5 4 3                      packet delivery speed on each path. When a path’s trans-
+                             6                              7           Packet lost
+
+                  1 2 6 ..       3    5 ..   …            .. 8 7 6
+                                                                          Return
+                                                                    9 5 4 …
+                                                                                            mission window frees up, the scheduler compares all paths’
+                  Path1     Path2
+                    Receive Queue
+                                                         Path1    Path2
+                                                                  ..
+                                                          Request Queue                     expected delivery speeds to predict how many packets each
+                       Each path has its own separate queue
+                                                                                            will finish before this one, and then pulls exactly the sequence
+                                                  UDP                                       number from the Global Request Queue that will slot into the
+                                 Receive a packet
+                Reply                        Multipath Parallel              Request with
+                                                                                            correct arrival order. The received video data sequence num-
+             data packet                      Transmission                    packet ID
+                                                                                            bers are placed in the Global Receive Queue and delivered to
+                                                                                            the application in sequence number order.
+                                                                                               Reliable Data Transmission: When the library schedules a
+Figure 4: A more detailed illustration of the HyperEdge multi-                              video request along a path, it records the sent timestamp of the
+path parallel transmission protocol                                                         request when inserting it into the path-local Request Queue.
+                                                                                            The library maintains a timer for each queue. When the timer
+                                                                                            expires, it locates outstanding requests in the Path Request
+single video segment. Lastly, the transmission scheme must si-                              Queue that does not have a corresponding reply in the Path
+multaneously guarantee in-order delivery of video data within                               Receive Queue, and picks those that have exceeded a timeout
+the playback deadline.                                                                      threshold. These requests (or their replies) are likely dropped
+   To address these challenges, we design a novel multi-path                                in the network. The library then removes them from the path-
+transmission protocol for HyperEdge, as shown in the right                                  local queue and reinserts them into the Global Request Queue.
+of Figure 3. The protocol uses a client-driven, pull-based                                  The request will later be scheduled to retransmit via a more
+transmission scheme, where the client schedules and requests                                efficient path. We don’t use path-local retransmission since
+individual video datagram from each Hdevice. The protocol                                   drops usually signal path problems. As dropped requests are
+is implemented as an application-layer protocol atop UDP; as                                closer to missing the playback deadline, insertion into the
+such, each requested datagram contains MTU-size-bounded                                     global queue ensures timely retransmission on faster paths.
+video data. Figure 4 illustrates the detailed design of our
+protocol, including its core algorithms and workflows.                                      4.1.3   Hybrid CDN-HyperEdge Transmission
+   Multi-path scheduling algorithm: Simultaneously achiev-
+ing our aggregated throughput target and timely in-order                                    Video transmission using Hdevices has two inherent weak-
+data delivery is nontrivial. Prior multi-path transmission                                  nesses. First, establishing connection to an Hdevice incurs
+approaches meet at most one of the two requirements:                                        higher latency, particularly due to NAT hole-punching. Such
+MPTCP [13, 19] protocols provide low-latency data stream                                    latencies typically exceed our video startup SLOs; we provide
+delivery, but their transmission bandwidth is bounded by the                                quantitative measurements in 6.3). Second, clients may experi-
+highest-bandwidth link; P2P file sharing systems [3,9,10] can                               ence churns in connected Hdevices during video transmission,
+aggregate downloading throughput of multiple Hdevices, but                                  leading to an unsatisfactory user experience.
+do not provide any guarantees to meet playback deadlines.                                      HyperEdge applies a hybrid CDN-HyperEdge transmission
+   We design a novel transmission protocol that fully utilizes                              scheme to address both issues. The client library transmits
+the bandwidth of each connected Hdevice, while ensuring                                     the first few video segments from the CDN, which guaran-
+timely video stream delivery. Our main design innovation is to                              tees timely playback after opening a video, while it waits
+schedule requests based on predicted data arrival time: When                                for Hdevice connection setup. After Hdevice connections are
+a transmission window opens for a path, the scheduler predicts                              established, subsequent video segments are requested from
+the arrival time of the requested data based on estimated path                              HyperEdge. A key design choice is determining when to per-
+condition; it then picks a packet index that minimizes playback                             form the switch. The cost of transmitting data from CDN is
+deadline violation. This out-of-order transmission scheme                                   about 35% higher than that from HyperEdge. To optimize
+differs from previous solutions.                                                            for overall cost, the switching point should be as early as
+   Concretely, the client maintains four queues for each video                              possible, while not impacting video playback quality.
+transmission (Figure 4): a Global Request Queue that stores                                    To that end, the client library concurrently connects to Hde-
+the sequence number of all pending requests; a Global Re-                                   vices while downloading from CDN. Our UDP-based con-
+ceive Queue that stores the sequence number of all received                                 nection setup is lightweight, so it has minimum impact on
+(but undelivered) data; a Path Request Queue and a Path                                     concurrent video transmission from CDN. When Hdevice con-
+Receive Queue that function similarly but for each active                                   nections are established, the client performs additional checks
+
+
+
+2640   23rd USENIX Symposium on Networked Systems Design and Implementation                                                          USENIX Association
+before switching to HyperEdge. If the remaining video data        vices to determine the number of copies for each video
+falls below a threshold, switching to HyperEdge has little        (proj_video_traffic/avg_dev_speed). The calculation ensures
+economic benefit, so the client completes all transmissions       sufficient overall Hdevice capacity to serve each video. Note
+from the CDN. Next, the library estimates the network band-       that the above calculations are done in a per-region-basis to
+width and reliability of Hdevice based on measured RTTs and       account for the geographic locality of video popularity.
+packet drops. Poor measured network quality may jeopardize           Subsequently, the tracker applies an optimization function
+transmission quality, so the library prefers the more stable      to determine the distribution of video copies to Hdevices. The
+CDN. Lastly, if the client loses connections to too many Hde-     optimizer takes two types of constraints into consideration.
+vices (missing keepalive responses), the client also refrains     First, it considers the capacity and status of online Hdevices
+from switching to HyperEdge.                                      including utilization of storage and bandwidth, network RTTs
+   To minimize the impact of Hdevice unreliability on user        and reliability, and already allocated video files. We elab-
+experience, the library switches video transmission back to       orate device status reporting in §4.2.3. The distribution is
+CDN in certain situations. First, if the preloading of the next   constrained to ensure that the allocated Hdevice resources can
+segment fails to complete when the segment is viewed, it          meet the projected user demand. Second, the optimizer also
+signals poor HyperEdge network conditions and the client          balances file distribution across ISPs, geographical regions,
+switches back to CDN. Second, any error reported by Hyper-        and device types. These constraints serves to reduce risks of
+Edge triggers a switch. Note that after the switch, the client    correlated failures and to balances load across key dimensions.
+stays with the CDN for all remaining segments of the video.       The optimizer finally outputs a mapping between video IDs
+In our experience, this “reverse-switch” happens rarely. The      to Hdevices which serves as the target file distribution for the
+tracker carefully selects Hdevices with decent network con-       next time interval.
+nectivity; it includes redundant devices to handle potential         Instead of eagerly pushing new video file assignment to
+failures and churns. The multi-path protocol also aggressively    each Hdevice, the tracker reuses the existing Hdevice-tracker
+deprioritizes devices with poor transmission quality. We im-      message protocol. In particular, the tracker piggybacks the
+plement this scheme only as a fail-safe measure.                  file assignment in its response to each Hdevice keepalive mes-
+                                                                  sage. We discuss details of this message protocol in §4.3. To
+                                                                  download newly assigned video files, Hdevice applies a trans-
+4.2     Tracker                                                   mission protocol similar to that of the client (§4.1). However,
+The tracker system is responsible for the distribution of video   Hdevices typically have lower hardware specifications that
+data to Hdevices. Video content distribution is critical to the   user devices; video redistribution also has no real-time play-
+overall efficiency and QoE assurance of HyperEdge: Highly         back deadlines. Therefore, Hdevices set less aggressive trans-
+popular videos need to be stored on enough Hdevices that are      mission parameters for downloading. Once the Hdevice suc-
+geographically closer to users to meet demands. The tracker       cessfully retrieves the new video files, it informs the tracker,
+also assigns responsible Hdevices to clients upon video re-       which updates its video-to-Hdevice mapping database.
+quests. Poor device selection would result in subpar video           Based on our deployment experience, this redistribution
+downloading experience and load balancing issues across           strategy quickly adapts to video popularity changes and
+Hdevices. In contrast to prior P2P systems, the centralized       promptly increases file coverage to meet dynamic demands.
+view of the tracker improves both decision-making processes.      However, video redistribution consumes network bandwidth
+First, the tracker is capable of collecting video popularity      of both Hdevices and the CDN, which is a scare resource
+statistics across different regions. This enables the tracker     during peak hours. To control bandwidth usage, video redis-
+system to make globally-optimal decisions to distribute video     tribution is temporarily paused during peak hours. Instead,
+data based on real-time demand information. Second, the           only videos that surge to exceptionally high popularity within
+tracker monitors real-time performance metrics of all online      a 5-minute interval will be redistributed to more Hdevices.
+Hdevices. This ensures Hdevice assignment that satisfies our
+transmission requirements.                                        4.2.2   Bandwidth Resource Management
+
+4.2.1   Video File Distribution                                   The above discussion assumes homogeneous user demands
+                                                                  and Hdevice bandwidth resources. In reality, HyperEdge faces
+Since all client video requests go through the tracker sys-       two forms of heterogeneity. First, HyperEdge is a shared in-
+tem, we maintain global demand statistics at the tracker. At      frastructure that serves multiple businesses (e.g., Douyin, Tik-
+each distribution interval, the tracker collects the number       Tok and Xigua). Each business is further divided into different
+of views for each video. Then it calculates the projected         domains, each with a priority level. Second, Hdevices are pro-
+traffic demand of each video based on the view statistics         visioned by different vendors, each having its own network
+and the video file size (views × file_size/interval). Next, the   resource constraints. The tracker, therefore, needs to perform
+tracker uses the average transmission bandwidth of Hde-           Hdevice bandwidth allocation to minimize inter-business and
+
+
+
+USENIX Association                        23rd USENIX Symposium on Networked Systems Design and Implementation              2641
+inter-regional resource contention, while respecting priori-        list includes redundant devices to compensate for estimation
+ties in the business domains. The tracker performs a greedy         errors. The client transmission protocol further ensures play-
+algorithm to match bandwidth resources to business domains.         back quality through direct measurement of Hdevice metrics.
+Decomposing business requirements: The tracker first calcu-
+lates the bandwidth requirement bw_need rs for business s in
+region r using the fluctuation coefficient of s multiplied by the
+                                                                    4.3     HyperEdge Devices
+historical peak bandwidth in r. The capacity allocated to s in      The central role of a Hdevice is to store and serve video data
+r is then bw_allocrs = bw_need rs /bw_need r ∗ capr , where         to clients. Each video is stored as a standard file in the Linux
+bw_need r represents the estimated bandwidth requirement            file system. We leverage the OS buffer cache for in-memory
+for all businesses in r, and capr is the calibrated bandwidth       caching of video data. For content integrity, we divide each
+available in that region.                                           file into smaller chunks. A checksum is calculated and stored
+Decomposing vendor allocation: In a given region r, the             alongside each chunk.
+bandwidth allocated by a vendor v to a specific business s is          When a Hdevice joins HyperEdge, it establishes a long-
+determined by bw_allocrvs = caprv /capr ∗ bw_allocrs . The          lived WebSocket connection with the tracker. Establishing
+bandwidth bw_allocrvd that v can allocate to a business do-         this connection is simpler, since the tracker exposes public
+main d within r is the sum of bw_allocrvs for all the busi-         IPs. The Hdevice sends a keepalive message to the tracker
+nesses in d. The expected bandwidth that v can allocate to d        every 30 seconds. It piggybacks real-time device performance
+in r is then exp_bwrvd = exp_bwd ∗ bw_allocrvs /bw_allocv ,         metrics in its keepalive message; the tracker attaches file
+where exp_bwd is derived from previous business data and            distribution list in the keepalive response (§4.2.1).
+our growth expectations for that business.
+Bandwidth allocation: Lastly, we use a greedy algorithm to
+                                                                    4.3.1   Video Storage Replacement
+match bandwidth resource instances to each business domain.
+The algorithm prioritizes resource allocation to domains with       Due to the limited storage space, Hdevice may not have ca-
+higher priority.                                                    pacity to store all video files as instructed by the tracker.
+                                                                    When capacity is reached, Hdevice deletes old video files to
+4.2.3   Hdevice Management and Assignment                           make space for newly downloaded videos. This replacement
+                                                                    decision is made locally by Hdevice, i.e., the tracker is not
+The tracker also maintains detailed information of each active      involved in the process. Performing replacement requires both
+Hdevice. When a Hdevice joins the HyperEdge, it contacts            tracking information about each stored file and selecting the
+the tracker system and reports its current region, IP address,      files to be replaced. The storage and computational overhead
+and associated vendor. Each Hdevice also periodically sends         grows linearly with more Hdevices and videos. We therefore
+performance metrics such as CPU, disk, and bandwidth uti-           assign this responsibility to all Hdevices for scalability.
+lization to the tracker. The default reporting interval is 30          A good replacement strategy is crucial to ensuring satis-
+seconds. If the tracker fails to hear from a Hdevice, it assumes    factory video transmission performance for HyperEdge. We
+it has failed and removes it from the active Hdevice pool.          apply the following heuristics to rank the replacement priority.
+   As detailed in §4.3, each Hdevice reports its operating sta-     First, videos not currently transmitting have a higher chance
+tus, including CPU, disk, and bandwidth utilization, in its         of being replaced. Second, we prefer replacing videos with
+keepalive protocol message to the tracker. The tracker records      lower access frequency. Lastly, videos not currently cached
+these metrics, as well as the region, IP address, and the associ-   in memory are more likely to be replaced. If multiple videos
+ated vendor, of each online Hdevice. It uses this information       have the same replacement rank, we pick the one with size
+for file distribution (§4.2.1) and Hdevice assignment.              closest to the new video to reduce fragmentation.
+   In particular, when a client requests a video, the tracker
+selects the top K candidate Hdevices that store the file (20 by     4.3.2   Unified Hdevice Management Platform
+default). The selection process begins with a filtering phase,
+in which devices with high bandwidth utilization, located in        Unlike centrally managed data centers or clusters, Hdevices
+different ISPs or regions from the client, or incompatible NAT      vary significantly in their hardware platform (e.g., x86_64,
+types are ruled out. The remaining candidates are scored and        MIPS, ARM32, and ARM64), software stack (e.g., Linux,
+ranked based on their reported operation metrics, distance to       OpenWrt, and Android), performance, and reliability. This
+client and NAT matching, as well as historical statistics such      heterogeneity presents challenges in software deployment
+as connection stability and quality. Finally, the tracker returns   and system state monitoring. To manage these highly diverse
+the K highest-scoring Hdevices to the client.                       devices, we develop an Infrastructure as a Service (Iaas) com-
+   It should be noted that this assignment serves only as an        ponent as a unified management platform. The platform lever-
+estimation of Hdevice quality. Since the tracker lacks perfect      ages Kubernetes to orchestrate Docker containers running on
+visibility into real-time, end-to-end network conditions, the       each Hdevice. When a Hdevice connects to HyperEdge, the
+
+
+
+2642    23rd USENIX Symposium on Networked Systems Design and Implementation                                 USENIX Association
+platform probes the instruction set architecture (ISA) and the                       the CDN is auxiliary, only facilitating initial video download-
+operating system running on the Hdevice. It then configures                          ing and HyperEdge fallback. As such, CDN handles just 10%
+its cross-compiler toolchain to produce a Hdevice software                           of the total user traffic on average. To handle 30 TB/s of peak
+executable for the target execution environment. Software                            user traffic, the annual CDN cost is thus around $36M.
+updates are pushed to the Hdevices in a similar way. The                                Next, we analyze the cost of operating HyperEdge, i.e.,
+process improves operational efficiency by simplifying and                           UHE , which comprises three parts. First, HyperEdge rents
+automating the software deployment and update cycles.                                edge devices from third-party vendors. The hardware and
+   The platform also performs continuous monitoring of Hde-                          electricity cost of these devices are fractional of those of data
+vice status, offering more fine-grained visibility than the                          center servers. As illustrated in §2.2, they use public networks,
+tracker. It exposes real-time runtime and contextual infor-                          which are substantially cheaper than dedicated commercial
+mation, such as geographic location, network type, and avail-                        networks in our deployed market. Moreover, the computation
+able memory, via a unified on-device API. This platform has                          and network resources are under-utilized on these devices; our
+proven invaluable for operational simplicity. Failures such as                       content delivery shares the cost with other services deployed
+hardware malfunctions, OS crashes, and resource exhaustion                           on the devices. Consequently, these third-party vendors offer
+are promptly detected and automatically resolved. Without                            attractive prices: On average, the offered unit traffic cost of
+such infrastructure, identifying and mitigating failures across                      edge networks is roughly 55% that of a CDN (edge vendors
+heterogeneous device types would be more labor-intensive                             also charge by peak usage). With 30 TB/s of peak traffic, the
+and error-prone. The system enables reaction to frequent                             annual cost of the edge network is approximately $198M.
+device churns within seconds. Moreover, the platform dynam-                             Next, HyperEdge deploys around 20 dedicated servers
+ically adds or removes Hdevices to accommodate fluctuating                           to run HyperEdge trackers and management services in
+traffic demands across regions. This dynamic resource al-                            ByteDance’s data centers for 30 TB/s of peak traffic. The
+location provides performance and reliability guarantees to                          cost of running these servers (including hardware, network,
+HyperEdge, while minimizing resource over-provisioning.                              power, and maintenance) is comparable to other cloud compa-
+                                                                                     nies, at roughly $72K per year. Lastly, for 30 TB/s of traffic,
+                                                                                     we employs 20 dedicated engineers and system administra-
+5     Cost Analysis
+                                                                                     tors to maintain HyperEdge. With an average annual salary
+Our main motivation of leveraging edge devices for content                           of $100K, the manpower cost is roughly $2.4M per year.
+distribution is cost efficiency. Does HyperEdge actually re-                            Besides operational cost within HyperEdge, edge devices
+duce the cost of serving video content to users? In this section,                    also fetch video data from the CDN when they are not avail-
+we present detailed economic analysis of deploying Hyper-                            able within the edge network. This data sourcing, hypotheti-
+Edge and demonstrate its cost saving benefits.                                       cally, incurs additional CDN cost (CH←C ) if done on-demand.
+   As explained in §3 and §4, our content delivery architecture                      We design a prefetching strategy, based on traffic patterns, to
+uses a mixture of HyperEdge and traditional CDNs to handle                           minimize such cost. Specifically, services that use our con-
+user video demands. The total cost, Ctotal , of content delivery                     tent delivery network show clear diurnal traffic patterns. As
+is modeled using the following formula:                                              shown in Figure 6, user demand during peak hours (18:00 –
+                                                                                     22:00) is 20% - 5× higher than that of the non-peak hours.
+           Ctotal = UHE ∗ THE +UCDN ∗ TCDN +CH←C                                     Exploiting such patterns, HyperEdge prefetches most video
+                                                                                     content from the CDN “asynchronously”, before demand ar-
+   In the formula, UHE and UCDN represent the unit traffic                           rives. The same graph shows that HyperEdge heavily relies on
+cost of HyperEdge and CDN, respectively. Note that they                              the under-utilized CDN bandwidth during non-peak hours for
+encompass all operational costs (e.g., hardware, manpower,                           fetching data to the edge. This cost-aware scheme virtually
+network bandwidth) to serve a unit of traffic. THE and TCDN                          eliminates the additional CDN cost CH←C .
+are the total traffic handled by HyperEdge and CDN † . Lastly,
+CH←C is the cost of sourcing data from CDN to HyperEdge.
+                                                                                     Cost decomposition and saving We illustrate the cost de-
+   To avoid revealing sensitive traffic information at
+                                                                                     composition of HyperEdge in Figure 5. The cost of the edge
+ByteDance, our analysis is based on the cost of handling
+                                                                                     network dominates, at 83.7%. The hardware and manpower
+30 TB/s of peak user traffic. ByteDance purchases CDN ser-
+                                                                                     cost are negligible, combined to be around 1%. The total cost
+vices from external providers. In the market where ByteDance
+                                                                                     of operating HyperEdge is roughly $235M per year. To handle
+operates, CDN providers charge by peak traffic, not the actual
+                                                                                     the same total peak traffic (30 TB/s) using CDN alone costs
+usage. The monthly traffic cost of CDN, i.e., UCDN , is around
+                                                                                     $360M per year. Therefore, our HyperEdge system offers a
+$1 per MB/s in our deployed market. We do not further break
+                                                                                     35% overall cost reduction for content delivery at ByteDance.
+down the cost of CDN, since its operation is outside the man-
+                                                                                        Recognizing the cost saving benefits, ByteDance has been
+agement of ByteDance. Our hybrid architecture ensures that
+                                                                                     gradually shifting user video traffic from monolithic CDN to
+    † As explain later, cost is calculated by peak traffic handled by each system.   HyperEdge in our production network. Figure 7 shows histor-
+
+
+
+USENIX Association                                     23rd USENIX Symposium on Networked Systems Design and Implementation                     2643
+                                                                                                                                                                               4x
+
+
+
+
+                                                  Traffic Normalized to the Peak (%)
+                                                                                       100   HyperEdge Traffic                                                                                    Cost Saving
+                                       0.03%                                                 Traffic for sourcing from CDN                                                                        HyperEdge Traffic
+                                                                                                                                                                               3x
+
+
+                                                                                                                                                              Percentage (%)
+                                                                                        80
+
+                                                                                        60                                                                                     2x
+      83.73%                            15.22%
+                                                                                        40
+                                                                                       00
+                                                                                                                                                                                 x
+                                                                                       02:00
+                                                                                         :00
+                                                                                        20
+                                                                                       04
+                                       1.01%                                           06:00
+                                                                                         :00
+                                                                                       08
+                                                                                       10:00
+                                                                                       12:00
+                                                                                         :00
+                                                                                         0                                                                                         Janu     May                       emb er
+                                                                                       14:00
+                                                                                       16:00
+                                                                                                                                                                                            March                Nov
+               Edge Traffic   CDN Traffic                                                                                                                                                                                ber
+                                                                                       18:00 Stop Sourcing
+                                                                                       20
+                                                                                       22:00
+                                                                                         :00 Restart Sourcing                                                                                   ary              Sep  tem
+               Manpower       Tracker Servers                                                               Time in a Day                                                                                        July
+
+ Figure 5: HyperEdge cost decomposi-             Figure 6: HyperEdge and CDN sourcing traffic                                                             Figure 7: HyperEdge traffic per-
+ tion                                            patterns within a day                                                                                    centage and total savings ratio
+
+
+ical data on the traffic usage ratio handled by HyperEdge, and                                                                  CDN           HyperEdge                                                   CDN             HyperEdge
+the corresponding savings ratio, which increases linearly with                                                       1.0
+                                                                                                                                                                                            1.0
+                                                                                                                     0.8
+
+
+
+                                                                                                                                                                         Normalized Speed
+higher traffic proportion. Our deployment statistics clearly
+validate the economic benefits of our HyperEdge design.                                                                                                                                     0.9
+                                                                                                                     0.6
+                                                                                                               CDF                                                                          0.8
+                                                                                                                     0.4
+                                                                                                                     0.2                                                                    0.7
+6     Evaluation
+                                                                                                                     0.0 0.80   0.85   0.90     0.95   1.00                                 0.6 1     2      3        4   5    6      7
+HyperEdge has been operational within ByteDance for over                                                                          Percentage                                                                     Day
+six years. We conducted large-scale A/B testing consisting
+                                                                                                                   (a) CDF of transmission speed                                            (b) Box plot for per-day data
+of two comparison groups in deployed production networks.
+The first group serves user video request solely from CDN,
+while the second group uses our HyperEdge system. Each                                                         Figure 8: Video transmission speed of CDN and HyperEdge.
+group includes approximately ten million participants, gen-                                                    Data are collected over a period of a month. The box plot
+erating billions of video playbacks daily. The comparison                                                      groups data into days of a week.
+system, ByteDance CDN, is an industry-leading content de-
+livery network which is optimized for both long and short
+                                                                                                               prise, the gap between CDN and HyperEdge is only marginal.
+video services. Our results indicate that HyperEdge could
+                                                                                                               Furthermore, we observe that even HyperEdge’s 99th per-
+closely match the quality of experience (QoE) offered by Hy-
+                                                                                                               centile tail speed is within 2.58% that of CDN. The main
+perEdge CDN, while reducing operational cost by significant
+                                                                                                               contributor of HyperEdge’s fast transmission speed is our
+margin. This demonstrates the potential of HyperEdge as a
+                                                                                                               novel multi-path parallel transmission protocol (§4.1.2). By
+reliable content delivery solution. Due to our confidentiality
+                                                                                                               effectively aggregating the lower network bandwidth of indi-
+policy, all data are normalized to the maximum value obtained
+                                                                                                               vidual edge devices, our transmission protocol provides video
+in each experiment (across all systems) unless otherwise spec-
+                                                                                                               downloading performance comparable to traditional CDN.
+ified. Data outliers are not shown in the graphs. For simplicity,
+                                                                                                               When grouping data into days of a week, we observe that the
+we refer to ByteDance CDN simply as CDN in this section.
+                                                                                                               results remain stable throughout the week for both systems.
+                                                                                                               HyperEdge thus can consistently provide speed on par with
+6.1      Video Transmission Speed                                                                              CDN without significant variance.
+We first examine the video transmission speed of HyperEdge
+(excluding initial CDN download), where speed is calculated                                                    6.2           Video Rebuffering Rate and Time
+as the average downloading throughput of all users in five-
+minute intervals. Higher transmission speed correlates di-                                                     Figure 9 shows the rebuffering rate, which counts the number
+rectly to higher video bitrate and lower rebuffering rate. Fig-                                                of rebuffering events, and the rebuffering time, which mea-
+ure 8(a) compares the CDF of transmission speed between                                                        sures the duration of rebuffering in each video, during various
+CDN and HyperEdge over a one-month period; Figure 8(b)                                                         hours-f-day over one month. Both CDN and HyperEdge ex-
+groups the data into days-of-the-week to show fine-grained                                                     perience increased rebuffering events during peak hours, such
+temporal information. The results indicate that the median                                                     as 6pm to 8pm. However, the relative difference between the
+transmission speed of CDN is 2.89% higher than that of Hy-                                                     two systems is small: for rebuffering rate, the median (99th
+perEdge. CDN achieves higher speed mainly due to better                                                        percentile) of HyperEdge is 6.41% (4.51%) higher than that
+server hardware and faster network infrastructure. To our sur-                                                 of CDN respectively; HyperEdge also achieves median (99th
+
+
+
+2644      23rd USENIX Symposium on Networked Systems Design and Implementation                                                                                                                        USENIX Association
+                                                                                                                                                                                                                                  Rebuffer Rate              Waste Rate
+                                CDN           HyperEdge                                   CDN           HyperEdge                                                                                                                 Rebuffer Time
+                  0.8                                                                                                                    1.0                                                                             15
+
+
+
+
+                                                                                                                    Normalized ES-Time
+                  0.7                                                       0.5                                                          0.9                                                                             10
+
+
+
+Normalized Time                                           Normalized Time                                                                                                                     Percentage (%)
+                  0.6                                                       0.4                                                          0.8                                            SLO                               5
+                  0.5                                                                                                                                                                                                     0
+                                                                            0.3                                                          0.7
+                  0.4                                                                                                                                                                                                     5
+                                                                            0.2                                                          0.6
+                  0.3                                                                                                                             21-
+                                                                                                                                                  18-
+                                                                                                                                                  15-
+                                                                                                                                                  12-
+                                                                                                                                                      23
+                                                                                                                                                      20
+                                                                                                                                                      17
+                                                                                                                                                      14                                                                 10
+                                                                                                                                                                                                                                  5s             10s          15s
+                                                                                                                                                  9-1
+                                                                                                                                                  6-8
+                                                                                                                                                  3-5 1
+                                                                                                                                                                  Period (Hour)                                                             Segment Size
+                                                                                                                                                  0-2
+                        0-2   3-5
+                                        23
+                                                                                  0-2   3-5
+                                    21-
+                                    18- 20                                                    21-
+                                                                                              18- 23
+                                                                                                  20
+                                    15-
+                                    12- 17
+                                        14
+                                        1                                                     15-
+                                                                                              12- 17
+                                                                                                  14
+                                                                                                  1
+                                    9-1                                                       9-1
+                                    Period (Hour)                                             Period (Hour)
+                                    6-8                                                       6-8
+
+                                                                                                                        Figure 10: Normalized Hy-                                                Figure 11: Impact of dif-
+                         (a) Rebuffering Rate                                      (b) Rebuffering Time                 perEdge establishment time.                                              ferent segment sizes on re-
+                                                                                                                        The dotted line shows the                                                buffering and preloading
+Figure 9: Comparing video rebuffering metrics between CDN                                                               video startup SLO.                                                       wastage.
+and HyperEdge during various hours-of-day over one month.
+                                                                                                                                                              CDN           HyperEdge                                                   CDN            HyperEdge
+                                                                                                                                               1.00                                                                      0.35
+
+
+
+
+                                                                                                                        Normalized Cache Hit                                                      Normalized Seek Time
+percentile) rebuffering time within 3.41% (4.57%) that of                                                                                      0.99                                                                      0.30
+CDN. Even during peak hours, HyperEdge maintains similar                                                                                       0.98
+                                                                                                                                                                                                                         0.25
+rebuffering performance relative to CDN. Our results demon-                                                                                    0.97
+strated that HyperEdge can maintain similar user-perceived                                                                                     0.96                                                                      0.20
+experience in terms of video playback smoothness compared                                                                                      0.95                                                                      0.15
+                                                                                                                                                      0-2   3-5
+                                                                                                                                                                      23
+                                                                                                                                                                                                                                0-2   3-5
+                                                                                                                                                                  21-                                                                       21- 23
+to traditional CDN. Our multi-path transmission protocol both                                                                                                     18-
+                                                                                                                                                                  15-
+                                                                                                                                                                  12-
+                                                                                                                                                                  9-1
+                                                                                                                                                                      20
+                                                                                                                                                                      17
+                                                                                                                                                                      14
+                                                                                                                                                                      1
+                                                                                                                                                                                                                                            18-
+                                                                                                                                                                                                                                            15-
+                                                                                                                                                                                                                                            12-
+                                                                                                                                                                                                                                            9-1
+                                                                                                                                                                                                                                                20
+                                                                                                                                                                                                                                                17
+                                                                                                                                                                                                                                                14
+                                                                                                                                                                                                                                                1
+                                                                                                                                                                  Period (Hour)                                                              Period (Hour)
+                                                                                                                                                                  6-8                                                                       6-8
+provides high aggregating speed and masks Hdevice connec-
+tion unreliability; initial parallel CDN download hides the
+influence of long connection time with Hdevices.                                                                              Figure 12: Cache hit ra-                                                  Figure 13: Video seek time
+                                                                                                                              tio of CDN and HyperEdge                                                  of CDN and HyperEdge
+                                                                                                                              over one month.                                                           over one month.
+6.3                      HyperEdge Establishment Time
+We leverage faster CDN establishment to ensure satisfactory
+                                                                                                                    frequently request for next videos during playback, preloading
+video startup time before switching to HyperEdge. However,
+                                                                                                                    larger segments can lead to lower utilization of the preloaded
+the sooner the clients can establish connection to Hdevices,
+                                                                                                                    data; smaller preloaded segments, however, risk introducing
+the larger percentage of video data is transmitted through Hy-
+                                                                                                                    more frequent rebuffering which impacts user experiences.
+perEdge, which reduces overall system cost. Figure 10 shows
+                                                                                                                       We test HyperEdge with various segment sizes (5s, 10s,
+the normalized HyperEdge establishment time measured on
+                                                                                                                    and 15s segments) in a real-world network. We measured
+the clients. The latency includes both tracker interactions and
+                                                                                                                    both QoE (represented using rebuffering rate and time) and
+establishing connections with Hdevices. For reference, we
+                                                                                                                    data waste rate, which is calculated by dividing the sum of un-
+also plot the video startup time SLO as a dotted line in the
+                                                                                                                    watched data by the total downloaded data across all clients.
+graph. The median (99th percentile) establishment latency
+                                                                                                                    Figure 11 shows the measurements normalized to a base-
+for HyperEdge exceeds the SLO by 3.08% (17.12%), mostly
+                                                                                                                    line that always preloads the entire video. The experiments
+due to additional tracker communication and longer Hdevice
+                                                                                                                    validate our hypothesis: reducing the segment size linearly re-
+connection setup. The absolute latency exceeding the SLO,
+                                                                                                                    duces data wastage, but simultaneously increases rebuffering
+however, is below a few hundred milliseconds. As such, most
+                                                                                                                    time in a linear fashion. Based on our production require-
+clients can quickly switch to HyperEdge for video download-
+                                                                                                                    ments on data cost and user experience, we eventually settle
+ing. This results in overall traffic costs reduction by around
+                                                                                                                    down on 10s segments which offer a satisfactory trade-off.
+35%. Our scheme therefore offers significant economic bene-
+fits but without compromising video streaming experience.
+                                                                                                                     6.5                               Cache Hit Ratio
+6.4                      Segment Size
+                                                                                                                     Both HyperEdge and CDN caches video content in memory:
+As discussed in §3, HyperEdge partitions each video into                                                             HyperEdge caches data in Hdevices, while CDN uses the
+equal-length segments. Both client-side video preloading and                                                         memory of edge servers. Accessing videos that are cached
+CDN-HyperEdge switching operate at per-segment granular-                                                             in memory improves overall downloading performance. We
+ity. Specifically, the client library only preloads one segment                                                      measured the cache hit ratio of HyperEdge and CDN over a
+ahead to minimize download data wastage. The size of each                                                            course of a month, and group the results into 3-hour buck-
+segment, however, poses a cost vs. QoE trade-off. As users                                                           ets, as shown in Figure 12. All results are normalized to the
+
+
+
+USENIX Association                                                                        23rd USENIX Symposium on Networked Systems Design and Implementation                                                                                                   2645
+maximum value. HyperEdge matches closely with the cache              peer resources for content distribution, they require users to
+hit ratio of CDN. CDN achieves near-optimal cache hit rate           maintain persistent storage of video files and provide con-
+for any workload, since its edge servers can cache content           tinuous upload bandwidth. Even with incentive mechanisms
+based on request patterns, refilling cache misses from higher        like tit-for-tat data exchange, peers retain autonomy to refuse
+hierarchies. Hdevices, however, rely solely on the tracker to        service requests and selectively store preferred content, which
+store video data. Our predictive deployment strategy outlined        risks persistent service unavailability [50].
+in §4.2 is a main contributor why our cache hit rate can match          To address reliability challenges, hybrid P2P-CDN architec-
+that of CDN. The tracker redistributes video data to Hdevices        tures have emerged [21, 43, 55, 65]. Notable examples include
+based on real-time video access patterns, both in temporal           RCA [5] and NetSession [69], which combine CDN guaran-
+and spatial localities. The global view of the tracker ensures       tees with P2P scalability. Nevertheless, the P2P components in
+optimal distribution of video files, improving the likelihood        these systems remain outside CDN operators’ administrative
+that popular videos in the region are cached in memory.              control, preventing granular file management and quality-of-
+                                                                     service enforcement across the hybrid infrastructure. In con-
+6.6    Seek Time                                                     trast, Hdevices are fully managed by ByteDance, and therefore
+                                                                     exhibit lower churn rate. Furthermore, HyperEdge remains
+Though most users view videos sequentially, in practice, some        compatible with a P2P transmission mechanism.
+may also perform random seek in video playback. The video               Multi-path protocols and scheduling algorithms. Multi-
+loading latency between user dragging the progress bar and           path transmission protocols leverage multiple interfaces on
+displaying the corresponding frame is critical to user expe-         modern hardware [11, 19, 23]. Protocols like MPTCP [19]
+rience. We measured this seek time for both HyperEdge and            and MPQUIC [13] augment single-path TCP and UDP to
+CDN, and plot the results normalized to the maximum value            enable end-to-end multi-path transmissions. MPTCP schedul-
+in Figure 13. Similar to previous experiments, the results are       ing has evolved from its original round-robin approach [27]
+grouped into 3-hour buckets. HyperEdge offers comparable             to the minRTT algorithm in the Linux kernel. Algorithms
+seek performance as traditional CDN: The median seek time            such as Otias [64], ECF [34], and BLEST [18] focus on opti-
+of HyperEdge is only 3.56% higher than that of CDN. When             mizing fast paths, potentially reducing aggregate throughput.
+a seek event occurs, HyperEdge clients likely have already es-       Redundancy schemes like TWC [61] and XLINK [70] ensure
+tablished connections with Hdevices. Our multi-path protocol         structured data transmission while addressing the HOL chal-
+then ensures data transmission speed comparable to CDN for           lenge, but impacts overall throughput. Unlike these scenarios,
+the new segment. Even in the rare case of HyperEdge network          our multi-path protocol transmits data from multiple data
+issues, the client library quickly switches video transmission       sources. Furthermore, our protocol ensures both aggregated
+to the CDN to avoid noticeable delay or playback failures.           path bandwidth, and timely in-order data delivery.
+
+7     Related Work                                                   8   Conclusion
+Content distribution systems. Most commercial CDNs                   HyperEdge is a new approach to content delivery by organiz-
+are infrastructure-based. Akamai deploys widely distributed          ing heterogeneous edge devices into a powerful platform that
+servers across the world [40], while Limelight [7] uses fewer,       ensures quality video service. Relying on a centralized control
+stronger servers in major cities. More recent CDN architec-          plane, HyperEdge distributes files to Hdevice to dynamically
+tures, such as LiveNet [33], build on a flat CDN overlay with        adjust resources according to the demand. Our design mini-
+a centralized controller for global optimization to reduce la-       mizes the computational requirements of Hdevice, aligning
+tency. However, CDNs incur significant infrastructure and            well with their diverse and generally weaker capabilities. To
+operational costs. The main goal of HyperEdge is to reduce           date, HyperEdge has been operating for six years, saving
+content distribution cost, while ensuring satisfactory QoE.          ByteDance hundreds of millions of dollars while maintaining
+   Traditional peer-to-peer (P2P) systems, such as BitTor-           performance comparable to commercial CDNs.
+rent [59], Kazaa [1], and IPFS [53], primarily focus on dis-
+tributed data storage and delivery through distinct file retrieval
+mechanisms - ranging from centralized-cache-based index-             Acknowledgments
+ing [3,9,60] to decentralized DHT-based lookup [28,30,37,46,
+49]. However, these systems optimize primarily for file down-        This work is partly supported by the National Key R&D Pro-
+load completion time rather than meeting real-time playback          gram of China under Grant No. 2022YFB2901700. Jialin
+deadlines, making them unsuitable for streaming applications.        Li is supported by a Singapore Ministry of Education, Aca-
+   Several studies have adapted P2P architectures, such as tree-     demic Research Fund Tier 1 (T1 251RES2104) and a Singa-
+based and mesh-based approch, for video-on-demand (VoD)              pore Ministry of Education, Academic Research Fund Tier 2
+services [14, 22, 26, 38, 51]. While these solutions leverage        (MOE-T2EP20222-0016).
+
+
+
+2646    23rd USENIX Symposium on Networked Systems Design and Implementation                                  USENIX Association
+References                                                                     [21] F REEDMAN , M. J. Experiences with coralcdn: A five-year operational
+                                                                                    view. In NSDI (2010), pp. 95–110.
+ [1] Kazaa. http://www.kazaa.com.
+                                                                               [22] G RAFFI , K., G ROSS , C., S TINGL , D., H ARTUNG , D., KOVACEVIC ,
+ [2] Statistics. https://www.statista.com/companies/c/25087492/                     A., AND S TEINMETZ , R. Lifesocial. kom: A secure and p2p-based
+     akamai-technologies.                                                           solution for online social networks. In 2011 IEEE consumer communi-
+ [3] The gnutella protocol specification v.0.4. http://www.clip2.com/               cations and networking conference (CCNC) (2011), IEEE, pp. 554–558.
+     GnutellaProtocol04.pdf, March 2001.                                       [23] G UO , Y. E., N IKRAVESH , A., M AO , Z. M., Q IAN , F., AND S EN , S.
+ [4] A DHIKARI , V. K., G UO , Y., H AO , F., VARVELLO , M., H ILT, V.,             Accelerating multipath transport through balanced subflow completion.
+     S TEINER , M., AND Z HANG , Z.-L. Unreeling netflix: Understand-               In Proceedings of the Annual International Conference on Mobile
+     ing and improving multi-cdn movie delivery. In IEEE INFOCOM                    Computing and Networking (2017).
+     (2012).                                                                   [24] G UPTA , T., C ROOKS , N., M ULHERN , W., S ETTY, S., A LVISI , L.,
+ [5] A DITYA , P., Z HAO , M., L IN , Y., H AEBERLEN , A., D RUSCHEL , P.,          AND WALFISH , M. Scalable and private media consumption with
+     M AGGS , B., AND W ISHON , B. Reliable client accounting for {P2P-             popcorn. In 13th USENIX symposium on networked systems design
+     Infrastructure} hybrids. In 9th USENIX Symposium on Networked                  and implementation (NSDI 16) (2016), pp. 91–107.
+     Systems Design and Implementation (NSDI 12) (2012).                       [25] H ASANOV, N. Content delivery networks (cdn): Opportunities, chal-
+ [6] B UYYA , R., PATHAN , M., AND VAKALI , A. Content delivery net-                lenges and future perspectives. Computer network technology (2023).
+     works, vol. 9. Springer Science & Business Media, 2008.                   [26] H EI , X., L IANG , C., L IANG , J., L IU , Y., AND ROSS , K. W. A mea-
+ [7] C ANALI , C., C ORBELLI , A., AND L ANCELLOTTI , R. Designing a                surement study of a large-scale p2p iptv system. IEEE transactions on
+     private cdn with an off-sourced network infrastructure: model and              multimedia 9, 8 (2007), 1672–1687.
+     case study. In Software, Telecommunications and Computer Networks,        [27] I MADUDDIN , M. F., P UTRADA , A. G., AND K ARIMAH , S. A. Multi-
+     SoftCOM (2018).                                                                path tcp scheduling performance analysis and congestion control on
+ [8] C HA , M., K WAK , H., RODRIGUEZ , P., A HN , Y.-Y., AND M OON ,               video streaming on the mptcp network. In International Conference on
+     S. Analyzing the video popularity characteristics of large-scale user          Software Engineering & Computer Systems and International Confer-
+     generated content systems. IEEE/ACM Transactions on networking 17,             ence on Computational Science and Information Management (2021).
+     5 (2009), 1357–1370.                                                      [28] I SDAL , T., P IATEK , M., K RISHNAMURTHY, A., AND A NDERSON , T.
+ [9] C LARKE , I., S ANDBERG , O., W ILEY, B., AND H ONG , T. W. Freenet:           Privacy-preserving p2p data sharing with oneswarm. ACM SIGCOMM
+     A distributed anonymous information storage and retrieval system. In           computer communication review 40, 4 (2010), 111–122.
+     Designing privacy enhancing technologies: international workshop on
+                                                                               [29] J IA , Y., BAI , G., S AXENA , P., AND L IANG , Z. Anonymity in peer-
+     design issues in anonymity and unobservability Berkeley (2001).
+                                                                                    assisted cdns: Inference attacks and mitigation. Proceedings on Privacy
+[10] C OHEN , B. Incentives build robustness in bittorrent. In Workshop on          Enhancing Technologies (2016).
+     Economics of Peer-to-Peer systems (2003).
+                                                                               [30] K AASHOEK , M. F., AND K ARGER , D. R. Koorde: A simple degree-
+[11] C ONINCK , Q., AND B ONAVENTURE , O. Multipath extensions for quic             optimal distributed hash table. In Peer-to-Peer Systems II: Second
+     (mp-quic). IETF, Individual Submission, Internet Draft draftdeconinck-         International Workshop, IPTPS 2003, Berkeley, CA, USA, February
+     quic-multipath-04 (2020).                                                      21-22, 2003. Revised Papers 2 (2003), Springer, pp. 98–107.
+[12] C UI , S., A SGHAR , M. R., AND RUSSELLO , G. Multi-cdn: Towards          [31] K ANG , S., AND Y IN , H. A hybrid cdn-p2p system for video-on-
+     privacy in content delivery networks. IEEE Transactions on Depend-             demand. In Future Networks (2010).
+     able and Secure Computing 17, 5 (2018), 984–999.
+                                                                               [32] K IHEI , B., DAVISON , T., O KPOK , M., AND S ONG , J. Comparison of
+[13] D E C ONINCK , Q., AND B ONAVENTURE , O. Multipath quic: Design                v2n stun/turn round trip time performance on a public 5g network. In
+     and evaluation. In Proceedings of the international conference on              IEEE 96th Vehicular Technology Conference (VTC2022-Fall) (2022).
+     emerging networking experiments and technologies (2017).
+                                                                               [33] L I , J., L I , Z., L U , R., X IAO , K., L I , S., C HEN , J., YANG , J., Z ONG ,
+[14] D O , T. T., H UA , K. A., AND TANTAOUI , M. A. P2vod: Providing               C., C HEN , A., W U , Q., ET AL . Livenet: a low-latency video transport
+     fault tolerant video-on-demand streaming in peer-to-peer environment.          network for large-scale live streaming. In Proceedings of the ACM
+     In 2004 IEEE International Conference on Communications (IEEE                  SIGCOMM 2022 Conference (2022).
+     Cat. No. 04CH37577) (2004), vol. 3, IEEE, pp. 1467–1472.
+                                                                               [34] L IM , Y.- S ., NAHUM , E. M., T OWSLEY, D., AND G IBBENS , R. J.
+[15] E GEVANG , K., AND F RANCIS , P. The ip network address translator             Ecf: An mptcp path scheduler to manage heterogeneous paths. In
+     (nat). Tech. rep., 1994.                                                       International conference on emerging networking experiments and
+[16] E GEVANG , K., AND F RANCIS , P. Rfc1631: The ip network address               technologies (2017).
+     translator (nat), 1994.                                                   [35] L IU , Y., G UO , Y., AND L IANG , C. A survey on peer-to-peer video
+[17] FARAHANI , R., A MIRPOUR , H., TASHTARIAN , F., B ENTALEB , A.,                streaming systems. Peer-to-peer Networking and Applications 1 (2008),
+     T IMMERER , C., H ELLWAGNER , H., AND Z IMMERMANN , R. Richter:                18–28.
+     hybrid p2p-cdn architecture for low latency live video streaming. In      [36] M A , Z., ROUBIA , S., G IROIRE , F., AND U RVOY-K ELLER , G. When
+     Mile-High Video Conference (2022).                                             locality is not enough: Boosting peer selection of hybrid cdn-p2p live
+[18] F ERLIN , S., A LAY, Ö., M EHANI , O., AND B ORELI , R. Blest: Blocking        streaming systems using machine learning. In IFIP TMA 2021-Network
+     estimation-based mptcp scheduler for heterogeneous networks. In IFIP           Traffic Measurement and Analysis Conference (2021).
+     networking conference and workshops (2016).                               [37] M AYMOUNKOV, P., AND M AZIERES , D. Kademlia: A peer-to-peer
+[19] F ORD , A., R AICIU , C., H ANDLEY, M., AND B ONAVENTURE , O. Tcp              information system based on the xor metric. In International workshop
+     extensions for multipath operation with multiple addresses. Tech. rep.,        on peer-to-peer systems (2002), Springer, pp. 53–65.
+     2013.                                                                     [38] NANAO , S., M ASUYAMA , H., K ASAHARA , S., AND TAKAHASHI ,
+[20] F ORD , B., S RISURESH , P., AND K EGEL , D. Peer-to-peer communica-           Y. Performance analysis of data block synchronization mechanism in
+     tion across network address translators. In USENIX Annual Technical            coolstreaming. In Proceedings of the 5th International Conference on
+     Conference, General Track (2005).                                              Queueing Theory and Network Applications (2010), pp. 53–58.
+
+
+
+
+USENIX Association                                 23rd USENIX Symposium on Networked Systems Design and Implementation                                       2647
+[39] N ETFLIX. Open connect appliance deployment guide. https:                   [57] W EI , D., Z HANG , J., L I , H., X UE , Z., P ENG , Y., AND H AN , R. Mul-
+     //openconnect.netflix.com/deploymentguide.pdf, 2018. Ac-                         tipath smart preloading algorithms in short video peer-to-peer cdn
+     cessed: April 26, 2025.                                                          transmission architecture. IEEE Network (2023).
+[40] N YGREN , E., S ITARAMAN , R. K., AND S UN , J. The akamai network:         [58] W EI , D., Z HANG , J., L I , H., X UE , Z., P ENG , Y., PANG , X., L IU , Y.,
+     a platform for high-performance internet applications. ACM SIGOPS                H AN , R., AND L I , J. Pscheduler: Qoe-enhanced multipath scheduler
+     Operating Systems Review (2010).                                                 for video services in large-scale peer-to-peer cdns. In IEEE INFOCOM
+[41] OTTO , J. S., S ÁNCHEZ , M. A., RULA , J. P., AND B USTAMANTE , F. E.            2024-IEEE Conference on Computer Communications (2024), IEEE,
+     Content delivery and the natural evolution of dns: remote dns trends,            pp. 2508–2517.
+     performance issues and alternative solutions. In Internet Measurement       [59] X IA , R. L., AND M UPPALA , J. K. A survey of bittorrent performance.
+     Conference (2012).                                                               IEEE Communications surveys & tutorials 12, 2 (2010), 140–158.
+[42] P ENG , G. Cdn: Content distribution network.            arXiv preprint     [60] X IE , H., AND YANG , Y. R. A measurement-based study of the skype
+     cs/0411069 (2004).                                                               peer-to-peer voip performance. In IPTPS (2007), vol. 7, Citeseer, pp. 1–
+[43] P ETERSON , R., AND S IRER , E. G. Antfarm: Efficient content distri-            6.
+     bution with managed swarms. In NSDI (2009), vol. 9, pp. 107–122.            [61] X ING , Y., X UE , K., Z HANG , Y., H AN , J., L I , J., L IU , J., AND L I ,
+[44] P LAGEMANN , T., G OEBEL , V., M AUTHE , A., M ATHY, L., T URLETTI ,             R. A low-latency mptcp scheduler for live video streaming in mobile
+     T., AND U RVOY-K ELLER , G. From content distribution networks to                networks. IEEE Transactions on Wireless Communications (2021).
+     content networks—issues and challenges. Computer Communications             [62] X U , D., K ULKARNI , S. S., ROSENBERG , C., AND C HAI , H.-K. Anal-
+     (2006).                                                                          ysis of a cdn–p2p hybrid architecture for cost-effective streaming media
+[45] R AMZAN , N., PARK , H., AND I ZQUIERDO , E. Video streaming over                distribution. Multimedia Systems 11 (2006), 383–399.
+     p2p networks: Challenges and opportunities. Signal Processing: Image        [63] X U , N., YANG , J., N EEDHAM , M., B OSCOVIC , D., AND VAKIL , F.
+     Communication 27, 5 (2012), 401–411.                                             Toward the green video cdn. In IEEE/ACM Int’l Conference on Green
+[46] R ATNASAMY, S., F RANCIS , P., H ANDLEY, M., K ARP, R., AND                      Computing and Communications & Int’l Conference on Cyber, Physical
+     S HENKER , S. A scalable content-addressable network. In Proceedings             and Social Computing (2010).
+     of the 2001 conference on Applications, technologies, architectures,        [64] YANG , F., WANG , Q., AND A MER , P. D. Out-of-order transmission for
+     and protocols for computer communications (2001), pp. 161–172.                   in-order arrival scheduling for multipath tcp. In International confer-
+[47] Reids key-value database. https://www.cloudflare.com/.                           ence on advanced information networking and applications workshops
+                                                                                      (2014).
+[48] S ILVA , S. D., M OKHTAR , S. B., C ONTIU , S., DANIEL , N., L AURENT,
+     R., AND E TIENNE , R. Privatube: Privacy-preserving edge-assisted           [65] Y IN , H., L IU , X., Z HAN , T., S EKAR , V., Q IU , F., L IN , C., Z HANG ,
+     video streaming [c]. In international middleware conference (2019),              H., AND L I , B. Design and deployment of a hybrid cdn-p2p system for
+     pp. 189–201.                                                                     live video streaming: experiences with livesky. In ACM international
+[49] S TOICA , I., M ORRIS , R., K ARGER , D., K AASHOEK , M. F., AND                 conference on Multimedia (2009).
+     BALAKRISHNAN , H. Chord: A Scalable Peer-to-Peer Lookup Service             [66] Z HANG , G., L IU , W., H EI , X., AND C HENG , W. Unreeling xunlei
+     for Internet Applications. In Proceedings of the 2001 Conference on              kankan: Understanding hybrid cdn-p2p video-on-demand streaming.
+     Applications, Technologies, Architectures, and Protocols for Computer            IEEE Transactions on Multimedia (2014).
+     Communications (San Diego, California, USA, 2001), SIGCOMM ’01,
+                                                                                 [67] Z HANG , R.-X., WANG , H., S HI , S., PANG , X., P ENG , Y., X UE , Z.,
+     Association for Computing Machinery.
+                                                                                      AND L IU , J. Enhancing resource management of the world’s largest
+[50] S TUTZBACH , D., AND R EJAIE , R. Understanding churn in peer-to-                {PCDN} system for {On-Demand} video streaming. In 2024 USENIX
+     peer networks. In Proceedings of the 6th ACM SIGCOMM conference                  Annual Technical Conference (USENIX ATC 24) (2024), pp. 951–965.
+     on Internet measurement (2006), pp. 189–202.
+                                                                                 [68] Z HANG , Y., G AO , C., G UO , Y., B IAN , K., J IN , X., YANG , Z., S ONG ,
+[51] TAN , B., AND M ASSOULIÉ , L. Optimal content placement for peer-to-             L., C HENG , J., T UO , H., AND L I , X. Proactive video push for op-
+     peer video-on-demand systems. IEEE/ACM transactions on networking                timizing bandwidth consumption in hybrid cdn-p2p vod systems. In
+     21, 2 (2012), 566–579.                                                           IEEE INFOCOM (2018), IEEE.
+[52] TANG , S., A LOWAISHEQ , E., M I , X., C HEN , Y., WANG , X., AND           [69] Z HAO , M., A DITYA , P., C HEN , A., L IN , Y., H AEBERLEN , A., D R -
+     D OU , Y. Stealthy peers: Understanding security and privacy risks               USCHEL , P., M AGGS , B., W ISHON , B., AND P ONEC , M. Peer-assisted
+     of peer-assisted video streaming. In 2024 54th Annual IEEE/IFIP                  content distribution in akamai netsession. In Proceedings of the 2013
+     International Conference on Dependable Systems and Networks (DSN)                conference on Internet measurement conference (2013).
+     (2024), IEEE, pp. 324–337.
+                                                                                 [70] Z HENG , Z., M A , Y., L IU , Y., YANG , F., L I , Z., Z HANG , Y., Z HANG ,
+[53] T RAUTWEIN , D., R AMAN , A., T YSON , G., C ASTRO , I., S COTT, W.,             J., S HI , W., C HEN , W., L I , D., ET AL . Xlink: Qoe-driven multi-path
+     S CHUBOTZ , M., G IPP, B., AND P SARAS , Y. Design and evaluation                quic transport in large-scale video services. In SIGCOMM (2021).
+     of ipfs: a storage layer for the decentralized web. In Proceedings of the
+     ACM SIGCOMM 2022 Conference (2022), pp. 739–752.                            [71] Z IRNGIBL , M., J OYNER , C., S TULZ , L., D RAGONE , C., P RESBY,
+                                                                                      H., AND K AMINOW, I. Larnet, a local access router network. IEEE
+[54] VO , V., L AI , S., Y UAN , X., N EPAL , S., AND L I , Q. Oblivcdn: A            Photonics Technology Letters (1995).
+     practical privacy-preserving cdn with oblivious content access. arXiv
+     preprint arXiv:2501.07262 (2025).
+[55] V U , L., G UPTA , I., NAHRSTEDT, K., AND L IANG , J. Understand-           A      Experience and Lessons
+     ing overlay characteristics of a large-scale peer-to-peer iptv system.
+     ACM Transactions on Multimedia Computing, Communications, and               The Evolution from Single-Path Transmission to Multi-
+     Applications (TOMM) 6, 4 (2010), 1–24.
+                                                                                 Path Transmission: The multi-path transmission protocol
+[56] WANG , H., Z HANG , R., L I , C., X UE , Z., P ENG , Y., PANG , X.,
+     Z HANG , Y., R EN , S., AND S HI , S. Twist: A multi-site transmission
+                                                                                 of HyperEdge has evolved from a single-path transmission
+     solution for on-demand video streaming. Proceedings of the ACM on           protocol based on specific system requirements and technical
+     Networking 2, CoNEXT2 (2024), 1–19.                                         considerations. Initially, HyperEdge opted for a traditional
+
+
+
+2648     23rd USENIX Symposium on Networked Systems Design and Implementation                                                          USENIX Association
+TCP single-path transmission, primarily because of its rela-           HyperEdge Disaster Recovery Measures: Although the
+tively simple implementation and widespread compatibility,          multi-path transmission feature of HyperEdge offers a quan-
+which is a common choice in many similar systems. However,          tum of robustness, disaster recovery must still be considered
+over time, its drawbacks became apparent. Firstly, single-path      to prevent business collapse. However, as the traffic volume
+transmission exhibited significant limitations in speed, and        of HyperEdge increases, it becomes difficult to find third-
+secondly, TCP-based protocols struggled with NAT traver-            party services to provide disaster recovery. Hence, HyperEdge
+sal. This prompted HyperEdge to transition to a UDP-based           needs to implement disaster recovery on its own. Specifically,
+multi-path transmission protocol. To achieve this, we care-         this involves making backups between different vendors and
+fully designed video file segmentation, transmission schedul-       setting aside some emergency equipment.
+ing, and flow control mechanisms, effectively overcoming the           Privacy Considerations in HyperEdge: Data security
+performance and technical limitations of traditional TCP.           is a crucial aspect of content distribution systems. Unlike
+   Download Failure Pinpointing: Download failures are a            purely P2P systems or peer-assisted CDNs, HyperEdge main-
+common issue during the initial operation of the HyperEdge          tains strict control over edge resources. We audit and verify
+system. Initially, we were unable to accurately pinpoint the        all stored video content to prevent malicious uploads and t
+specific reasons causing these failures, as they could stem         ampering [52, 54]. Additionally, we employ centralized key
+from various factors. For example, cold video files may fail        distribution mechanisms such as TLS to encrypt the content,
+to be queried due to ineffective deployment, some devices           enhancing the security of data in transit. However, privacy
+may be overloaded and unable to respond promptly, or there          risks still persist in content distribution systems. For instance,
+could be failures in NAT traversal. The inability to effectively    shared devices in our network could potentially monitor user
+identify the root causes of these failures hindered us from         access. To mitigate this, we have established privacy agree-
+proposing corresponding solutions. Therefore, our core solu-        ments with third-party device providers. Moreover, consid-
+tion was to establish an end-to-end traffic loss funnel model.      erable existing research focuses on enhancing the privacy of
+Each layer of the funnel corresponds to every step of the           user access [12,24,29,48], which we could leverage for future
+download process from start to finish, such as file querying,       improvements to our system.
+establishing connections, and NAT traversal. Each step in the          Security of Hdevices: Deploying a large-scale Hdevice
+connection process is labeled accordingly, and the location of      network inevitably raises concerns regarding their security.
+failures is automatically categorized into the corresponding        We design mechanisms to address four categories of secu-
+layer of the funnel. This allows us to continuously monitor         rity vulnerabilities. 1) Content security: HyperEdge never
+the failure rates at each layer of the funnel, identify and opti-   cache non-public videos on any Hdevice. All cached videos
+mize those steps with the greatest potential for improvement.       are also encrypted and integrity-checked upon request. 2)
+This approach also led to subsequent solutions such as file         User privacy: HyperEdge excludes any personal identifiers
+distribution and bandwidth load balancing.                          in its content delivery protocol. It only maintains point-to-
+   Isolate from User’s Services: HyperEdge utilizes the re-         point IP mappings, which decouple user identities from video
+maining resources of edge shared devices for data storage           traffic. 3) Vendor privacy: All Hdevice information is virtual-
+and transmission. Hence, priority should be given to ensuring       ized and anonymized. Consequently, Hdevices only expose
+the original services of the device. Careful isolation measures     IP addresses, without revealing vendor or owner identities. 4)
+should be implemented. When the demand for user’s services          System security: The centralized HyperEdge tracker system
+increases, HyperEdge will immediately release the resources         is protected by the same security mechanisms as other core
+already in use on the device. Additionally, HyperEdge avoids        infrastructure at ByteDance. All HyperEdge endpoints are
+using all the remaining resources (for example, only using          mutually authenticated; HyperEdge also verifies the capabili-
+80%) to prevent the situation where resources are not released      ties of each reported device at runtime to filter out spoofed or
+in time and thus affecting user’s services.                         malicious devices.
+   Content Pre-distribution Optimization: In HyperEdge,                Cost Implications to Device Owners and ISPs: Deploy-
+real-time data redistribution will be halted during peak peri-      ing HyperEdge introduces no additional cost to owners of
+ods to reduce back-to-source bandwidth and prevent conges-          Hdevices. All Hdevices are provisioned by third-party ven-
+tion. Nevertheless, this might result in an insufficient num-       dors, who compensate participating users with rent or other
+ber of copies of highly popular videos being deployed dur-          forms of incentive (e.g., reward points). These users thus join
+ing peak times. Users who cannot be served will switch to           the network with informed information and consent, and their
+CDN, and the capacity utilization of Hdevices is inadequate.        interests are not compromised. For ISPs, however, the cost
+Fortunately, we observe that the distribution of video popu-        implication is more complex. Commercial ISPs often rely on
+larity is distinctly differentiated, and the proportion of high-    high-margin uplink bandwidth services to subsidize low-cost
+popularity video files is relatively low. Hence, HyperEdge will     residential broadband. When content is distributed via edge
+pre-distribute these videos prior to the peak period, predict       devices, part of the traffic bypasses these premium uplink
+their popularity, and distribute more copies accordingly.           services, potentially reducing ISPs’ revenue from commercial
+
+
+
+USENIX Association                         23rd USENIX Symposium on Networked Systems Design and Implementation                 2649
+bandwidth sales. We view this as an opportunity to rebal-
+ance costs rather than a pure loss. By collaborating with large
+content providers (CPs), ISPs can integrate CPs’ distribution
+logic with their own network resources to build intelligent,
+efficient edge caching systems. Such cooperation can reduce
+backbone and international transit expenses, lower overall op-
+erational costs, and simultaneously enhance user QoE. In the
+long run, this approach not only preserves ISP profitability but
+also unlocks the economic potential of edge infrastructures to
+handle extreme traffic scenarios.
+   Future Work - An Open Peer-to-Peer Multimedia
+Caching and Distribution Protocol: HyperEdge is not the
+end of the story; we have high hopes for the future of P2P
+network systems. Our goal is to redefine the supply-demand
+relationship of edge-based CDNs through an open distributed
+protocol. In the current network architecture, key roles in-
+clude the Tracker, controlled by ByteDance; Intermediaries,
+assisting ByteDance in leasing nodes globally; Node Owners,
+renting out their storage and bandwidth resources to interme-
+diaries; and End Users, consumers of on-demand multimedia
+content using ByteDance applications.
+   Looking ahead, we envision changes in network partici-
+pants: eliminating intermediaries to simplify processes and
+enhance efficiency; Node Owners only need to install ser-
+vice applications compliant with the open distributed pro-
+tocol to directly join the edge caching network; End Users,
+regardless of the application they use, can benefit from the
+convenience of the multimedia edge caching network. Of
+course, this innovative design also faces some challenges that
+require thorough exploration and resolution: How can we
+achieve precise matching of supply-demand heat in a globally
+distributed system to enhance overall system utilization and
+revenue? How can we guide more rational supply-demand
+relationships through differential pricing strategies for cached
+resources? We will continue to explore these issues, seeking
+practical solutions to drive network systems towards a more
+open, efficient, and fair direction.
+
+
+
+
+2650    23rd USENIX Symposium on Networked Systems Design and Implementation   USENIX Association
+

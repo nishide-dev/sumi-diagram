@@ -1,0 +1,60 @@
+version: 1
+figure:
+  id: a2a-task-lifecycle
+  theme: sumi
+  profile: screen-doc
+  themeOverrides: {textScale: 1.5}
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: active, at: [100.4, 37], origin: body}
+          - {item: terminal, at: [115.8, 88], origin: body}
+          - {item: newtask, at: [66, 124]}
+groups:
+  - id: active
+    label: Non-terminal
+    labelAt: top-left
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: start, at: [58, 26]}
+          - {item: submitted, at: [101, 26]}
+          - {item: working, at: [101, 48]}
+          - {item: input, at: [39, 48]}
+          - {item: auth, at: [162.5, 48]}
+  - id: terminal
+    caption: "Terminal: a task never restarts"
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: completed, at: [66, 88]}
+          - {item: failed, at: [101, 88]}
+          - {item: canceled, at: [136, 88]}
+          - {item: rejected, at: [168, 88]}
+nodes:
+  - {id: start, component: initial}
+  - {id: submitted, component: box, label: submitted, tone: blue, variant: tinted}
+  - {id: working, component: box, label: working, tone: blue, variant: tinted}
+  - {id: input, component: box, label: input-required, tone: orange, variant: tinted}
+  - {id: auth, component: box, label: auth-required, tone: orange, variant: tinted}
+  - {id: completed, component: box, label: completed, tone: gray, variant: tinted}
+  - {id: failed, component: box, label: failed, tone: gray, variant: tinted}
+  - {id: canceled, component: box, label: canceled, tone: gray, variant: tinted}
+  - {id: rejected, component: box, label: rejected, tone: gray, variant: tinted}
+  - {id: newtask, component: box, label: "New task, same contextId", variant: dashed}
+edges:
+  - {from: start, to: submitted, label: SendMessage}
+  - {from: submitted, to: working}
+  - {from: working, to: input, fromAnchor: "west:0.3", toAnchor: "east:0.3", label: needs input}
+  - {from: input, to: working, fromAnchor: "east:0.7", toAnchor: "west:0.7", label: client reply, labelSide: right}
+  - {from: working, to: auth, fromAnchor: "east:0.3", toAnchor: "west:0.3", label: needs auth}
+  - {from: auth, to: working, fromAnchor: "west:0.7", toAnchor: "east:0.7", label: credential, labelSide: left}
+  - {from: working, to: completed, fromAnchor: "south:0.25", label: success}
+  - {from: working, to: failed, label: error}
+  - {from: active, to: canceled, fromAnchor: straight, label: CancelTask}
+  - {from: active, to: rejected, fromAnchor: straight, label: declined}
+  - {from: terminal, to: newtask, fromAnchor: straight, toAnchor: north, label: "follow-up, referenceTaskIds"}

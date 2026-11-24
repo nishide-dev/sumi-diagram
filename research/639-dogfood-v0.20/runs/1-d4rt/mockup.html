@@ -1,0 +1,172 @@
+<!doctype html>
+<!-- Mockup template: paste the sizes from Sumi, set the colours from the theme (see mockup.md), set the page size, draw. -->
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  /* Sizes: replace this block with `sumi catalog --sizes --css --profile <id> --theme <id>` (its @font-face
+     lines load the theme's bundled fonts). Never edit the values by hand. */
+  /* BEGIN SUMI SIZES */
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Bold.ttf"); font-weight: 700 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Bold.ttf"); font-weight: 700 }
+/* sumi catalog --sizes --css --profile paper-double --theme sumi --text-scale 1 */
+:root {
+  --font: "Sumi Latin", "Sumi", "Inter", "BIZ UDPGothic", sans-serif;  /* font set sumi/inter-biz-ud-gothic */
+  --fs-node: 8;          /* pt: node text */
+  --fs-group: 9;         /* pt: group title */
+  --fs-edge: 7;          /* pt: edge label (profile minimum 7pt) */
+  --frame-w: 1;          /* pt: a node's frame */
+  --group-frame-w: 0.5;  /* pt: a group's frame */
+  --edge-w: 1;           /* pt: an edge */
+  --radius: 0pt;         /* a node's corners */
+  --gap: 4mm;            /* between the items of a row, stack or grid */
+  --group-pad: 2.82mm;   /* a group's padding, each side */
+  --node-pad-x: 2.47mm;  /* a box's padding left and right of its label */
+  --node-pad-y: 1.23mm;  /* a box's padding above and below its label */
+  --box-h: 6mm;          /* a one-line box's height */
+  --op: 5.64mm;          /* an operator */
+  --op-large: 8.47mm;    /* an operator, size: large */
+  --op-xlarge: 11.29mm;  /* an operator, size: xlarge */
+  --margin: 1.94mm;      /* around the figure */
+  --page-w: 180mm;       /* the profile's page width */
+}
+
+/* END SUMI SIZES */
+  :root {
+    --canvas: #ffffff; --ink: #30364f; --panel: #ffffff;       /* theme canvas, text/line colour, group fill */
+    --frame: #a9aebc;                                          /* group frame (sumi #a9aebc, sumi-dark #6f7791) */
+    --blue: #d9e4e6; --blue-line: #3d5d77; --orange: #efdfce; --orange-line: #814b2d; --navy: #30364f;                     /* one fill + one line per tone you use */
+    --gray: #e6e6e6; --gray-line: #555555;
+    --arrow: #30364f;                                          /* arrowhead / edge colour */
+    --pt: 0.3528mm;                                            /* 1pt */
+  }
+  @page { size: 180mm 64mm; margin: 0 }                       /* the real figure size */
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 180mm; height: 64mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  /* left/top are the element's centre in mm: they map 1:1 to `place` with unit: 1mm (origin: body for groups).
+     Without a width a box takes Sumi's natural size: its label plus --node-pad-x, at least --box-h high. */
+  .box, .op, .group { position: absolute; box-sizing: border-box; translate: -50% -50% }
+  .box { display: flex; align-items: center; justify-content: center; text-align: center; white-space: pre;
+         min-height: var(--box-h); padding: var(--node-pad-y) var(--node-pad-x);
+         border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: var(--gray); border-radius: var(--radius) }
+  .tinted-blue { background: var(--blue); border-color: var(--blue-line) }
+  .op { width: var(--op); height: var(--op); border-radius: 50%; border: calc(var(--frame-w) * var(--pt)) solid var(--ink);
+        display: flex; align-items: center; justify-content: center }      /* .large: --op-large, .xlarge: --op-xlarge */
+  .op.large { width: var(--op-large); height: var(--op-large) }
+  .op.xlarge { width: var(--op-xlarge); height: var(--op-xlarge) }
+  .group { padding: var(--group-pad); background: var(--panel); border: calc(var(--group-frame-w) * var(--pt)) solid var(--frame) }
+  .group > .title { position: absolute; left: 0; bottom: 100%; font-weight: bold; font-size: calc(var(--fs-group) * var(--pt)) }  /* title above the border */
+  .overflow { outline: 0.6mm dashed red }                       /* set by the script below: Sumi would report geometry/label-overflow */
+  svg.edges { position: absolute; inset: 0; width: 180mm; height: 64mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: calc(var(--edge-w) * 0.3528) }  /* inside the svg 1 unit = 1mm */
+  svg.edges text { font-size: calc(var(--fs-edge) * 0.3528px); fill: var(--ink) }  /* edge labels, in mm units */
+  svg.edges marker path { fill: var(--arrow) }
+  .tinted-orange { background: var(--orange); border-color: var(--orange-line); color: var(--orange-line) }
+  .outlined-orange { background: #fff; border-color: var(--orange-line); color: var(--orange-line) }
+  .emph { background: var(--navy); color: #fff; font-weight: bold }
+  .plainbox { background: #fff }
+  .cap { position:absolute; translate:-50% -50%; font-size: calc(var(--fs-group) * var(--pt)); white-space: pre }
+  .lab { position:absolute; translate:-50% -50%; white-space: pre; font-size: calc(var(--fs-node) * var(--pt)) }
+  .sub { font-size: calc(var(--fs-edge) * var(--pt)); color:#666 }
+  table.m { position:absolute; border-collapse: collapse; font-size: calc(var(--fs-node) * var(--pt)); }
+  table.m td, table.m th { height: 5.2mm; width: 9mm; text-align:center; padding:0 }
+  table.m th.rh { text-align:left; width: 15mm; font-weight: normal }
+  table.m tr.top { border-top: 0.35mm solid var(--ink) } table.m tr.last { border-bottom: 0.35mm solid var(--ink) }
+  table.m tr.hdr th { border-bottom: 0.2mm solid var(--ink); color: var(--orange-line); font-weight: normal }
+  td.fx { background: var(--orange); color: var(--orange-line) }
+</style>
+<div id="fig">
+  <div class="group" style="left:29mm; top:29mm; width:54mm; height:44mm"></div>
+  <div class="group" style="left:86mm; top:29mm; width:52mm; height:44mm"></div>
+  <div class="group" style="left:147mm; top:29mm; width:62mm; height:44mm"></div>
+  <!-- (a) -->
+  <svg class="edges" viewBox="0 0 180 64" style="z-index:0">
+    <g stroke="#3d5d77" stroke-width="0.35">
+      <polygon points="5,22 15,22 15,38 5,38" fill="#d9e4e6"/>
+      <polygon points="5,22 11,16 21,16 15,22" fill="#eef3f4"/>
+      <polygon points="15,22 21,16 21,32 15,38" fill="#bac9d0"/>
+      <rect x="8.3" y="27.3" width="3.3" height="3.3" fill="#efdfce" stroke="#814b2d"/>
+    </g>
+  </svg>
+  <div class="lab sub" style="left:13mm; top:42mm">T × H × W</div>
+  <div class="lab" style="left:13mm; top:12mm">Video $V$</div>
+  <div class="box plainbox" style="left:33mm; top:27mm; width:17mm; height:11mm">ViT
+encoder</div>
+  <div class="lab sub" style="left:33mm; top:35.5mm">local + global attn</div>
+  <!-- F column -->
+  <div class="box tinted-blue" style="left:50mm; top:19mm; width:4mm; min-height:3.6mm; height:3.6mm; padding:0"></div>
+  <div class="box tinted-blue" style="left:50mm; top:23mm; width:4mm; min-height:3.6mm; height:3.6mm; padding:0"></div>
+  <div class="box tinted-blue" style="left:50mm; top:27mm; width:4mm; min-height:3.6mm; height:3.6mm; padding:0"></div>
+  <div class="box tinted-blue" style="left:50mm; top:31mm; width:4mm; min-height:3.6mm; height:3.6mm; padding:0"></div>
+  <div class="box tinted-blue" style="left:50mm; top:35mm; width:4mm; min-height:3.6mm; height:3.6mm; padding:0"></div>
+  <div class="lab" style="left:50mm; top:41mm">$F$</div>
+  <!-- (b) -->
+  <div class="box emph" style="left:78mm; top:27mm; width:24mm; height:11mm">Cross-attention
+decoder</div>
+  <div class="box outlined-orange" style="left:103mm; top:27mm; width:13mm">P = (x,y,z)</div>
+  <div class="lab sub" style="left:103mm; top:33mm">3D point</div>
+  <div class="box tinted-orange" style="left:67mm; top:45mm; width:6mm; padding:0">u</div>
+  <div class="box tinted-orange" style="left:73.5mm; top:45mm; width:6mm; padding:0">v</div>
+  <div class="box tinted-orange" style="left:80mm; top:45mm; width:6mm; padding:0">tsrc</div>
+  <div class="box tinted-orange" style="left:86.5mm; top:45mm; width:6mm; padding:0">ttgt</div>
+  <div class="box tinted-orange" style="left:93mm; top:45mm; width:6mm; padding:0">tcam</div>
+  <div class="lab sub" style="left:80mm; top:50.5mm">query q</div>
+  <div class="box tinted-blue" style="left:104mm; top:45mm; width:6mm; height:6mm; padding:0"></div>
+  <div class="lab sub" style="left:104mm; top:50.5mm">9×9 RGB patch</div>
+  <div class="lab sub" style="left:78mm; top:14mm">each query decoded independently</div>
+  <!-- (c) -->
+  <table class="m" style="left:118mm; top:12mm">
+    <tr class="hdr top"><th class="rh"></th><th>u</th><th>v</th><th>tsrc</th><th>ttgt</th><th>tcam</th></tr>
+    <tr><th class="rh">Point track</th><td class="fx">fixed</td><td class="fx">fixed</td><td class="fx">fixed</td><td>1…T</td><td>= ttgt</td></tr>
+    <tr><th class="rh">Point cloud</th><td>1…W</td><td>1…H</td><td>1…T</td><td>= tsrc</td><td class="fx">fixed</td></tr>
+    <tr><th class="rh">Depth map</th><td>1…W</td><td>1…H</td><td>1…T</td><td>= tsrc</td><td>= tsrc</td></tr>
+    <tr><th class="rh">Extrinsics</th><td>1…h</td><td>1…w</td><td class="fx">fixed</td><td>= tsrc</td><td>1…T</td></tr>
+    <tr class="last"><th class="rh">Intrinsics</th><td>1…h</td><td>1…w</td><td>1…T</td><td>= tsrc</td><td>= tsrc</td></tr>
+  </table>
+  <div class="cap" style="left:29mm; top:56mm">(a) Encode the video once</div>
+  <div class="cap" style="left:86mm; top:56mm">(b) Decode any query</div>
+  <div class="cap" style="left:147mm; top:56mm">(c) Tasks as query patterns</div>
+  <svg class="edges" viewBox="0 0 180 64" role="img" aria-label="edges">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2" markerHeight="2" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+    <path class="e" d="M21 27 H24.5" marker-end="url(#ah)"/>
+    <path class="e" d="M41.5 27 H48" marker-end="url(#ah)"/>
+    <path class="e" d="M52 27 H66" marker-end="url(#ah)"/>
+    <path class="e" d="M80 42 V32.5" marker-end="url(#ah)"/>
+    <path class="e" d="M104 42 V36 H90 " />
+    <path class="e" d="M90 36 V32.5" marker-end="url(#ah)"/>
+    <path class="e" d="M90 27 H96.5" marker-end="url(#ah)"/>
+  </svg>
+</div>
+<script>
+  // A box whose text runs into its frame gets a red outline: Sumi would report geometry/label-overflow,
+  // which, like this check, lets the text use the padding but not cross the frame. The browser's text
+  // widths are approximate; ask Sumi for the exact limit with
+  // `sumi catalog --sizes --profile <id> --component box --label "<label>"` (MIN WIDTH).
+  // Checked once the fonts have loaded, and again whenever a box changes size or content.
+  function checkOverflow() {
+    for (const el of document.querySelectorAll(".box, .op")) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const text = range.getBoundingClientRect();
+      const over = text.width > el.clientWidth + 0.5 || text.height > el.clientHeight + 0.5;
+      if (el.classList.contains("overflow") !== over) el.classList.toggle("overflow", over);
+    }
+  }
+  document.fonts.ready.then(() => {
+    checkOverflow();
+    const resized = new ResizeObserver(checkOverflow);
+    for (const el of document.querySelectorAll(".box, .op")) resized.observe(el);
+    // Class changes count too (a class can change the font), except the script's own `overflow`:
+    // a record whose class list differs from its old value only by `overflow` is skipped.
+    const withoutOverflow = (value) => (value ?? "").split(/\s+/).filter((c) => c && c !== "overflow").sort().join(" ");
+    new MutationObserver((records) => {
+      const relevant = records.some((r) => r.attributeName !== "class" ||
+        withoutOverflow(r.oldValue) !== withoutOverflow(r.target.getAttribute("class")));
+      if (!relevant) return;
+      for (const el of document.querySelectorAll(".box, .op")) resized.observe(el);
+      checkOverflow();
+    }).observe(document.getElementById("fig"), { subtree: true, childList: true, characterData: true,
+      attributes: true, attributeOldValue: true, attributeFilter: ["style", "class"] });
+  });
+</script>

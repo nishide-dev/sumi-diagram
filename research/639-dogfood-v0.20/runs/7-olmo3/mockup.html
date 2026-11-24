@@ -1,0 +1,85 @@
+<!doctype html>
+<meta charset="utf-8"><title>olmo3 mockup</title>
+<style>
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Bold.ttf"); font-weight: 700 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Bold.ttf"); font-weight: 700 }
+/* sumi catalog --sizes --css --profile paper-double --theme sumi --text-scale 1 */
+:root {
+  --font: "Sumi Latin", "Sumi", "Inter", "BIZ UDPGothic", sans-serif;  /* font set sumi/inter-biz-ud-gothic */
+  --fs-node: 8;          /* pt: node text */
+  --fs-group: 9;         /* pt: group title */
+  --fs-edge: 7;          /* pt: edge label (profile minimum 7pt) */
+  --frame-w: 1;          /* pt: a node's frame */
+  --group-frame-w: 0.5;  /* pt: a group's frame */
+  --edge-w: 1;           /* pt: an edge */
+  --radius: 0pt;         /* a node's corners */
+  --gap: 4mm;            /* between the items of a row, stack or grid */
+  --group-pad: 2.82mm;   /* a group's padding, each side */
+  --node-pad-x: 2.47mm;  /* a box's padding left and right of its label */
+  --node-pad-y: 1.23mm;  /* a box's padding above and below its label */
+  --box-h: 6mm;          /* a one-line box's height */
+  --op: 5.64mm;          /* an operator */
+  --op-large: 8.47mm;    /* an operator, size: large */
+  --op-xlarge: 11.29mm;  /* an operator, size: xlarge */
+  --margin: 1.94mm;      /* around the figure */
+  --page-w: 180mm;       /* the profile's page width */
+}
+
+:root { --canvas:#ffffff; --ink:#30364f; --frame:#a9aebc; --blue:#d9e4e6; --blue-line:#3d5d77; --green:#dce7d3; --green-line:#426344; --arrow:#30364f; --pt:0.3528mm }
+@page { size:190mm 54mm; margin:0 }
+html,body { margin:0; background:var(--canvas) }
+#fig { position:relative; width:190mm; height:54mm; overflow:hidden; font: calc(var(--fs-node)*var(--pt)) var(--font); color:var(--ink) }
+.box,.group { position:absolute; box-sizing:border-box; translate:-50% -50% }
+.box { display:flex; align-items:center; justify-content:center; text-align:center; white-space:nowrap; min-height:var(--box-h); padding:var(--node-pad-y) 0; border: calc(var(--frame-w)*var(--pt)) solid var(--ink); background:#fff }
+.sub { font-family: "Sumi Mono","BIZ UDGothic",monospace; font-size: calc(7*var(--pt)); }
+.tb { background:var(--blue); border-color:var(--blue-line); color:var(--blue-line) }
+.tg { background:var(--green); border-color:var(--green-line); color:var(--green-line) }
+.em { background:var(--ink); color:#fff; font-weight:bold }
+.em .sub { font-weight:normal }
+.group { background:#fff; border: calc(var(--group-frame-w)*var(--pt)) solid var(--frame) }
+.group > .title { position:absolute; left:0; bottom:100%; font-weight:bold; font-size:calc(var(--fs-group)*var(--pt)); white-space:nowrap }
+svg.edges { position:absolute; inset:0; width:190mm; height:54mm }
+svg.edges path.e { fill:none; stroke:var(--arrow); stroke-width:0.3528 }
+svg.edges path.d { stroke-dasharray:1.2 0.8 }
+svg.edges text { font-size:2.47px; fill:var(--ink); font-family:var(--font) }
+svg.edges marker path { fill:var(--arrow) }
+</style>
+<div id="fig">
+<div class="group" style="left:41.0mm; top:29.0mm; width:78mm; height:22mm"><div class="title">(a) Base model training · Dolma 3</div></div>
+<div class="group" style="left:150.5mm; top:30.0mm; width:75mm; height:42mm"><div class="title">(b) Post-training · Dolci</div></div>
+<div class="box tb" style="left:14mm; top:29mm; width:21mm;"><div>Pretraining<div class="sub">Dolma 3 Mix<br>≤ 5.9T tokens</div></div></div>
+<div class="box tb" style="left:39mm; top:29mm; width:21mm;"><div>Midtraining<div class="sub">Dolmino Mix<br>100B tokens</div></div></div>
+<div class="box tb" style="left:65mm; top:29mm; width:24mm;"><div>Long context<div class="sub">Longmino Mix<br>50B–100B tokens</div></div></div>
+<div class="box em" style="left:94mm; top:29mm; width:21mm;"><div>Olmo 3 Base<div class="sub">7B · 32B</div></div></div>
+<div class="box tg" style="left:122mm; top:17mm; width:11mm;"><div>SFT</div></div>
+<div class="box tg" style="left:137mm; top:17mm; width:11mm;"><div>DPO</div></div>
+<div class="box tg" style="left:153mm; top:17mm; width:12mm;"><div>RLVR</div></div>
+<div class="box em" style="left:173mm; top:17mm; width:26mm;"><div>Olmo 3 Think<div class="sub">7B · 32B</div></div></div>
+<div class="box tg" style="left:122mm; top:30mm; width:11mm;"><div>SFT</div></div>
+<div class="box tg" style="left:137mm; top:30mm; width:11mm;"><div>DPO</div></div>
+<div class="box tg" style="left:153mm; top:30mm; width:12mm;"><div>RLVR</div></div>
+<div class="box em" style="left:173mm; top:30mm; width:26mm;"><div>Olmo 3 Instruct<div class="sub">7B · 32B</div></div></div>
+<div class="box tg" style="left:153mm; top:43mm; width:12mm;"><div>RLVR</div></div>
+<div class="box em" style="left:173mm; top:43mm; width:26mm;"><div>Olmo 3 RL-Zero<div class="sub">7B</div></div></div>
+<svg class="edges" viewBox="0 0 190 54"><defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="1.8" markerHeight="1.8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+<path class="e" d="M24.5 29 H28.5" marker-end="url(#ah)"/>
+<path class="e" d="M49.5 29 H53" marker-end="url(#ah)"/>
+<path class="e" d="M77 29 H83.5" marker-end="url(#ah)"/>
+<path class="e" d="M104.5 29 H109"/>
+<circle cx="109.5" cy="29" r="0.7" fill="#30364f"/>
+<path class="e" d="M110 29 C113 29 113 17 116.5 17" marker-end="url(#ah)"/>
+<path class="e" d="M110 29 H116.5" marker-end="url(#ah)"/>
+<path class="e" d="M110 29 C113 29 113 43 147 43" marker-end="url(#ah)"/>
+<path class="e" d="M127.5 17 H131.5" marker-end="url(#ah)"/>
+<path class="e" d="M142.5 17 H147" marker-end="url(#ah)"/>
+<path class="e" d="M159 17 H160" marker-end="url(#ah)"/>
+<path class="e" d="M127.5 30 H131.5" marker-end="url(#ah)"/>
+<path class="e" d="M142.5 30 H147" marker-end="url(#ah)"/>
+<path class="e" d="M159 30 H160" marker-end="url(#ah)"/>
+<path class="e" d="M159 43 H160" marker-end="url(#ah)"/>
+<path class="e d" d="M122 20 V27" marker-end="url(#ah)"/>
+<text x="123" y="24.5">warm start</text>
+<text x="119" y="41.5">math · code · IF · general</text>
+</svg></div>
