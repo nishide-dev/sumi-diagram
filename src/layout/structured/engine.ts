@@ -1191,8 +1191,11 @@ class StructuredLayout {
         const size = sizes[i] as Size;
         const margin = this.#crossLead(item) + this.#crossTrail(item);
         const length = (vertical ? size.width : size.height) + margin;
-        // An item with cross-axis space is centered as a whole (#545); a panel (#641) is not centred.
+        // An item with cross-axis space is centered as a whole (#545). A panel (#641) and
+        // a stretched item (#663) are not centred, so a title above the frame counts once.
         if (typeof item !== "string" || margin > 0 || this.#isPanel(box, item)) return length;
+        if (box.align === "stretch" && this.#crossStretched(item, "stretch", vertical))
+          return length;
         const body = this.#bodyRect(item, { x: 0, y: 0, ...size });
         const center = vertical ? body.x + body.width / 2 : body.y + body.height / 2;
         return 2 * Math.max(center, length - center);
