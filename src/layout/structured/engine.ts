@@ -347,6 +347,10 @@ class StructuredLayout {
   readonly #groups = new Map<ElementKey, GroupIR>();
   /** Attached nodes by container (their target's parent), in document order. */
   readonly #attached = new Map<Container, NodeIR[]>();
+  /** Floating legends (#643) by container (their parent), in document order. */
+  readonly #floats = new Map<Container, GroupIR[]>();
+  /** Where each floating legend was placed in the last pass, and the area it floats in. */
+  readonly #floatPlacements = new Map<ElementKey, { rect: Rect; area: Rect }>();
   readonly #labels = new Map<ElementKey, TextMetrics>();
   /** Nodes' sublabels (#184), measured at their own font size. */
   readonly #sublabels = new Map<ElementKey, TextMetrics>();
@@ -494,6 +498,10 @@ class StructuredLayout {
     }
     for (const group of ir.groups) {
       this.#groups.set(group.key, group);
+      if (group.float !== undefined) {
+        const container = group.parent ?? ROOT;
+        this.#floats.set(container, [...(this.#floats.get(container) ?? []), group]);
+      }
       const label = measureText(group.label, group.style, measurer);
       if (label !== undefined) this.#labels.set(group.key, label);
     }
@@ -621,6 +629,7 @@ class StructuredLayout {
     this.#chatFrames.clear();
     this.#sequenceFrames.clear();
     this.#centerPaddings.clear();
+    this.#floatPlacements.clear();
     const root = this.#ir.arrange as ArrangeBoxIR;
     const size = this.#containerSize(ROOT, root);
     // Slots are recorded (and shifts applied) unless `figure.layout.straighten: false` (#618, #620).
@@ -630,6 +639,7 @@ class StructuredLayout {
     } finally {
       this.#shifting = false;
     }
+    this.#stopLifelinesAboveFloats();
     return this.#result();
   }
 
@@ -899,6 +909,28 @@ class StructuredLayout {
 
   placementDiagnostics(): Diagnostic[] {
     const diagnostics: Diagnostic[] = [...this.#setDiagnostics, ...this.#matchWidthDiagnostics()];
+    // A floating legend (#643) larger than the area it floats in sticks out of it.
+    for (const [key, { rect, area }] of this.#floatPlacements) {
+      const wide = rect.width > area.width + 1;
+      const tall = rect.height > area.height + 1;
+      if (!wide && !tall) continue;
+      const group = this.#groups.get(key);
+      const source = this.#ir.sourceMap.get(key);
+      const mm = (units: number) => `${((units * 0.5 * 25.4) / 72).toFixed(1)}mm`;
+      const axes = [
+        ...(wide ? [`${mm(rect.width)} wide (the area: ${mm(area.width)})`] : []),
+        ...(tall ? [`${mm(rect.height)} tall (the area: ${mm(area.height)})`] : []),
+      ];
+      diagnostics.push({
+        code: "layout/float-too-large",
+        severity: "warning",
+        message: `Floating legend "${key.slice(2)}" is ${axes.join(" and ")}: larger than the content it floats over, so it widens the ${group?.parent === undefined ? "figure" : `group "${group.parent.slice(2)}"`}.`,
+        path: [...(source?.path ?? ["nodes"]), "props", "float"],
+        ...(source?.location !== undefined && { location: source.location }),
+        subject: { kind: "node", id: key.slice(2) },
+        hint: "Make the legend smaller (flow: row with perRow, shorter labels), drop the inset, or list it in an arrange tree beside the content instead of floating it.",
+      });
+    }
     for (const box of this.#boxSizes.keys()) {
       if (box.kind === "chat") diagnostics.push(...this.#chatGeometry(box).diagnostics);
       if (box.kind === "sequence") diagnostics.push(...this.#sequenceDiagnostics(box));
@@ -1744,6 +1776,87 @@ class StructuredLayout {
       this.#placeBox(arrange, frame, "center", (key, rect) => this.#placeElement(key, rect));
     }
     this.#placeAttached(container, this.#rects);
+    this.#placeFloats(container, area);
+  }
+
+  /**
+   * Places the floating legends (#643) of `container` at their corner or side
+   * of its content area `area`, over what is already there: they take no room,
+   * so the container's size never depends on them.
+   */
+  #placeFloats(container: Container, area: Rect): void {
+    for (const group of this.#floats.get(container) ?? []) {
+      const float = group.float;
+      if (float === undefined) continue;
+      const size = this.#itemSize(group.key);
+      const inset = float.insetPt * 2;
+      const at = float.at;
+      const x = at.endsWith("left")
+        ? area.x + inset
+        : at.endsWith("right")
+          ? area.x + area.width - inset - size.width
+          : area.x + (area.width - size.width) / 2;
+      const y = at.startsWith("top")
+        ? area.y + inset
+        : at.startsWith("bottom")
+          ? area.y + area.height - inset - size.height
+          : area.y + (area.height - size.height) / 2;
+      const rect = { x, y, ...size };
+      this.#floatPlacements.set(group.key, { rect, area });
+      this.#placeElement(group.key, this.#bodyRect(group.key, rect));
+    }
+  }
+
+  /**
+   * A lifeline of a sequence (#630) that would run behind a floating legend
+   * (#643) and has no message or note from a quarter gap above the legend
+   * down stops there, so the legend sits in the free space under it. A
+   * lifeline with a row lower down runs on (`geometry/float-overlap` reports
+   * it).
+   */
+  #stopLifelinesAboveFloats(): void {
+    if (this.#floatPlacements.size === 0) return;
+    const clear = this.#defaultGap / 4;
+    for (const box of this.#boxSizes.keys()) {
+      const seq = box.kind === "sequence" ? box.sequence : undefined;
+      if (seq === undefined) continue;
+      // The lowest point each lifeline reaches: its head, and its junctions in the rows.
+      const lowest = seq.participants.map((key) => {
+        const head = this.#rects.get(key);
+        return head === undefined ? Number.NEGATIVE_INFINITY : head.y + head.height;
+      });
+      const reach = (index: number, key: ElementKey) => {
+        const rect = this.#rects.get(key);
+        if (rect === undefined) return;
+        lowest[index] = Math.max(lowest[index] ?? Number.NEGATIVE_INFINITY, rect.y + rect.height);
+      };
+      const walk = (rows: readonly SequenceRowIR[]) => {
+        for (const row of rows) {
+          if (row.kind === "band" || row.kind === "fragment") walk(row.rows);
+          else if (row.kind === "message") {
+            reach(row.from, row.fromNode);
+            reach(row.to, row.toNode);
+          } else {
+            for (const [k, key] of row.tops.entries()) reach(row.lo + k, key);
+            for (const [k, key] of row.bottoms.entries()) reach(row.lo + k, key);
+          }
+        }
+      };
+      walk(seq.rows);
+      for (const [i, end] of seq.ends.entries()) {
+        for (const { rect: legend } of this.#floatPlacements.values()) {
+          const rect = this.#rects.get(end);
+          if (rect === undefined) continue;
+          const x = rect.x + rect.width / 2;
+          if (x < legend.x - clear || x > legend.x + legend.width + clear) continue;
+          const stop = legend.y - clear;
+          const bottom = rect.y + rect.height / 2;
+          if (bottom <= stop) continue;
+          if ((lowest[i] ?? Number.POSITIVE_INFINITY) + clear > stop) continue;
+          this.#rects.set(end, { ...rect, y: stop - rect.height / 2 });
+        }
+      }
+    }
   }
 
   /**

@@ -39,6 +39,7 @@ import type {
   FigureGroup,
   FigureMeta,
   FigureNode,
+  FloatPosition,
   GlyphKind,
   GlyphPosition,
   GroupContentAlign,
@@ -509,6 +510,12 @@ export interface GroupIR extends ObjectIRBase {
   readonly contentAlign?: GroupContentAlign;
   /** Groups with the same name reserve the tallest of their title bands (#613). */
   readonly matchLabelHeight?: string;
+  /**
+   * The frame of a floating legend (#643, `props.float`): placed at this corner
+   * or side of its parent's content area (the root's without a parent), inset
+   * by `insetPt`, after the content; it adds nothing to the parent's size.
+   */
+  readonly float?: { readonly at: FloatPosition; readonly insetPt: number };
 }
 
 export interface EdgeIR extends ElementIRBase {
@@ -1055,6 +1062,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       ...(g.contentAlign !== undefined && { contentAlign: g.contentAlign }),
       ...(g.matchLabelHeight !== undefined && { matchLabelHeight: g.matchLabelHeight }),
       ...(captions.has(g.id) && { caption: nodeKey(captions.get(g.id) as string) }),
+      ...floatOf(doc, key),
     });
   });
 
@@ -1685,6 +1693,14 @@ function alignIR(
     items: freeze((constraint[axis] ?? []).map(keyOf)),
     srcAt,
   });
+}
+
+/** `{ float }` for the frame of a floating legend (#643), otherwise `{}`. */
+function floatOf(doc: PartialFigure, key: ElementKey): Pick<GroupIR, "float"> {
+  const origin = doc.expanded?.get(key);
+  if (origin?.from !== "legend") return {};
+  const float = doc.legends?.find((legend) => groupKey(legend.id) === key)?.float;
+  return float === undefined ? {} : { float: freeze({ ...float }) };
 }
 
 /** `{ legend }` for the frame or a part of a legend (#131), otherwise `{}`. */

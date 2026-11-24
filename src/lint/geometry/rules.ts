@@ -49,6 +49,7 @@ import { deadSpace } from "./dead-space";
 import { sparseFigure, textHeavy } from "./density";
 import { obstaclesCrossedByRoute, type RouteObstacle, segmentCrossesRegion } from "./edges";
 import { groupEmptySpace } from "./empty-space";
+import { floatOverlap } from "./float";
 import { iconFamilyMix, iconOveruse } from "./icons";
 import { microJogLengths } from "./jogs";
 import { type FitSize, fitSentence, fitTrials, fittingSize } from "./label-fit";
@@ -2243,4 +2244,5 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   setLabelCollision,
   setOutlineCrossesNode,
   setOutlineCrossesText,
+  floatOverlap,
 ] as GeometryRule[]);

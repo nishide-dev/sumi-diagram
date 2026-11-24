@@ -1366,15 +1366,22 @@ class Router {
     const C = ROUTE.clearance;
     const layout = this.#layout;
     const nodeIR = new Map(this.#ir.nodes.map((n) => [n.key, n]));
+    // A floating legend (#643) lies over the content and takes no room: edges route as if it
+    // were not there (geometry/float-overlap reports what it covers), and its own sample lines
+    // are straight.
+    const floating = floatingLegendKeys(this.#ir);
     const solid: Rect[] = [];
     const junctions: NodeLayout[] = [];
     for (const node of layout.nodes) {
+      if (floating.has(node.key)) continue;
       if (isJunction(nodeIR.get(node.key))) junctions.push(node);
       else solid.push(node.rect);
     }
     this.#obstacles = layout.nodes
       .filter((node) => nodeIR.get(node.key)?.component !== SEPARATOR_ID)
+      .filter((node) => !floating.has(node.key))
       .map((node) => ({ key: node.key, rect: node.rect }));
+    const groups = layout.groups.filter((group) => !floating.has(group.key));
     const xs = new Set<number>();
     const ys = new Set<number>();
     const addRect = (r: Rect, inflate: number) => {
@@ -1385,7 +1392,7 @@ class Router {
       addRect(r, 0);
       addRect(r, C);
     }
-    for (const group of layout.groups) {
+    for (const group of groups) {
       const element = this.#ir.elements.get(group.key);
       addRect(element?.kind === "group" ? groupFrontRect(element, group.rect) : group.rect, 0);
       if (group.label !== undefined) addRect(group.label.box, 0);
@@ -1518,7 +1525,7 @@ class Router {
         roundUnits(bottomOf(r) + C),
       );
     }
-    for (const group of layout.groups) {
+    for (const group of groups) {
       const element = this.#ir.elements.get(group.key);
       const g = element?.kind === "group" ? groupFrontRect(element, group.rect) : group.rect;
       const ix0 = lowerBound(X, g.x);
@@ -2559,4 +2566,20 @@ function sharedSpan(self: Rect, other: Rect, side: Side, me: string, them: strin
   const at = (offset: number) => Math.round(offset * 1000) / 1000;
   const opposite = { north: "south", south: "north", east: "west", west: "east" } as const;
   return ` The two overlap across the same span, so a straight line fits there: write "straight:span" at both ends of the edge, or anchor ${me} at "${side}:${at((mid - a0) / aLength)}" and ${them} at "${opposite[side]}:${at((mid - b0) / bLength)}".`;
+}
+
+/**
+ * The keys of the frames and parts of the floating legends (#643): the
+ * router leaves them out of the grid, so routes do not depend on them.
+ */
+function floatingLegendKeys(ir: FigureIR): Set<ElementKey> {
+  const floating = new Set<string>();
+  for (const group of ir.groups) if (group.float !== undefined) floating.add(group.id);
+  const keys = new Set<ElementKey>();
+  if (floating.size === 0) return keys;
+  for (const element of ir.elements.values()) {
+    if (element.kind !== "edge" && element.legend !== undefined && floating.has(element.legend.id))
+      keys.add(element.key);
+  }
+  return keys;
 }

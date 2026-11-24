@@ -108,7 +108,8 @@ interface Occurrence {
   id: string;
   /** The arrange item, or the node's `attach` field. */
   path: DocPath;
-  via: "arrange" | "attach";
+  /** `float` (#643): a legend's `props.float`, in its written group (or the root). */
+  via: "arrange" | "attach" | "float";
   /** arrange: the group whose tree lists the item (`undefined` = root). */
   owner?: string | undefined;
   /**
@@ -488,6 +489,19 @@ function checkStructured(state: CheckState, locate: Locator): void {
       silent,
     });
   }
+  // A floating legend (#643) is placed by its props.float, in its written group or the root.
+  // Only a legend takes the prop: the component stage reports it on any other node.
+  for (const node of nodeEntries) {
+    const props = (node.value as FigureNode).props;
+    if (props === null || typeof props !== "object" || !("float" in props)) continue;
+    if (props.float === undefined) continue;
+    add({
+      id: node.value.id,
+      path: [...node.path, "props", "float"],
+      via: "float",
+      silent: invalid.has(node.key),
+    });
+  }
   occurrences.sort(compareLocations);
 
   // 2. Each element is placed once; the first occurrence in the file counts.
@@ -523,7 +537,11 @@ function checkStructured(state: CheckState, locate: Locator): void {
             relatedAt(
               locate,
               first.path,
-              first.via === "attach" ? "Attached here." : "First placed here.",
+              first.via === "attach"
+                ? "Attached here."
+                : first.via === "float"
+                  ? "Floated here."
+                  : "First placed here.",
             ),
           ],
         },
@@ -987,6 +1005,7 @@ function describeOwner(owner: string | undefined): string {
 }
 
 function describeOccurrence(occurrence: Occurrence): string {
+  if (occurrence.via === "float") return "floated by props.float";
   return occurrence.via === "attach"
     ? `attached to "${occurrence.target}"`
     : `in ${describeOwner(occurrence.owner)}`;

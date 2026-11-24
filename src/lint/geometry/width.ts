@@ -255,8 +255,12 @@ export function widthBreakdown(context: GeometryContext): WidthBreakdown {
     );
   }
   // A legend that is wider than everything else sets the figure's width (#446).
+  // A floating legend (#643) takes no room: it never sets the width.
   const legends = context.ir.groups.flatMap((group) => {
-    const rect = group.legend?.id === group.id ? byKey.get(group.key)?.rect : undefined;
+    const rect =
+      group.legend?.id === group.id && group.float === undefined
+        ? byKey.get(group.key)?.rect
+        : undefined;
     return rect ? [{ id: group.legend?.id ?? group.id, key: group.key, rect }] : [];
   });
   const widestLegend = legends.sort((a, b) => b.rect.width - a.rect.width)[0];
