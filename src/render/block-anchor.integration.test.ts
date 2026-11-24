@@ -6,9 +6,6 @@
  * `geometry/edge-label-detached`.
  */
 
-// The lint configuration first: it loads the rule list in the order its import cycle needs
-// (importing the geometry lint's index first reads `rules.ts` before its rules exist).
-import "../lint/config";
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { checkFigure } from "../core/check";

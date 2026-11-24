@@ -427,7 +427,7 @@ figure.sumi.yaml:21:5 warning lint/ancestor-edge Edge edges[1] connects group "o
 
 ## 規則の追加
 
-規則は `defineRule()`（`src/lint/rule.ts`）で定義し、`BUILTIN_LINT_RULES`（`src/lint/rules/index.ts`）に加える。幾何の規則は `defineGeometryRule()` で定義し、`BUILTIN_GEOMETRY_RULES`（`src/lint/geometry/rules.ts`）に加える（`GeometryContext` を受け取る）。規則は `LintContext`（有効な要素、解決済みの部品とスタイル、Theme）を受け取り、`{ message, path, subject?, hint?, related? }` を返す。code・severity・位置情報は枠組みが付ける。options を取る規則は、既定値付きの Zod スキーマを `options` に指定する。規則は汎用的に保ち、特定分野に固有の検査は加えない。
+規則は `defineRule()`（`src/lint/rule.ts`）で定義し、`BUILTIN_LINT_RULES`（`src/lint/rules/index.ts`）に加える。幾何の規則は `defineGeometryRule()` で定義し、`builtinGeometryRules()`（`src/lint/geometry/rules.ts`）に加える（`GeometryContext` を受け取る）。規則は `LintContext`（有効な要素、解決済みの部品とスタイル、Theme）を受け取り、`{ message, path, subject?, hint?, related? }` を返す。code・severity・位置情報は枠組みが付ける。options を取る規則は、既定値付きの Zod スキーマを `options` に指定する。規則は汎用的に保ち、特定分野に固有の検査は加えない。
 
 ## 論文図の密度（#422）
 
