@@ -148,6 +148,35 @@ make `at` the center of the frame without that room; the default is
 `origin: footprint` (existing figures keep their positions). `origin` is only for a
 node or group ID, not a nested box.
 
+**Nested `place` boxes are normalised; `origin: place` keeps one coordinate system.**
+A group arranged by its own `place` is sized from its items' footprints, and its
+inner `at` values only fix where the items sit relative to each other: the inner
+`[0, 0]` is not the parent's `[0, 0]`. So two groups drawn from one sketch do not line
+up across groups unless you work out each group's centre. Write
+**`origin: place`** on the group's item instead: `at` is then where the group's inner
+`[0, 0]` lands, so with `at: [0, 0]` and the same `unit` the inner coordinates are the
+page's (copy a mockup's coordinates straight in, and a node at x = 40 in one group sits
+above a node at x = 40 in the other). The frame, padding and title grow around the items
+as usual. It needs a flat group whose arrange tree is a `place`; on a node, a group
+arranged otherwise or a tilted plane (`props.plane`) it is `layout/invalid-place-origin`
+(error).
+
+```yaml
+figure:
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: active, at: [0, 0], origin: place}
+          - {item: terminal, at: [0, 0], origin: place}
+groups:
+  - id: active
+    arrange: {place: {unit: 1mm, items: [{item: submitted, at: [40, 20]}, {item: working, at: [40, 40]}]}}
+  - id: terminal
+    arrange: {place: {unit: 1mm, items: [{item: completed, at: [40, 70]}, {item: failed, at: [75, 70]}]}}
+```
+
 The parent places the box like any other item; extra space centers the whole shape
 without stretching its contents. `place` has no `gap`, `align`, `justify` or `centerOn`;
 use those on its parent. Cross-tree `align` can move the whole box via an enclosing
@@ -1009,6 +1038,15 @@ axis (a [badge](assets.md#corner-badges) is instead centred on the corner);
 edge anchors still take only the four sides. Use it for a label beside a
 block, `N×` beside a group, an input feeding an operator from the side.
 
+**`inFlow: false`: a note that takes no room.** A node attached to a cell of a
+`tokens` sequence joins the sequence's frame, so the frame grows by the note and a
+label beside the sequence in a row (`t=3`) centres on cells + note and shifts. Write
+`attach: {to: seq.f, side: south, gap: 1mm, inFlow: false}`: the frame (any group the
+target is in) does not grow; the note hangs over it and only the group around that
+one, or the canvas, grows where the note sticks out. Neighbours do not shift, and
+nothing makes room for the note among the items next to it either: leave it room with
+the box's `gap` (a collision is `geometry/label-collision`).
+
 A `label` has no size choice (the theme's text size; `paper`: 8pt). A larger annotation is
 an `html` leaf with an inline `font-size` ([html](html.md); not editable PPTX):
 
@@ -1543,10 +1581,18 @@ edges:
   along it (`labelAt: 0.25`). Default place: the middle of the longest segment; it
   slides along that segment to keep clear and never leaves the line (`labelSide` is
   ignored). Keep tags short; a long tag on a short segment is `layout/edge-label-overlap`.
+- **Step badges on a line** (`labelStyle: badge`): a tag in a round frame, for the
+  numbers of a sequence of steps (`1`, `2`, `a`): a circle while the text fits inside
+  it (a digit or a letter; whether `12` fits depends on the theme's font), a pill as
+  wide as the text needs otherwise (`WW`, `step 2`). Placed exactly like a tag
+  (`labelAt` moves it, `labelSide` is ignored). Colour the steps with the edge's
+  `tone`; the badge's frame takes the line's colour. The editable PPTX draws tags and
+  badges as stroked rounded rectangles (a badge's circle stays a circle).
 
 ```yaml
 edges:
   - {from: shard, to: dev1, label: Dev1, labelStyle: tag}
+  - {from: client, to: tracker, label: "1", labelStyle: badge}
   - {from: dev1, to: dev2, label: grads, labelAt: 0.25}
   - {from: reply, to: client, route: straight, label: response}   # above, though leftward
 ```
@@ -1618,6 +1664,13 @@ hidden junctions, extra padding or `route: curve`:
   anchors there (`"east:0.3"` and `"east:0.7"`) split the bus into separate lines,
   `layout/lane-bus-split` (warning), and a lane that would then run along another's is
   routed without it (`layout/lane-blocked`).
+- **Not a bus: `bus: false`.** Two loops that leave one side of one node for different
+  targets (`release` back up to Available, `reject` down to Archived) are a bus by the
+  rule above. Write `lane: {side: east, bus: false}` on each: the lane joins no bus,
+  runs at its own `offset` (give the outer one the larger), and where two or more such
+  lanes meet one side of a node with no anchor there, their ends are spread along that
+  side, ordered by where the other ends lie, so the lines leave apart (an anchor on the
+  lane's side still wins). No `layout/lane-bus-split`.
 - An anchor on the lane's side keeps its position (`toAnchor: "west:0.3"`); one on
   another side, or `straight`, conflicts. Lanes are drawn first; the other edges keep
   clear of them, and a run drawn beside a lane is moved a lane gap away; nothing moves a lane (no separation, no `straighten`, no
