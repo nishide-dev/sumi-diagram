@@ -1,0 +1,42 @@
+# Reduced from run 4 of the #639 dogfood: in a root `place` the written x
+# coordinates span the width; moving the outermost items inward makes it fit.
+version: 1
+figure:
+  id: place-coordinates
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: tracker, at: [97, 19], origin: body}
+          - {item: client, at: [16, 60]}
+          - {item: pool, at: [164, 63], origin: body}
+          - {item: cdn, at: [90, 90]}
+groups:
+  - id: tracker
+    label: Tracker cluster
+    arrange:
+      row: {gap: 24mm, items: [index, planner, state]}
+  - id: pool
+    label: Edge devices
+    labelAt: bottom
+    arrange:
+      stack: {gap: 5mm, align: stretch, items: [stb, home, idle]}
+nodes:
+  - {id: index, component: box, label: Index map}
+  - {id: planner, component: box, label: Planner}
+  - {id: state, component: box, label: State DB}
+  - {id: client, component: box, label: Client, props: {width: 24mm}}
+  - {id: stb, component: box, label: Set-top box, tone: green, variant: tinted}
+  - {id: home, component: box, label: Smart home, tone: green, variant: tinted}
+  - {id: idle, component: box, label: Idle server, tone: green, variant: tinted}
+  - {id: cdn, component: box, label: External CDN, variant: muted}
+edges:
+  - {from: cdn, to: client, tone: blue, label: first segments, fromAnchor: west, toAnchor: south}
+  - {from: client, to: index, tone: blue, label: video ID, fromAnchor: north, toAnchor: west}
+  - {from: client, to: pool, tone: blue, route: straight, label: connect, fromAnchor: east, toAnchor: west}
+  - {from: index, to: planner, tone: orange, label: popularity}
+  - {from: state, to: planner, tone: orange, label: resources}
+  - {from: planner, to: pool, tone: orange, label: new video IDs, fromAnchor: south, toAnchor: north}

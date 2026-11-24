@@ -1,0 +1,38 @@
+# Two sequences: the first has rowGap 1mm (only a last resort can lower it),
+# the second the default; the second's rowGap at 1mm or more must come first (#640).
+version: 1
+figure:
+  id: two-sequences
+  theme: sumi
+  profile: screen-doc
+  themeOverrides: {textScale: 1.5}
+  layout:
+    arrange:
+      stack:
+        items:
+          - sequence:
+              rowGap: 1mm
+              participants: [a, b]
+              rows: [p1, p2, p3, p4, p5]
+          - sequence:
+              participants: [c, d]
+              rows: [m1, m2, m3, m4, m5, m6, m7, m8]
+nodes:
+  - {id: a, component: box, label: Client}
+  - {id: b, component: box, label: Server}
+  - {id: c, component: box, label: Agent}
+  - {id: d, component: box, label: Store}
+edges:
+  - {id: p1, from: a, to: b, label: open}
+  - {id: p2, from: b, to: a, label: ack}
+  - {id: p3, from: a, to: b, label: send}
+  - {id: p4, from: b, to: a, label: ack}
+  - {id: p5, from: a, to: b, label: close}
+  - {id: m1, from: c, to: d, label: step 1}
+  - {id: m2, from: d, to: c, label: reply 2}
+  - {id: m3, from: c, to: d, label: step 3}
+  - {id: m4, from: d, to: c, label: reply 4}
+  - {id: m5, from: c, to: d, label: step 5}
+  - {id: m6, from: d, to: c, label: reply 6}
+  - {id: m7, from: c, to: d, label: step 7}
+  - {id: m8, from: d, to: c, label: reply 8}

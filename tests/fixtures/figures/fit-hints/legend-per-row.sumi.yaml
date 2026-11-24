@@ -1,0 +1,34 @@
+# Reduced from run 2 of the #639 dogfood: a one-line legend sets the width;
+# perRow alone leaves the strip of boxes above it too wide, so the hint
+# pairs perRow with the strip's gap.
+version: 1
+figure:
+  id: legend-per-row
+  theme: sumi
+  profile: paper-single
+  layout:
+    arrange:
+      stack:
+        gap: 4mm
+        align: center
+        items:
+          - row: {gap: 4mm, items: [queries, sample, embed]}
+          - key
+nodes:
+  - {id: queries, component: box, label: "100 open-ended\nqueries"}
+  - {id: sample, component: box, label: "8 LMs ×\n50 responses each"}
+  - {id: embed, component: box, label: "Embedding\nsimilarity"}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries:
+        - {node: {variant: outlined}, label: same model}
+        - {node: {tone: red, variant: tinted}, label: "≥ .80"}
+        - {node: {tone: orange, variant: tinted}, label: ".77–.79"}
+        - {node: {tone: yellow, variant: tinted}, label: ".75–.76"}
+        - {node: {variant: muted}, label: "< .75"}
+edges:
+  - {from: queries, to: sample}
+  - {from: sample, to: embed}

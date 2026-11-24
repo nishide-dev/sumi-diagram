@@ -422,8 +422,13 @@ edges:
   need, at least `participantGap` (default: the profile's arrange gap) between the
   participants' boxes; rows are `rowGap` apart (default: a third of it). Participants
   are bottom-aligned. When the figure is too wide, the `geometry/exceeds-page-width`
-  hint names the gap that sets the width and tries a smaller `participantGap` and
-  folding the widest message labels onto two lines.
+  hint names the gap that sets the width and tries a smaller `participantGap` (2mm or
+  more first) and folding the widest message labels onto two lines. When it is too
+  tall, the `geometry/exceeds-page-height` hint names `rowGap` (and how many times it
+  adds up), participants with `iconAt: top`, band rows for messages on separate
+  lifelines and one-line labels, and gives a `rowGap` a trial verified (1mm or more
+  first). With `figure.fit: scale` the height also follows the width: a narrower figure
+  is shrunk less.
 - Any other edge (not in `rows`) is routed as usual, e.g. a dotted arrow between two
   notes. A group as a note holds several boxes (a `plain` group with `props.padding:
   0.5pt` keeps it compact).
@@ -692,6 +697,17 @@ profile's group padding on every side (positive, a multiple of 0.5pt; the title 
 scales with it). Use it for a tight frame around a small cluster; `0` is not allowed
 (a borderless cluster is `variant: plain`, a frame hugging cells is a whole `tokens`
 sequence).
+The layout can grow it: where an arrowhead needs room before the border, the side it
+enters through grows for the head, a 2pt stem and 3pt of clearance (about 13pt with
+`sumi`'s lines). That happens for edges that **fan into the group from one port
+outside** (a junction feeding several members through the west side, #512), for an edge
+that turns back into a member, and for an arrowhead inside the group facing its border.
+The **opposite side grows as much**, so the content stays centred in the frame, even if
+no edge enters there. So `padding: 2mm` can end up 13pt on both sides; `--explain-width`
+and the width hint say so (`grown automatically by 7.5pt on both sides: the arrowheads of
+edges "a", "b", which fan out from one port outside the group …`). To keep the padding
+tight, let the edges enter from above or below, from inside the group, or through one
+edge to a member (no fan).
 
 **Attachments and title centring.** The title is centred on the **whole group
 frame**, attached members included, even with `variant: plain`: an input
@@ -1530,7 +1546,8 @@ edges:
   `figure.themeOverrides.edgeCorners: sharp` gives sharp turns with butt caps and miter
   joins (zoom wires too; editable PPTX keeps sharp centrelines). The router keeps a
   straight run of head plus radius where moving a bend gives it; tight group padding
-  grows automatically for the head plus a 2pt stem and 3pt border clearance. A tight gap
+  grows automatically for the head plus a 2pt stem and 3pt border clearance, on both
+sides of the axis (see "Group padding" under [group titles](#group-titles-and-captions)). A tight gap
   elsewhere can still leave the head right after a corner: `geometry/arrowhead-cramped`
   (info). A hidden junction in a stack gap that feeds a bus from aside, just short of the
   head's room, moves onto the bus row (nodes never move), so its trunk turns into the bus
