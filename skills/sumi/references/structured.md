@@ -1534,7 +1534,11 @@ edges:
   figure again with them, or lists what is in the way (often attached labels) when
   no two-bend route fits between the current ends. Write those values
   or drop the anchor; do not chase the line with more anchors. To move nodes into
-  line instead, use `figure.layout.straighten: true`.
+  line instead, use `figure.layout.straighten: true`. With one end anchored (say
+  `fromAnchor: south`) and the other end beyond it, the router enters the side
+  facing the anchor (north) with a Z when the default side would take three or
+  more bends and the Z bends no other edge more; where it cannot, the same rule
+  names the Z and the anchor to write (`toAnchor: north`).
 - **A Z where an L would do, because of where a node sits**: `straighten` only shifts
   items within their room. When moving an end to a nearby empty grid cell or another
   place in its stack / row would remove bends, `geometry/relocatable-node` (info) says

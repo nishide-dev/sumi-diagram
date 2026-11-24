@@ -316,6 +316,12 @@ export interface EdgeLayout {
    * the other end's line (checked against the routes without it). Omitted otherwise.
    */
   readonly slide?: true;
+  /**
+   * The router's choice (#657): this end, which has no anchor, takes the side
+   * facing the other end's written side, because a Z into it bends less than
+   * the route into the default side (checked by routing both). Omitted otherwise.
+   */
+  readonly facingEnd?: "from" | "to";
   /** Omitted until the edges are routed. */
   readonly route?: EdgeRoute;
 }
