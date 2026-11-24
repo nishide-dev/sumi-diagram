@@ -32,6 +32,12 @@
  * column headers) and `-rule-bottom`; and a cell whose variant is `muted` is
  * drawn pale (`doc.paints` `pale`).
  *
+ * Since 0.20.1 (#644): cells written `{ value }` are colored by `scale`, a
+ * ramp of one tone (`doc.paints` `ramp`, see `rampStyle()`), and a legend
+ * explains it as `{ scale: <matrix> }`; a cell with `span` covers several
+ * slots (the cells are then placed by a `place` box, see `matrixGrid()`); and
+ * `headerRotate` turns the column headers (`labelRotation`).
+ *
  * The expansion runs after the `component` stage (the props are validated
  * there: known classes, rows of one length, one header per row and column),
  * resolves the parts through the same stage and records each part's origin
@@ -52,10 +58,12 @@ import {
 } from "../check-state";
 import { type DocPath, didYouMean } from "../diagnostics";
 import {
+  type MATRIX_HEADER_ROTATIONS,
   MATRIX_ID,
   type MATRIX_LABEL_POSITIONS,
   type MatrixEntry,
-  matrixRowEntries,
+  type MatrixSlot,
+  matrixGrid,
   SEPARATOR_ID,
 } from "../registry/builtins";
 import type { Registry } from "../registry/registry";
@@ -84,13 +92,34 @@ export interface MatrixClass {
 /** A header of `props.rows` / `props.columns`, as validated by the manifest. */
 export type MatrixHeader = string | { label: string; tone?: Tone };
 
+/** A matrix's color scale (#644), as validated by the manifest. */
+export interface MatrixScale {
+  from: number;
+  to: number;
+  tone?: Tone;
+  steps?: number;
+  decimals?: number;
+  showValues?: boolean;
+  label?: string;
+}
+
+/** The tone of a scale without one (#644). */
+export const MATRIX_SCALE_TONE: Tone = "blue";
+
+/** The variant of the cells a scale colors (#644): the theme's tone fill, recolored by `ramp`. */
+export const MATRIX_SCALE_VARIANT = "filled";
+
 /** The props of a matrix node, as validated by the manifest. */
 export interface MatrixProps {
   cells: (string | (string | MatrixEntry)[])[];
   /** 1-based rows / columns drawn as ellipsis (#280). */
   ellipsisRows?: number[];
   ellipsisColumns?: number[];
-  classes: Record<string, MatrixClass>;
+  classes?: Record<string, MatrixClass>;
+  /** Colors cells written `{ value }` (#644). */
+  scale?: MatrixScale;
+  /** Turns the column headers (#644). */
+  headerRotate?: (typeof MATRIX_HEADER_ROTATIONS)[number];
   rows?: MatrixHeader[];
   columns?: MatrixHeader[];
   corner?: string;
@@ -128,6 +157,29 @@ export const MUTED_VARIANT = "muted";
 /** The cell width when `cellWidth` is omitted, in pt. */
 export const MATRIX_CELL_PT = 10;
 
+/** The unit of the placement of a matrix with merged cells (#644), in pt: half a point. */
+const PLACE_UNIT_PT = 0.5;
+
+/** The text a scale's cell (or a legend's end) shows for a value (#644). */
+export function formatScaleValue(value: number, scale: Pick<MatrixScale, "decimals">): string {
+  return scale.decimals === undefined ? String(value) : value.toFixed(scale.decimals);
+}
+
+/**
+ * Where a value falls on a scale (#644), 0 (at `from`) to 1 (at `to`),
+ * clamped. A stepped scale splits the range into `steps` equal bins and gives
+ * each the position of its step (0, 1/(steps-1), …, 1).
+ */
+export function scaleStep(
+  value: number,
+  scale: Pick<MatrixScale, "from" | "to" | "steps">,
+): number {
+  const t = Math.min(1, Math.max(0, (value - scale.from) / (scale.to - scale.from)));
+  if (scale.steps === undefined) return t;
+  const bin = Math.min(scale.steps - 1, Math.floor(t * scale.steps));
+  return bin / (scale.steps - 1);
+}
+
 /** One expanded part of a matrix: a cell, a header or the corner. */
 export interface MatrixPartExpansion extends CellFields {
   /** The ID of the node it was expanded into. */
@@ -139,6 +191,8 @@ export interface MatrixPartExpansion extends CellFields {
   readonly ellipsis?: string;
   /** pt: a header's text is broken to fit this width (`wrapHeaders`, #612). */
   readonly wrap?: number;
+  /** A cell colored by the matrix's scale (#644): its written value. */
+  readonly value?: number;
 }
 
 /** A matrix node and what it was expanded into (`doc.matrices`). */
@@ -157,6 +211,10 @@ export interface MatrixExpansion {
   readonly cellVariantPath?: DocPath;
   /** The frame has no padding (`props.flush`, #280, or a title above it, #612). */
   readonly flush?: true;
+  /** The cells have no border (`props.rules`, #612): so have the legend's samples (#644). */
+  readonly rules?: true;
+  /** The color scale (#644), with where it is written. */
+  readonly scale?: { readonly spec: MatrixScale; readonly path: DocPath };
   /** The parts: the cells row by row, then the row headers, column headers and corner. */
   readonly parts: readonly MatrixPartExpansion[];
 }
@@ -265,8 +323,9 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
       );
       continue;
     }
-    const names = Object.keys(props.classes);
-    const grid = props.cells.map((row) => matrixRowEntries(row, names));
+    const classes = props.classes ?? {};
+    const names = Object.keys(classes);
+    const grid = matrixGrid(props.cells, names).slots;
     const ids = matrixPartIds;
 
     // 1. The cells' variants must be box variants: checked once here, where
@@ -275,7 +334,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
     const boxVariants = box.ok ? box.value.variants : [];
     const variants: [string, DocPath][] = [];
     if (props.variant !== undefined) variants.push([props.variant, [...propsPath, "variant"]]);
-    for (const [name, cls] of Object.entries(props.classes)) {
+    for (const [name, cls] of Object.entries(classes)) {
       if (cls.variant !== undefined) {
         variants.push([cls.variant, [...propsPath, "classes", name, "variant"]]);
       }
@@ -304,9 +363,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
 
     // 2. The parts' IDs must be IDs, and free.
     const partIds: string[] = [];
-    for (const [r, row] of grid.entries()) {
-      for (const c of row.keys()) partIds.push(ids.cell(node.id, r + 1, c + 1));
-    }
+    for (const slot of grid.flat()) partIds.push(ids.cell(node.id, slot.row + 1, slot.column + 1));
     for (const r of (props.rows ?? []).keys()) partIds.push(ids.row(node.id, r + 1));
     for (const c of (props.columns ?? []).keys()) partIds.push(ids.column(node.id, c + 1));
     if (props.corner !== undefined) partIds.push(ids.corner(node.id));
@@ -351,6 +408,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
     // 3. Expand.
     const cellWidth = props.cellWidth ?? MATRIX_CELL_PT;
     const cellHeight = props.cellHeight ?? cellWidth;
+    const gap = props.gap ?? 0;
     const widthPath: DocPath =
       props.cellWidth !== undefined ? [...propsPath, "cellWidth"] : propsPath;
     const heightPath: DocPath =
@@ -379,18 +437,28 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
     });
     const of = `of matrix "${node.id}"`;
 
+    const scale = props.scale;
+    const scalePath: DocPath = [...propsPath, "scale"];
     const cellRows: ArrangeItem[][] = [];
-    for (const [r, row] of grid.entries()) {
-      const written = props.cells[r];
+    const cellSlots: { id: string; slot: MatrixSlot }[] = [];
+    for (const row of grid) {
       const items: ArrangeItem[] = [];
-      for (const [c, entry] of row.entries()) {
+      for (const slot of row) {
+        const { entry, row: r, column: c, index } = slot;
+        const written = props.cells[r];
         const name = entry.class;
         // Validated: every name is an own class (never one of Object.prototype's).
-        const cls =
-          (name !== undefined && Object.hasOwn(props.classes, name) && props.classes[name]) || {};
+        const cls = (name !== undefined && Object.hasOwn(classes, name) && classes[name]) || {};
         const path: DocPath =
-          typeof written === "string" ? [...propsPath, "cells", r] : [...propsPath, "cells", r, c];
+          typeof written === "string"
+            ? [...propsPath, "cells", r]
+            : [...propsPath, "cells", r, index];
         const id = ids.cell(node.id, r + 1, c + 1);
+        // A merged cell (#644) covers its columns and rows and the gaps between them.
+        const width = slot.columns * cellWidth + (slot.columns - 1) * gap;
+        const height = slot.rows * cellHeight + (slot.rows - 1) * gap;
+        const spanPath: DocPath | undefined =
+          entry.span === undefined ? undefined : [...path, "span"];
         const rowEllipsis = props.ellipsisRows?.includes(r + 1) === true;
         const columnEllipsis = props.ellipsisColumns?.includes(c + 1) === true;
         const selected = rowEllipsis || columnEllipsis;
@@ -401,6 +469,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
               ? "⋮"
               : "…"
           : entry.ellipsis;
+        cellSlots.push({ id, slot });
         if (symbol !== undefined) {
           // An ellipsis slot keeps the cell's size and draws only the symbol:
           // a borderless label, so neighbors keep their own borders (#280).
@@ -413,7 +482,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
               component: "sumi/label",
               label: symbol,
               variant: "default",
-              props: size(cellWidth, cellHeight),
+              props: size(width, height),
               group: node.id,
             },
             {
@@ -426,12 +495,50 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
                 component: at,
                 tone: at,
                 variant: at,
-                "props.width": widthPath,
-                "props.height": heightPath,
-                props: widthPath,
+                "props.width": spanPath ?? widthPath,
+                "props.height": spanPath ?? heightPath,
+                props: spanPath ?? widthPath,
               },
             },
             `ellipsis cell ${r + 1}, ${c + 1} ${of}`,
+          );
+          items.push(id);
+          continue;
+        }
+        if (entry.value !== undefined && scale !== undefined) {
+          // A cell the scale colors (#644): the tone's fill at its step, its value as text.
+          const valuePath: DocPath = [...path, "value"];
+          const shown =
+            entry.text ?? (scale.showValues === false ? "" : formatScaleValue(entry.value, scale));
+          addPart(
+            {
+              id,
+              component: CELL_COMPONENT,
+              label: shown,
+              variant: MATRIX_SCALE_VARIANT,
+              tone: scale.tone ?? MATRIX_SCALE_TONE,
+              props: size(width, height),
+              group: node.id,
+            },
+            {
+              kind: "cell",
+              value: entry.value,
+              path,
+              fields: {
+                label: entry.text !== undefined ? [...path, "text"] : valuePath,
+                component: path,
+                tone: scale.tone !== undefined ? [...scalePath, "tone"] : scalePath,
+                variant: scalePath,
+                "props.width": spanPath ?? widthPath,
+                "props.height": spanPath ?? heightPath,
+                props: spanPath ?? widthPath,
+              },
+            },
+            `cell ${r + 1}, ${c + 1} (value ${entry.value}) ${of}`,
+            {
+              ramp: scaleStep(entry.value, scale),
+              ...(props.rules === true && { borderless: true }),
+            },
           );
           items.push(id);
           continue;
@@ -450,7 +557,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
             label: entry.text ?? "",
             variant: cellVariant,
             ...(cls.tone !== undefined && { tone: cls.tone }),
-            props: size(cellWidth, cellHeight),
+            props: size(width, height),
             group: node.id,
           },
           {
@@ -462,9 +569,9 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
               component: path,
               tone: classField(propsPath, name ?? "", cls, "tone") ?? path,
               variant,
-              "props.width": widthPath,
-              "props.height": heightPath,
-              props: widthPath,
+              "props.width": spanPath ?? widthPath,
+              "props.height": spanPath ?? heightPath,
+              props: spanPath ?? widthPath,
             },
           },
           `cell ${r + 1}, ${c + 1} (class ${JSON.stringify(name)}) ${of}`,
@@ -483,6 +590,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
       name: string,
       kind: MatrixPartExpansion["kind"],
       wrap: number | undefined,
+      rotation?: MatrixProps["headerRotate"],
     ) => {
       const label = typeof written === "string" ? written : written.label;
       const tone = typeof written === "string" ? undefined : written.tone;
@@ -493,6 +601,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
           label,
           variant: "default",
           ...(tone !== undefined && { tone }),
+          ...(rotation !== undefined && { labelRotation: rotation }),
           props,
           group: node.id,
         },
@@ -506,6 +615,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
             variant: path,
             tone: tone === undefined ? path : [...path, "tone"],
             ...sizePaths,
+            ...(rotation !== undefined && { labelRotation: [...propsPath, "headerRotate"] }),
           },
         },
         name,
@@ -545,7 +655,11 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
         { "props.width": widthPath, props: widthPath },
         `the header of column ${c + 1} ${of}`,
         "column",
-        wrapHeaders ? (props.columnHeaderWidth ?? cellWidth) : undefined,
+        // A turned header (#644) is as tall as its text: it is never wrapped.
+        wrapHeaders && props.headerRotate === undefined
+          ? (props.columnHeaderWidth ?? cellWidth)
+          : undefined,
+        props.headerRotate,
       ),
     );
     const corner =
@@ -597,7 +711,15 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
       variant: "plain",
       ...(node.tone !== undefined && { tone: node.tone }),
       ...(node.group !== undefined && { group: node.group }),
-      arrange: matrixArrange(props, cellRows, rowHeaders, columnHeaders, corner, ruleIds),
+      arrange: matrixArrange(
+        props,
+        cellRows,
+        cellSlots,
+        rowHeaders,
+        columnHeaders,
+        corner,
+        ruleIds,
+      ),
     };
     groups.push(frame);
     nodes[index] = undefined;
@@ -613,8 +735,10 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
       id: node.id,
       path: matrixPath,
       variant: component.variant,
-      classes: props.classes,
+      classes,
       ...((props.flush === true || titleOutside) && { flush: true as const }),
+      ...(props.rules === true && { rules: true as const }),
+      ...(scale !== undefined && { scale: { spec: scale, path: scalePath } }),
       cellVariant: props.variant ?? "default",
       ...(variantPath !== undefined && { cellVariantPath: variantPath }),
       parts,
@@ -640,6 +764,7 @@ export function expandMatrices(state: CheckState, registry: Registry, locate: Lo
 function matrixArrange(
   props: MatrixProps,
   cellRows: readonly ArrangeItem[][],
+  cellSlots: readonly { id: string; slot: MatrixSlot }[],
   rowHeaders: readonly string[],
   columnHeaders: readonly string[],
   corner: string | undefined,
@@ -661,20 +786,45 @@ function matrixArrange(
       items: left ? [header, items] : [items, header],
     },
   });
-  const rows = cellRows.map((items, r) => {
-    const header = rowHeaders[r];
-    return header === undefined ? cells(items) : beside(header, cells(items));
-  });
-  const body: ArrangeBox = { stack: { direction: "down", gap, align, items: rows } };
+  let body: ArrangeBox;
+  if (cellSlots.every(({ slot }) => slot.rows === 1 && slot.columns === 1)) {
+    const rows = cellRows.map((items, r) => {
+      const header = rowHeaders[r];
+      return header === undefined ? cells(items) : beside(header, cells(items));
+    });
+    body = { stack: { direction: "down", gap, align, items: rows } };
+  } else {
+    // Merged cells (#644): every cell at its slot's place, the row headers in a column beside
+    // them (each as high as a cell, so they stay level with their rows).
+    const cellWidth = props.cellWidth ?? MATRIX_CELL_PT;
+    const cellHeight = props.cellHeight ?? cellWidth;
+    const pitch = { x: cellWidth + gap, y: cellHeight + gap };
+    const grid: ArrangeBox = {
+      place: {
+        unit: PLACE_UNIT_PT,
+        items: cellSlots.map(({ id, slot }) => ({
+          item: id,
+          at: [
+            (slot.column * pitch.x + (slot.columns * pitch.x - gap) / 2) / PLACE_UNIT_PT,
+            (slot.row * pitch.y + (slot.rows * pitch.y - gap) / 2) / PLACE_UNIT_PT,
+          ] as [number, number],
+        })),
+      },
+    };
+    body =
+      rowHeaders.length === 0
+        ? grid
+        : beside({ stack: { direction: "down", gap, align, items: [...rowHeaders] } }, grid);
+  }
   const rule = (at: MatrixRule): ArrangeItem[] => {
     const id = rules.get(at);
     return id === undefined ? [] : [id];
   };
   let parts: ArrangeItem[] = [body];
   if (columnHeaders.length > 0) {
-    // Wrapped headers of different heights sit on the cells' side (#612).
+    // Wrapped (#612) or turned (#644) headers of different heights sit on the cells' side.
     const heads: ArrangeBox =
-      props.wrapHeaders === true
+      props.wrapHeaders === true || props.headerRotate !== undefined
         ? {
             row: {
               direction: "right",

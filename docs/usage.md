@@ -167,7 +167,7 @@ Experimental `editable` mode creates separate DrawingML shapes/text. Only indivi
 
 ## Themes and profiles
 
-`figure.theme` selects appearance; `figure.profile` selects page limits, minimum text size and spacing. They are independent. A profile never scales the diagram or its text. There are six built-in themes:
+`figure.theme` selects appearance; `figure.profile` selects page limits, minimum text size and spacing. They are independent. A profile never scales the diagram or its text. There are eight built-in themes:
 
 | Theme | Appearance |
 | --- | --- |
@@ -177,8 +177,10 @@ Experimental `editable` mode creates separate DrawingML shapes/text. Only indivi
 | `color` | Minimal's typography/lines with pastel tones and blue emphasis; 8pt/7pt |
 | `paper` | Color ML-paper style: pastel tones, rounded boxes/groups, black 1pt outlines, white framed panels (gray only with `variant: filled` or `groupFill`), 0.5pt edges and small arrows; Inter Latin text in structured layout (`sumi/inter-biz-ud-gothic`); 8pt/7pt |
 | `llama` | After Meta's Llama 4 MoE figure: 1pt slate lines with open chevron arrowheads, gray-framed white boxes, dark slate `solid`, blue `emphasis`, borderless pale panels; Inter like `paper`; 8pt/7pt ([design #386](design/decisions/386-llama-theme.md)) |
+| `sumi` | The project's house theme: white canvas, navy ink and sand accents, white panels with a thin pale frame; Inter like `paper`; 7-9pt |
+| `sumi-dark` | The dark counterpart of `sumi`: navy canvas, cream ink; 7-9pt |
 
-`academic` and `paper` are both for papers: `academic` is grayscale for black-and-white print, `paper` is the color ML-paper style. See the [theme overview](themes.md) for a comparison table and the same figures under every theme.
+`sumi` is the recommended choice for papers, READMEs and slides (with `textScale`, below). For print, `academic` is grayscale for black-and-white print and `paper` is the pastel color ML-paper style. See the [theme overview](themes.md) for a comparison table and the same figures under every theme.
 
 Nodes/groups accept `tone`: `gray`, `red`, `orange`, `yellow`, `green`, `blue`, `purple`, `pink`. Themes determine the actual colors: color/paper use distinct pale fills, minimal/academic/slides use three gray levels for grayscale printing.
 
@@ -189,7 +191,7 @@ Nodes/groups accept `tone`: `gray`, `red`, `orange`, `yellow`, `green`, `blue`, 
 | `screen-doc` | 200mm | 150mm | 10pt |
 | `presentation-16x9` | 338.7mm | 190.5mm | 14pt |
 
-`screen-doc` is for a README, blog post or document page shown about 760px wide. Use slides + presentation-16x9 together, or scale another theme's text with `figure.themeOverrides.textScale` (`sumi` text is 7-9pt: `textScale: 2` for `presentation-16x9`, `1.5` for `screen-doc`; `sumi catalog --section themes` lists the scale each theme needs). Without it, a theme whose text is below the profile's minimum reports `profile/font-too-small`, with the scale that fixes it in the hint. See [theme/profile comparisons](gallery/compare.md).
+`screen-doc` is for a README, blog post or document page shown about 760px wide. For a slide, scale a theme's text with `figure.themeOverrides.textScale` (recommended: `sumi` with `textScale: 2`), or use `slides`, which meets `presentation-16x9` as it is (`sumi` text is 7-9pt: `textScale: 2` for `presentation-16x9`, `1.5` for `screen-doc`; `sumi catalog --section themes` lists the scale each theme needs). Without it, a theme whose text is below the profile's minimum reports `profile/font-too-small`, with the scale that fixes it in the hint. See [theme/profile comparisons](gallery/compare.md).
 
 ## Icons and images
 

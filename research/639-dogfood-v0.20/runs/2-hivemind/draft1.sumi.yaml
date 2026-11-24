@@ -1,0 +1,58 @@
+version: 1
+figure:
+  id: hivemind-similarity
+  theme: sumi
+  profile: paper-single
+  themeOverrides:
+    tones:
+      red: {fill: "#e08e6b"}
+      orange: {fill: "#eebf98"}
+      yellow: {fill: "#f6e3c8"}
+  layout:
+    arrange:
+      stack:
+        gap: 4mm
+        align: center
+        items:
+          - row: {gap: 4mm, items: [queries, sample, embed]}
+          - sim
+          - key
+nodes:
+  - {id: queries, component: box, label: "100 open-ended\nqueries"}
+  - {id: sample, component: box, label: "8 LMs ×\n50 responses each"}
+  - {id: embed, component: box, label: "Embedding\nsimilarity"}
+  - id: sim
+    component: matrix
+    label: Similarity between models' responses
+    props:
+      labelAt: above
+      rows: [GPT-4o, Claude 3.5, Llama 3.3, Gemini 2.0, Qwen-Max, DeepSeek-V3, Mistral L., Phi-4]
+      columns: [GPT, Cla, Lla, Gem, Qwen, DS, Mis, Phi]
+      cellWidth: 20pt
+      gap: 1pt
+      classes:
+        s: {variant: outlined, label: same model}
+        h: {tone: red, variant: tinted, label: "≥ .80"}
+        m: {tone: orange, variant: tinted, label: ".77–.79"}
+        l: {tone: yellow, variant: tinted, label: ".75–.76"}
+        z: {variant: muted, label: "< .75"}
+        x: {variant: muted}
+      cells:
+        - [{class: s, text: ".88"}, x, x, x, x, x, x, x]
+        - [{class: l, text: ".75"}, {class: s, text: ".89"}, x, x, x, x, x, x]
+        - [{class: m, text: ".77"}, {class: l, text: ".75"}, {class: s, text: ".87"}, x, x, x, x, x]
+        - [{class: z, text: ".74"}, {class: z, text: ".72"}, {class: z, text: ".74"}, {class: s, text: ".85"}, x, x, x, x]
+        - [{class: h, text: ".81"}, {class: l, text: ".75"}, {class: m, text: ".77"}, {class: z, text: ".74"}, {class: s, text: ".90"}, x, x, x]
+        - [{class: h, text: ".81"}, {class: l, text: ".76"}, {class: m, text: ".78"}, {class: l, text: ".75"}, {class: h, text: ".82"}, {class: s, text: ".86"}, x, x]
+        - [{class: m, text: ".77"}, {class: z, text: ".74"}, {class: l, text: ".76"}, {class: l, text: ".76"}, {class: l, text: ".76"}, {class: m, text: ".77"}, {class: s, text: ".86"}, x]
+        - [{class: m, text: ".79"}, {class: z, text: ".74"}, {class: m, text: ".77"}, {class: z, text: ".74"}, {class: h, text: ".80"}, {class: h, text: ".80"}, {class: m, text: ".77"}, {class: s, text: ".85"}]
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      entries: [{class: sim.s}, {class: sim.h}, {class: sim.m}, {class: sim.l}, {class: sim.z}]
+edges:
+  - {from: queries, to: sample}
+  - {from: sample, to: embed}
+  - {from: embed, to: sim}

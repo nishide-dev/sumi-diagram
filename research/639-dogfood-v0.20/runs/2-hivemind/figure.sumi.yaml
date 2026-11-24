@@ -1,0 +1,60 @@
+version: 1
+figure:
+  id: hivemind-similarity
+  theme: sumi
+  profile: paper-single
+  themeOverrides:
+    tones:
+      red: {fill: "#e08e6b", text: "#30364f"}
+      orange: {fill: "#eebf98", text: "#30364f"}
+      yellow: {fill: "#f6e3c8", text: "#30364f"}
+  layout:
+    arrange:
+      stack:
+        gap: 3mm
+        align: center
+        items:
+          - row: {gap: 3mm, items: [queries, sample, embed]}
+          - sim
+          - key
+nodes:
+  - {id: queries, component: box, variant: muted, label: "100 open-ended\nqueries"}
+  - {id: sample, component: box, variant: muted, label: "8 LMs × 50\nresponses each"}
+  - {id: embed, component: box, variant: muted, label: "Embed each\nresponse"}
+  - id: sim
+    component: matrix
+    label: Mean pairwise similarity (%)
+    props:
+      labelAt: above
+      rows: [GPT-4o, Claude 3.5, Llama 3.3, Gemini 2.0, Qwen-Max, DeepSeek-V3, Mistral L., Phi-4]
+      columns: [GPT, Cla, Lla, Gem, Qwen, DS, Mis, Phi]
+      cellWidth: 22pt
+      cellHeight: 15pt
+      gap: 1pt
+      rules: true
+      classes:
+        s: {variant: filled, label: within one model}
+        h: {tone: red, variant: filled, label: "≥ 80"}
+        m: {tone: orange, variant: filled, label: "77–80"}
+        l: {tone: yellow, variant: filled, label: "75–77"}
+        z: {variant: muted, label: "< 75"}
+        x: {variant: muted}
+      cells:
+        - [{class: s, text: "88.2"}, x, x, x, x, x, x, x]
+        - [{class: l, text: "75.1"}, {class: s, text: "88.7"}, x, x, x, x, x, x]
+        - [{class: l, text: "76.7"}, {class: l, text: "75.0"}, {class: s, text: "87.1"}, x, x, x, x, x]
+        - [{class: z, text: "74.1"}, {class: z, text: "72.4"}, {class: z, text: "74.1"}, {class: s, text: "85.2"}, x, x, x, x]
+        - [{class: h, text: "80.7"}, {class: l, text: "75.0"}, {class: m, text: "77.1"}, {class: z, text: "74.3"}, {class: s, text: "89.7"}, x, x, x]
+        - [{class: h, text: "81.4"}, {class: l, text: "76.0"}, {class: m, text: "77.6"}, {class: l, text: "75.4"}, {class: h, text: "81.6"}, {class: s, text: "86.3"}, x, x]
+        - [{class: l, text: "76.7"}, {class: z, text: "73.9"}, {class: l, text: "75.5"}, {class: l, text: "75.6"}, {class: l, text: "76.4"}, {class: m, text: "77.2"}, {class: s, text: "85.6"}, x]
+        - [{class: m, text: "78.5"}, {class: z, text: "74.1"}, {class: l, text: "76.6"}, {class: z, text: "74.1"}, {class: m, text: "79.5"}, {class: h, text: "80.2"}, {class: m, text: "77.1"}, {class: s, text: "84.5"}]
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: row
+      perRow: 3
+      entries: [{class: sim.h}, {class: sim.m}, {class: sim.l}, {class: sim.z}, {class: sim.s}]
+edges:
+  - {from: queries, to: sample}
+  - {from: sample, to: embed}

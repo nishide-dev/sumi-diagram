@@ -61,11 +61,11 @@ Apply one edit and re-check: independent savings are not additive.
 | --- | --- | --- |
 | `yaml/syntax` | not valid YAML (often an unquoted `:` or `#` in a label, bad indentation) | quote the value / fix indentation at `location` |
 | `yaml/duplicate-key`, `yaml/alias-not-allowed`, `yaml/tag-not-allowed`, `yaml/multiple-documents`, `yaml/non-string-key` | YAML features Sumi does not accept | remove the duplicate / anchor / tag / extra document |
-| `schema/unknown-field` | a key the schema does not have (`color`, `style`, `children`, …); also a field newer than the CLI ([feature versions](figure-format.md#feature-versions)) | delete it; express it with a component, variant or `group:` |
+| `schema/unknown-field` | a key the schema does not have (`color`, `style`, `children`, …); also a field newer than the CLI ([feature versions](figure-format.md#feature-versions)) | delete it; express it with a component, variant or `group:`; `gap` on a `grid` is `rowGap` / `columnGap` |
 | `schema/reserved-key` | a key named `__proto__` (e.g. a matrix class); it would be dropped | rename it |
 | `schema/missing-field` | a required field is missing (`version`, `figure.id`, node `component`, edge `from`/`to`) | add it |
 | `schema/invalid-id` | ID does not match `^[a-z][a-z0-9_-]{0,63}$` | use the hint's lowercase form; update references |
-| `schema/invalid-type`, `schema/invalid-value` | wrong type or value (number as label, unknown `direction`) | quote strings; use an allowed value |
+| `schema/invalid-type`, `schema/invalid-value` | wrong type or value (number as label, unknown `direction`) | quote strings; use an allowed value; `iconSize: 1.2em` is written `iconSize: 1.2` (a number is a multiple of the font size) or a length (`"4mm"`) |
 | `schema/unsupported-version`, `schema/unsatisfied-requires` | `version` is not 1, or `requires` names a newer Sumi | use `version: 1`; drop `requires` or ask the user |
 | `ref/unknown-endpoint` | edge `from`/`to` is not a node or group ID | use the hint's ID, or add the missing element if the content calls for it |
 | `ref/unknown-group` | `group:` names no group | add it under `groups:` or fix the ID |
@@ -79,6 +79,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `ref/unknown-cell` | `<node>.<cell>` names no cell: not a `tokens` node, or no cell with that `id` (unnamed cells count from 1, across `lines`); or, on a `cuboid`, no `highlight` block with that `name`  | use the hint's cell ([tokens](structured.md#token-sequences)), or the block's `name` from the cuboid's `highlight` ([cuboids](structured.md#grids-highlighted-blocks-and-receptive-fields)) |
 | `layout/part-anchor` | `fromAnchor` / `toAnchor` on an arrow or line end that names a cuboid block (`<node>.<name>`; a `zoom` gets `component/anchor-on-zoom` instead): the edge meets the block's own silhouette, aimed at its centre | remove the anchor, or name the cuboid itself to pick a side ([cuboids](structured.md#grids-highlighted-blocks-and-receptive-fields)) |
 | `ref/unknown-class` | a legend entry's `class` (`<matrix>.<class>`) names no matrix or class | use the hint's class ([matrices](structured.md#matrices)) |
+| `ref/unknown-scale` | a legend entry's `scale` names no matrix, or a matrix without `props.scale` | name a matrix with a `scale`, or give it one ([matrices](structured.md#matrices)) |
 | `layout/structured-only` | a structured-only field or component in an auto figure ([engine rules](structured.md#engine-rules)) | remove it, or make the figure structured: root `figure.layout.arrange`, no `engine: auto`, every element placed |
 | `layout/set-overlap-budget` | more than 1024 overlap regions; deeper intersections may omit colors | reduce the overlapping sets or split the figure ([sets](structured.md#set-enclosures)) |
 | other `layout/*` (structure) | placement errors | [below](#fixing-layout) |

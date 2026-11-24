@@ -165,7 +165,10 @@ export function colorUseOf(
     // A legend's samples repeat the figure's colors: they are not choices of their own.
     if (ir.legend !== undefined) continue;
     if (ir.kind === "node" && (ir.image !== undefined || UNPAINTED.has(ir.component))) continue;
-    const isHeavy = ir.kind === "node" && guidance.heavyVariants.includes(ir.variant);
+    // The cells a matrix's color scale paints (#644) encode data: their tone is one accent,
+    // but the blocks are the chart itself, not a choice of heavy variants.
+    const isHeavy =
+      ir.kind === "node" && guidance.heavyVariants.includes(ir.variant) && ir.scaleStep !== true;
     const hue = hueOf(element, theme, isHeavy);
     if (hue !== undefined) byTone.set(hue, [...(byTone.get(hue) ?? []), element]);
     if (ir.kind !== "node") continue;

@@ -1,0 +1,77 @@
+<!doctype html>
+<meta charset="utf-8"><title>mockup</title>
+<style>
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Bold.ttf"); font-weight: 700 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Bold.ttf"); font-weight: 700 }
+/* sumi catalog --sizes --css --profile screen-doc --theme sumi --text-scale 1.5 */
+:root {
+  --font: "Sumi Latin", "Sumi", "Inter", "BIZ UDPGothic", sans-serif;  /* font set sumi/inter-biz-ud-gothic */
+  --fs-node: 12;         /* pt: node text */
+  --fs-group: 13.5;      /* pt: group title */
+  --fs-edge: 10.5;       /* pt: edge label (profile minimum 10pt) */
+  --frame-w: 1.5;        /* pt: a node's frame */
+  --group-frame-w: 1;    /* pt: a group's frame */
+  --edge-w: 1.5;         /* pt: an edge */
+  --radius: 0pt;         /* a node's corners */
+  --gap: 6mm;            /* between the items of a row, stack or grid */
+  --group-pad: 4.23mm;   /* a group's padding, each side */
+  --node-pad-x: 3.7mm;   /* a box's padding left and right of its label */
+  --node-pad-y: 1.76mm;  /* a box's padding above and below its label */
+  --box-h: 8.82mm;       /* a one-line box's height */
+  --op: 8.47mm;          /* an operator */
+  --op-large: 12.7mm;    /* an operator, size: large */
+  --op-xlarge: 16.93mm;  /* an operator, size: xlarge */
+  --margin: 3mm;         /* around the figure */
+  --page-w: 200mm;       /* the profile's page width */
+}
+:root { --canvas:#ffffff; --ink:#30364f; --panel:#ffffff; --frame:#a9aebc;
+ --blue:#d9e4e6; --blue-line:#3d5d77; --orange:#efdfce; --orange-line:#814b2d; --gray:#e1dece; --gray-line:#4e566b;
+ --arrow:#30364f; --pt:0.3528mm; }
+@page { size:200mm 124mm; margin:0 }
+html,body { margin:0; background:var(--canvas) }
+#fig { position:relative; width:200mm; height:124mm; overflow:hidden; font:calc(var(--fs-node)*var(--pt)) var(--font); color:var(--ink) }
+.box,.dot,.group { position:absolute; box-sizing:border-box; translate:-50% -50% }
+.box { display:flex; align-items:center; justify-content:center; text-align:center; white-space:pre; min-height:var(--box-h);
+ padding:var(--node-pad-y) var(--node-pad-x); border:calc(var(--frame-w)*var(--pt)) solid var(--ink); background:#fff }
+.blue { background:var(--blue); border-color:var(--blue-line) }
+.orange { background:var(--orange); border-color:var(--orange-line); color:var(--orange-line) }
+.gray { background:var(--gray); border-color:var(--gray-line) }
+.dashed { border-style:dashed }
+.dot { width:5.3mm; height:5.3mm; border-radius:50%; background:var(--ink) }
+.group { border:calc(var(--group-frame-w)*var(--pt)) solid var(--frame); background:var(--panel) }
+.group .title { position:absolute; left:2mm; top:1.2mm; font-weight:bold; font-size:calc(var(--fs-group)*var(--pt)) }
+svg.edges { position:absolute; inset:0; width:200mm; height:124mm }
+svg.edges path.e { fill:none; stroke:var(--arrow); stroke-width:calc(var(--edge-w)*0.3528) }
+svg.edges text { font-size:calc(var(--fs-edge)*0.3528px); fill:var(--ink); font-family:var(--font) }
+svg.edges marker path { fill:var(--arrow) }
+</style>
+<div id="fig">
+ <div class="group" style="left:100mm; top:38mm; width:172mm; height:46mm"><div class="title">Non-terminal</div></div>
+ <div class="group" style="left:117mm; top:84mm; width:138mm; height:24mm"><div class="title">Terminal</div><div style="position:absolute;top:100%;left:0;right:0;text-align:center;font-size:calc(var(--fs-edge)*var(--pt));margin-top:1mm">a terminal task never restarts</div></div>
+ <div class="dot" style="left:66mm; top:26mm"></div>
+ <div class="box blue" style="left:101mm; top:26mm">submitted</div>
+ <div class="box blue" style="left:101mm; top:48mm">working</div>
+ <div class="box orange" style="left:39mm; top:48mm">input-required</div>
+ <div class="box orange" style="left:162.5mm; top:48mm">auth-required</div>
+ <div class="box gray" style="left:66mm; top:88mm">completed</div>
+ <div class="box gray" style="left:101mm; top:88mm">failed</div>
+ <div class="box gray" style="left:136mm; top:88mm">canceled</div>
+ <div class="box gray" style="left:168mm; top:88mm">rejected</div>
+ <div class="box dashed" style="left:104mm; top:114mm">New task, same contextId</div>
+ <svg class="edges" viewBox="0 0 200 124">
+  <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2.6" markerHeight="2.6" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+  <path class="e" d="M68.7 26 H87" marker-end="url(#ah)"/><text x="70" y="24.5">SendMessage</text>
+  <path class="e" d="M101 30.4 V43.5" marker-end="url(#ah)"/>
+  <path class="e" d="M89 46 H57.2" marker-end="url(#ah)"/><text x="62" y="44.5">needs input</text>
+  <path class="e" d="M57.2 50.5 H89" marker-end="url(#ah)"/><text x="62" y="55">client reply</text>
+  <path class="e" d="M113 46 H145" marker-end="url(#ah)"/><text x="117" y="44.5">needs auth</text>
+  <path class="e" d="M145 50.5 H113" marker-end="url(#ah)"/><text x="117" y="55">credential</text>
+  <path class="e" d="M95 52.4 V62 H66 V83.5" marker-end="url(#ah)"/><text x="68" y="68">success</text>
+  <path class="e" d="M101 52.4 V83.5" marker-end="url(#ah)"/><text x="103" y="68">error</text>
+  <path class="e" d="M136 61 V83.5" marker-end="url(#ah)"/><text x="138" y="70">CancelTask</text>
+  <path class="e" d="M168 61 V83.5" marker-end="url(#ah)"/><text x="170" y="70">declined</text>
+  <path class="e" d="M168 96 V114 H132" marker-end="url(#ah)"/><text x="134" y="112">follow-up, referenceTaskIds</text>
+ </svg>
+</div>

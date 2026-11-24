@@ -1,0 +1,77 @@
+# KIP-932 Queues for Kafka: share group roles and RPCs (a), in-flight record states (b).
+version: 1
+figure:
+  id: kafka-share-groups
+  theme: sumi
+  profile: presentation-16x9
+  themeOverrides:
+    textScale: 2
+  layout:
+    arrange:
+      row:
+        gap: 10mm
+        align: start
+        items: [panel-a, panel-b]
+groups:
+  - id: panel-a
+    label: (a) Share group roles and RPCs
+    labelAt: above-left
+    arrange:
+      stack:
+        gap: 26mm
+        items: [share-group, brokers]
+  - id: share-group
+    label: Share group
+    labelAt: top-left
+    arrange:
+      row:
+        gap: 8mm
+        items: [c1, c2, c3]
+  - id: brokers
+    label: Brokers
+    labelAt: top-left
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: gc, at: [45, 92]}
+          - {item: spl, at: [155, 92]}
+          - {item: sc, at: [155, 128]}
+          - {item: state-topic, at: [100, 156]}
+  - id: panel-b
+    label: (b) Record states in a share-partition
+    labelAt: above-left
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: start, at: [250, 24]}
+          - {item: available, at: [250, 45]}
+          - {item: acquired, at: [250, 85]}
+          - {item: acknowledged, at: [250, 125]}
+          - {item: archived, at: [250, 160]}
+nodes:
+  - {id: c1, component: box, label: Consumer 1, props: {width: 44mm}}
+  - {id: c2, component: box, label: Consumer 2, props: {width: 44mm}}
+  - {id: c3, component: box, label: Consumer 3, props: {width: 44mm}}
+  - {id: gc, component: box, label: Group coordinator, tone: blue, variant: tinted}
+  - {id: spl, component: box, label: "Share-partition\nleader", tone: blue, variant: tinted, props: {width: 58mm}}
+  - {id: sc, component: box, label: Share coordinator, tone: blue, variant: tinted, props: {width: 58mm}}
+  - {id: state-topic, component: cylinder, label: __share_group_state, tone: orange, variant: tinted}
+  - {id: start, component: initial}
+  - {id: available, component: box, label: Available, props: {width: 50mm}}
+  - {id: acquired, component: box, label: Acquired, variant: emphasis, props: {width: 50mm}}
+  - {id: acknowledged, component: box, label: Acknowledged, props: {width: 50mm}}
+  - {id: archived, component: box, label: Archived, tone: gray, variant: tinted, props: {width: 50mm}}
+edges:
+  - {from: share-group, to: gc, label: ShareGroupHeartbeat}
+  - {from: share-group, to: spl, label: "ShareFetch\nShareAcknowledge"}
+  - {from: gc, to: sc, label: InitializeShareGroupState}
+  - {from: spl, to: sc, label: "Read / Write\nShareGroupState"}
+  - {from: sc, to: state-topic, label: persists}
+  - {from: start, to: available}
+  - {from: available, to: acquired, label: "acquire\n(fetch)"}
+  - {from: acquired, to: available, label: "release or\nlock timeout", lane: {side: east}}
+  - {from: acquired, to: acknowledged, label: accept}
+  - {from: acknowledged, to: archived, label: "SPSO\nmoves past"}
+  - {from: acquired, to: archived, label: "reject or\nlimit reached", lane: {side: east, outside: acknowledged}}

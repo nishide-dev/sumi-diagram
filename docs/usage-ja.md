@@ -284,7 +284,7 @@ sumi render figure.sumi.yaml -o glued.pptx --pptx-mode editable --pptx-connector
 
 見た目はテーマ（`figure.theme`）、出力先の制約（ページの大きさ・最小文字サイズ・間隔）はプロファイル（`figure.profile`）で選びます。両者は独立で、プロファイルが図や文字を拡大・縮小することはありません。
 
-組み込みテーマは次の 6 つです。
+組み込みテーマは次の 8 つです。
 
 | テーマ | 内容 |
 | --- | --- |
@@ -294,8 +294,10 @@ sumi render figure.sumi.yaml -o glued.pptx --pptx-mode editable --pptx-connector
 | `color` | 色を使う汎用テーマ。`minimal` と同じ線・文字で、tone は淡い色の塗り、強調は青。文字 8pt（エッジ 7pt） |
 | `paper` | カラーの ML 論文風。パステルの tone、角丸の箱とグループ、黒い 1pt の枠、白いパネル（灰色は `variant: filled` や `groupFill` のときだけ）、0.5pt のエッジと小さい矢じり、structured の図の欧文は Inter（フォントセット `sumi/inter-biz-ud-gothic`）。文字 8pt（エッジ 7pt）（[設計 §6.52](design/phase1.md#652-173-の論文向けの-theme-paper)） |
 | `llama` | Meta の Llama 4 の発表記事の MoE の図にならったテーマ。1pt の青灰色の線と開いた山形の矢じり、灰色の枠の白い箱、濃い青灰色の `solid`、青い `emphasis`、枠のない淡いパネル。欧文は `paper` と同じ Inter。文字 8pt（エッジ 7pt）（[設計 #386](design/decisions/386-llama-theme.md)） |
+| `sumi` | このプロジェクトの家のテーマ。白い地に紺色の文字と砂色のアクセント、白いパネルに淡い細い枠。欧文は `paper` と同じ Inter。文字 7〜9pt |
+| `sumi-dark` | `sumi` の暗い版。紺色の地にクリーム色の文字。文字 7〜9pt |
 
-`academic` と `paper` はどちらも論文向けです。白黒で印刷するなら `academic`、カラーの ML 論文なら `paper` です。比較表と同じ図の描き比べは[テーマの説明](themes-ja.md)を参照してください。
+論文・README・スライド（下の `textScale` を使う）には `sumi` を勧めます。印刷の都合で選ぶなら、白黒で印刷するなら `academic`、パステルのカラーの ML 論文の調子なら `paper` です。比較表と同じ図の描き比べは[テーマの説明](themes-ja.md)を参照してください。
 
 node と group の `tone`（`gray` / `red` / `orange` / `yellow` / `green` / `blue` / `purple` / `pink`）で色の分類を指定できます。色の値はテーマが決めます。`color` と `paper` では色ごとに別の淡い塗りになり、`minimal` / `academic` / `slides` ではグレースケールで印刷できるよう 3 段階の灰色になります（[設計 §6.20](design/phase1.md#620-92-の-operatorjunctiontone-と-color-テーマ)、[ギャラリー](gallery/README.md)）。
 
@@ -306,7 +308,7 @@ node と group の `tone`（`gray` / `red` / `orange` / `yellow` / `green` / `bl
 | `screen-doc` | 200mm | 150mm | 10pt |
 | `presentation-16x9` | 338.7mm | 190.5mm | 14pt |
 
-`screen-doc` は README・ブログ・文書ページに約 760px の幅で載せる図向けです。スライドの図は `theme: slides` と `profile: presentation-16x9` で作るか、ほかのテーマの文字を `figure.themeOverrides.textScale` で拡大します（`sumi` の文字は 7〜9pt なので、`presentation-16x9` には `textScale: 2`、`screen-doc` には `1.5`。テーマごとに必要な倍率は `sumi catalog --section themes` に出ます）。倍率なしで文字が最小に届かないテーマは `profile/font-too-small` になり、ヒントに直る倍率が出ます。描き比べは[ギャラリー](gallery/compare.md)にあります。
+`screen-doc` は README・ブログ・文書ページに約 760px の幅で載せる図向けです。スライドの図は、テーマの文字を `figure.themeOverrides.textScale` で拡大して作るか（勧めるのは `sumi` に `textScale: 2`）、そのままで `presentation-16x9` に足りる `slides` を使います（`sumi` の文字は 7〜9pt なので、`presentation-16x9` には `textScale: 2`、`screen-doc` には `1.5`。テーマごとに必要な倍率は `sumi catalog --section themes` に出ます）。倍率なしで文字が最小に届かないテーマは `profile/font-too-small` になり、ヒントに直る倍率が出ます。描き比べは[ギャラリー](gallery/compare.md)にあります。
 
 ### データから波形を描く
 
