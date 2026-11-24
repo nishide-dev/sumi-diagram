@@ -44,6 +44,7 @@ import type {
   FigureGroup,
   FigureMeta,
   FigureNode,
+  FloatPosition,
   GlyphKind,
   GlyphPosition,
   GroupContentAlign,
@@ -534,6 +535,12 @@ export interface GroupIR extends ObjectIRBase {
   readonly contentAlign?: GroupContentAlign;
   /** Groups with the same name reserve the tallest of their title bands (#613). */
   readonly matchLabelHeight?: string;
+  /**
+   * The frame of a floating legend (#643, `props.float`): placed at this corner
+   * or side of its parent's content area (the root's without a parent), inset
+   * by `insetPt`, after the content; it adds nothing to the parent's size.
+   */
+  readonly float?: { readonly at: FloatPosition; readonly insetPt: number };
 }
 
 export interface EdgeIR extends ElementIRBase {
@@ -1091,6 +1098,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       ...(g.contentAlign !== undefined && { contentAlign: g.contentAlign }),
       ...(g.matchLabelHeight !== undefined && { matchLabelHeight: g.matchLabelHeight }),
       ...(captions.has(g.id) && { caption: nodeKey(captions.get(g.id) as string) }),
+      ...floatOf(doc, key),
     });
   });
 
@@ -1742,6 +1750,30 @@ function alignIR(
     }),
     srcAt,
   });
+}
+
+/**
+ * The keys of the frames and parts (nodes and sample edges) of the floating
+ * legends (#643): the router leaves them out of its grid and the writer paints
+ * them last, over the content.
+ */
+export function floatingLegendKeys(ir: FigureIR): Set<ElementKey> {
+  const floating = new Set<string>();
+  for (const group of ir.groups) if (group.float !== undefined) floating.add(group.id);
+  const keys = new Set<ElementKey>();
+  if (floating.size === 0) return keys;
+  for (const element of ir.elements.values()) {
+    if (element.legend !== undefined && floating.has(element.legend.id)) keys.add(element.key);
+  }
+  return keys;
+}
+
+/** `{ float }` for the frame of a floating legend (#643), otherwise `{}`. */
+function floatOf(doc: PartialFigure, key: ElementKey): Pick<GroupIR, "float"> {
+  const origin = doc.expanded?.get(key);
+  if (origin?.from !== "legend") return {};
+  const float = doc.legends?.find((legend) => groupKey(legend.id) === key)?.float;
+  return float === undefined ? {} : { float: freeze({ ...float }) };
 }
 
 /** `{ legend }` for the frame or a part of a legend (#131), otherwise `{}`. */

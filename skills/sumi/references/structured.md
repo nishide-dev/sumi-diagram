@@ -470,6 +470,10 @@ edges:
   separate lifelines and one-line labels, and gives a `rowGap` a trial verified (1mm or
   more first). With `figure.fit: scale` the height also follows the width: a narrower
   figure is shrunk less.
+- **A key** for coloured messages need not add height: a [floating legend](#legends)
+  (`float: {at: bottom-left, inset: 2mm}`, since 0.20.1) sits in the free space under
+  lifelines that end early (they stop above it), inside a fragment's frame if the
+  inset keeps it off the border.
 - Any other edge (not in `rows`) is routed as usual, e.g. a dotted arrow between two
   notes. A group as a note holds several boxes (a `plain` group with `props.padding:
   0.5pt` keeps it compact).
@@ -1914,7 +1918,30 @@ sample (Paper followed by its icon). One legend can hold a whole paper key at th
       - {set: {tone: green}, label: Hyperedge}
 ```
 
-- Place it in the tree like a node; `align` and edges can name it; it cannot be attached
+**Floating** (since 0.20.1): `float: bottom-left` (any corner, `top`, `bottom`, `left`
+or `right`) leaves the legend out of the arrange tree and lays it over the free space at
+that corner of its container's content area (the figure's; a group's with `group:`), so it
+adds nothing to the width or height. `float: {at: bottom-left, inset: 2mm}` keeps it off
+the edges (e.g. inside a sequence fragment's frame). In a [sequence](#sequence-diagrams),
+lifelines with no row from just above the legend down stop above it, so a key fits under
+lifelines that end early. It is painted last, over everything, in SVG, PDF and PPTX;
+edges are routed as if it were not there. Nothing moves out of its way:
+`geometry/float-overlap` (warning) names what it covers (choose another corner, an inset,
+or `flow: row`), and `layout/float-too-large` (warning) a legend that, with its inset, does
+not fit the content area. Keep a key whenever
+colours carry meaning; floating it is the way to keep it in a tight page.
+
+```yaml
+- id: key
+  component: legend
+  props:
+    float: {at: bottom-left, inset: 2mm}
+    entries:
+      - {edge: {tone: orange}, label: carries a signed mandate}
+      - {edge: {tone: green, variant: dashed}, label: signed receipt}
+```
+
+- Place it in the tree like a node (or float it); `align` and edges can name it; it cannot be attached
   (`layout/attached-legend`). `lint/unused-legend-entry` (warning): no node or edge has the
   entry's component, variant and tone, no node draws the `icon` (or a badge of it), has a
   `glyph` of the entry's kind, strength and tones, or no set has the swatch's variant
