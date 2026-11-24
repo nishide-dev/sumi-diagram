@@ -281,6 +281,26 @@ describe("a title above the border", () => {
     expect(centerY(label?.box as Rect)).toBeLessThan(rect(above, "g").y);
   });
 
+  test("counts once in a stretched row (#663)", () => {
+    const layoutWith = (align: string) =>
+      lay(
+        doc(
+          { row: { gap: "10pt", align, items: ["g", "h"] } },
+          [box("a", "40pt", "60pt"), box("b")],
+          {
+            groups: groups("above-left"),
+          },
+        ),
+      ).layout;
+    const start = layoutWith("start");
+    const stretch = layoutWith("stretch");
+    // The tallest panel keeps its frame; the figure is no taller than with start.
+    expect(rect(stretch, "g").height).toBeCloseTo(rect(start, "g").height, 6);
+    expect(stretch.canvas.height).toBe(start.canvas.height);
+    // The other panel still takes the row's height (title included).
+    expect(rect(stretch, "h").height).toBeGreaterThan(rect(start, "h").height);
+  });
+
   test("keeps the content where it would be without a title", () => {
     const plain = lay(
       doc({ row: { items: ["g"] } }, [box("a")], {
