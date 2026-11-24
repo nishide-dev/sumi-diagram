@@ -13,10 +13,14 @@
  * `geometry/edge-label-detached`). Not checked: a tag (it sits on its own
  * line), a label touching its own line or crossed by the other line (other
  * rules report those), edges of one net (they share a trunk on purpose),
- * zoom lines and the lifelines of a sequence diagram (they carry no labels).
+ * zoom lines and the lifelines of a sequence diagram (they carry no labels),
+ * and two messages of a sequence diagram: the layout puts every message's
+ * label above its own arrow, so with a tight `rowGap` a label can come close
+ * to the arrow of the row above without being read as its label.
  */
 
-import type { EdgeIR } from "../../compiler/ir";
+import type { ArrangeBoxIR, EdgeIR, FigureIR, SequenceRowIR } from "../../compiler/ir";
+import type { ElementKey } from "../../core/check-state";
 import type { Point } from "../../core/geometry";
 import { isTagLabel, labelGap } from "../../layout/route/labels";
 import { defineGeometryRule, type LintFinding } from "../rule";
@@ -73,6 +77,24 @@ export function labelSideOf(
   return best.cross < 0 ? "left" : "right";
 }
 
+/** The messages of the figure's sequence diagrams (#630), by edge key. */
+function sequenceMessages(ir: FigureIR): Set<ElementKey> {
+  const out = new Set<ElementKey>();
+  const rows = (list: readonly SequenceRowIR[]): void => {
+    for (const row of list) {
+      if (row.kind === "message") out.add(row.edge);
+      else if (row.kind === "band" || row.kind === "fragment") rows(row.rows);
+    }
+  };
+  const visit = (box: ArrangeBoxIR) => {
+    rows(box.sequence?.rows ?? []);
+    for (const item of box.items) if (item !== null && typeof item !== "string") visit(item);
+  };
+  if (ir.arrange !== undefined) visit(ir.arrange);
+  for (const group of ir.groups) if (group.arrange !== undefined) visit(group.arrange);
+  return out;
+}
+
 export const edgeLabelAmbiguous = defineGeometryRule({
   id: EDGE_LABEL_AMBIGUOUS,
   description:
@@ -88,6 +110,7 @@ export const edgeLabelAmbiguous = defineGeometryRule({
       ),
     );
     const edges = context.elements.filter(competes);
+    const messages = sequenceMessages(context.ir);
     const findings: LintFinding[] = [];
     for (const edge of edges) {
       if (edge.labels.length === 0 || isTagLabel(edge.ir)) continue;
@@ -104,6 +127,9 @@ export const edgeLabelAmbiguous = defineGeometryRule({
       for (const other of edges) {
         if (other === edge) continue;
         if (net !== undefined && nets.get(other.key) === net) continue;
+        // Two messages of a sequence diagram: each label sits above its own arrow by the
+        // layout's rule, the same in every row, so the row above never owns it.
+        if (messages.has(edge.key) && messages.has(other.key)) continue;
         const gap = distance(other);
         // Crossing or touching the letters is edge-crosses-label's / edge-touches-label's.
         if (gap <= 0 || gap > reach || gap > own * AMBIGUOUS_RATIO) continue;

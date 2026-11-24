@@ -6,7 +6,11 @@
  * `geometry/edge-label-detached`.
  */
 
+// The lint configuration first: it loads the rule list in the order its import cycle needs
+// (importing the geometry lint's index first reads `rules.ts` before its rules exist).
+import "../lint/config";
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { checkFigure } from "../core/check";
 import { parseBlockAnchor } from "../core/figure/layout";
 import { ANCHOR_PATTERN } from "../core/figure/schema";
@@ -316,6 +320,17 @@ describe("geometry/edge-label-ambiguous (#642)", () => {
       other.ir = { ...other.ir, ...change } as typeof other.ir;
       expect(edgeLabelAmbiguous.run(context, undefined)).toEqual([]);
     }
+  });
+
+  test("messages of a sequence diagram are not each other's rivals", async () => {
+    // A tight rowGap brings a message's label near the arrow of the row above; every label
+    // sits above its own arrow, so it is not reported.
+    const text = readFileSync(
+      new URL("../../tests/fixtures/figures/fit-hints/sequence-row-gap.sumi.yaml", import.meta.url),
+      "utf8",
+    ).replace("participants: [user", "rowGap: 1.5mm\n        participants: [user");
+    const r = await render(text);
+    expect(lintGeometry(r).filter((d) => d.code === EDGE_LABEL_AMBIGUOUS)).toEqual([]);
   });
 
   test("labelSide is read along the direction of travel in all four directions", () => {
