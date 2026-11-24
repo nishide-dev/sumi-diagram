@@ -28,6 +28,7 @@ import {
   FigureDocumentSchema,
   FigureMetaSchema,
   GroupSchema,
+  ICON_SIZE_EM_RANGE,
   ID_PATTERN,
   type JsonValue,
   NodeSchema,
@@ -339,9 +340,14 @@ function issueToDiagnostics(
  */
 function iconSizeHint(path: DocPath, actual: unknown): string | undefined {
   if (path.at(-1) !== "iconSize" || typeof actual !== "string") return undefined;
+  const { min, max } = ICON_SIZE_EM_RANGE;
+  const length = 'or a length with mm, cm, in or pt, e.g. "4mm".';
   const em = /^\s*(\d+(?:\.\d+)?|\.\d+)\s*em\s*$/i.exec(actual)?.[1];
-  const multiple = em === undefined ? "a multiple of the font size" : `${em} times the font size`;
-  return `Write iconSize: ${em ?? "1.2"} (a number is ${multiple}) or a length with mm, cm, in or pt, e.g. "4mm".`;
+  // Suggest the plain number only when the schema accepts it.
+  if (em !== undefined && Number(em) >= min && Number(em) <= max) {
+    return `Write iconSize: ${Number(em)} (a number is ${Number(em)} times the font size) ${length}`;
+  }
+  return `Write a number from ${min} to ${max} (a multiple of the font size, e.g. iconSize: 1.2) ${length}`;
 }
 
 function unknownField(
