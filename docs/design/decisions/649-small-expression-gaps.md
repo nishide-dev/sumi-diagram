@@ -31,8 +31,8 @@
 ```
 
 - `tag`（#610）と同じ置き方・同じ診断で、枠を丸くした。`isTagLabel` が `badge` も真とし、置き場・重なりの判定・`edge-label-detached` の対象外などは tag の経路をそのまま通る。
-- 形（`tagPadding` / `tagBox` に辺を渡す）: 高さは tag と同じ（文字の行の箱＋上下に文字サイズの 1/10）。幅は高さ以上で、左右の余白は文字サイズの 1/6 以上。1〜2 文字なら円、長いラベルなら角の丸い pill になる。`rx` は高さの半分。
-- SVG では `<rect class="sumi-edge-badge">`（tag は `sumi-edge-tag`）。塗りと枠は tag と同じ（下の色で塗り、線の色の細い枠）。編集可能 PPTX はラベルの直前の `rect` を背景として読むので、tag と同じく塗りは残る。
+- 形（`tagPadding` / `tagBox` に辺を渡す）: 高さは tag と同じ（文字の行の箱＋上下に文字サイズの 1/10）。幅は高さ以上で、左右の余白は文字サイズの 1/6 以上。文字とその余白が円（直径は高さ）に収まれば円、収まらなければ文字に合わせた幅の角の丸い pill になる（`1` は円、`WW` は pill。`12` はフォントによる: sumi では円、color では pill）。文字数ではなく幅で決める。`rx` は高さの半分。
+- SVG では `<rect class="sumi-edge-badge">`（tag は `sumi-edge-tag`）。塗りと枠は tag と同じ（下の色で塗り、線の色の細い枠）。編集可能 PPTX（`editable.ts`）は、tag と badge の枠（`sumi-edge-tag` / `sumi-edge-badge` の `rect`）を、SVG と同じ位置・塗り・枠線の角丸四角形（`roundRect`、角の大きさは `rx` から。円の badge は adj 50000 で円）として描き、その上の文字の箱は塗らない。以前は tag の塗りだけを文字の箱の背景に移しており、枠線と丸みが消えていた。tag を使う図は editable の corpus にないので、ゴールデンは変わらない。
 
 ### 3. `lane.bus: false`
 
@@ -60,7 +60,7 @@ figure:
 
 - place の項目の `origin` に `place` を足した（既存の `footprint` / `body` は #517）。`at` は「グループ自身の place の [0, 0] が来る点」になる。`at: [0, 0]` と同じ `unit` なら、内側の座標がそのままページの座標になり、グループの中心を計算しなくてよい。
 - 計算（`engine.ts` の `#placeZero`）: グループを自然な大きさで置いたときの、内側の [0, 0] の位置を、`#placeElement` と `#placeCoordinates` と同じ手順で求める（枠、padding と題の帯、attach の張り出し、残りの中で place の箱を中央に置く）。`#coordinateRect` はその点が `at` に来るように足跡の矩形を返す。外接・重なりの判定・配置はすべて `#coordinateRect` を通るので、同じ矩形を見る。
-- 対象は「自分の arrange が `place` のグループ」に限る。ノード、`place` 以外の arrange、arrange のないグループには `layout/invalid-place-origin`（error、検査段階）。傾いた平面（#577）は置き方が違うので、エンジンでは従来の `footprint` として扱う。
+- 対象は「自分の arrange が `place` のグループ」に限る。ノード、`place` 以外の arrange、arrange のないグループ、傾いた平面（#577、`props.plane`。中身を写像するので内側の [0, 0] はページの点にならない）には `layout/invalid-place-origin`（error、検査段階）。エンジンの `#placeZero` も平面では使わない（念のため）。
 
 ## 採らなかった案
 
@@ -79,7 +79,8 @@ figure:
   - bus: `bus: false` がなければバスの結合と端の解決は同じ。
   - origin: `innerOrigin` がなければ `#coordinateRect` は従来どおり。
 - スキーマ: `attach.inFlow`、`lane.bus`、`labelStyle` の `badge`、place の `origin` の `place` が加わった。既存の YAML はそのまま有効。
-- 診断: `layout/invalid-place-origin`（error）が新しい。`layout/lane-bus-split` の hint の文が変わった。
+- 診断: `layout/invalid-place-origin`（error）が新しい。`layout/lane-bus-split` の hint の文が変わった。`layout/edge-label-overlap` は badge の辺で「tag」ではなく「badge」「labelStyle: badge」と書く。
+- 編集可能 PPTX: tag・badge の枠が角丸四角形として出るようになった（上記）。
 
 ## 検証
 

@@ -157,8 +157,9 @@ up across groups unless you work out each group's centre. Write
 `[0, 0]` lands, so with `at: [0, 0]` and the same `unit` the inner coordinates are the
 page's (copy a mockup's coordinates straight in, and a node at x = 40 in one group sits
 above a node at x = 40 in the other). The frame, padding and title grow around the items
-as usual. It needs a group whose arrange tree is a `place` (not on a tilted plane);
-on anything else it is `layout/invalid-place-origin` (error).
+as usual. It needs a flat group whose arrange tree is a `place`; on a node, a group
+arranged otherwise or a tilted plane (`props.plane`) it is `layout/invalid-place-origin`
+(error).
 
 ```yaml
 figure:
@@ -1553,10 +1554,12 @@ edges:
   slides along that segment to keep clear and never leaves the line (`labelSide` is
   ignored). Keep tags short; a long tag on a short segment is `layout/edge-label-overlap`.
 - **Step badges on a line** (`labelStyle: badge`): a tag in a round frame, for the
-  numbers of a sequence of steps (`1`, `2`, `a`): a circle around a one- or two-character
-  label, a pill around a longer one. Placed exactly like a tag (`labelAt` moves it,
-  `labelSide` is ignored). Colour the steps with the edge's `tone`; the badge's frame
-  takes the line's colour.
+  numbers of a sequence of steps (`1`, `2`, `a`): a circle while the text fits inside
+  it (a digit or a letter; whether `12` fits depends on the theme's font), a pill as
+  wide as the text needs otherwise (`WW`, `step 2`). Placed exactly like a tag
+  (`labelAt` moves it, `labelSide` is ignored). Colour the steps with the edge's
+  `tone`; the badge's frame takes the line's colour. The editable PPTX draws tags and
+  badges as stroked rounded rectangles (a badge's circle stays a circle).
 
 ```yaml
 edges:

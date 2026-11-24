@@ -3,6 +3,9 @@
  * badge`, `lane.bus: false` and `origin: place` on nested place boxes.
  */
 import { describe, expect, test } from "bun:test";
+import { compileFigure } from "../compiler/compile";
+import { svgToEditablePptx } from "../render/pptx/editable";
+import { readPptx } from "../render/pptx/testing";
 import { renderFigure } from "../render/render";
 import { layoutStructuredFigure } from "./index";
 import type { LayoutIR, Rect } from "./ir";
@@ -104,6 +107,7 @@ nodes:
 edges:
   - {from: a, to: b, label: "1", labelStyle: badge}
   - {from: b, to: c, label: "step 2", labelStyle: badge}
+  - {from: a, to: c, label: "WW", labelStyle: badge, lane: {side: south}}
 `;
     const rendered = await renderFigure(source);
     if (!rendered.ok) throw new Error(JSON.stringify(rendered.diagnostics));
@@ -118,16 +122,59 @@ edges:
       height: Number(m[4]),
       rx: Number(m[5]),
     }));
-    expect(badges).toHaveLength(2);
-    const [circle, pill] = badges as [(typeof badges)[0], (typeof badges)[0]];
+    expect(badges).toHaveLength(3);
+    const [circle, pill, wide] = badges as [
+      (typeof badges)[0],
+      (typeof badges)[0],
+      (typeof badges)[0],
+    ];
     expect(circle.width).toBeCloseTo(circle.height, 2);
     expect(circle.rx).toBeCloseTo(circle.height / 2, 2);
     expect(pill.width).toBeGreaterThan(pill.height);
     expect(pill.rx).toBeCloseTo(pill.height / 2, 2);
+    // A circle only while the text fits in it: two wide letters make a pill.
+    expect(wide.width).toBeGreaterThan(wide.height + 1);
+    expect(wide.rx).toBeCloseTo(wide.height / 2, 2);
     // Centred on the horizontal line between the boxes, like a tag.
     const l = layout(source);
     expect(circle.y + circle.height / 2).toBeCloseTo(centerY(rectOf(l, "n:a")), 0);
     expect(rendered.value.svg).not.toContain("sumi-edge-tag");
+  });
+  test("the editable PPTX keeps the round, stroked frame of badges and tags", async () => {
+    const source = `version: 1
+figure:
+  id: badges
+  theme: sumi
+  layout: {arrange: {row: {gap: 20mm, items: [a, b, c]}}}
+nodes:
+  - {id: a, component: box, label: A}
+  - {id: b, component: box, label: B}
+  - {id: c, component: box, label: C}
+edges:
+  - {from: a, to: b, label: "1", labelStyle: badge}
+  - {from: b, to: c, label: Dev1, labelStyle: tag}
+`;
+    const rendered = await renderFigure(source);
+    const compiled = compileFigure(source);
+    if (!rendered.ok || !compiled.ok) throw new Error("render failed");
+    const pptx = svgToEditablePptx(rendered.value.svg, compiled.value.ir);
+    if (!pptx.ok) throw new Error(JSON.stringify(pptx.diagnostics));
+    const slide = new TextDecoder().decode(readPptx(pptx.value).get("ppt/slides/slide1.xml"));
+    const frames = [
+      ...slide.matchAll(
+        /name="[^"]* label frame"\/>.*?<a:ext cx="(\d+)" cy="(\d+)"\/><\/a:xfrm><a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val (\d+)"\/><\/a:avLst><\/a:prstGeom><a:solidFill>.*?<\/a:solidFill><a:ln w="(\d+)"><a:solidFill>/g,
+      ),
+    ].map((m) => ({ cx: Number(m[1]), cy: Number(m[2]), adj: Number(m[3]), ln: Number(m[4]) }));
+    expect(frames).toHaveLength(2);
+    const [badge, tag] = frames as [(typeof frames)[0], (typeof frames)[0]];
+    // The badge is a circle: square, fully rounded; the tag a rounded rectangle.
+    expect(Math.abs(badge.cx - badge.cy)).toBeLessThan(badge.cy * 0.02);
+    expect(badge.adj).toBe(50000);
+    expect(tag.adj).toBeLessThan(50000);
+    expect(badge.ln).toBeGreaterThan(0);
+    expect(tag.ln).toBeGreaterThan(0);
+    // The text on top has no fill of its own.
+    expect(slide).toMatch(/name="[^"]* label 0"\/>.*?<\/a:prstGeom><a:noFill\/>/);
   });
 });
 
@@ -228,9 +275,35 @@ nodes:
     expect(working.y - c("n:submitted").y).toBeCloseTo(20 * mm, 2);
   });
 
-  test("on a node or a group arranged otherwise it is an error", () => {
-    const result = layoutStructuredFigure(figure("place", "submitted"));
+  const invalid = (source: string) => {
+    const result = layoutStructuredFigure(source);
     expect(result.ok).toBe(false);
-    expect(result.diagnostics.map((d) => d.code)).toContain("layout/invalid-place-origin");
+    return result.diagnostics.filter((d) => d.code === "layout/invalid-place-origin");
+  };
+
+  test("on a node it is an error", () => {
+    expect(invalid(figure("place", "submitted"))).toHaveLength(1);
+  });
+
+  test("on a group arranged otherwise it is an error", () => {
+    const source = figure("place").replace(
+      /arrange:\n {6}place:\n {8}unit: 1mm\n {8}items:\n {10}- \{item: submitted, at: \[40, 20\]\}\n {10}- \{item: working, at: \[40, 40\]\}\n {10}- \{item: input, at: \[10, 40\]\}/,
+      "arrange: {row: {items: [submitted, working, input]}}",
+    );
+    expect(source).toContain("row: {items: [submitted, working, input]}");
+    const found = invalid(source);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.message).toContain("arranged by another box");
+  });
+
+  test("on a tilted plane it is an error", () => {
+    const source = figure("place").replace(
+      "  - id: active\n    label: Active",
+      "  - id: active\n    component: container\n    props: {plane: floor}\n    label: Active",
+    );
+    expect(source).toContain("plane: floor");
+    const found = invalid(source);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.message).toContain("tilted plane");
   });
 });

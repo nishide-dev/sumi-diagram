@@ -911,7 +911,7 @@
             ]
           },
           "labelStyle": {
-            "description": "How the label is drawn: beside the line (beside, the default) or as a small tag on the line (tag): the text in a thin framed box, filled with the background, that sits centred on the line and hides it there. A tag needs no room beside the line, so it fits between close columns and names a point on a line; labelAt moves it along the route. badge is a tag in a round frame (a circle around a short label such as a step number, a pill around a longer one), placed the same way (structured layout only).",
+            "description": "How the label is drawn: beside the line (beside, the default) or as a small tag on the line (tag): the text in a thin framed box, filled with the background, that sits centred on the line and hides it there. A tag needs no room beside the line, so it fits between close columns and names a point on a line; labelAt moves it along the route. badge is a tag in a round frame (a circle while the text fits inside it, such as a step number; a pill as wide as the text needs otherwise), placed the same way (structured layout only).",
             "type": "string",
             "enum": [
               "beside",
@@ -1515,7 +1515,7 @@
                     "description": "Item center [x, y] in units; y grows downward. By default a group's (or a whole tokens sequence's) center is that of its frame including the nodes attached to it; origin: body gives the frame without them."
                   },
                   "origin": {
-                    "description": "What `at` is the center of for a group or whole tokens sequence: footprint (default) is its frame, which grows to hold attached nodes; body is the same frame without them, so a sketch's centers carry over. A plain node's center is always its body. place (a group arranged by its own place only) makes `at` the point where that inner place's [0, 0] lands, so the inner `at` values are in this place's coordinates shifted by `at`: with at: [0, 0] and the same unit, one coordinate system for the page and the groups, with no group centres to work out. Only on a node or group ID.",
+                    "description": "What `at` is the center of for a group or whole tokens sequence: footprint (default) is its frame, which grows to hold attached nodes; body is the same frame without them, so a sketch's centers carry over. A plain node's center is always its body. place (a flat group arranged by its own place only, not a tilted plane) makes `at` the point where that inner place's [0, 0] lands, so the inner `at` values are in this place's coordinates shifted by `at`: with at: [0, 0] and the same unit, one coordinate system for the page and the groups, with no group centres to work out. Only on a node or group ID.",
                     "type": "string",
                     "enum": [
                       "footprint",

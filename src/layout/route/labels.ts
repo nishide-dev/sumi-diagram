@@ -40,8 +40,9 @@ export function labelGap(
  * in units: a third of the font size on the left and right, a tenth above
  * and below (the line box already holds the half-leading). A badge
  * (`labelStyle: badge`, #649) has the same height and is at least as wide
- * as it is high, with a sixth of the font size at the sides: a circle around
- * a short number, a pill around a longer label.
+ * as it is high, with at least a sixth of the font size at the sides: a
+ * circle while the text with that room fits inside it, a pill as wide as
+ * the text needs otherwise.
  */
 export function tagPadding(
   metrics: Pick<TextMetrics, "fontSizeUnits" | "width" | "height">,
