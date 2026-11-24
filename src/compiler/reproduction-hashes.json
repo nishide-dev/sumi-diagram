@@ -22,6 +22,7 @@
   "examples/multilayer-network/multilayer-network.sumi.yaml": "symlink:../../skills/sumi/examples/multilayer-network/multilayer-network.sumi.yaml",
   "examples/pipeline/pipeline.sumi.yaml": "symlink:../../skills/sumi/examples/pipeline/pipeline.sumi.yaml",
   "examples/system-architecture/system-architecture.sumi.yaml": "symlink:../../skills/sumi/examples/system-architecture/system-architecture.sumi.yaml",
+  "examples/transfer-heatmap/transfer-heatmap.sumi.yaml": "symlink:../../skills/sumi/examples/transfer-heatmap/transfer-heatmap.sumi.yaml",
   "examples/transformer/transformer.sumi.yaml": "symlink:../../skills/sumi/examples/transformer/transformer.sumi.yaml",
   "examples/tricl/tricl.sumi.yaml": "symlink:../../skills/sumi/examples/tricl/tricl.sumi.yaml",
   "skills/sumi/examples/attention-sheet/attention-sheet.sumi.yaml": "f62d5975ddf5f025e1901d137168dceaee1cd53a673848f9c31dbf99447c2907",
@@ -47,6 +48,7 @@
   "skills/sumi/examples/multilayer-network/multilayer-network.sumi.yaml": "cec9835d126b213dbaebc6edbec8790cf811c6ef6966db9385f1b8a76ad2ac7d",
   "skills/sumi/examples/pipeline/pipeline.sumi.yaml": "f7a1869bb6113cb4a993545cb1215cf0596dcd12872c232c1986d6d57095af3a",
   "skills/sumi/examples/system-architecture/system-architecture.sumi.yaml": "5ccecf0e0beb93ee4e95ec4705730967f1da00fc7d4205099f7f8ca334fa0b74",
+  "skills/sumi/examples/transfer-heatmap/transfer-heatmap.sumi.yaml": "76dca59db5e8522c401b4d435b03c44b00dbec3869b5330acd06638086e00a8b",
   "skills/sumi/examples/transformer/transformer.sumi.yaml": "2ff02ccf251abdb69ba08adb84599a4852c38825ff5a3b4a2cce9a53ad7d409b",
   "skills/sumi/examples/tricl/tricl.sumi.yaml": "4703466bf8d39c38051031cd856df450858b823b256349b444046d4410ac407d"
 }

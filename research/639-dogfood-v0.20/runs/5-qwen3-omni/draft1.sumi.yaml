@@ -1,0 +1,95 @@
+# Qwen3-Omni Technical Report (arXiv:2509.17765), drawn from the text of §2.1-2.5 and Table 1.
+version: 1
+figure:
+  id: qwen3-omni
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 10mm
+        align: center
+        items: [overview, talker-step]
+groups:
+  - id: overview
+    variant: plain
+    caption: (a) Thinker–Talker
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: in-text, at: [12, 12]}
+          - {item: in-audio, at: [12, 30]}
+          - {item: in-vision, at: [12, 50]}
+          - {item: aut, at: [44, 30]}
+          - {item: vit, at: [44, 50]}
+          - {item: thinker, at: [78, 31]}
+          - {item: text-out, at: [114, 12]}
+          - {item: talker, at: [114, 44]}
+          - {item: speech, at: [114, 68]}
+  - id: talker-step
+    caption: (b) One Talker step
+    arrange:
+      stack:
+        direction: down
+        gap: 5mm
+        items: [backbone, code0, mtp, codes, code2wav, frame-audio]
+nodes:
+  # (a) overview
+  - {id: in-text, component: box, label: Text}
+  - id: in-audio
+    component: waveform
+    label: Audio
+    props: {width: 16mm, height: 6mm, samples: [0.2, 0.5, 0.9, 0.4, 0.7, 0.3, 0.8, 0.5, 0.2, 0.6, 0.9, 0.4, 0.3, 0.7, 0.5, 0.2]}
+  - {id: in-vision, component: box, label: Image / video}
+  - {id: aut, component: box, tone: blue, variant: tinted, label: "Audio encoder (AuT)\n650M · 12.5 Hz", props: {width: 32mm}}
+  - {id: vit, component: box, tone: blue, variant: tinted, label: "Vision encoder\nSigLIP2 · 540M", props: {width: 32mm}}
+  - {id: thinker, component: box, tone: orange, variant: tinted, label: "Thinker\nMoE · 30B-A3B", props: {width: 26mm, height: 46mm}}
+  - {id: text-out, component: box, tone: orange, variant: outlined, label: Text output}
+  - {id: talker, component: box, tone: green, variant: tinted, label: "Talker\nMoE · 3B-A0.3B", props: {width: 24mm}}
+  - id: speech
+    component: waveform
+    tone: green
+    label: Streaming speech
+    props: {width: 16mm, height: 6mm, samples: [0.3, 0.6, 0.4, 0.9, 0.5, 0.2, 0.7, 0.8, 0.4, 0.6, 0.3, 0.9, 0.5, 0.4, 0.7, 0.2]}
+  # (b) one Talker step
+  - {id: backbone, component: box, tone: green, variant: tinted, label: Talker backbone, props: {width: 32mm}}
+  - id: code0
+    component: tokens
+    tone: green
+    props: {variant: tinted, width: 7mm, height: 6mm, cells: [{id: c0, label: '$c_0$'}]}
+  - {id: mtp, component: box, tone: gray, variant: tinted, label: MTP · 80M, props: {width: 32mm}}
+  - id: codes
+    component: tokens
+    tone: green
+    props:
+      variant: tinted
+      width: 7mm
+      height: 6mm
+      gap: 1pt
+      cells: [{id: k0, label: '$c_0$'}, {id: k1, label: '$c_1$'}, {id: k2, label: '$c_2$'}, {label: '…', component: label}]
+  - {id: code2wav, component: box, tone: gray, variant: tinted, label: "Code2Wav\ncausal ConvNet · 200M", props: {width: 40mm}}
+  - id: frame-audio
+    component: waveform
+    tone: green
+    label: 80 ms of audio
+    props: {width: 16mm, height: 6mm, samples: [0.4, 0.8, 0.5, 0.3, 0.9, 0.6, 0.2, 0.7, 0.5, 0.8, 0.3, 0.6]}
+edges:
+  # (a)
+  - {from: in-text, to: thinker, label: tokens}
+  - {from: in-audio, to: aut}
+  - {from: in-vision, to: vit}
+  - {from: aut, to: thinker}
+  - {from: vit, to: thinker}
+  - {from: thinker, to: text-out}
+  - {from: thinker, to: talker, label: "audio-visual\nfeatures"}
+  - {from: text-out, to: talker, label: streamed text}
+  - {from: talker, to: speech, label: 234 ms first packet}
+  - {from: talker, to: talker-step, component: zoom}
+  # (b)
+  - {from: backbone, to: code0, label: linear head}
+  - {from: code0, to: mtp}
+  - {from: mtp, to: codes, label: residual codebooks}
+  - {from: codes, to: code2wav}
+  - {from: code2wav, to: frame-audio}
+  - {from: codes, to: backbone, variant: dashed, label: next frame, lane: {side: west}}

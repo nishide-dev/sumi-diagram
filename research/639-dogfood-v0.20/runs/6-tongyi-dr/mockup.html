@@ -1,0 +1,99 @@
+<!doctype html>
+<meta charset="utf-8"><title>mockup</title>
+<style>
+/* BEGIN SUMI SIZES */
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Bold.ttf"); font-weight: 700 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Bold.ttf"); font-weight: 700 }
+/* sumi catalog --sizes --css --profile presentation-16x9 --theme sumi --text-scale 2 */
+:root {
+  --font: "Sumi Latin", "Sumi", "Inter", "BIZ UDPGothic", sans-serif;  /* font set sumi/inter-biz-ud-gothic */
+  --fs-node: 16;         /* pt: node text */
+  --fs-group: 18;        /* pt: group title */
+  --fs-edge: 14;         /* pt: edge label (profile minimum 14pt) */
+  --frame-w: 2;          /* pt: a node's frame */
+  --group-frame-w: 1;    /* pt: a group's frame */
+  --edge-w: 2;           /* pt: an edge */
+  --radius: 0pt;         /* a node's corners */
+  --gap: 8mm;            /* between the items of a row, stack or grid */
+  --group-pad: 5.64mm;   /* a group's padding, each side */
+  --node-pad-x: 4.94mm;  /* a box's padding left and right of its label */
+  --node-pad-y: 2.47mm;  /* a box's padding above and below its label */
+  --box-h: 11.99mm;      /* a one-line box's height */
+  --op: 11.29mm;         /* an operator */
+  --op-large: 16.93mm;   /* an operator, size: large */
+  --op-xlarge: 22.58mm;  /* an operator, size: xlarge */
+  --margin: 4.06mm;      /* around the figure */
+  --page-w: 338.7mm;     /* the profile's page width */
+}
+/* END SUMI SIZES */
+:root { --canvas:#ffffff; --ink:#30364f; --panel:#ffffff; --frame:#a9aebc;
+ --blue:#d9e4e6; --blue-line:#3d5d77; --green:#dce7d3; --green-line:#426344; --orange:#efdfce; --orange-line:#814b2d;
+ --gray:#ffffff; --gray-line:#30364f; --arrow:#30364f; --pt:0.3528mm; }
+@page { size:338mm 182mm; margin:0 }
+html,body { margin:0; background:var(--canvas) }
+#fig { position:relative; width:338mm; height:182mm; overflow:hidden; font:calc(var(--fs-node)*var(--pt)) var(--font); color:var(--ink) }
+.box,.group { position:absolute; box-sizing:border-box; translate:-50% -50% }
+.box { display:flex; align-items:center; justify-content:center; text-align:center; white-space:pre; min-height:var(--box-h);
+  padding:var(--node-pad-y) var(--node-pad-x); border:calc(var(--frame-w)*var(--pt)) solid var(--ink); background:#fff }
+.blue { background:var(--blue); border-color:var(--blue-line); color:var(--blue-line) }
+.green { background:var(--green); border-color:var(--green-line); color:var(--green-line) }
+.orange { background:var(--orange); border-color:var(--orange-line); color:var(--orange-line) }
+.group { border:calc(var(--group-frame-w)*var(--pt)) solid var(--frame) }
+.group>.title { position:absolute; left:0; bottom:100%; font-weight:bold; font-size:calc(var(--fs-group)*var(--pt)); white-space:pre; padding-bottom:1mm }
+svg.edges { position:absolute; inset:0; width:338mm; height:182mm; overflow:visible }
+svg.edges path.e { fill:none; stroke:var(--arrow); stroke-width:calc(var(--edge-w)*0.3528) }
+svg.edges text { font-size:calc(var(--fs-edge)*0.3528px); fill:var(--ink); font-family:var(--font) }
+svg.edges marker path { fill:var(--arrow) }
+</style>
+<div id="fig">
+<div class="group" style="left:169mm;top:56mm;width:330mm;height:88mm"><div class="title">(a) Inference: ReAct loop with context management</div></div>
+<div class="group" style="left:109mm;top:56mm;width:96mm;height:24mm"><div class="title">Agent</div></div>
+<div class="group" style="left:268mm;top:56mm;width:122mm;height:38mm"><div class="title">Tools</div></div>
+<div class="box" style="left:28mm;top:56mm">Question</div>
+<div class="box" style="left:84mm;top:56mm;width:36mm">Thought</div>
+<div class="box" style="left:134mm;top:56mm;width:36mm">Action</div>
+<div class="box blue" style="left:84mm;top:24mm">Report S_t</div>
+<div class="box orange" style="left:134mm;top:24mm">Final answer</div>
+<div class="box" style="left:109mm;top:88mm">Observation</div>
+<div class="box green" style="left:229mm;top:47mm;width:34mm">Search</div>
+<div class="box green" style="left:268mm;top:47mm;width:34mm">Visit</div>
+<div class="box green" style="left:307mm;top:47mm;width:34mm">Scholar</div>
+<div class="box green" style="left:229mm;top:65mm;width:34mm">Python</div>
+<div class="box green" style="left:268mm;top:65mm;width:34mm">File Parser</div>
+
+<div class="group" style="left:169mm;top:150mm;width:330mm;height:56mm"><div class="title">(b) Training: agentic mid-training → agentic post-training</div></div>
+<div class="box" style="left:36mm;top:137mm">Qwen3-30B-A3B
+Base</div>
+<div class="group" style="left:111mm;top:137mm;width:74mm;height:24mm"><div class="title">Agentic CPT</div></div>
+<div class="box" style="left:93mm;top:137mm;width:30mm">Stage 1
+32K</div>
+<div class="box" style="left:129mm;top:137mm;width:30mm">Stage 2
+128K</div>
+<div class="group" style="left:243mm;top:137mm;width:162mm;height:24mm"><div class="title">Post-training</div></div>
+<div class="box" style="left:190mm;top:137mm;width:44mm">SFT cold start</div>
+<div class="box" style="left:243mm;top:137mm;width:44mm">Agentic RL</div>
+<div class="box" style="left:296mm;top:137mm;width:44mm">Model merging</div>
+<div class="box blue" style="left:111mm;top:168mm">Agentic data synthesis</div>
+<div class="box blue" style="left:190mm;top:168mm">QA synthesis</div>
+<div class="box green" style="left:265mm;top:168mm">Real + simulated envs</div>
+
+<svg class="edges" viewBox="0 0 338 182">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="3" markerHeight="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+<path class="e" d="M44 56 H66" marker-end="url(#ah)"/>
+<path class="e" d="M102 56 H116" marker-end="url(#ah)"/>
+<path class="e" d="M152 56 H207" marker-end="url(#ah)"/><text x="170" y="53">call</text>
+<path class="e" d="M268 75 V88 H128" marker-end="url(#ah)"/><text x="200" y="86">result</text>
+<path class="e" d="M90 88 H84 V62" marker-end="url(#ah)"/>
+<path class="e" d="M84 50 V30" marker-end="url(#ah)"/><path class="e" d="M80 30 V50" marker-end="url(#ah)"/><text x="62" y="41">update</text>
+<path class="e" d="M134 50 V30" marker-end="url(#ah)"/><text x="137" y="41">final step</text>
+<path class="e" d="M61 137 H74" marker-end="url(#ah)"/>
+<path class="e" d="M108 137 H114" marker-end="url(#ah)"/>
+<path class="e" d="M148 137 H162" marker-end="url(#ah)"/>
+<path class="e" d="M212 137 H221" marker-end="url(#ah)"/>
+<path class="e" d="M265 137 H274" marker-end="url(#ah)"/>
+<path class="e" d="M111 162 V149" marker-end="url(#ah)"/>
+<path class="e" d="M190 162 V143" marker-end="url(#ah)"/>
+<path class="e" d="M265 162 V143" marker-end="url(#ah)"/>
+</svg></div>

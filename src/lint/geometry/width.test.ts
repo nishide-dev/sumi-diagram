@@ -199,7 +199,7 @@ describe("page width attribution (#307)", () => {
     expect(fullText(found)).not.toContain('node "a" to');
     expect(
       verifyHints(geometryContextFor(before.rendered), "width", (c) => c.canvas.width),
-    ).toContain("set figure.layout.arrange.row.gap to 0mm (page width reduced by");
+    ).toContain("set figure.layout.arrange.row.gap to 2mm (page width reduced by");
     expect(fullText(found)).not.toContain("shorten or wrap the label");
   });
 

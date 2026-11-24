@@ -331,6 +331,12 @@ interface ElementIRBase {
    * "mask"`) and, for a part, where its fields are written.
    */
   readonly matrix?: TokensCellIR;
+  /**
+   * Set on a node painted at a step of a matrix's color scale (#644): a cell
+   * with a value, or a sample of a legend's scale strip. Its fill encodes data,
+   * so the color lints count its tone but not the block of color.
+   */
+  readonly scaleStep?: true;
 }
 
 /** See {@link ElementIRBase.tokens} and {@link ElementIRBase.matrix}. */
@@ -864,6 +870,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       freeze({
         ...objectBase(key, "n", n),
         ...(chatParts.has(key) && { chatPart: chatParts.get(key) as "meta" | "divider" }),
+        ...(doc.paints?.get(key)?.ramp !== undefined && { scaleStep: true as const }),
         ...(chatWidths.has(key) && { chatMessage: true as const }),
         ...(component.id === "sumi/bubble" && {
           label: wrapText(n.label),

@@ -49,6 +49,7 @@ import { deadSpace } from "./dead-space";
 import { sparseFigure, textHeavy } from "./density";
 import { obstaclesCrossedByRoute, type RouteObstacle, segmentCrossesRegion } from "./edges";
 import { groupEmptySpace } from "./empty-space";
+import { sequenceHeightFits, sequenceHeightOptions } from "./height-fit";
 import { iconFamilyMix, iconOveruse } from "./icons";
 import { microJogLengths } from "./jogs";
 import { edgeLabelAmbiguous } from "./label-ambiguity";
@@ -201,15 +202,23 @@ export function pageWidthHint(context: GeometryContext): string {
 
 /** Hint of `exceeds-page-height`: what makes this figure shorter, by engine and profile (#114). */
 export function pageHeightHint(context: GeometryContext): string {
-  const layout = isStructured(context)
-    ? [
-        "turn the tallest `stack` into a `row` (or split it into several columns)",
-        "reduce its `gap`",
-      ]
-    : isHorizontal(context)
-      ? ["place fewer nodes on top of each other (split a tall layer, or group its nodes)"]
-      : ["lay it out left to right (layout.direction: right)"];
-  const options = [...layout, "split it into several figures", ...profileAdvice(context, "height")];
+  // A sequence (#630) is as tall as its rows: rowGap, icons and bands, not stacks (#640).
+  const sequence = sequenceHeightOptions(context);
+  const layout = sequence
+    ? sequence
+    : isStructured(context)
+      ? [
+          "turn the tallest `stack` into a `row` (or split it into several columns)",
+          "reduce its `gap`",
+        ]
+      : isHorizontal(context)
+        ? ["place fewer nodes on top of each other (split a tall layer, or group its nodes)"]
+        : ["lay it out left to right (layout.direction: right)"];
+  const options = [
+    ...layout,
+    ...(sequence ? [] : ["split it into several figures"]),
+    ...profileAdvice(context, "height"),
+  ];
   return context.ir.meta.fit === "scale"
     ? `\`figure.fit: scale\` shrinks a figure to the page width only. ${listOptions(options)}.`
     : `Sumi never shrinks a figure to fit. ${listOptions(options)}.`;
@@ -290,7 +299,9 @@ export const exceedsPageHeight = defineGeometryRule({
         message: `The figure is ${formatMm(height)} tall, more than the ${formatMm(profile.maxHeightPt)} maximum height of profile "${profile.id}".`,
         path: figurePath,
         subject: figureSubject(context),
-        hint: pageHeightHint(context),
+        hint: [pageHeightHint(context), sequenceHeightFits(context, height - profile.maxHeightPt)]
+          .filter(Boolean)
+          .join(" "),
       },
     ];
   },

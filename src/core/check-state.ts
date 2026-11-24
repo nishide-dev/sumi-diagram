@@ -124,6 +124,12 @@ export interface ExpandedPaint {
   readonly borderless?: true;
   /** Half the line width: the rule between the column headers and the cells of a ruled matrix (#612). */
   readonly thin?: true;
+  /**
+   * A step of a matrix's color scale (#644), 0 (the pale end) to 1 (the
+   * strong end): the fill is mixed between the two ends of the node's tone and
+   * the text takes the theme's ink that reads best on it. See `rampStyle()`.
+   */
+  readonly ramp?: number;
 }
 
 /** Where an expanded element (see {@link PartialFigure.expanded}) is written. */

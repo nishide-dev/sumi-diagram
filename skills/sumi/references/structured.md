@@ -422,8 +422,13 @@ edges:
   need, at least `participantGap` (default: the profile's arrange gap) between the
   participants' boxes; rows are `rowGap` apart (default: a third of it). Participants
   are bottom-aligned. When the figure is too wide, the `geometry/exceeds-page-width`
-  hint names the gap that sets the width and tries a smaller `participantGap` and
-  folding the widest message labels onto two lines.
+  hint names the gap that sets the width and tries a smaller `participantGap` (2mm or
+  more first) and folding the widest message labels onto two lines. When it is too
+  tall, the `geometry/exceeds-page-height` hint names `rowGap` (and how many times it
+  adds up), participants with `iconAt: top`, band rows for messages on separate
+  lifelines and one-line labels, and gives a `rowGap` a trial verified (1mm or more
+  first). With `figure.fit: scale` the height also follows the width: a narrower figure
+  is shrunk less.
 - Any other edge (not in `rows`) is routed as usual, e.g. a dotted arrow between two
   notes. A group as a note holds several boxes (a `plain` group with `props.padding:
   0.5pt` keeps it compact).
@@ -692,6 +697,17 @@ profile's group padding on every side (positive, a multiple of 0.5pt; the title 
 scales with it). Use it for a tight frame around a small cluster; `0` is not allowed
 (a borderless cluster is `variant: plain`, a frame hugging cells is a whole `tokens`
 sequence).
+The layout can grow it: where an arrowhead needs room before the border, the side it
+enters through grows for the head, a 2pt stem and 3pt of clearance (about 13pt with
+`sumi`'s lines). That happens for edges that **fan into the group from one port
+outside** (a junction feeding several members through the west side, #512), for an edge
+that turns back into a member, and for an arrowhead inside the group facing its border.
+The **opposite side grows as much**, so the content stays centred in the frame, even if
+no edge enters there. So `padding: 2mm` can end up 13pt on both sides; `--explain-width`
+and the width hint say so (`grown automatically by 7.5pt on both sides: the arrowheads of
+edges "a", "b", which fan out from one port outside the group …`). To keep the padding
+tight, let the edges enter from above or below, from inside the group, or through one
+edge to a member (no fan).
 
 **Attachments and title centring.** The title is centred on the **whole group
 frame**, attached members included, even with `variant: plain`: an input
@@ -1565,7 +1581,8 @@ edges:
   `figure.themeOverrides.edgeCorners: sharp` gives sharp turns with butt caps and miter
   joins (zoom wires too; editable PPTX keeps sharp centrelines). The router keeps a
   straight run of head plus radius where moving a bend gives it; tight group padding
-  grows automatically for the head plus a 2pt stem and 3pt border clearance. A tight gap
+  grows automatically for the head plus a 2pt stem and 3pt border clearance, on both
+sides of the axis (see "Group padding" under [group titles](#group-titles-and-captions)). A tight gap
   elsewhere can still leave the head right after a corner: `geometry/arrowhead-cramped`
   (info). A hidden junction in a stack gap that feeds a bus from aside, just short of the
   head's room, moves onto the bus row (nodes never move), so its trunk turns into the bus
@@ -1731,7 +1748,8 @@ text. An entry has exactly one of `edge` (a sample line: `component` default
 `arrow`, `variant`, `tone`), `node` (a small sample box: `component` default
 `box`, `variant`, `tone`) or `class` (the sample of a [matrix](#matrices) class,
 `<matrix>.<class>`), plus `label` (math allowed; a `class` entry defaults to the
-class's label). Since 0.16.0 three more samples: `icon: tabler/file-text` (an
+class's label). Since 0.20.1 `scale: <matrix>` draws the strip of a matrix's colour scale
+between its end values (the label defaults to the scale's `label`, and may be left out). Since 0.16.0 three more samples: `icon: tabler/file-text` (an
 icon one text line tall, or `iconSize` / `iconTone` as `iconSize` / `tone` on a node), `glyph: {kind: vector, tone: blue, strength: solid}`
 (the fields of a node [glyph](assets.md#glyphs) except `at` / `dx` / `dy`: `kind`,
 `cells`, `direction`, `tone`, `tones`, `strength`, `size`, `width`, `outline`) and
@@ -2429,15 +2447,41 @@ edges:
 - **Results tables (since 0.20.0).** `rules: true` draws the matrix as a paper's table:
   cells without borders (tinted fills and text stay), a rule above and below and a thinner
   one under the column headers (`headerGap` is the room beside a rule). Prefer it to
-  bordered cells for numbers; highlight the best row with a tinted class.
+  bordered cells for numbers; highlight the best row with a tinted class. Since 0.20.1 the
+  legend's class samples have no border either, as the cells; a class whose cells show no
+  fill (a pale `muted` one) is sampled by the text of its first cell (`74.1` in its pale
+  grey), and keeps a bordered box only when its cells have neither fill nor text.
+- **Colour scales / heatmaps (since 0.20.1).** `scale: {from, to, tone, steps, decimals,
+  showValues, label}` colours cells written `{value: 78.5}` from a pale tint of `tone`
+  (default `blue`; at `from`) to its solid colour (at `to`), mixed evenly, values clamped;
+  `from` above `to` makes small values strong. `steps: 5` bins the range into five colours.
+  A value cell shows its number (`decimals: 1` writes `75.0`; `showValues: false` hides it;
+  its own `text` replaces it) in the theme's ink or white, whichever keeps 4.5:1 on that
+  step, so the scale reads in `sumi`, `sumi-dark` and `paper` alike. A cell has a `class`
+  or a `value`, not both, and `classes` is optional with a scale (mix them: a muted class
+  for the diagonal, a hatched one for missing pairs). A legend entry `{scale: <matrix>}`
+  draws the scale's strip (one sample per step, five for a continuous scale) between its
+  two end values, with the scale's `label`. One scale is one accent tone for
+  `geometry/theme-color-use` and is never "a block of colour"; do not fake a ramp with
+  three `themeOverrides.tones`.
+- **Merged cells (since 0.20.1).** A list-row cell takes `span: 2` (two columns) or
+  `span: {rows: 2, columns: 3}`; it is drawn as one cell over the slots and the gaps between
+  them, with the ID of its top-left slot. As in an HTML table, the rows below leave out the
+  slots it covers (`[a, {class: b, span: {rows: 2}}]` then `[a]`; a row it covers entirely is
+  `[]`); every row still covers the same number of columns, with no slot left empty. A span may not cross an ellipsis row or column.
+- **Turned column headers (since 0.20.1).** `headerRotate: -90` (reading bottom to top) or
+  `90` turns the column headers, so full names fit over narrow columns: each is as wide as
+  its column and as tall as its text, lined up on the cells' side, and measured turned
+  (width and collision lints see the turned text). Turned headers are not wrapped.
 - **Pale cells (since 0.20.0).** A cell (and its legend sample) whose variant is `muted` is
   drawn pale: its border, fill and text move toward the canvas, so "skipped" or "not
   selected" cells recede next to `tinted` and `outlined` ones. A gray class needs no
   `themeOverrides.tones.gray`; gray (and a pale gray of your own) is never counted as an
   accent by `geometry/theme-color-use`.
-- Every row needs as many cells as the first, every name a class, and `rows` / `columns`
-  must match the grid (`component/invalid-prop`). An unused class is
-  `lint/unused-matrix-class`; a legend `class` naming none is `ref/unknown-class`.
+- Every row needs as many cells as the first (merged cells count the columns they span),
+  every name a class, and `rows` / `columns` must match the grid (`component/invalid-prop`).
+  An unused class is `lint/unused-matrix-class`; a legend `class` naming none is
+  `ref/unknown-class`, a `scale` naming a matrix without one `ref/unknown-scale`.
 
 A results table with rules only, wrapped headers and a title above it that the edge reaches:
 
@@ -2473,6 +2517,45 @@ nodes:
         - [{class: s, text: "6.026"}, {class: s, text: "58.79"}]
 edges:
   - {from: gate, to: table}
+```
+
+A heatmap: a colour scale with its legend strip, turned column headers, a ruled table and a
+merged cell (the full figure is the Skill example `transfer-heatmap`):
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: heatmap
+  theme: sumi
+  profile: paper-single
+  layout: {arrange: {stack: {gap: 3mm, align: center, items: [sim, key]}}}
+nodes:
+  - id: sim
+    component: matrix
+    label: Similarity (%)
+    props:
+      labelAt: above
+      rules: true
+      headerRotate: -90
+      rows: [Model A, Model B, Model C]
+      columns: [Model A, Model B, Model C]
+      cellWidth: 22pt
+      cellHeight: 13pt
+      gap: 1pt
+      scale: {from: 60, to: 90, tone: orange, decimals: 1, label: similarity (%)}
+      classes:
+        self: {variant: muted, label: same model}
+        none: {variant: muted, pattern: hatch, label: not measured}
+      cells:
+        - [{class: self, text: "100"}, {value: 81.4}, {value: 77.6}]
+        - [{value: 81.4}, {class: self, text: "100"}, {value: 64.2}]
+        - [{class: none, span: 2}, {class: self, text: "100"}]
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      entries: [{scale: sim}, {class: sim.self}, {class: sim.none}]
 ```
 
 Text and ellipsis cells (`{class, text}`, `{ellipsis}`, `ellipsisRows`, `ellipsisColumns`):
