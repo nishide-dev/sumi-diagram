@@ -1327,6 +1327,11 @@ function resolveEndsWith(
   );
   const inside = (inner: Element, outer: Element): boolean => insideKeys(inner.key, outer.key);
   const lanes = planLanes(ir, layout);
+  const facingEnds = new Map(
+    (layout.edges ?? []).flatMap((e) =>
+      e.facingEnd === undefined ? [] : [[e.key, e.facingEnd] as const],
+    ),
+  );
 
   // The side of each end: the anchor's, or the default.
   const chooseSide = (
@@ -1415,6 +1420,12 @@ function resolveEndsWith(
         anchored: false,
       };
     }
+    // The router moved this end to the side facing the other end's written
+    // side (#657, `EdgeLayout.facingEnd`): a Z into it has fewer bends than
+    // the default side's route. The other end's anchor is kept as written.
+    const facingFrom = isSource ? edge.toAnchor : edge.fromAnchor;
+    if (facingEnds.get(edge.key) === (isSource ? "from" : "to") && typeof facingFrom === "object")
+      return { side: OPPOSITE_SIDE[facingFrom.side], inward: false, anchored: false };
     // The other end of a `straight` end (#179) faces it, so the line can be
     // straight whatever side the arrange tree would pick.
     const facingStraight = isSource ? edge.toAnchor : edge.fromAnchor;

@@ -13,6 +13,11 @@
  *   one value when the other end already lies in the span, else one for
  *   each end. Or the anchors hold the ends on sides where an L with one
  *   bend would fit: the hint names the sides.
+ * - **A side entry where a Z would do** (#657): one end anchored on side S,
+ *   the other end without an anchor beyond S but entering another side with
+ *   three or more bends, while a two-bend Z into its side facing S is clear.
+ *   The router takes that Z when it harms no other edge (`withFacingZ`);
+ *   the rest are reported, with the anchor to write.
  * - **A tiny jog**: a step between two bends shorter than 2mm (printed; under
  *   1pt is `geometry/edge-jog`'s), which nothing could straighten.
  * - **A turn just before a junction**: a line into a junction that ends in a
@@ -305,6 +310,8 @@ function verified(
   edge: EdgeIR,
   writes: readonly Write[],
   bends: number,
+  /** Accept fewer bends than `bends` for the edge too. */
+  atMost = false,
 ): boolean {
   const placed = context.placed;
   const rendered = context.layout;
@@ -334,7 +341,7 @@ function verified(
   for (const e of routed.layout.edges) {
     const n = bendsOf(e.route?.points);
     if (e.key === edge.key) {
-      if (n !== bends) return false;
+      if (atMost ? n > bends : n !== bends) return false;
     } else if (n > (before.get(e.key) ?? Number.POSITIVE_INFINITY)) return false;
   }
   return true;
@@ -526,6 +533,74 @@ function anchorFix(
   return undefined;
 }
 
+/** A Z into the side facing a written anchor (#657), where the route enters another side. */
+interface FacingZ {
+  /** The unanchored end's field, element and the side a Z enters. */
+  readonly field: "fromAnchor" | "toAnchor";
+  readonly free: GeometryElement;
+  readonly current: Side;
+  readonly facing: Side;
+  /** The written anchor at the other end. */
+  readonly written: string;
+  /** Writing the facing side was routed again and gives at most two bends. */
+  readonly verified: boolean;
+}
+
+/**
+ * An edge of three or more bends with one written anchor (side S) whose
+ * other end, without an anchor, lies beyond S but enters another side, while
+ * a two-bend Z from the anchored port into the middle of the side facing S
+ * keeps clear of the elements around it (`twoBendFits`) and that side has no
+ * other edge's end (#657). The router itself moves such an end when routing
+ * the Z harms no other edge (`withFacingZ`); this names the ones it kept.
+ */
+function facingZ(
+  context: GeometryContext,
+  element: GeometryElement,
+  edge: EdgeIR,
+  points: readonly Point[],
+): FacingZ | undefined {
+  if (points.length < 5 || edge.from === edge.to) return undefined;
+  const fromAnchor = writtenAnchor(edge, "fromAnchor");
+  const toAnchor = writtenAnchor(edge, "toAnchor");
+  let field: "fromAnchor" | "toAnchor";
+  if (fromAnchor !== undefined && edge.toAnchor === undefined) field = "toAnchor";
+  else if (toAnchor !== undefined && edge.fromAnchor === undefined) field = "fromAnchor";
+  else return undefined;
+  const anchor = (fromAnchor ?? toAnchor) as Anchor;
+  const [anchoredKey, freeKey] = field === "toAnchor" ? [edge.from, edge.to] : [edge.to, edge.from];
+  const [p, pNext, q, qNext] = (
+    field === "toAnchor"
+      ? [points[0], points[1], points.at(-1), points.at(-2)]
+      : [points.at(-1), points.at(-2), points[0], points[1]]
+  ) as [Point, Point, Point, Point];
+  if (sideOf(p, pNext) !== anchor.side) return undefined;
+  const free = context.get(freeKey);
+  if (free?.ir.kind !== "node" || free.ir.mark?.type === "point" || free.ir.render !== undefined)
+    return undefined;
+  const a = boxOf(context.get(anchoredKey));
+  const b = boxOf(free);
+  if (a === undefined || b === undefined || !faces(a, anchor.side, b)) return undefined;
+  if (context.isAncestor(anchoredKey, freeKey) || context.isAncestor(freeKey, anchoredKey))
+    return undefined;
+  const facing = OPPOSITE[anchor.side];
+  const current = sideOf(q, qNext);
+  if (current === facing || sideUsed(context, element, freeKey, b, facing)) return undefined;
+  const span = sideSpan(b, facing);
+  const middle = (span.lo + span.hi) / 2;
+  const target: Point = vertical(facing) ? { x: middle, y: span.at } : { x: span.at, y: middle };
+  const rects = obstacles(context, edge).map((o) => o.rect);
+  if (!twoBendFits(p, target, anchor.side, rects)) return undefined;
+  return {
+    field,
+    free,
+    current,
+    facing,
+    written: `${field === "toAnchor" ? "fromAnchor" : "toAnchor"} "${anchorText(anchor.side, anchor.offset)}"`,
+    verified: verified(context, edge, [{ field, side: facing, offset: 0.5 }], 2, true),
+  };
+}
+
 /**
  * Whether some two-bend route from `p` (leaving `fromSide`) to `q` on the
  * facing side keeps the clearance from every rectangle, exactly: the middle
@@ -704,7 +779,7 @@ export function inGroup(
 export const avoidableBend = defineGeometryRule({
   id: "geometry/avoidable-bend",
   description:
-    "An orthogonal edge bends more than its ends need because of a written anchor, has a step under 2mm between two bends, or turns just before a junction it nearly lines up with.",
+    "An orthogonal edge bends more than its ends need because of a written anchor, enters a side where a Z into the side facing its anchor is clear, has a step under 2mm between two bends, or turns just before a junction it nearly lines up with.",
   defaultSeverity: "warning",
   fixable: false,
   run(context) {
@@ -728,6 +803,23 @@ export const avoidableBend = defineGeometryRule({
           path: element.docPath,
           subject: element.subject,
           hint: `Write ${fix.anchors.join(" and ")}, or remove the anchor if the default sides are fine (or figure.layout.straighten: true, which moves nodes into line). Write an anchor only where the side or position matters.`,
+        });
+        continue;
+      }
+      // A side entry where a Z into the side facing the written anchor is clear (#657).
+      const z = facingZ(context, element, edge, points);
+      if (z !== undefined) {
+        const write = `${z.field} "${z.facing}"`;
+        findings.push({
+          message: `${capitalize(element.name)} bends ${bends} times into the ${z.current} side of ${z.free.name}, where a Z with two bends into its ${z.facing} side (facing the written ${z.written}) keeps clear of the elements around it.`,
+          path: element.docPath,
+          subject: element.subject,
+          hint: z.verified
+            ? `Write ${write}: routed again on the same placement, the edge bends at most twice and no other edge bends more.`
+            : `Write ${write} to draw the Z (not verified: routed again on the same placement, another edge would bend more or the checks ran out, so compare the render), or give the line room into the ${z.current} side.`,
+          related: [
+            { path: z.free.docPath, message: `${capitalize(z.free.name)} is defined here.` },
+          ],
         });
         continue;
       }

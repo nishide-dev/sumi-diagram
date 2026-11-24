@@ -92,6 +92,7 @@ import { arrowheadLength, edgeArrowheadLength, WIRE_CORNER_RADIUS } from "./arro
 import { crossingDiagnostics } from "./crossings";
 import { addDirectRoutes, isDirectEdge, shiftOutline } from "./diagonal";
 import { endpointRects } from "./endpoint-rects";
+import { withFacingZ } from "./facing-z";
 import { gridSpanHint, verifiedGridHints } from "./grid-hint";
 import { groupTitleDiagnostics } from "./group-title-diagnostics";
 import { PairHeap } from "./heap";
@@ -267,16 +268,19 @@ export function withMergedFanIn(ir: FigureIR): FigureIR {
 }
 
 function routeWithoutZoom(ir: FigureIR, layout: LayoutIR, options: RouteOptions): RouteResult {
-  const routeFigure = (figure: FigureIR) =>
+  const routeOn = (figure: FigureIR, placed: LayoutIR) =>
     chooseRouting(figure, (stubLines: boolean) =>
       new Router(
         figure,
-        layout,
+        placed,
         options.lowerBound ?? true,
         options.verifyLowerBound ?? false,
         stubLines,
       ).run(),
     );
+  // Ends moved to the facing side where a Z bends less (#657), on the figure routed as chosen.
+  const routeFigure = (figure: FigureIR) =>
+    withFacingZ(figure, layout, routeOn(figure, layout), (placed) => routeOn(figure, placed));
   const result = routeFigure(ir);
   if (ir.meta.fanIn === "merge" || !hasErrors(result.diagnostics)) return result;
   // Fan-in spreading must not lose an edge merge mode routes (#134, design
