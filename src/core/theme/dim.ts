@@ -8,7 +8,11 @@
  *
  * - every visible stroke (lines, borders, arrowheads, junction dots) and every
  *   text take `dim.stroke` and `dim.fontColor` (solid node text darkens as
- *   needed for 3:1 contrast; solid stack separators follow that text color);
+ *   needed for 3:1 contrast; solid stack separators follow that text color).
+ *   A group's or a node's line already quieter than `dim.stroke` against the
+ *   canvas is not made louder (#634, #636): it stays, or, for a node outlined
+ *   in its own fill color, follows the dimmed fill. A muted flow arrow (a
+ *   borderless pale block, toned or not) lightens with its outline;
  * - every fill moves toward the canvas by `dim.lighten` (0 = unchanged, 1 =
  *   canvas), so tone fills become their dimmed versions and lighter / darker
  *   fills keep their order. A fill painted in the element's own stroke color
@@ -109,35 +113,46 @@ export function paleStyle<S extends ResolvedStyle>(style: S, canvas: Color = "#f
 }
 
 /**
- * The dimmed color of a frame: the theme's dim stroke, unless the frame already has less contrast
- * against the canvas (#634: `sumi`'s pale panel frames). Dimming never makes a frame louder.
+ * Whether `own` already has less contrast against the canvas than the theme's dim stroke (#634,
+ * #636): such a line is quieter than the dim gray, and dimming never makes it louder.
  */
-function quieter(own: Color, dimmed: Color, canvas: Color): Color {
+function quieterThanDim(own: Color, dimmed: Color, canvas: Color): boolean {
   const hex = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i;
-  if (!hex.test(own) || !hex.test(dimmed) || !hex.test(canvas)) return dimmed;
+  if (!hex.test(own) || !hex.test(dimmed) || !hex.test(canvas)) return false;
   const ground = expandColor(canvas);
-  return contrastRatio(expandColor(own), ground) < contrastRatio(expandColor(dimmed), ground)
-    ? own
-    : dimmed;
+  return contrastRatio(expandColor(own), ground) < contrastRatio(expandColor(dimmed), ground);
 }
 
-/** Solid areas lighten and keep at least 3:1 text contrast (#214). */
+/**
+ * Solid areas lighten and keep at least 3:1 text contrast (#214). A `borderless` area (a muted
+ * flow arrow, #636: a pale block whose outline is its own fill) lightens with its outline, toned
+ * or not, so dimming never draws a border around it or paints it in the dim gray.
+ */
 export function dimStyle<S extends ResolvedStyle>(
   style: S,
   dim: DimColors,
   areaFill = false,
   canvas: Color = "#ffffff",
+  borderless = false,
 ): S {
   const visible = (color: Color, to: Color) => (color === "transparent" ? color : to);
-  // Compared expanded, so `#000` and `#000000` are the same ink.
-  const ink =
-    !areaFill &&
-    style.fill !== "transparent" &&
-    expandColor(style.fill) === expandColor(style.stroke);
-  // A frame (a group's or a legend's) is structure: a quiet one stays quiet. A node's or an
-  // edge's line takes the dim gray, which also drops its tone.
-  const stroke = style.kind === "group" ? quieter(style.stroke, dim.stroke, canvas) : dim.stroke;
-  const fill = ink ? stroke : lightenColor(style.fill, dim.lighten, canvas);
+  // Compared expanded, so `#000` and `#000000` are the same color.
+  const painted =
+    style.fill !== "transparent" && expandColor(style.fill) === expandColor(style.stroke);
+  const lightened = lightenColor(style.fill, dim.lighten, canvas);
+  // A line already quieter than the dim gray stays quiet (#634, #636): a frame (a group's or a
+  // legend's) as it is, and a node's outline as it is, or, when the outline is the node's own
+  // fill color (a pale solid area), with the dimmed fill. Every other node line (the outline of
+  // a dark solid node too) and every edge takes the dim gray, which also drops its tone.
+  const quiet = style.kind !== "edge" && quieterThanDim(style.stroke, dim.stroke, canvas);
+  const stroke =
+    (borderless || quiet) && style.kind === "node" && painted
+      ? lightened
+      : quiet
+        ? style.stroke
+        : dim.stroke;
+  // Ink (a junction's dot, painted in its line color) follows the line.
+  const fill = !areaFill && !borderless && painted ? stroke : lightened;
   const dimmed: S = {
     ...style,
     stroke: visible(style.stroke, stroke),
