@@ -87,10 +87,12 @@ export interface Struts {
   readonly crossLead: ReadonlyMap<ArrangeItemIR, number>;
   readonly crossTrail: ReadonlyMap<ArrangeItemIR, number>;
   /**
-   * The constraints whose accepted candidates put space at each item (#646),
-   * in the order they did; read by the side-effect diagnostics only.
+   * The constraints whose accepted candidates put space of each kind at each
+   * item (#646), in the order they did; read by the side-effect diagnostics
+   * only. Keyed by kind as well as item: a constraint that adds space on the
+   * other axis or side of the same item did not widen this gap.
    */
-  readonly causes?: ReadonlyMap<ArrangeItemIR, readonly AlignIR[]>;
+  readonly causes?: ReadonlyMap<StrutKind, ReadonlyMap<ArrangeItemIR, readonly AlignIR[]>>;
 }
 
 export const NO_STRUTS: Struts = Object.freeze({
@@ -101,6 +103,12 @@ export const NO_STRUTS: Struts = Object.freeze({
 });
 
 type StrutKind = "lead" | "trail" | "crossLead" | "crossTrail";
+
+/** A strut: its kind and the item it is at. */
+interface StrutAt {
+  readonly kind: StrutKind;
+  readonly item: ArrangeItemIR;
+}
 
 /** A constraint is met when its items' coordinates differ by at most this (units). */
 export const ALIGN_EPSILON = 0.01;
@@ -151,7 +159,7 @@ interface StrutStep extends Step {
 }
 
 type MutableStruts = { [K in StrutKind]: Map<ArrangeItemIR, number> } & {
-  causes: Map<ArrangeItemIR, readonly AlignIR[]>;
+  causes: Map<StrutKind, ReadonlyMap<ArrangeItemIR, readonly AlignIR[]>>;
 };
 
 /** Bounds of the search (tests lower them). */
@@ -272,11 +280,13 @@ function solveOnce(
       crossTrail: new Map(base.crossTrail),
       causes: new Map(base.causes),
     };
+    const causes = new Map(next.causes.get(kind));
     for (const [item, value] of struts) {
       next[kind].set(item, (next[kind].get(item) ?? 0) + value);
-      const known = next.causes.get(item) ?? [];
-      if (!known.includes(c)) next.causes.set(item, [...known, c]);
+      const known = causes.get(item) ?? [];
+      if (!known.includes(c)) causes.set(item, [...known, c]);
     }
+    next.causes.set(kind, causes);
     return next;
   };
   const kindOf = (step: StrutStep, side: "lead" | "trail"): StrutKind =>
@@ -612,7 +622,7 @@ function extentOf(item: ArrangeItemIR, rects: ReadonlyMap<ElementKey, Rect>): Re
 }
 
 /**
- * The constraints whose accepted candidates put the struts at `strutItems`
+ * The constraints whose accepted candidates put the struts `at` (kind and item)
  * (recorded by the solve in `struts.causes`), in document order. Only those
  * are blamed: a constraint that merely has an item nearby (or on the other
  * axis) added nothing there.
@@ -620,9 +630,9 @@ function extentOf(item: ArrangeItemIR, rects: ReadonlyMap<ElementKey, Rect>): Re
 function causesOf(
   constraints: readonly AlignIR[],
   struts: Struts,
-  strutItems: readonly ArrangeItemIR[],
+  at: readonly StrutAt[],
 ): AlignIR[] {
-  const found = new Set(strutItems.flatMap((item) => struts.causes?.get(item) ?? []));
+  const found = new Set(at.flatMap(({ kind, item }) => struts.causes?.get(kind)?.get(item) ?? []));
   return constraints.filter((c) => found.has(c));
 }
 
@@ -734,7 +744,7 @@ function widenedGaps(
     box: ArrangeBoxIR;
     first: ArrangeItemIR;
     second: ArrangeItemIR;
-    owners: ArrangeItemIR[];
+    owners: StrutAt[];
   }[] = [];
   for (const [side, map] of [
     ["lead", struts.lead],
@@ -765,8 +775,10 @@ function widenedGaps(
       )
         continue;
       const known = pairs.find((p) => p.first === first && p.second === second);
-      if (known !== undefined) known.owners.push(item);
-      else pairs.push({ box, first, second, owners: [item] });
+      // Only this kind at this item widened the gap: a lead before the second, a trail after the first.
+      const owner: StrutAt = { kind: side, item };
+      if (known !== undefined) known.owners.push(owner);
+      else pairs.push({ box, first, second, owners: [owner] });
     }
   }
   const out: Diagnostic[] = [];
@@ -804,7 +816,13 @@ function widenedGaps(
       if (!widened(least, nowMm)) continue;
     }
     const causes = causesOf(constraints, struts, owners);
-    const moved = (key: ElementKey) => under(pathOf, key, box, owners);
+    const moved = (key: ElementKey) =>
+      under(
+        pathOf,
+        key,
+        box,
+        owners.map((o) => o.item),
+      );
     const why =
       causes.length > 0 ? `, for ${causes.map((c) => constraintName(ir, c)).join(" and ")}` : "";
     out.push({
@@ -839,13 +857,12 @@ function unevenStretch(
 ): Diagnostic[] {
   const { align } = placementOf(ir);
   const holder = holders(ir);
-  const strutItems = [
-    ...new Set(
-      [struts.lead, struts.trail, struts.crossLead, struts.crossTrail].flatMap((m) => [
-        ...m.keys(),
-      ]),
-    ),
-  ];
+  // Every strut, of any kind: space of any kind inside a stretched frame can change it.
+  const all: StrutAt[] = (["lead", "trail", "crossLead", "crossTrail"] as const).flatMap((kind) =>
+    [...struts[kind].entries()]
+      .filter(([, value]) => value > ALIGN_EPSILON)
+      .map(([item]) => ({ kind, item })),
+  );
   const before = rectsOf(plain);
   const after = rectsOf(layout);
   const out: Diagnostic[] = [];
@@ -892,11 +909,11 @@ function unevenStretch(
     const offSizes = [...new Set(off.map((f) => (f.now * MM_PER_UNIT).toFixed(2)))];
     const offText = `${list(off)} ${off.length === 1 ? "is" : "are"} ${offSizes.join("–")}mm ${word}`;
     // The struts that changed a frame lie inside one; blame the constraints that put them there.
-    const hit = stretched.filter((f) => strutItems.some((s) => inside(holder, s, f.item)));
+    const hit = stretched.filter((f) => all.some((s) => inside(holder, s.item, f.item)));
     const causes = causesOf(
       constraints,
       struts,
-      strutItems.filter((s) => hit.some((f) => inside(holder, s, f.item))),
+      all.filter((s) => hit.some((f) => inside(holder, s.item, f.item))),
     );
     // The suggestion keeps the frames that fell short of the others still.
     const moved = (key: ElementKey) =>

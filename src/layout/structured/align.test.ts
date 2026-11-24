@@ -1151,6 +1151,34 @@ describe("side effects and move (#646)", () => {
     expect(d?.hint).not.toContain("merge");
   });
 
+  test("space on the other axis of the same item is not blamed for the gap", () => {
+    // [2] moves "rl" down inside its row (a cross-axis strut at rl), [1] moves it right
+    // (a lead at rl): only the lead widens the gap after "sft".
+    const text = fixture("widened-gap")
+      .replace(
+        "row: {gap: 6mm, items: [sft, rl, merge]}",
+        "row: {gap: 6mm, align: start, items: [sft, rl, merge]}",
+      )
+      .replace(
+        "label: Merge, props: {width: 30mm}",
+        "label: Merge, props: {width: 30mm, height: 60mm}",
+      )
+      .replace(
+        "      - {x: [envs, rl]}\n",
+        "      - {x: [envs, rl]}\n      - {y: [rl, merge], move: rl}\n",
+      );
+    const placed = place(text, false);
+    expect(converged(placed.align?.residuals ?? [1])).toBe(true);
+    expect(Object.keys(placed.align?.struts ?? {})).toEqual(
+      expect.arrayContaining(["lead n:rl", "crossLead n:rl"]),
+    );
+    const gaps = placed.diagnostics.filter((x) => x.code === "layout/align-widened-gap");
+    expect(gaps).toHaveLength(1);
+    const [d] = gaps;
+    expect(d?.message).toEndWith(", for figure.layout.align[1] (x: [envs, rl]).");
+    expect(d?.related).toBeUndefined();
+  });
+
   test("two constraints that both put space in one gap are both named", () => {
     // The GCN example: [1] puts a trail after y1, [2] a lead before y4.
     const text = readFileSync(

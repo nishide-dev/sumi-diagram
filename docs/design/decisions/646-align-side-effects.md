@@ -19,7 +19,7 @@
   - 同じ箱に他の gap があれば、その最小（揃えた後）より 3mm を超えて長く、1.5 倍を超える。箱のすべての gap が同じだけ広がった場合（U-Net の段を揃えて下げる `align-unet.sumi.yaml`）は 1 つの間隔に見えるので出さない。run 6 の評価の言葉どおり「兄弟より 1 つだけ長い gap」を拾う。
 - 箱の先頭の前・末尾の後ろの空き（隣がない）は gap ではないので対象外。同じ tokens の行のセルの間は `layout/align-splits-tokens`（warning）と重なるので除く。キャプションの stack（`growFirst`）の gap は「キャプションが枠から離れる」と言い換えて報告する。
 - メッセージは 2 つの item（無名の箱は「the row of "a", "b", …」）、前後の幅（mm、小数 2 桁）、その strut を実際に置いた制約（`figure.layout.align[i] (x: [envs, rl])`）。位置は最初の制約、ほかは related。
-- **原因の制約はソルバーが記録する**（PR レビューで変更）: strut の集合（`Struts`）に、strut を置いた候補の制約を item ごとに持たせる（`causes`）。採られた候補だけが最終の strut に残るので、記録も実際に空きを足した制約だけになる。最初の実装は「strut を受けた item の中に要素を持つ制約」を数えたため、軸の違う満たされた制約（`{y: [rl, merge]}`）まで原因に挙げ、`move: merge` を勧めた。
+- **原因の制約はソルバーが記録する**（PR レビューで変更）: strut の集合（`Struts`）に、strut を置いた候補の制約を、strut の種類（lead / trail / crossLead / crossTrail）と item ごとに持たせる（`causes`）。gap の報告は、その gap を広げる種類（後ろの item の lead、前の item の trail）だけを引く。同じ item の別の軸・別の側に空きを足した制約は原因にしない（2 回目のレビュー: `{y: [rl, merge], move: rl}` の交差軸の strut が、横の gap の原因に挙がっていた）。枠の不揃いでは、枠の中のどの種類の strut も枠を変え得るので、すべての種類を引く。採られた候補だけが最終の strut に残るので、記録も実際に空きを足した制約だけになる。最初の実装は「strut を受けた item の中に要素を持つ制約」を数えたため、軸の違う満たされた制約（`{y: [rl, merge]}`）まで原因に挙げ、`move: merge` を勧めた。
 - しきい値は丸めない値で比べる（`widened(was, now)`）。丸めはメッセージだけ。
 - `figure.layout.alignGrowth: allow` で消える。`alignGrowth` は「揃えが足す空きは意図どおり」という宣言で、図の拡大と gap の広がりは同じ空きの別の見え方だから。スキーマの説明を合わせて直した。
 
