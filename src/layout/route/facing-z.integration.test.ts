@@ -6,8 +6,9 @@
 import { describe, expect, test } from "bun:test";
 import { lintGeometry } from "../../lint/geometry/lint";
 import { renderFigure } from "../../render/render";
-import type { Point } from "../ir";
-import { FACING_Z_BUDGET, routeBends } from "./facing-z";
+import type { LayoutIR, Point } from "../ir";
+import { FACING_Z_BUDGET, routeBends, withFacingZ } from "./facing-z";
+import { routeOnce } from "./router";
 
 async function render(source: string) {
   const result = await renderFigure(source);
@@ -141,5 +142,87 @@ ${edges(last)}
     // Applied, the edge is a Z.
     const fixed = await render(source(', toAnchor: "north"'));
     expect(routeBends(edgeOf(fixed, `w${n - 1}`, `c${n - 1}`))).toBe(2);
+  });
+
+  test("candidates are found again after each accepted move", async () => {
+    // Two edges with the same blocked shape into target c: once the first
+    // enters c's north side, that side is taken and the second is not tried.
+    const value = await render(`
+version: 1
+figure:
+  id: two
+  theme: sumi
+  profile: paper-double
+  layout:
+    straighten: false
+    fanIn: spread
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: w1, at: [70, 10]}
+          - {item: f1, at: [70, 45]}
+          - {item: w2, at: [110, 10]}
+          - {item: f2, at: [110, 45]}
+          - {item: c, at: [20, 45]}
+nodes:
+  - {id: w1, component: box, label: one}
+  - {id: f1, component: box, label: below one}
+  - {id: w2, component: box, label: two}
+  - {id: f2, component: box, label: below two}
+  - {id: c, component: box, label: target}
+edges:
+  - {from: w1, to: c, fromAnchor: "south:0.25"}
+  - {from: w1, to: f1}
+  - {from: w2, to: c, fromAnchor: "south:0.25"}
+  - {from: w2, to: f2}
+`);
+    const first = edgeOf(value, "w1", "c");
+    const second = edgeOf(value, "w2", "c");
+    expect(first.facingEnd).toBe("to");
+    expect(routeBends(first)).toBe(2);
+    expect(second.facingEnd).toBeUndefined();
+    const c = rectOf(value, "c");
+    const intoNorth = [first, second].filter(
+      (e) => Math.abs((e.route?.points.at(-1)?.y ?? Number.NaN) - c.y) < 1e-3,
+    );
+    expect(intoNorth).toHaveLength(1);
+    // The trials, replayed: only the first edge is tried.
+    const placed = value.placed;
+    if (placed === undefined) throw new Error("no placement");
+    const tried: string[] = [];
+    const route = (layout: LayoutIR) => {
+      tried.push(...layout.edges.filter((e) => e.facingEnd !== undefined).map((e) => e.key));
+      return routeOnce(placed.ir, layout, { hintTrials: false });
+    };
+    const start = routeOnce(placed.ir, placed.layout, { hintTrials: false });
+    const { moved } = withFacingZ(placed.ir, placed.layout, start, route);
+    expect(moved).toBe(true);
+    expect([...new Set(tried)]).toEqual([first.key]);
+  });
+
+  test("a straight or zoom edge on the target keeps the end where it is", async () => {
+    // RUN9 plus a node above completed whose edge enters completed's north
+    // side straight, or a zoom edge from completed to a detail below it.
+    const extra = (kind: "straight" | "zoom") =>
+      RUN9()
+        .replace(
+          "          - {item: failed, at: [70, 45]}",
+          `          - {item: failed, at: [70, 45]}\n          - {item: extra, at: [${kind === "straight" ? "38, 28" : "35, 75"}]}`,
+        )
+        .replace(
+          "  - {id: failed, component: box, label: failed}",
+          "  - {id: failed, component: box, label: failed}\n  - {id: extra, component: box, label: x}",
+        )
+        .replace(
+          "  - {from: working, to: failed, label: error}",
+          `  - {from: working, to: failed, label: error}\n  - ${kind === "straight" ? "{from: extra, to: completed, route: straight}" : "{from: completed, to: extra, component: zoom}"}`,
+        );
+    for (const kind of ["straight", "zoom"] as const) {
+      const value = await render(extra(kind));
+      const edge = edgeOf(value, "working", "completed");
+      expect(edge.facingEnd).toBeUndefined();
+      expect(routeBends(edge)).toBeGreaterThanOrEqual(3);
+    }
   });
 });

@@ -207,6 +207,21 @@ export function routeEdges(
 ): RouteResult {
   // Edges inside tilted planes (#577) are routed in plane coordinates and mapped.
   if (unmoved.planes !== undefined) return routeWithPlanes(ir, unmoved, options, routeEdges);
+  const first = routeOnce(ir, unmoved, options);
+  // Ends moved to the facing side where a Z bends less (#657), judged on
+  // every edge (straight, curved and zoom ones too). Trials skip the hint
+  // trials; a figure that changed is routed once more as asked.
+  const trialOptions: RouteOptions = { ...options, hintTrials: false };
+  const facing = withFacingZ(ir, unmoved, first, (placed) => routeOnce(ir, placed, trialOptions));
+  if (!facing.moved) return first;
+  return options.hintTrials === false ? facing.result : routeOnce(ir, facing.layout, options);
+}
+
+/**
+ * One routing of the figure: {@link routeEdges} without the facing-side
+ * trials (#657). Exported for tests.
+ */
+export function routeOnce(ir: FigureIR, unmoved: LayoutIR, options: RouteOptions): RouteResult {
   const layout = junctionsOnBus(ir, unmoved);
   // Zoom edges (#176) are not routed: the other edges are routed without
   // them, and their straight lines are added to the result (`zoom.ts`).
@@ -278,9 +293,7 @@ function routeWithoutZoom(ir: FigureIR, layout: LayoutIR, options: RouteOptions)
         stubLines,
       ).run(),
     );
-  // Ends moved to the facing side where a Z bends less (#657), on the figure routed as chosen.
-  const routeFigure = (figure: FigureIR) =>
-    withFacingZ(figure, layout, routeOn(figure, layout), (placed) => routeOn(figure, placed));
+  const routeFigure = (figure: FigureIR) => routeOn(figure, layout);
   const result = routeFigure(ir);
   if (ir.meta.fanIn === "merge" || !hasErrors(result.diagnostics)) return result;
   // Fan-in spreading must not lose an edge merge mode routes (#134, design

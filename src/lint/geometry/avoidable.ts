@@ -816,7 +816,7 @@ export const avoidableBend = defineGeometryRule({
           subject: element.subject,
           hint: z.verified
             ? `Write ${write}: routed again on the same placement, the edge bends at most twice and no other edge bends more.`
-            : `Write ${write} to draw the Z (not verified: routed again on the same placement, another edge would bend more or the checks ran out, so compare the render), or give the line room into the ${z.current} side.`,
+            : `Write ${write} to draw the Z (not verified: routed again on the same placement, the edge still bent more than twice, another edge bent more, routing reported an error, or the checks ran out; compare the render), or give the line room into the ${z.current} side.`,
           related: [
             { path: z.free.docPath, message: `${capitalize(z.free.name)} is defined here.` },
           ],

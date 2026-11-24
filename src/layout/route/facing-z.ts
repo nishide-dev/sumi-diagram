@@ -77,51 +77,107 @@ function beyond(a: Rect, side: Side, b: Rect): boolean {
   }
 }
 
-/** An end of a routed edge: the element, the point on it and the side it uses. */
+/** An end of an edge as drawn: the element, the point on it and the side it uses. */
 interface RoutedEnd {
   readonly key: ElementKey;
   readonly at: Point;
-  readonly side: Side;
+  /** `undefined`: the end may be anywhere on the element (a zoom edge's corner lines). */
+  readonly side: Side | undefined;
 }
 
-function routedEnds(edge: EdgeLayout): [RoutedEnd, RoutedEnd] | undefined {
-  const points = edge.route?.points;
-  if (points === undefined || points.length < 2 || edge.route?.lines !== undefined) return;
-  const line = corners(points);
-  if (line.length < 2) return undefined;
-  const first = line[0] as Point;
-  const last = line.at(-1) as Point;
-  return [
-    { key: edge.from, at: first, side: sideOf(first, line[1] as Point) },
-    { key: edge.to, at: last, side: sideOf(last, line.at(-2) as Point) },
+/** The side of `rect` whose line passes nearest to `p` (for a straight or curved end). */
+function nearestSideOf(rect: Rect, p: Point): Side {
+  const distances: [Side, number][] = [
+    ["north", Math.abs(p.y - rect.y)],
+    ["south", Math.abs(p.y - (rect.y + rect.height))],
+    ["west", Math.abs(p.x - rect.x)],
+    ["east", Math.abs(p.x - (rect.x + rect.width))],
   ];
+  let best = distances[0] as [Side, number];
+  for (const entry of distances) if (entry[1] < best[1]) best = entry;
+  return best[0];
 }
 
 /**
- * The edges (keys) whose free end may move to the facing side, with the end:
- * three or more bends, one written anchor (side S), the other end on a
- * node without an anchor and beyond S, not on the side facing S already,
- * and neither that end's point nor the facing side used by another edge (a
- * fan, a multi-edge or another port keeps its shape).
+ * Both ends of every drawn edge. Orthogonal routes: the side their first
+ * (last) segment leaves through. Straight and curved routes (#366): the side
+ * nearest their end point. Zoom edges (#176): no side (they hold the whole
+ * element). `undefined` for an edge without a route.
  */
-function candidates(ir: FigureIR, layout: LayoutIR): { key: ElementKey; end: "from" | "to" }[] {
+function drawnEnds(
+  ir: FigureIR,
+  edge: EdgeLayout,
+  rects: ReadonlyMap<ElementKey, Rect>,
+): [RoutedEnd, RoutedEnd] | undefined {
+  const points = edge.route?.points;
+  if (points === undefined || points.length < 2) return undefined;
+  const first = points[0] as Point;
+  const last = points.at(-1) as Point;
+  const irEdge = ir.edges.find((e) => e.key === edge.key);
+  if (edge.route?.lines !== undefined || irEdge?.routing === "zoom")
+    return [
+      { key: edge.from, at: first, side: undefined },
+      { key: edge.to, at: last, side: undefined },
+    ];
+  if (irEdge?.route === "straight" || irEdge?.route === "curve") {
+    const side = (key: ElementKey, p: Point) => {
+      const rect = rects.get(key);
+      return rect === undefined ? undefined : nearestSideOf(rect, p);
+    };
+    return [
+      { key: edge.from, at: first, side: side(edge.from, first) },
+      { key: edge.to, at: last, side: side(edge.to, last) },
+    ];
+  }
+  const line = corners(points);
+  if (line.length < 2) return undefined;
+  const a = line[0] as Point;
+  const b = line.at(-1) as Point;
+  return [
+    { key: edge.from, at: a, side: sideOf(a, line[1] as Point) },
+    { key: edge.to, at: b, side: sideOf(b, line.at(-2) as Point) },
+  ];
+}
+
+/** A free end that may move to the facing side, and the edge's bends now. */
+interface Candidate {
+  readonly key: ElementKey;
+  readonly end: "from" | "to";
+  readonly bends: number;
+}
+
+/**
+ * The first edge (in document order, not in `tried`) whose free end may
+ * move to the facing side in `layout` as routed: three or more bends, one
+ * written anchor (side S), the other end on a node without an anchor and
+ * beyond S, not on the side facing S already, and neither that end's point
+ * nor the facing side used by another edge, orthogonal, straight, curved or
+ * zoom (a fan, a multi-edge or another port keeps its shape; a zoom edge
+ * touching the node holds all of it).
+ */
+function nextCandidate(
+  ir: FigureIR,
+  layout: LayoutIR,
+  tried: ReadonlySet<ElementKey>,
+): Candidate | undefined {
   const rects = endpointRects(ir, layout);
   const irEdges = new Map(ir.edges.map((e) => [e.key, e]));
   const nodes = new Map(ir.nodes.map((n) => [n.key, n]));
   const ends = new Map(
     layout.edges.flatMap((e) => {
-      const pair = routedEnds(e);
+      const pair = drawnEnds(ir, e, rects);
       return pair === undefined ? [] : [[e.key, pair] as const];
     }),
   );
-  const out: { key: ElementKey; end: "from" | "to" }[] = [];
   for (const layoutEdge of layout.edges) {
+    if (tried.has(layoutEdge.key)) continue;
     const edge = irEdges.get(layoutEdge.key);
     const pair = ends.get(layoutEdge.key);
     if (edge === undefined || pair === undefined || layoutEdge.facingEnd !== undefined) continue;
     if (edge.from === edge.to || edge.lane !== undefined || edge.faceSides !== undefined) continue;
-    if (edge.route === "straight" || edge.route === "curve" || edge.routing === "zoom") continue;
-    if (routeBends(layoutEdge) < 3) continue;
+    if (edge.route !== undefined || edge.routing === "zoom") continue;
+    const bends = routeBends(layoutEdge);
+    if (bends < 3) continue;
     const fromWritten = typeof edge.fromAnchor === "object" ? edge.fromAnchor : undefined;
     const toWritten = typeof edge.toAnchor === "object" ? edge.toAnchor : undefined;
     let end: "from" | "to";
@@ -140,43 +196,54 @@ function candidates(ir: FigureIR, layout: LayoutIR): { key: ElementKey; end: "fr
     if (a === undefined || b === undefined || !beyond(a, written.side, b)) continue;
     const shared = layout.edges.some((other) => {
       if (other.key === layoutEdge.key) return false;
-      const theirs = ends.get(other.key);
-      if (theirs === undefined) return false;
-      return theirs.some(
-        (t) =>
-          t.key === freeEnd.key &&
-          (t.side === facing ||
-            (Math.abs(t.at.x - freeEnd.at.x) < 0.5 && Math.abs(t.at.y - freeEnd.at.y) < 0.5)),
-      );
+      if (other.from === freeEnd.key || other.to === freeEnd.key) {
+        const theirs = ends.get(other.key);
+        // An edge to the node without a drawn end (no route yet) may hold any side.
+        if (theirs === undefined) return true;
+        return theirs.some(
+          (t) =>
+            t.key === freeEnd.key &&
+            (t.side === undefined ||
+              t.side === facing ||
+              (Math.abs(t.at.x - freeEnd.at.x) < 0.5 && Math.abs(t.at.y - freeEnd.at.y) < 0.5)),
+        );
+      }
+      return false;
     });
-    if (!shared) out.push({ key: layoutEdge.key, end });
+    if (!shared) return { key: layoutEdge.key, end, bends };
   }
-  return out;
+  return undefined;
 }
 
 const errors = (diagnostics: readonly Diagnostic[]) =>
   diagnostics.filter((d) => d.severity === "error").length;
 
 /**
- * `result` (the figure routed on `layout`) with the free ends of edges that
- * bend three times or more moved to the facing side where that routes the
- * edge as a Z and harms no other edge (see the module comment). `route`
- * routes the figure on a layout. Candidates are tried in document order, at
- * most {@link FACING_Z_BUDGET}; each accepted move is kept for the next.
+ * `result` (the figure routed on `layout`, with every edge: orthogonal,
+ * straight, curved and zoom) with the free ends of edges that bend three
+ * times or more moved to the facing side where that routes the edge with
+ * fewer bends, at most two, and harms no other edge (see the module
+ * comment). `route` routes the figure on a layout. Before each trial the
+ * next candidate is found again on the figure as it now stands (an accepted
+ * move can change the others), at most {@link FACING_Z_BUDGET} trials.
+ * Returns the result, the layout it was routed on, and whether any end moved.
  */
 export function withFacingZ<R extends { layout: LayoutIR; diagnostics: Diagnostic[] }>(
   ir: FigureIR,
   layout: LayoutIR,
   result: R,
   route: (layout: LayoutIR) => R,
-): R {
-  if (hasErrors(result.diagnostics)) return result;
+): { result: R; layout: LayoutIR; moved: boolean } {
   let best = result;
   let current = layout;
-  let budget = FACING_Z_BUDGET;
-  for (const { key, end } of candidates(ir, result.layout)) {
-    if (budget <= 0) break;
-    budget--;
+  let moved = false;
+  if (hasErrors(result.diagnostics)) return { result, layout, moved };
+  const tried = new Set<ElementKey>();
+  for (let budget = FACING_Z_BUDGET; budget > 0; budget--) {
+    const candidate = nextCandidate(ir, best.layout, tried);
+    if (candidate === undefined) break;
+    const { key, end, bends } = candidate;
+    tried.add(key);
     const trial: LayoutIR = {
       ...current,
       edges: current.edges.map((e) => (e.key === key ? { ...e, facingEnd: end } : e)),
@@ -184,14 +251,16 @@ export function withFacingZ<R extends { layout: LayoutIR; diagnostics: Diagnosti
     const routed = route(trial);
     if (errors(routed.diagnostics) > errors(best.diagnostics)) continue;
     const before = new Map(best.layout.edges.map((e) => [e.key, routeBends(e)] as const));
-    const ok = routed.layout.edges.every((e) =>
-      e.key === key
-        ? routeBends(e) <= 2
-        : routeBends(e) <= (before.get(e.key) ?? Number.POSITIVE_INFINITY),
-    );
-    if (!ok) continue;
+    const ok = routed.layout.edges.every((e) => {
+      const n = routeBends(e);
+      return e.key === key
+        ? n <= 2 && n < bends
+        : n <= (before.get(e.key) ?? Number.POSITIVE_INFINITY);
+    });
+    if (!ok || routed.layout.edges.length !== best.layout.edges.length) continue;
     best = routed;
     current = trial;
+    moved = true;
   }
-  return best;
+  return { result: best, layout: current, moved };
 }
