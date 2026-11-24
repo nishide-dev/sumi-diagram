@@ -561,6 +561,7 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
             dim,
             manifest.kind === "node" && variant === "solid" && id !== SEPARATOR_ID,
             theme.canvas,
+            manifest.kind === "node" && FLOW_ARROW_IDS.includes(id) && variant === "muted",
           );
     styles.set(
       key,

@@ -1,6 +1,4 @@
 /** The size that fits in a `geometry/label-overflow` hint (#614): checked at any configured level. */
-// The lint config first: label-fit → trial → config → rules is a cycle that must be entered at config.
-import "../config";
 import { describe, expect, test } from "bun:test";
 import { type RenderedStructuredFigure, renderFigure } from "../../render/render";
 import { resolveLintConfig } from "../config";

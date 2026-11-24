@@ -20,7 +20,9 @@ async function render(source: string) {
 type Rendered = Awaited<ReturnType<typeof render>>;
 
 const edgeOf = (value: Rendered, from: string, to: string) => {
-  const edge = value.layout.edges.find((e) => e.from === `n:${from}` && e.to === `n:${to}`);
+  const edge = value.layout.edges.find(
+    (e) => e.from.endsWith(`:${from}`) && e.to.endsWith(`:${to}`),
+  );
   if (edge?.route === undefined) throw new Error(`no route ${from} → ${to}`);
   return edge;
 };
@@ -224,5 +226,42 @@ edges:
       expect(edge.facingEnd).toBeUndefined();
       expect(routeBends(edge)).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  test("a block end (#642) is written: the edge keeps its side entry and is not reported", async () => {
+    const source = (anchor: string) => `
+version: 1
+figure:
+  id: blk
+  theme: sumi
+  profile: paper-double
+  layout:
+    straighten: false
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: working, at: [66, 10]}
+          - {item: completed, at: [20, 45]}
+          - {item: failed, at: [64, 45]}
+nodes:
+  - id: working
+    component: tokens
+    props: {width: 6mm, gap: 1pt, cells: [a, b, c]}
+  - {id: completed, component: box, label: completed}
+  - {id: failed, component: box, label: failed}
+edges:
+  - {from: working, to: completed, fromAnchor: "${anchor}"}
+  - {from: working, to: failed}
+`;
+    // A side anchor at the same place: the Z is taken.
+    const side = edgeOf(await render(source("south:0.2")), "working", "completed");
+    expect(side.facingEnd).toBe("to");
+    expect(routeBends(side)).toBe(2);
+    const value = await render(source("block:south"));
+    const block = edgeOf(value, "working", "completed");
+    expect(block.facingEnd).toBeUndefined();
+    expect(routeBends(block)).toBe(3);
+    expect(avoidable(value).filter((d) => d.message.includes("a Z with two bends"))).toEqual([]);
   });
 });

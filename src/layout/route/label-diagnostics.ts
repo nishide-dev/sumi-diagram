@@ -91,7 +91,7 @@ export function requestedLabelDiagnostics(
     ...routed.flatMap(({ edge, layout: e }) => {
       const label = e.route?.label;
       if (label === undefined) return [];
-      return [[e.key, isTagLabel(edge) ? tagBox(label.box, label) : label.box] as const];
+      return [[e.key, isTagLabel(edge) ? tagBox(label.box, label, edge) : label.box] as const];
     }),
   ];
   const bordered = layout.groups.filter((group) => {
@@ -109,7 +109,7 @@ export function requestedLabelDiagnostics(
     const label = e.route?.label;
     if (label === undefined || !hasRequestedLabel(edge) || !only(edge)) continue;
     // A tag (#610) takes its drawn frame.
-    const box = isTagLabel(edge) ? tagBox(label.box, label) : label.box;
+    const box = isTagLabel(edge) ? tagBox(label.box, label, edge) : label.box;
     const found: string[] = [];
     // A tag (#610) sits on its own segment; on a straight or curved line, on its line.
     const tag = isTagLabel(edge);
@@ -167,8 +167,10 @@ export function requestedLabelDiagnostics(
     const written = [
       ...(edge.labelAt !== undefined ? [`labelAt: ${edge.labelAt}`] : []),
       ...(edge.labelSide !== undefined && !tag ? [`labelSide: ${edge.labelSide}`] : []),
-      ...(tag ? ["labelStyle: tag"] : []),
+      ...(tag ? [`labelStyle: ${edge.labelStyle}`] : []),
     ].join(", ");
+    // A badge (#649) is a tag in a round frame: name what was written.
+    const kind = edge.labelStyle === "badge" ? "badge" : "tag";
     const otherSide = EDGE_LABEL_SIDES.find((s) => s !== edge.labelSide);
     const otherAt = EDGE_LABEL_POSITIONS.filter((p) => p !== edge.labelAt);
     const tries = [
@@ -179,13 +181,13 @@ export function requestedLabelDiagnostics(
       code: "layout/edge-label-overlap",
       severity: "warning",
       message: tag
-        ? `The tag of edge ${edgeName(edge)} overlaps ${list(found)}: nothing on the segment it asks for (${written}) is clear.`
+        ? `The ${kind} of edge ${edgeName(edge)} overlaps ${list(found)}: nothing on the segment it asks for (${written}) is clear.`
         : `The label of edge ${edgeName(edge)} overlaps ${list(found)}: nothing beside the segment and side it asks for (${written}) is clear.`,
       path: source?.path ?? ["edges", edge.index],
       ...(source?.location !== undefined && { location: source.location }),
       subject: { kind: "edge", id: edge.id ?? `edges[${edge.index}]` },
       hint: tag
-        ? `A tag stays on the segment labelAt names, so it is not moved elsewhere. Try ${tries.join(", or ")}; remove labelStyle: tag to let the router place the label beside the line; or make room (a gap, anchors, a shorter label).`
+        ? `A ${kind} stays on the segment labelAt names, so it is not moved elsewhere. Try ${tries.join(", or ")}; remove labelStyle: ${kind} to let the router place the label beside the line; or make room (a gap, anchors, a shorter label).`
         : `labelAt and labelSide keep the label beside the segment and side they name, so it is not moved elsewhere. Try ${tries.join(", or ")}; remove them to let the router choose; or make room (a gap, anchors, a shorter label).`,
     });
   }

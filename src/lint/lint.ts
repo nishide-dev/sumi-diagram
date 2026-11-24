@@ -42,7 +42,7 @@ export interface LintOptions extends CheckOptions {
   /** Rule levels, options and the warning budget. Validated; throws `LintConfigError`. */
   config?: LintConfig;
   /**
-   * Rules to configure. Defaults to every built-in rule (`ALL_LINT_RULES`);
+   * Rules to configure. Defaults to every built-in rule (`allLintRules()`);
    * `lintFigure()` runs the structural ones, the geometry lint the `geometry/*` ones.
    */
   rules?: readonly AnyLintRule[];

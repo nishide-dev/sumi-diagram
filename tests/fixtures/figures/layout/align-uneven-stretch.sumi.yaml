@@ -1,0 +1,36 @@
+# #646, reduced from a three-panel dogfood figure (#639 run 1): panels in a row
+# with align: stretch, and an align across two of them. The space that aligns
+# "feat" and "dec" lands inside panel "pa" and leaves it shorter than its
+# neighbours (layout/align-uneven-stretch); move: dec moves the other panel's
+# content instead and keeps the frames even.
+version: 1
+figure:
+  id: align-uneven-stretch
+  layout:
+    arrange:
+      row:
+        gap: 4mm
+        align: stretch
+        items: [pa, pb]
+    align:
+      - {y: [feat, dec]}
+groups:
+  - id: pa
+    caption: (a) Encode
+    arrange:
+      row: {gap: 4mm, align: center, items: [video, feat]}
+  - id: pb
+    caption: (b) Decode
+    arrange:
+      stack:
+        gap: 8mm
+        items:
+          - row: {gap: 6mm, align: center, items: [dec, point]}
+          - row: {gap: 6mm, align: end, items: [query, patch]}
+nodes:
+  - {id: video, component: box, label: Video, props: {width: 20mm, height: 24mm}}
+  - {id: feat, component: box, label: F, props: {width: 6mm, height: 24mm}}
+  - {id: dec, component: box, label: Decoder, props: {width: 24mm, height: 10mm}}
+  - {id: point, component: box, label: P, props: {width: 10mm, height: 10mm}}
+  - {id: query, component: box, label: Query, props: {width: 24mm, height: 10mm}}
+  - {id: patch, component: box, label: Patch, props: {width: 10mm, height: 10mm}}

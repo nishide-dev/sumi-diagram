@@ -119,6 +119,34 @@ hint の `contentAlign: top` は、その group に書いた写しを描画と�
 lint し直して確かめる（1 図につき最大 4 group と元の図 1 回。図の大きさが変わらず、
 中身が見出しの直下に来て、新しい error / warning が出ないときだけ「Verified」）。
 設計は [#613](design/decisions/613-content-align.md)。
+hint は、書き足す 1 行（group の `- id:` の下の `contentAlign: top`）と、その group が
+row に横に並んだパネルの 1 つなら、その row の `panels: true` も示す（#641）。
+`geometry/group-empty-area` の hint は、その group を `geometry/content-band` も報告するとき
+（中身の上下の両方に 4mm 以上の帯）だけ、帯の寸法とその書き方を添え、効果の判断は content-band の
+trial で確かめた hint に任せる（group-empty-area 自身は結果を言わない）。
+
+## 横に並んだパネルの揃い（#641）
+
+`geometry/panel-misaligned` は **info**（structured、render / `lint --geometry` のみ）。
+`row` に直接並んだ 2 つ以上の group（パネル。tilted plane・tokens・matrix・legend を除く。
+キャプション付きの group も含む）の、枠の上端・枠の下端（枠か塗りが見え、opacity が 0 でない group）・
+見出し（下に置いた見出しを除く）・キャプションの y が **1mm 以上**ずれていれば、
+row ごとに 1 件報告する。`panels: true` を書いた row は対象外。
+hint は、その row のパスに足す `panels: true`（各パネルが row の高さを取り、
+中身を見出しの直下に置き、row を高くしない限り見出しの帯を揃える。ノードは `align` のまま）。
+エンジンの動作が決まっているので、hint は写しの配置では確かめない。
+設計は [#641](design/decisions/641-panel-rows.md)。
+
+## 揃え（`figure.layout.align`）の副作用（#646）
+
+`figure.layout.align` は要素の前後に空き（strut）を足して揃えるので、空きが 1 つの gap に入り、後ろの要素を動かす。描画（`sumi render` / `lint --geometry`）の配置の段が、揃えのない配置と比べて次の **info** を出す（`layout/*` なので lint の設定では変えられない）。
+
+- `layout/align-widened-gap`: stack / row の 2 つの item の間の gap が、揃えで **3mm を超えて**広がり、揃えなしの **1.5 倍を超え**、同じ箱のほかの gap（揃えた後）より 3mm を超えて・1.5 倍を超えて長いとき。メッセージは 2 つの item、前後の幅、その空きを実際に足した制約（ソルバーが記録したもの）を示す（例: 「the gap between "sft" and "rl" in their row from 6.00mm to 12.61mm, for figure.layout.align[4] (x: [envs, rl])」）。しきい値は丸める前の値で比べる。キャプションの stack に入った空き（パネルとキャプションが離れる）も同じコードで報告する。同じ tokens の行のセルの間は `layout/align-splits-tokens`（warning）が報告するので除く。箱のすべての gap が同じだけ広がった場合（U-Net の段を揃えて下げる）は 1 つの間隔に読めるので出さない。`figure.layout.alignGrowth: allow` で `layout/align-grew-figure` と一緒に消える。
+- `layout/align-uneven-stretch`: `align: stretch` の stack / row が同じ大きさにした枠（エンジンが伸ばす item。その軸の明示サイズ・outline・badge・glyphs を持つ node や円などの固定の形は伸ばさないので除く。キャプション付きの group はその group）が、揃えた後に **0.5mm を超えて**食い違うとき。空きが一方の枠の中に入り、箱が大きさを決めた後でその枠を変えたため。`alignGrowth` では消えない（枠の不揃いは stretch の意図に反する）。
+
+hint は、空きが入った側と反対側の制約の item を `move` に書く案を示す（試行の配置では確かめない）。
+
+`move: <id>`（または一覧）は制約の item のうち動いてよいものを選ぶ。書いた item だけが空きを受け、ほかの item はその制約のためには動かない（`{x: [note, seq.f], move: note}` で注記がセルの下へ動き、トークンは割れない）。空きは足すだけなので、箱の先頭の方へ戻る必要がある item だけを書くと満たせず、`layout/unsatisfied-align` の hint が `move` を示す。制約の item でない ID は `layout/invalid-align-move`（error）。設計は [#646](design/decisions/646-align-side-effects.md)。
 
 `sumi lint`（API: `lintFigure()`、`src/lint`）は、診断を集める段（`yaml` → `schema` → `ref` → `layout` → `component` → `theme` → `profile`）と、**構造 lint**（stage `lint`）を実行する。構造 lint は描画前の文書だけを検査し、D2 を必要としない。描画後の SVG を検査する幾何 lint（stage `geometry`、#13）は別の段で、`lintRenderedFigure()` / `lintGeometry()` が実行する（下記の「幾何 lint」）。
 
@@ -273,8 +301,9 @@ const diagnostics = lintGeometry(rendered, { config, source: text, file });
 | `geometry/edge-touches-label` | info | エッジが、端でないグループの見出し・キャプション・`label` 部品の文字（グリフの輪郭で再計測）から 1.5pt 未満を通る（線の太さの半分を除く）。横切る場合は `edge-crosses-label`。破線は間も線として測るので、文字の脇が破線の間に当たる場合も報告する（誤検出側。設計 §6.39）。 | `edge-crosses-label` と同じ（見出しを `labelAt` で動かす、端を動かす）。 |
 | `geometry/edge-label-hugging` | info | structured のエッジのラベルの字（グリフの輪郭で再計測）が、自分の線から**印刷時 1pt 未満**にあり、線には触れていない（線の太さの半分を除く。`fit: scale` を反映。#546）。ルータの既定の間隔（3 unit）は線から字までを 0.4〜0.5mm に保つので、既定の置き場所では出ない。テーマが `edgeLabelGap`（`sumi`・`sumi-dark` は 6 unit、約 1mm）を持つ structured の図では、印刷時 1pt ではなく、描画時の線から字までを「テーマの間隔 × `textScale` の 75%」と比べる。持たないテーマは従来の 1pt。いずれも、既定より詰まった置き場所（短い区間・縮小・細かい字）だけを拾う。auto（D2）は線の上にラベルを置くので対象外。ラベルごとに 1 件。 | `labelAt` / `labelSide` でより長い区間に動かす、矢じりの手前の `gap` を広げる、ラベルを短くする。 |
 | `geometry/edge-label-on-corner` | info | エッジのラベルの行の外接矩形が、ノードの輪郭の角（四角形・ひし形・六角形・平行四辺形の頂点。円・楕円は対象外）から**印刷時 1.5pt 未満**にある。図形に重なるものは `label-collision` が見るので除く。角の丸めで図形に触れないが外接矩形の角にかかるラベルも拾う（#546）。ノードごと・ラベルごとに 1 件。 | `labelAt` / `labelSide` で動かす、`fromAnchor` / `toAnchor` で線の端を動かす、`gap` を広げる。 |
-| `geometry/edge-label-detached` | info | structured の直交のエッジで、ルーターが自分で置いたラベル（`labelAt`・`labelSide` を書かず `labelStyle: tag` でもない。`labelStyle: beside` は対象。凡例の見本以外）の字（グリフの輪郭）が、自分の描かれた線から「ラベルの間隔（テーマの `edgeLabelGap` × `textScale`）＋文字サイズの 3/4」より遠い（短い区間から持ち上げられたラベルなど。#610）。ラベルごとに 1 件。hint は、`labelAt: middle` → `start` → `end` → `labelStyle: tag` を順に、同じ配置の上で配線し直して描き lint した試行で確かめたもの（図が大きくならない・ラベルが間隔の内にある（札なら線の上）・新しい error / warning がない・その辺に新しい指摘がない）。図あたり最大 8 回の試行。[設計 #610](design/decisions/610-edge-labels.md) | hint の編集をする。なければ `labelAt` / `labelSide` で置く、`labelStyle: tag` で線の上に載せる、`gap` を広げる。 |
+| `geometry/edge-label-detached` | info | structured の直交のエッジで、ルーターが自分で置いたラベル（`labelAt`・`labelSide` を書かず `labelStyle: tag` でもない。`labelStyle: beside` は対象。凡例の見本以外）の字（グリフの輪郭）が、自分の描かれた線から「ラベルの間隔（テーマの `edgeLabelGap` × `textScale`）＋文字サイズの 3/4」より遠い（短い区間から持ち上げられたラベルなど。#610）。ラベルごとに 1 件。hint は、`labelAt: middle` → `start` → `end` → `labelStyle: tag` を順に、同じ配置の上で配線し直して描き lint した試行で確かめたもの（図が大きくならない・ラベルが間隔の内にある（札なら線の上）・新しい error / warning がない・その辺に新しい指摘がない）。図あたり最大 8 回の試行。確かめた編集がないときは、線の最も長い直線の区間と、ラベルを脇に置くのに要る長さ（字の長さ＋両端の間隔＋矢じり）を示し、区間をどれだけ延ばすか、`labelStyle: tag` がその区間に収まるかを書く（#642）。[設計 #610](design/decisions/610-edge-labels.md) | hint の編集をする。なければ hint の長さまで区間を延ばす、`labelStyle: tag` で線の上に載せる、`labelAt` / `labelSide` で置く。 |
 | `geometry/edge-label-touches-line` | warning | 同じ対象で、ラベルの字が自分の線に触れるか、線が字を横切る（#610）。hint は detached と同じく試行で確かめる。 | hint の編集をする。なければ `labelAt` / `labelSide`、`labelStyle: tag`、区間を長くする。 |
+| `geometry/edge-label-ambiguous` | warning | structured のエッジのラベルの字（グリフの輪郭、行ごと）が、自分の線とほぼ同じ近さで別のエッジの線にある（別の線までが自分の線までの 1.75 倍以下で、かつ「ラベルの間隔＋文字サイズの 3/4」以内）。2 本の平行な線の間に置かれたラベルなど、どちらの線のラベルか読み違えられる（#642）。札（`labelStyle: tag`）、自分の線に触れるラベル、同じネット（共有の幹線）のエッジ、ズーム線、シーケンス図のライフライン、シーケンス図のメッセージどうし（ラベルは常に自分の矢印の上に置かれる）は対象外。ラベルごとに 1 件で、近い方のエッジを related に示す。[設計 #642](design/decisions/642-block-anchor.md) | hint の `labelSide`（進行方向から見た左右。今の側の反対）に変える、`labelStyle: tag` で自分の線の上に載せる、`labelAt` で線の間が広い所へ動かす、端を離す。 |
 | `geometry/token-column-drift` | info | 横並びのトークン列（`sumi/tokens` の 1 行。`direction: down` の縦積みは対象外）が、すぐ下の最も近い列（行の高さの 3 倍以内。間に別の列がない）と同じ個数（2 以上）で、2 つの列の範囲が狭い方の 50% 以上重なり、各セルの幅が 10%（または 1pt）以内で等しく、どのセルも上のセルとほぼ重なる（幅の 75% 以上）のに、セルの中心が**印刷時 0.5pt 超**ずれる（幅の 25% までのずれだけ。意図した段違いや幅の違う列は除く）。最もずれたセルを 1 件、上の列のセルを related に示す（#546）。hint は測った違いを示す（#647）: セルの幅か gap が違えば、それぞれの列の幅と gap（始まりも違えばその差）と、最初と最後の列での中心の差。セルが同じなら、列の始まりの x の差。手前（または後ろ）の要素の幅が違うとき、2 つに同じ幅を与えて配置し直し（配線なし、1 図 4 回まで）、列が揃ったときだけ「Verified」として原因に名指しする。揃わなければ名指しせず、試せなければ幅を「確かめていない」と添えて示す。 | セルの幅・gap が違う: 両方の列のセルに同じ `width`・`gap` を指定する、または 1 つの `sumi/matrix` にする。始まりがずれる: Verified の hint が示す `props.width` を両方の要素に書く。なければ、列を置いている配置（手前の要素の幅、`align`）を揃える。 |
 | `geometry/aspect-distorted` | warning | 縦横比が固定の部品（`circle`、`square`）が、縦横の異なる大きさで描かれている。ELK は次数の多いノードや自己ループのあるノードを一方向に拡大する。 | ノードのエッジを減らす。縦横比が重要でなければ `ellipse` / `box` を使う。 |
 | `geometry/set-contains-non-member` | warning | 集合の囲み（`sets`、#407）の輪郭が、メンバーではないノードを覆う（ノードの中心が輪郭の内側にある、または外接矩形の 25% 以上が内側にある。メンバーのグループの子孫と接続点は対象外）。ベン図で、囲みの中にあるノードはその集合のメンバーに見える。集合ごとに 1 件で、覆われたノードを related に示す。structured 専用。 | ノードを `members` に加える、`place` の座標や gap で輪郭から離す、`shape: hull` や `shape: ellipse` と `angle: auto`（メンバーの並びに傾ける）、小さい `padding` で囲みを詰める。 |
@@ -398,7 +427,7 @@ figure.sumi.yaml:21:5 warning lint/ancestor-edge Edge edges[1] connects group "o
 
 ## 規則の追加
 
-規則は `defineRule()`（`src/lint/rule.ts`）で定義し、`BUILTIN_LINT_RULES`（`src/lint/rules/index.ts`）に加える。幾何の規則は `defineGeometryRule()` で定義し、`BUILTIN_GEOMETRY_RULES`（`src/lint/geometry/rules.ts`）に加える（`GeometryContext` を受け取る）。規則は `LintContext`（有効な要素、解決済みの部品とスタイル、Theme）を受け取り、`{ message, path, subject?, hint?, related? }` を返す。code・severity・位置情報は枠組みが付ける。options を取る規則は、既定値付きの Zod スキーマを `options` に指定する。規則は汎用的に保ち、特定分野に固有の検査は加えない。
+規則は `defineRule()`（`src/lint/rule.ts`）で定義し、`BUILTIN_LINT_RULES`（`src/lint/rules/index.ts`）に加える。幾何の規則は `defineGeometryRule()` で定義し、`builtinGeometryRules()`（`src/lint/geometry/rules.ts`）に加える（`GeometryContext` を受け取る）。規則は `LintContext`（有効な要素、解決済みの部品とスタイル、Theme）を受け取り、`{ message, path, subject?, hint?, related? }` を返す。code・severity・位置情報は枠組みが付ける。options を取る規則は、既定値付きの Zod スキーマを `options` に指定する。規則は汎用的に保ち、特定分野に固有の検査は加えない。
 
 ## 論文図の密度（#422）
 

@@ -176,6 +176,8 @@ function nextCandidate(
     if (edge === undefined || pair === undefined || layoutEdge.facingEnd !== undefined) continue;
     if (edge.from === edge.to || edge.lane !== undefined || edge.faceSides !== undefined) continue;
     if (edge.route !== undefined || edge.routing === "zoom") continue;
+    // A `block` end (#642) is written, with or without a side: neither end moves.
+    if (edge.fromBlock === true || edge.toBlock === true) continue;
     const bends = routeBends(layoutEdge);
     if (bends < 3) continue;
     const fromWritten = typeof edge.fromAnchor === "object" ? edge.fromAnchor : undefined;

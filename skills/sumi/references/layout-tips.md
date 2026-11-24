@@ -306,7 +306,7 @@ names its Sumi means.
 - **Panels with one message each.** Split for two levels of detail (an overview
   and an enlarged block) or for variants compared; panels equally tall, captions
   on one line, the same tones for the same parts. *Sumi:* groups in a `row` with
-  `align: stretch`, `caption`, `separator`, `zoom`, `dim`.
+  `panels: true`, `caption`, `separator`, `zoom`, `dim`.
 - **Short labels.** Noun phrases of one to three words in one casing style;
   symbols in math, shapes in a sublabel; no sentences in boxes. *Sumi:* `\n`,
   `'$x_t$'`, `sublabel`.
@@ -396,7 +396,7 @@ Sumi features for each form:
   Reproducing a published figure: sample its colours and pin every fill, frame and panel
   (`tones`, `groupFill`, `groupStroke`, `solidFills`, node `tone`) so no theme default
   shows; the bundled reproductions do.
-- **Panels, numbered columns**: groups with `caption` in one `row`
+- **Panels, numbered columns**: groups with `caption` in one `row` with `panels: true`
   ([captions](structured.md#group-titles-and-captions)).
 
 The GCN and Llama 4 MoE [examples](../examples/README.md) keep one vocabulary across
@@ -499,6 +499,10 @@ Checklist (answer each with what you see; "fine" is not an answer):
 6. **Stage flow.** Can the eye follow the stages (numbered columns, one main flow
    direction) without crossing or backtracking?
 7. **Main subject.** Is the one thing the figure is about clearly the most prominent?
+8. **Panel alignment.** Are the headings and frame tops of side-by-side panels aligned
+   (and their bottoms and captions), with no empty band under a heading? If not, write
+   `panels: true` on their `row` (`geometry/panel-misaligned` and `geometry/content-band`
+   name such rows and panels).
 
 Verify before you fix. A critic (you or a subagent) sees only pixels and can be wrong
 about measurable things: "unequal sizes", "different colour", "translucent" or
@@ -539,8 +543,8 @@ the reference's arrangement), then map each look you want to a field:
 | a bold title on a band (a set) | `text: heading`, `weight: bold` on the set |
 | a sequence diagram (lifelines, ordered messages, replies, notes, loop / alt frames) | an [arrange box `sequence`](structured.md#sequence-diagrams) (0.20.0): `participants` and `rows` of edge IDs, `{note, over}` and `{fragment, rows}`; no coordinates, junctions or lifeline edges to write. Start from the [sequence-diagram](../layouts/sequence-diagram/sequence-diagram.sumi.yaml) layout |
 | a white framed panel (`paper`'s default), a panel without a frame, a shaded gray panel (only if the reference has one), a dashed panel | group (default) / `plain` / `filled` / `dashed`, with `caption: (a) …` |
-| panels of equal height with captions on one line | the panels in one `row` with `align: stretch` ([captions](structured.md#group-titles-and-captions)) |
-| stretched panels whose content starts right under the title (no empty band above), column headings on one line | `contentAlign: top` on each panel; titles of one and two lines: also `matchLabelHeight: <name>` ([stretched panels](structured.md#group-titles-and-captions)) |
+| panels side by side: equal frame heights, content right under each title (no empty band), headings and captions on one line (captions with the same number of lines) | `panels: true` on the `row` that holds them (0.20.1; [panels](structured.md#group-titles-and-captions)) |
+| one stretched panel (or a column of panels) whose content starts right under the title | `contentAlign: top` on that panel; titles of one and two lines: also `matchLabelHeight: <name>` ([stretched panels](structured.md#group-titles-and-captions)) |
 | panels separated by a dashed vertical (or horizontal) line | a `separator` between them ([recipe below](#two-panels-with-a-dashed-divider)) |
 | a pale panel (a variant compared against) | `dim: true` on the group ([dimmed](figure-format.md#dimmed-groups)) |
 | dashed lines from a block to the panel that enlarges it | an edge `component: zoom` ([zoom](structured.md#zoom-callouts)) |

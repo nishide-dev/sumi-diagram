@@ -1,0 +1,25 @@
+# #646, reduced from a token-sequence dogfood figure (#639 run 3): a note under
+# one cell of a tokens row. Without move, align pulls the cells apart
+# (layout/align-splits-tokens); move: note moves the note instead.
+version: 1
+figure:
+  id: align-move-note
+  layout:
+    arrange:
+      stack:
+        gap: 2mm
+        items:
+          - row: {gap: 2mm, align: center, items: [step, seq]}
+          - note
+    align:
+      - {x: [note, seq.f], move: note}
+nodes:
+  - {id: step, component: label, label: "t=3"}
+  - id: seq
+    component: tokens
+    props:
+      width: 6mm
+      height: 6mm
+      gap: 1mm
+      cells: [{label: a}, {label: b}, {label: c}, {id: f, label: d}, {label: e}, {label: f}, {label: g}]
+  - {id: note, component: label, label: fork}
