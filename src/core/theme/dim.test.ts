@@ -148,6 +148,7 @@ describe("dim colors", () => {
         .fontColor;
       const dim = theme.dim?.fontColor ?? "";
       expect(ratio(text)).toBeGreaterThan(ratio(muted));
+      expect(ratio(muted)).toBeGreaterThan(ratio(dim));
       // Dim is a clear step below muted, not the same gray (#636).
       expect(contrastRatio(muted, dim)).toBeGreaterThan(1.8);
       expect(ratio(dim)).toBeGreaterThanOrEqual(3);
@@ -173,10 +174,38 @@ describe("dim colors", () => {
     const op = dimmedNode("llama", "sumi/operator", "default");
     expect(op.before.stroke).toBe("#cbd2d9");
     expect(op.after.stroke).toBe("#cbd2d9");
-    // A borderless pale block (outlined in its own fill) keeps no visible border: both lighten.
-    const arrow = dimmedNode("sumi", "sumi/block-arrow", "muted", "blue");
-    const lighter = lightenColor(arrow.before.fill, arrow.dim.lighten, arrow.theme.canvas);
-    expect(arrow.after).toMatchObject({ fill: lighter, stroke: lighter });
+    // A muted flow arrow (a borderless block), toned or not, lightens with its outline in every
+    // theme instead of turning into a dim-gray arrow; a default (ink) arrow takes the dim gray.
+    for (const themeId of BUILTIN_THEMES.keys()) {
+      const { state } = checkFigure(`version: 1
+figure: { id: f, theme: ${themeId}, layout: { arrange: { stack: { items: [g] } } } }
+groups:
+  - { id: g, dim: true, arrange: { stack: { items: [plain, toned, ink] } } }
+nodes:
+  - { id: plain, component: block-arrow, variant: muted }
+  - { id: toned, component: triangle-arrow, variant: muted, tone: blue }
+  - { id: ink, component: chevron }
+`);
+      expect(state.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+      const theme = builtin(themeId);
+      const dim = theme.dim;
+      if (dim === undefined) throw new Error("no dim");
+      const map = state.styles ?? new Map();
+      for (const [id, component, tone] of [
+        ["plain", "sumi/block-arrow", undefined],
+        ["toned", "sumi/triangle-arrow", "blue"],
+      ] as const) {
+        const before = resolveStyle(theme, {
+          kind: "node",
+          id: component,
+          variant: "muted",
+          ...(tone && { tone }),
+        }).style;
+        const lighter = lightenColor(before.fill, dim.lighten, theme.canvas);
+        expect(style(map, nodeKey(id))).toMatchObject({ fill: lighter, stroke: lighter });
+      }
+      expect(style(map, nodeKey("ink"))).toMatchObject({ fill: dim.stroke, stroke: dim.stroke });
+    }
     // A pale solid area (yellow) the same; a dark solid one (blue) takes the dim gray line.
     const yellow = dimmedNode("color", "sumi/box", "solid", "yellow");
     expect(yellow.after.stroke).toBe(yellow.after.fill);

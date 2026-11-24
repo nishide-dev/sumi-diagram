@@ -241,7 +241,7 @@ frames and toned edges take the dim gray.
 (legends and tokens cells too), its caption and the edges whose two ends are both inside:
 the panels of variants a paper compares against. Text and lines take the theme's dim gray
 (a line already paler than it stays quiet: a `sumi` or `paper` panel frame and `llama`'s pale
-operator frame stay as they are, and a borderless pale block keeps no visible border; dimming
+operator frame stay as they are, and a `muted` flow arrow, toned or not, pales with no border; dimming
 never makes a line louder). In `sumi` / `sumi-dark` the dim gray is a step paler than `muted`
 (#8a8f9d / #7a8595, about 3.2:1), so text, `muted` and dimmed elements read apart
 and fills move toward the theme canvas (white by default; dark in `sumi-dark`); sizes, dashes, fonts and layout do

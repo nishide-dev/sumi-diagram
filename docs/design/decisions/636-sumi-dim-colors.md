@@ -15,7 +15,7 @@
 
 - 比はキャンバスに対するコントラスト。dim は `minimal` / `color` の #8c959f（3.0:1）と同じ考え方で 3:1 を少し上回る値にし、muted をキャンバス側に寄せた色（`sumi` は 34%、`sumi-dark` は 40%）なので青みのある灰色の系統はそのまま。muted と dim の比は 2.3:1（`sumi`）・1.9:1（`sumi-dark`）で、並べて見分けられる。枠（#634）よりはコントラストが高いので、減光したノードの線が枠より淡くなることはない。
 - 文字（`dim.fontColor`）と線（`dim.stroke`）は同じ色。塗りの寄せ幅（`lighten: 0.3`）は変えない。
-- 比較のため、少し濃い案 B（`sumi` #838997 3.5:1、`sumi-dark` #828d9c 3.5:1）も比較画像に入れた。A のほうが muted との差がはっきりするため A を既定にした。
+- 比較のため、少し濃い案 B（`sumi` #838997 3.5:1、`sumi-dark` #828d9c 3.5:1）も比較画像に入れた。A のほうが muted との差がはっきりするため A を既定にした。比較画像（変更前 / A / B）を確認し、ユーザーが A を承認した（2026-11-24）。
 
 ### muted と本文
 
@@ -24,10 +24,11 @@
 ### ノードの線への規則の拡張
 
 - 規則: 「ノード（とグループ）の線がすでに `dim.stroke` よりキャンバスに対するコントラストが低ければ、減光で濃くしない」。そのような線は元の色のまま残す。ただし線が自分の塗りと同じ色（枠のないブロック、塗りの面）なら、減光した塗りに合わせる（線と塗りが一緒に淡くなり、枠が現れない）。辺の線は従来どおり `dim.stroke`。実装は `dimStyle`（`src/core/theme/dim.ts`）。
-- #634 で見送った理由（`sumi` の `solid` の青い輪郭が tone の色のまま残る）は、dim を淡くしたことで解消した。`sumi` の tone の線（6.2〜7.3:1）はどれも新しい dim（3.2:1）より濃いので、`solid` / `tinted` / `outlined` の輪郭は従来どおり灰色になる。dim より淡い線は、黄色の `solid`（塗りと同じ色）と `muted` の flow arrow（同）だけ。
+- #634 で見送った理由（`sumi` の `solid` の青い輪郭が tone の色のまま残る）は、dim を淡くしたことで解消した。`sumi` の tone の線（6.2〜7.3:1）はどれも新しい dim（3.2:1）より濃いので、`solid` / `tinted` / `outlined` の輪郭は従来どおり灰色になる。dim より淡い線は、黄色の `solid`（塗りと同じ色）と tone 付きの `muted` の flow arrow（同）だけ。
 - この規則で直る逆転:
   - `llama` の operator の淡い枠 #cbd2d9（1.5:1）が #9aa5ae（2.5:1）に濃くなっていた → #cbd2d9 のまま。
-  - `muted` の flow arrow（`block-arrow`・`triangle-arrow`・`chevron`、淡い塗りで枠なし）は、線と塗りが同じ色のため「インク」とみなされ、減光で塗りごと dim の灰色（濃い矢印）になっていた → 塗りを淡くし、線も同じ色。全テーマに効く。
+  - `muted` の flow arrow（`block-arrow`・`triangle-arrow`・`chevron`、塗りだけで枠のない面）は、線と塗りが同じ色のため「インク」とみなされ、減光で塗りごと dim の灰色になっていた（tone 付きの淡い矢印では濃い矢印への逆転）→ tone の有無にかかわらず、塗りをキャンバスへ寄せ、線も同じ色にする（`dimStyle` の `borderless`、全テーマ）。tone のない muted の矢印は muted の灰色を寄せた色になる（`sumi` #838997、`sumi-dark` #8792a1、`minimal` #b7bbc0）。`sumi` では dim の灰色（#8a8f9d）とほぼ同じ明るさで、ほかのテーマでは dim より淡い。
+  - 線の色で描く既定の flow arrow（インク）と、濃い `solid`（`sumi` の青など）の輪郭は従来どおり dim の灰色にする。
   - 黄色の `solid`（`color`・`paper`・`llama`・`sumi`）は減光で塗りより濃い灰色の枠が付いていた → 枠は減光した塗りと同じ色。
 - 辺に広げない理由: 辺は tone の色を落とす意図が強く、淡い tone の線（黄など）が色のまま残るのを避ける。
 
@@ -37,7 +38,7 @@
 - 論文の再現図は変わらない（reproduction-hashes の更新なし）。
 - `sumi` / `sumi-dark` で `dim: true` を使う利用者の図は、減光部分が一段淡くなる。
 - 隙間のある `bowtie`（`gap`）のラベルは、文字のコントラストが 4.5:1 未満なら塗った側に置く。減光した `sumi` / `sumi-dark` の `filled` / `outlined` の文字が 3.2:1 になったため、ほかのテーマと同じく塗った側に置かれる（`stretch-outlines.integration.test.ts` の期待値を更新）。
-- テスト: `sumi` / `sumi-dark` で本文 > muted > dim の順にコントラストが下がり、dim が 3:1 以上で muted との比が 1.8 を超えること。`llama` の operator の枠が減光で変わらないこと、`muted` の flow arrow と黄色の `solid` の線が減光した塗りに合わせること、`sumi` の青い `solid` と既定の輪郭は `dim.stroke` になること。
+- テスト: `sumi` / `sumi-dark` で本文 > muted > dim の順にコントラストが下がり、dim が 3:1 以上で muted との比が 1.8 を超えること。`llama` の operator の枠が減光で変わらないこと、`muted` の flow arrow（tone の有無とも、全テーマ）と黄色の `solid` の線が減光した塗りに合わせること、既定の flow arrow は dim の灰色になること、`sumi` の青い `solid` と既定の輪郭は `dim.stroke` になること。
 
 ## 採らなかった案
 
