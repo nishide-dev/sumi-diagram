@@ -61,11 +61,11 @@ Apply one edit and re-check: independent savings are not additive.
 | --- | --- | --- |
 | `yaml/syntax` | not valid YAML (often an unquoted `:` or `#` in a label, bad indentation) | quote the value / fix indentation at `location` |
 | `yaml/duplicate-key`, `yaml/alias-not-allowed`, `yaml/tag-not-allowed`, `yaml/multiple-documents`, `yaml/non-string-key` | YAML features Sumi does not accept | remove the duplicate / anchor / tag / extra document |
-| `schema/unknown-field` | a key the schema does not have (`color`, `style`, `children`, …); also a field newer than the CLI ([feature versions](figure-format.md#feature-versions)) | delete it; express it with a component, variant or `group:` |
+| `schema/unknown-field` | a key the schema does not have (`color`, `style`, `children`, …); also a field newer than the CLI ([feature versions](figure-format.md#feature-versions)) | delete it; express it with a component, variant or `group:`; `gap` on a `grid` is `rowGap` / `columnGap` |
 | `schema/reserved-key` | a key named `__proto__` (e.g. a matrix class); it would be dropped | rename it |
 | `schema/missing-field` | a required field is missing (`version`, `figure.id`, node `component`, edge `from`/`to`) | add it |
 | `schema/invalid-id` | ID does not match `^[a-z][a-z0-9_-]{0,63}$` | use the hint's lowercase form; update references |
-| `schema/invalid-type`, `schema/invalid-value` | wrong type or value (number as label, unknown `direction`) | quote strings; use an allowed value |
+| `schema/invalid-type`, `schema/invalid-value` | wrong type or value (number as label, unknown `direction`) | quote strings; use an allowed value; `iconSize: 1.2em` is written `iconSize: 1.2` (a number is a multiple of the font size) or a length (`"4mm"`) |
 | `schema/unsupported-version`, `schema/unsatisfied-requires` | `version` is not 1, or `requires` names a newer Sumi | use `version: 1`; drop `requires` or ask the user |
 | `ref/unknown-endpoint` | edge `from`/`to` is not a node or group ID | use the hint's ID, or add the missing element if the content calls for it |
 | `ref/unknown-group` | `group:` names no group | add it under `groups:` or fix the ID |

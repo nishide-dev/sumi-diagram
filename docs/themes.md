@@ -17,37 +17,37 @@ Sumi has eight built-in themes:
 - **`sumi`**: white canvas (so a figure pastes into a paper or slide as is) with navy ink and sand accents, white panels with a thin pale gray frame (0.5pt #a9aebc, quieter than the 1pt navy node outlines; `variant: filled` for a sand one; `themeOverrides.groupFill: "#efeddd"` brings back the sand panels from before v0.20.0), Inter for Latin text; the design system of the project site, whose pages draw it on a cream plate. `figure.themeOverrides.canvas: "#f8f8ee"` brings back the former cream canvas, or any other `#RRGGBB`.
 - **`sumi-dark`**: the dark counterpart: navy canvas, cream ink and sand accents, canvas-colored panels with a thin pale frame (0.5pt #6f7791), Inter for Latin text.
 
-`academic` and `paper` are both for papers; choose by how the paper is printed. **Grayscale or black-and-white print: `academic`. A color ML paper: `paper`.**
+**`sumi` is the recommended theme** for papers, READMEs and slides (`textScale: 1.5` for `screen-doc`, `2` for `presentation-16x9`). `academic` and `paper` are the other paper themes: **grayscale or black-and-white print: `academic`; the pastel color ML-paper look, or a reference drawn in it: `paper`.**
 
 ## Comparison
 
-| | `minimal` | `academic` | `slides` | `color` | `paper` | `llama` |
-| --- | --- | --- | --- | --- | --- | --- |
-| Purpose | general, neutral default | journal figures, grayscale print | projection | general, with color | color ML-paper figures | figures in the style of the Llama 4 MoE figure |
-| Color | monochrome; tones are 3 gray steps | grayscale only; tones are 3 gray steps | monochrome, darker grays; tones are 3 gray steps | pastel tone fills, blue emphasis | pastel tone fills and colored tone lines; blue is one of the tones | slate and gray; `solid` dark slate, `emphasis` blue accent, `filled` / `muted` borderless gray / pale blocks; pale tone fills |
-| Corners | square | square | square | square | rounded (boxes 2pt, groups 6pt) | rounded (boxes 3pt, groups 5pt) |
-| Lines | 1pt, emphasis 2pt | 0.5pt, emphasis 1pt | 2pt, emphasis 4pt | 1pt, emphasis 2pt | frames 1pt, edges 0.5pt (small arrowheads); emphasis: shapes 1.5pt, edges 1pt | frames and edges 1pt, **open chevron arrowheads** (a small gap before the box); emphasis edges 1.5pt blue, zoom lines 0.5pt |
-| Groups | light gray fill, gray frame | no fill, gray frame | light gray fill, gray frame | light gray fill, gray frame | white panel, black 1pt frame, rounded (`filled`: light gray, no frame) | pale borderless panel, regular-weight title; `muted`: white panel |
-| Font | BIZ UDPGothic; 8pt, edges 7pt | BIZ UDPGothic; 8pt, edges 7pt | BIZ UDPGothic; 16pt, edges 14pt | BIZ UDPGothic; 8pt, edges 7pt | Inter for Latin text in structured figures, BIZ UDPGothic for Japanese; 8pt, edges 7pt | as `paper` |
-| Typical profile | `paper-single`, `paper-double` | `paper-single`, `paper-double` | `presentation-16x9` | `paper-single`, `paper-double` | `paper-single`, `paper-double` | `paper-single`, `paper-double` |
+| | `minimal` | `academic` | `slides` | `color` | `paper` | `llama` | `sumi` | `sumi-dark` |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Purpose | general, neutral default | journal figures, grayscale print | projection | general, with color | color ML-paper figures | figures in the style of the Llama 4 MoE figure | recommended: papers, READMEs, slides (with `textScale`) | the same on a dark page |
+| Color | monochrome; tones are 3 gray steps | grayscale only; tones are 3 gray steps | monochrome, darker grays; tones are 3 gray steps | pastel tone fills, blue emphasis | pastel tone fills and colored tone lines; blue is one of the tones | slate and gray; `solid` dark slate, `emphasis` blue accent, `filled` / `muted` borderless gray / pale blocks; pale tone fills | navy ink, sand accents; gray base, pale tone fills (at most 3 accent tones) | cream ink on navy, sand accents; pale tone fills |
+| Corners | square | square | square | square | rounded (boxes 2pt, groups 6pt) | rounded (boxes 3pt, groups 5pt) | square | square |
+| Lines | 1pt, emphasis 2pt | 0.5pt, emphasis 1pt | 2pt, emphasis 4pt | 1pt, emphasis 2pt | frames 1pt, edges 0.5pt (small arrowheads); emphasis: shapes 1.5pt, edges 1pt | frames and edges 1pt, **open chevron arrowheads** (a small gap before the box); emphasis edges 1.5pt blue, zoom lines 0.5pt | 1pt (node frames, edges), emphasis edges 2pt | as `sumi` |
+| Groups | light gray fill, gray frame | no fill, gray frame | light gray fill, gray frame | light gray fill, gray frame | white panel, pale gray 0.5pt frame, rounded (`filled`: light gray, no frame) | pale borderless panel, regular-weight title; `muted`: white panel | white panel, thin pale gray frame 0.5pt (`filled`: sand) | canvas-colored panel, thin pale frame 0.5pt (`filled`: lighter navy) |
+| Font | BIZ UDPGothic; 8pt, edges 7pt | BIZ UDPGothic; 8pt, edges 7pt | BIZ UDPGothic; 16pt, edges 14pt | BIZ UDPGothic; 8pt, edges 7pt | Inter for Latin text in structured figures, BIZ UDPGothic for Japanese; 8pt, edges 7pt | as `paper` | as `paper`; group titles 9pt | as `paper`; group titles 9pt |
+| Typical profile | `paper-single`, `paper-double` | `paper-single`, `paper-double` | `presentation-16x9` | `paper-single`, `paper-double` | `paper-single`, `paper-double` | `paper-single`, `paper-double` | `paper-single`, `paper-double`; `screen-doc` (`textScale: 1.5`), `presentation-16x9` (`textScale: 2`) | as `sumi` |
 
 ## The same structured figure under every theme
 
 The Transformer ([`examples/transformer`](../examples/transformer/transformer.sumi.yaml), structured layout), drawn with `--theme` overrides. `slides` uses its own profile, `presentation-16x9`, and this tall figure is taller than a slide there.
 
-| `minimal` | `academic` | `slides` | `color` | `paper` | `llama` |
-| --- | --- | --- | --- | --- | --- |
-| <img src="gallery/themes/transformer.minimal.svg" alt="Transformer, theme minimal"> | <img src="gallery/themes/transformer.academic.svg" alt="Transformer, theme academic"> | <img src="gallery/themes/transformer.slides.svg" alt="Transformer, theme slides"> | <img src="gallery/themes/transformer.color.svg" alt="Transformer, theme color"> | <img src="gallery/themes/transformer.paper.svg" alt="Transformer, theme paper"> | <img src="gallery/themes/transformer.llama.svg" alt="Transformer, theme llama"> |
+| `minimal` | `academic` | `slides` | `color` | `paper` | `llama` | `sumi` | `sumi-dark` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| <img src="gallery/themes/transformer.minimal.svg" alt="Transformer, theme minimal"> | <img src="gallery/themes/transformer.academic.svg" alt="Transformer, theme academic"> | <img src="gallery/themes/transformer.slides.svg" alt="Transformer, theme slides"> | <img src="gallery/themes/transformer.color.svg" alt="Transformer, theme color"> | <img src="gallery/themes/transformer.paper.svg" alt="Transformer, theme paper"> | <img src="gallery/themes/transformer.llama.svg" alt="Transformer, theme llama"> | <img src="gallery/themes/transformer.sumi.svg" alt="Transformer, theme sumi"> | <img src="gallery/themes/transformer.sumi-dark.svg" alt="Transformer, theme sumi-dark"> |
 
 ## The same auto-layout figure under every theme
 
 The pipeline ([`examples/pipeline`](../examples/pipeline/pipeline.sumi.yaml), automatic layout), with the `paper-single` profile.
 
-| `minimal` | `academic` | `slides` | `color` | `paper` | `llama` |
-| --- | --- | --- | --- | --- | --- |
-| <img src="gallery/compare/pipeline.minimal.paper-single.svg" alt="Pipeline, theme minimal"> | <img src="gallery/compare/pipeline.academic.paper-single.svg" alt="Pipeline, theme academic"> | <img src="gallery/compare/pipeline.slides.paper-single.svg" alt="Pipeline, theme slides"> | <img src="gallery/compare/pipeline.color.paper-single.svg" alt="Pipeline, theme color"> | <img src="gallery/compare/pipeline.paper.paper-single.svg" alt="Pipeline, theme paper"> | <img src="gallery/compare/pipeline.llama.paper-single.svg" alt="Pipeline, theme llama"> |
+| `minimal` | `academic` | `slides` | `color` | `paper` | `llama` | `sumi` | `sumi-dark` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| <img src="gallery/compare/pipeline.minimal.paper-single.svg" alt="Pipeline, theme minimal"> | <img src="gallery/compare/pipeline.academic.paper-single.svg" alt="Pipeline, theme academic"> | <img src="gallery/compare/pipeline.slides.paper-single.svg" alt="Pipeline, theme slides"> | <img src="gallery/compare/pipeline.color.paper-single.svg" alt="Pipeline, theme color"> | <img src="gallery/compare/pipeline.paper.paper-single.svg" alt="Pipeline, theme paper"> | <img src="gallery/compare/pipeline.llama.paper-single.svg" alt="Pipeline, theme llama"> | <img src="gallery/compare/pipeline.sumi.paper-single.svg" alt="Pipeline, theme sumi"> | <img src="gallery/compare/pipeline.sumi-dark.paper-single.svg" alt="Pipeline, theme sumi-dark"> |
 
-`paper-single` imposes a minimum font size (7pt), not a maximum: `slides` text meets it. This pipeline renders within the page limits, with two collision warnings (`geometry/label-collision` and `geometry/edge-crosses-label`). These are distinct from the `geometry/exceeds-page-height` error under `presentation-16x9`, where the larger spacing makes this tall pipeline exceed the slide height; see the [profile comparison](gallery/compare.md). For projection, use `slides` with `presentation-16x9` and a shallower layout.
+`paper-single` imposes a minimum font size (7pt), not a maximum: `slides` text meets it. This pipeline renders within the page limits, with two collision warnings (`geometry/label-collision` and `geometry/edge-crosses-label`). These are distinct from the `geometry/exceeds-page-height` error under `presentation-16x9`, where the larger spacing makes this tall pipeline exceed the slide height; see the [profile comparison](gallery/compare.md). For projection, use `sumi` with `textScale: 2` (or `slides`) on `presentation-16x9`, and a shallower layout.
 
 ## Edge label gap
 
