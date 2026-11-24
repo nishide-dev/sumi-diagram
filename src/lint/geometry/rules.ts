@@ -2418,6 +2418,6 @@ export function builtinGeometryRules(): readonly GeometryRule[] {
     setLabelCollision,
     setOutlineCrossesNode,
     setOutlineCrossesText,
-] as GeometryRule[]);
+  ] as GeometryRule[]);
   return builtinGeometryRuleList;
 }
