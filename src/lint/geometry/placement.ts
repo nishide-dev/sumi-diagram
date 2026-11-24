@@ -4,12 +4,22 @@
  * and a row of tokens that drifts off the column of the row above it.
  */
 
+import type { FigureIR } from "../../compiler/ir";
+import type { ElementKey } from "../../core/check-state";
+import { mmToPt } from "../../core/units";
+import {
+  asHintTrial,
+  hintLayoutOptions,
+  inHintTrial,
+  MAX_HINT_ELEMENTS,
+} from "../../layout/hint-trials";
 import { isTagLabel, labelGap } from "../../layout/route/labels";
+import { placeStructured } from "../../layout/structured/engine";
 import type { Rect } from "../../render/geometry";
-import { unitsToPt } from "../../render/geometry";
+import { unitsToMm, unitsToPt } from "../../render/geometry";
 import { defineGeometryRule, type LintFinding } from "../rule";
 import { capitalize, drawnUnits, isDrawnEdge, isStructured, mmText, printedUnits } from "./common";
-import type { GeometryElement } from "./context";
+import type { GeometryContext, GeometryElement } from "./context";
 import { inkLines } from "./measure";
 import { polylinesRectDistance } from "./proximity";
 import { regionIntersectsRect } from "./shapes";
@@ -210,6 +220,186 @@ function worstDrift(
   return worst;
 }
 
+/** Below this (units), two widths, gaps or starts count as the same (layout rounding, D2's half units). */
+const SAME_UNITS = 0.1;
+
+/** A placed node beside a token row, for naming what shifts the row (#647). */
+interface Footprint {
+  readonly key: ElementKey;
+  readonly name: string;
+  readonly rect: Rect;
+  /** The tokens node a cell belongs to. */
+  readonly tokens?: string;
+}
+
+/** Every placed node: the structured layout's boxes (text nodes included), else the drawn shapes. */
+function footprints(context: GeometryContext): Footprint[] {
+  const footprint = (
+    key: ElementKey,
+    element: GeometryElement | undefined,
+    rect: Rect,
+  ): Footprint => ({
+    key,
+    name: element?.name ?? key,
+    rect,
+    ...(element?.ir.tokens !== undefined && { tokens: element.ir.tokens.id }),
+  });
+  if (context.layout !== undefined)
+    return context.layout.nodes.map((n) => footprint(n.key, context.get(n.key), n.rect));
+  return context.elements.flatMap((e) =>
+    e.kind === "node" && e.bbox !== undefined ? [footprint(e.key, e, e.bbox)] : [],
+  );
+}
+
+/** The nearest node right before (or after) a row on its band, within three row heights. */
+function besideRow(
+  boxes: readonly Footprint[],
+  row: TokenRow,
+  side: "before" | "after",
+): Footprint | undefined {
+  const id = row.cells[0]?.ir.tokens?.id;
+  const reach = NEIGHBOUR_ROW_HEIGHTS * (row.bottom - row.top);
+  let nearest: { box: Footprint; distance: number } | undefined;
+  for (const box of boxes) {
+    const r = box.rect;
+    if (box.tokens === id || r.y >= row.bottom || r.y + r.height <= row.top) continue;
+    const distance = side === "before" ? row.left - (r.x + r.width) : r.x - row.right;
+    if (distance < -SAME_UNITS || distance > reach) continue;
+    if (nearest === undefined || distance < nearest.distance) nearest = { box, distance };
+  }
+  return nearest?.box;
+}
+
+/** `12mm`, or `12–12.5mm` when the values differ. */
+function rangeText(context: GeometryContext, values: readonly number[]): string {
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  return high - low <= SAME_UNITS
+    ? mmText(context, low, 2)
+    : `${mmText(context, low, 2).replace(/mm$/, "")}–${mmText(context, high, 2)}`;
+}
+
+/** Trial layouts the drift hints may run per figure (#647). */
+const DRIFT_TRIALS = 4;
+/** The largest figure (elements) the drift hints lay out again. */
+const DRIFT_TRIAL_ELEMENTS = 4 * MAX_HINT_ELEMENTS;
+const driftTrials = new WeakMap<GeometryContext, { budget: number }>();
+
+/**
+ * Lays the figure out again with `a` and `b` both `widthMm` wide (as
+ * `props.width` on both would) and measures the two rows there: `true` if
+ * every cell then sits within the drift tolerance of the cell above it,
+ * `false` if not, `undefined` if no trial could be made (an auto figure, a
+ * large one, a trial inside a trial, or the budget spent).
+ */
+function equalWidthsAlign(
+  context: GeometryContext,
+  upper: TokenRow,
+  lower: TokenRow,
+  keys: readonly ElementKey[],
+  widthMm: number,
+): boolean | undefined {
+  const placed = context.placed;
+  if (placed === undefined || inHintTrial()) return undefined;
+  const original = placed.ir;
+  // Placement only (no routing, no lint of the trial), so a larger figure than
+  // the routed hint trials take is fine.
+  if (original.meta.engine !== "structured" || original.elements.size > DRIFT_TRIAL_ELEMENTS)
+    return undefined;
+  let state = driftTrials.get(context);
+  if (state === undefined) {
+    state = { budget: DRIFT_TRIALS };
+    driftTrials.set(context, state);
+  }
+  if (state.budget <= 0) return undefined;
+  state.budget--;
+  const units = Math.round(mmToPt(widthMm) * 2);
+  const width = { pt: units / 2, units };
+  const nodes = original.nodes.map((n) => (keys.includes(n.key) ? { ...n, width } : n));
+  const ir: FigureIR = {
+    ...original,
+    nodes,
+    elements: new Map(
+      [...original.elements].map(([k, e]) => [k, nodes.find((n) => n.key === k) ?? e]),
+    ),
+  };
+  const laid = asHintTrial(() => {
+    try {
+      return placeStructured(ir, hintLayoutOptions.get(original));
+    } catch {
+      return undefined;
+    }
+  });
+  if (laid === undefined || laid.diagnostics.some((d) => d.severity === "error")) return undefined;
+  const rects = new Map(laid.layout.nodes.map((n) => [n.key, n.rect]));
+  const tolerance = drawnUnits(context, TOKEN_DRIFT_UNITS);
+  return upper.cells.every((cell, i) => {
+    const a = rects.get(cell.key);
+    const b = rects.get((lower.cells[i] as GeometryElement).key);
+    return (
+      a !== undefined &&
+      b !== undefined &&
+      Math.abs(b.x + b.width / 2 - (a.x + a.width / 2)) <= tolerance
+    );
+  });
+}
+
+/**
+ * The hint of a drift (#647): what was measured to differ between the two
+ * rows. The cells' widths and gaps and where the rows start are measured;
+ * a neighbour is named as the cause only when a trial layout with the two
+ * neighbours made one width lines the rows up.
+ */
+function driftHint(context: GeometryContext, upper: TokenRow, lower: TokenRow): string {
+  const widths = (row: TokenRow) => row.cells.map((c) => (c.bbox as Rect).width);
+  const gaps = (row: TokenRow) =>
+    row.cells.slice(1).map((c, i) => {
+      const before = row.cells[i]?.bbox as Rect;
+      return (c.bbox as Rect).x - (before.x + before.width);
+    });
+  const tokensName = (row: TokenRow) => `tokens "${row.cells[0]?.ir.tokens?.id ?? "?"}"`;
+  const differs = (a: readonly number[], b: readonly number[]) =>
+    a.some((v, i) => Math.abs(v - (b[i] ?? v)) > SAME_UNITS);
+  const cells = (row: TokenRow) =>
+    `${tokensName(row)} has ${rangeText(context, widths(row))} cells${
+      row.cells.length > 1 ? ` with ${rangeText(context, gaps(row))} gaps` : ""
+    }`;
+  const shift = lower.left - upper.left;
+  const starts =
+    Math.abs(shift) > SAME_UNITS
+      ? `${tokensName(lower)} starts ${mmText(context, Math.abs(shift), 2)} ${shift > 0 ? "right" : "left"} of ${tokensName(upper)}`
+      : undefined;
+  if (differs(widths(upper), widths(lower)) || differs(gaps(upper), gaps(lower))) {
+    const offset = (i: number) => {
+      const a = upper.cells[i]?.bbox as Rect;
+      const b = lower.cells[i]?.bbox as Rect;
+      return mmText(context, Math.abs(b.x + b.width / 2 - (a.x + a.width / 2)), 2);
+    };
+    return `The cells differ (${cells(upper)}, ${cells(lower)})${starts === undefined ? "" : `, and ${starts}`}: the centres are ${offset(0)} apart at the first column and ${offset(upper.cells.length - 1)} at the last. Give the cells of both rows the same width and gap (props.width, props.gap)${starts === undefined ? "" : " and start the rows at the same x"}, or lay the rows out as one sumi/matrix.`;
+  }
+  const start = `Both rows have the same cells, but ${starts ?? `${tokensName(lower)} is off ${tokensName(upper)}`}`;
+  const fallback =
+    "Make the rows start at the same x: line up what positions them in their arrangement (the same width for the items before them, or the same align), or lay the rows out as one sumi/matrix.";
+  const boxes = footprints(context);
+  const unchecked: string[] = [];
+  for (const side of ["before", "after"] as const) {
+    const a = besideRow(boxes, upper, side);
+    const b = besideRow(boxes, lower, side);
+    if (a === undefined || b === undefined) continue;
+    if (Math.abs(a.rect.width - b.rect.width) <= SAME_UNITS) continue;
+    const measured = `${a.name} (${side} ${tokensName(upper)}) is ${mmText(context, a.rect.width, 2)} wide and ${b.name} (${side} ${tokensName(lower)}) ${mmText(context, b.rect.width, 2)}`;
+    // The width to write: the wider one, rounded up to 0.1mm.
+    const widthMm = Math.ceil(unitsToMm(Math.max(a.rect.width, b.rect.width)) * 10 - 1e-6) / 10;
+    const aligned = equalWidthsAlign(context, upper, lower, [a.key, b.key], widthMm);
+    if (aligned === true)
+      return `${start}: ${measured}. Verified: props.width ${widthMm}mm on both ${a.name} and ${b.name} lines the rows up (laid out again as a trial).`;
+    if (aligned === undefined) unchecked.push(measured);
+  }
+  if (unchecked.length > 0)
+    return `${start}. Beside them, ${unchecked.join("; ")} (not checked whether that moves the rows). ${fallback}`;
+  return `${start}. ${fallback}`;
+}
+
 export const tokenColumnDrift = defineGeometryRule({
   id: "geometry/token-column-drift",
   description:
@@ -243,10 +433,10 @@ export const tokenColumnDrift = defineGeometryRule({
       if (worst === undefined) continue;
       const { cell, other, drift } = worst;
       findings.push({
-        message: `${capitalize(cell.name)} sits ${mmText(context, drift, 2)} (${unitsToPt(printedUnits(context, drift)).toFixed(1)}pt) off the centre of ${other.name}, so the two token rows drift apart column by column.`,
+        message: `${capitalize(cell.name)} sits ${mmText(context, drift, 2)} (${unitsToPt(printedUnits(context, drift)).toFixed(1)}pt) off the centre of ${other.name}, so the columns of tokens "${upper.cells[0]?.ir.tokens?.id ?? "?"}" and tokens "${(lower as TokenRow).cells[0]?.ir.tokens?.id ?? "?"}" do not line up.`,
         path: cell.docPath,
         subject: cell.subject,
-        hint: "Give the cells of both rows the same width and gap (props.width, props.gap), or lay the rows out as one sumi/matrix, so the columns line up exactly.",
+        hint: driftHint(context, upper, lower as TokenRow),
         related: [{ path: other.docPath, message: `${capitalize(other.name)} is defined here.` }],
       });
     }

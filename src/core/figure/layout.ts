@@ -95,6 +95,105 @@ export function parseAnchor(value: string): EdgeAnchor | undefined {
   return { side, offset };
 }
 
+/**
+ * `block` / `block:<side>` (#642): the end meets the element as a whole, at
+ * the middle of a side (the side the router picks for it, or the one named),
+ * and on an element without a frame of its own (a tokens row, a matrix, a
+ * plain group) a bracket along that side shows the line belongs to all of it.
+ */
+export const BLOCK_ANCHOR = "block";
+
+/** A parsed `block` anchor: the side when one is named. */
+export interface BlockAnchor {
+  readonly side?: Side;
+}
+
+/** Parses `"block"` / `"block:<side>"`; `undefined` for anything else. */
+export function parseBlockAnchor(value: string): BlockAnchor | undefined {
+  if (value === BLOCK_ANCHOR) return {};
+  const match = /^block:([a-z]+)$/.exec(value);
+  if (match === null || !SIDES.includes(match[1] as Side)) return undefined;
+  return { side: match[1] as Side };
+}
+
+/** Whether `value` is a well-formed anchor: a side anchor, `straight` or `block` (#642). */
+export function isValidAnchor(value: string): boolean {
+  return parseAnchor(value) !== undefined || parseBlockAnchor(value) !== undefined;
+}
+
+/**
+ * `layout/block-anchor` (#642): a `block` anchor on an end that names a node
+ * (or a cell of a tokens node). A node is already one block: the anchor
+ * names a whole tokens row, matrix or group. Runs once tokens (#181) and
+ * matrices (#180) are expanded, so a tokens node or a matrix named as a whole
+ * is its frame group here.
+ */
+export function checkBlockAnchors(state: CheckState, locate: Locator): void {
+  const { doc, invalid } = state;
+  const groups = new Set((doc.groups ?? []).flatMap((g) => (g === undefined ? [] : [g.id])));
+  for (const [index, edge] of (doc.edges ?? []).entries()) {
+    if (edge === undefined) continue;
+    const key = edgeKey(edge.id, index);
+    if (invalid.has(key)) continue;
+    for (const [end, field] of [
+      [edge.from, "fromAnchor"],
+      [edge.to, "toAnchor"],
+    ] as const) {
+      const value = edge[field];
+      if (value === undefined || parseBlockAnchor(value) === undefined) continue;
+      const name = edge.id ?? `edges[${index}]`;
+      const subject = { kind: "edge", id: name } as const;
+      // The bracket and the middle of the side belong to the orthogonal router: a straight
+      // segment or a curve aims at its own point, and a zoom edge joins corners.
+      const zoom = state.components?.get(key)?.manifest;
+      const routing =
+        zoom?.kind === "edge" && zoom.routing === "zoom"
+          ? `a zoom edge joins corners of its ends`
+          : edge.route !== undefined
+            ? `route: ${edge.route} draws its own ${edge.route === "curve" ? "curve" : "segment"} between the ends`
+            : undefined;
+      if (routing !== undefined) {
+        state.diagnostics.push(
+          errorAt(
+            locate,
+            "layout/block-anchor",
+            `${field} "${value}" of edge ${name} needs an orthogonal route: ${routing}, so it cannot meet the whole element at the middle of a side or draw its bracket.`,
+            ["edges", index, field],
+            {
+              subject,
+              hint: routing.startsWith("a zoom")
+                ? `Remove ${field}; a zoom edge takes no anchors.`
+                : `Remove route: ${edge.route} so the router draws the line (the default), or write a side anchor such as "south" instead of "${value}".`,
+            },
+          ),
+        );
+        invalid.add(key);
+        continue;
+      }
+      if (groups.has(end)) continue;
+      const cell = doc.tokens?.find((t) => t.cells.some((c) => c.id === end));
+      state.diagnostics.push(
+        errorAt(
+          locate,
+          "layout/block-anchor",
+          cell !== undefined
+            ? `${field} "${value}" of edge ${name} is on one cell of tokens "${cell.id}"; "block" names a whole tokens row, matrix or group.`
+            : `${field} "${value}" of edge ${name} is on node "${refOwner(end)}", which is one element already; "block" names a whole tokens row, matrix or group.`,
+          ["edges", index, field],
+          {
+            subject,
+            hint:
+              cell !== undefined
+                ? `Name the tokens node as a whole (${field === "fromAnchor" ? "from" : "to"}: ${cell.id}) so the line meets the whole row with a bracket, or write a side anchor such as "north" for this cell.`
+                : `Write a side anchor such as "north" or "south:0.5" instead, or name the group, tokens node or matrix the node belongs to.`,
+          },
+        ),
+      );
+      invalid.add(key);
+    }
+  }
+}
+
 interface Element {
   kind: "node" | "group";
   value: FigureNode | FigureGroup;
@@ -417,6 +516,28 @@ function checkStructured(state: CheckState, locate: Locator): void {
           }
           continue;
         }
+        // `origin: place` (#649) needs a flat group arranged by its own place.
+        if (kind === "place" && wrapped && "origin" in cell && cell.origin === "place" && !silent) {
+          const target = elements.get(item);
+          const group = target?.kind === "group" ? (target.value as FigureGroup) : undefined;
+          const inner = group?.arrange;
+          // A tilted plane (#577) maps its content, so its inner [0, 0] is no page point.
+          const plane = group?.props?.plane !== undefined;
+          if (target !== undefined && (inner?.place === undefined || plane)) {
+            push(
+              errorAt(
+                locate,
+                "layout/invalid-place-origin",
+                `origin: place on "${item}" needs a flat group arranged by its own place, but "${item}" is ${target.kind !== "group" ? "a node" : plane ? "a tilted plane (props.plane)" : inner === undefined ? "a group without an arrange tree" : "a group arranged by another box"}.`,
+                [...path, kind, "items", index, "origin"],
+                {
+                  subject: ownerSubject,
+                  hint: "Arrange a flat group (no props.plane) with place, or use origin: footprint or body.",
+                },
+              ),
+            );
+          }
+        }
         add({ id: item, path: itemPath, via: "arrange", owner, silent });
       }
       if (kind === "grid" && column !== 0 && !silent) {
@@ -714,12 +835,12 @@ function checkStructured(state: CheckState, locate: Locator): void {
     if (edge === undefined || invalid.has(edgeKey(edge.id, index))) continue;
     for (const field of ["fromAnchor", "toAnchor"] as const) {
       const value = edge[field];
-      if (value === undefined || parseAnchor(value) !== undefined) continue;
+      if (value === undefined || isValidAnchor(value)) continue;
       push(
         errorAt(
           locate,
           "layout/invalid-anchor",
-          `Invalid anchor ${JSON.stringify(value)} at edges[${index}].${field}; expected "<side>", "<side>:<position>", "straight" or "straight:span".`,
+          `Invalid anchor ${JSON.stringify(value)} at edges[${index}].${field}; expected "<side>", "<side>:<position>", "straight", "straight:span", "block" or "block:<side>".`,
           ["edges", index, field],
           {
             subject: { kind: "edge", id: edge.id ?? `edges[${index}]` },
@@ -850,6 +971,27 @@ function checkAlign(
         ),
       );
     }
+    // `move` (#646) picks the items that may move: each must be an item of this constraint.
+    const move = constraint.move;
+    if (move === undefined) continue;
+    const moves = typeof move === "string" ? [move] : move;
+    for (const [i, id] of moves.entries()) {
+      if (items.includes(id) || isInvalidId(refOwner(id))) continue;
+      const movePath: DocPath = ["figure", "layout", "align", index, "move"];
+      if (typeof move !== "string") movePath.push(i);
+      state.diagnostics.push(
+        errorAt(
+          locate,
+          "layout/invalid-align-move",
+          `"${id}" in figure.layout.align[${index}].move is not an item of the constraint; move names which of its items may move.`,
+          movePath,
+          {
+            subject: figureSubject,
+            hint: `Name one of ${items.map((item) => `"${item}"`).join(", ")}, or add "${id}" to "${axis}".`,
+          },
+        ),
+      );
+    }
   }
 }
 
@@ -975,8 +1117,8 @@ function unplacedHint(element: Element, elements: Map<string, Element>): string 
 function anchorHint(value: string): string {
   const side = /^([a-z]+)/.exec(value.toLowerCase())?.[1];
   const suggestion =
-    side === undefined ? undefined : closestMatch(side, [...SIDES, STRAIGHT_ANCHOR]);
-  const sides = `Sides: ${SIDES.join(", ")}; the position is a number from 0 to 1 (default 0.5), e.g. "south:0.25". Or "straight": in line with the other end, on the side facing it ("straight:span": at the middle of the span the two share, for boxes that span several grid columns).`;
+    side === undefined ? undefined : closestMatch(side, [...SIDES, STRAIGHT_ANCHOR, BLOCK_ANCHOR]);
+  const sides = `Sides: ${SIDES.join(", ")}; the position is a number from 0 to 1 (default 0.5), e.g. "south:0.25". Or "straight": in line with the other end, on the side facing it ("straight:span": at the middle of the span the two share, for boxes that span several grid columns). Or "block" / "block:<side>": the middle of a side of a whole tokens row, matrix or group, with a bracket on a tokens row or matrix.`;
   return suggestion !== undefined && suggestion !== side
     ? `Did you mean "${suggestion}"? ${sides}`
     : sides;

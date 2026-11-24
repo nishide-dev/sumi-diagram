@@ -1747,12 +1747,54 @@ export function svgToEditablePptx(
           for (const outline of frame.outlines()) output.push(headShape(outline, next++));
         }
       }
+      // The brackets of `block` ends (#642): open freeforms in the line's paint, like the SVG's.
+      for (const bracket of childElements(group).filter((e) =>
+        classList(e).includes("sumi-edge-bracket"),
+      )) {
+        const parsed = parsePath(attribute(bracket, "d") ?? "");
+        if (!parsed.ok) throw new Error(`Unreadable bracket of edge ${key}`);
+        for (const segments of splitSubpaths(parsed.segments))
+          output.push(
+            headShape({ segments, closed: false, source: bracket, strokeScale: 1 }, next++),
+          );
+      }
       const children = childElements(group);
       const texts = children.filter((e) => e.name === "text");
       // A glued connector cannot be interrupted; hide it on the canvas only.
       const before = children[children.indexOf(texts[0] as XmlElement) - 1];
-      const background =
-        before?.name === "rect"
+      // A tag (#610) or badge (#649) is a framed box on the line: drawn as a
+      // rounded rectangle of its own (a circle for a round badge), stroked
+      // like the SVG, under a text box without fill.
+      const framed =
+        before?.name === "rect" &&
+        classList(before).some((c) => c === "sumi-edge-tag" || c === "sumi-edge-badge");
+      if (framed && before !== undefined) {
+        const frame = {
+          x: value(before, "x"),
+          y: value(before, "y"),
+          width: value(before, "width"),
+          height: value(before, "height"),
+        };
+        const radius = value(before, "rx");
+        const adj = Math.min(
+          50000,
+          Math.round((radius / Math.max(1e-9, Math.min(frame.width, frame.height))) * 100000),
+        );
+        const strokeWidth = value(before, "stroke-width", 1);
+        labels.push(
+          shape(
+            next++,
+            `${key} label frame`,
+            frame,
+            `<a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val ${adj}"/></a:avLst></a:prstGeom>`,
+            paint(property(before, "fill") ?? "#ffffff"),
+            `<a:ln w="${emu(strokeWidth)}">${paint(property(before, "stroke") ?? "#000000")}</a:ln>`,
+          ),
+        );
+      }
+      const background = framed
+        ? "<a:noFill/>"
+        : before?.name === "rect"
           ? paint(property(before, "fill") ?? "#ffffff")
           : gluedConnector && !ir.meta.transparentBackground && masks.length > 0
             ? paint(canvasColor)
@@ -1842,4 +1884,14 @@ export function svgToEditablePptx(
     }
     return fail(error instanceof Error ? error.message : String(error));
   }
+}
+
+/** A path's subpaths, each starting at its `M`. */
+function splitSubpaths(segments: readonly PathSegment[]): PathSegment[][] {
+  const out: PathSegment[][] = [];
+  for (const segment of segments) {
+    if (segment.command === "M" || out.length === 0) out.push([]);
+    out.at(-1)?.push(segment);
+  }
+  return out;
 }

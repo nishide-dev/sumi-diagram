@@ -513,8 +513,8 @@ function edgeState(ir: FigureIR, layout: LayoutIR, slides: ReadonlySet<number>):
     // Every edge counts toward a fan (`route: straight` / `curve` and zoom too): moving a hub
     // changes all its branches, whatever they are drawn with.
     for (const [which, end, other, anchor] of [
-      ["from", pair.from, pair.to, edge.fromAnchor],
-      ["to", pair.to, pair.from, edge.toAnchor],
+      ["from", pair.from, pair.to, edge.fromAnchor ?? (edge.fromBlock && "block")],
+      ["to", pair.to, pair.from, edge.toAnchor ?? (edge.toBlock && "block")],
     ] as const) {
       // An end placed by an anchor is the author's: it is not part of a fan. A junction
       // (any direction) is a fan when two or more edges leave it, or enter it.
@@ -543,8 +543,9 @@ function edgeState(ir: FigureIR, layout: LayoutIR, slides: ReadonlySet<number>):
       const margin = Math.min(STRAIGHT_MARGIN, length / 2);
       return [start + margin, start + length - margin];
     };
-    const fromRoom = room(pair.from, edge.fromAnchor);
-    const toRoom = room(pair.to, edge.toAnchor);
+    // A `block` end (#642) holds the middle of its side, like an anchor.
+    const fromRoom = room(pair.from, edge.fromAnchor ?? edge.fromBlock);
+    const toRoom = room(pair.to, edge.toAnchor ?? edge.toBlock);
     crooked.set(index, {
       axis,
       delta: pair.to.port[axis] - pair.from.port[axis],

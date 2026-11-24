@@ -73,6 +73,7 @@ import type { ElementKey } from "../../core/check-state";
 import { type Diagnostic, hasErrors } from "../../core/diagnostics";
 import type { Side } from "../../core/figure/schema";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
+import { BRACKET_ROOM, bracketed, withBlockBrackets } from "../block-bracket";
 import { groupFrontRect, groupLayerObstacles } from "../group-layers";
 import {
   type EdgeLayout,
@@ -204,6 +205,15 @@ export function routeEdges(
   unmoved: LayoutIR,
   options: RouteOptions = {},
 ): RouteResult {
+  const result = routeAll(ir, unmoved, options);
+  // Brackets of `block` ends (#642) once every route is drawn.
+  const layout = withBlockBrackets(ir, result.layout);
+  return layout === result.layout
+    ? result
+    : { layout: deepFreeze(layout), diagnostics: result.diagnostics };
+}
+
+function routeAll(ir: FigureIR, unmoved: LayoutIR, options: RouteOptions): RouteResult {
   // Edges inside tilted planes (#577) are routed in plane coordinates and mapped.
   if (unmoved.planes !== undefined) return routeWithPlanes(ir, unmoved, options, routeEdges);
   const layout = junctionsOnBus(ir, unmoved);
@@ -638,13 +648,19 @@ class Router {
             );
       const source = edge.sourceArrowhead !== undefined;
       const target = edge.targetArrowhead !== undefined;
+      // A `block` end on a frame without a border (#642) keeps a straight run for its bracket,
+      // which stands off the cells by that much once the edges are routed (`block-bracket.ts`).
+      const bracket = (block: true | undefined, key: ElementKey) => {
+        const element = this.#ir.elements.get(key);
+        return block === true && element?.kind === "group" && bracketed(element) ? BRACKET_ROOM : 0;
+      };
       return {
         ir: edge,
         layout,
         from: ends.from,
         to: ends.to,
-        fromLane: lane(ends.from, source),
-        toLane: lane(ends.to, target),
+        fromLane: lane(ends.from, source) + bracket(edge.fromBlock, edge.from),
+        toLane: lane(ends.to, target) + bracket(edge.toBlock, edge.to),
         fromRoom: room(ends.from, ends.to, source),
         toRoom: room(ends.to, ends.from, target),
         net: index,
@@ -944,8 +960,8 @@ class Router {
             ...(source?.location !== undefined && { location: source.location }),
             subject: { kind: "edge", id: first.ir.id ?? `edges[${first.ir.index}]` },
             hint: written
-              ? `Write the same ${field} on each of them (or none) so the bus shares one trunk, or give them lanes on different sides.`
-              : "Anchor the shared end at one point on each of them so the bus shares one trunk.",
+              ? `Write the same ${field} on each of them (or none) so the bus shares one trunk, give them lanes on different sides, or write lane.bus: false on each for separate lines.`
+              : "Anchor the shared end at one point on each of them so the bus shares one trunk, or write lane.bus: false on each for separate lines.",
             related: list.slice(1).map((e) => {
               const at = this.#ir.sourceMap.get(e.ir.key);
               return {

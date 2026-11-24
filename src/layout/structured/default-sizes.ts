@@ -20,7 +20,7 @@ import { BUILTIN_THEMES } from "../../core/theme/builtin";
 import { themeCatalogEntry } from "../../core/theme/catalog";
 import { getFontSet, LATIN_FONT_SET_ID } from "../../core/theme/fonts";
 import { formatMm, formatPt, ptToMm, roundToD2Units } from "../../core/units";
-import { ALL_LINT_RULES } from "../../lint/config";
+import { allLintRules } from "../../lint/config";
 import { createGeometryContext } from "../../lint/geometry/context";
 import { type GeometryRule, isGeometryRule } from "../../lint/rule";
 import { inspectSvg } from "../../render/inspect";
@@ -241,7 +241,7 @@ function measure(
 
 /** The geometry rule `minWidth` is checked against, looked up after all rules are defined. */
 function labelOverflowRule(): GeometryRule<unknown> {
-  const rule = ALL_LINT_RULES.find((r) => r.id === "geometry/label-overflow");
+  const rule = allLintRules().find((r) => r.id === "geometry/label-overflow");
   if (rule === undefined || !isGeometryRule(rule)) {
     throw new Error("internal error: geometry/label-overflow is not a geometry rule");
   }

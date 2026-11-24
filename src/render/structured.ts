@@ -91,7 +91,7 @@ import {
 } from "../layout/plane";
 import { bundleSpacing } from "../layout/route/arrowhead";
 import { type Cubic, sampleCubic, trimCubic } from "../layout/route/cubic";
-import { isTagLabel, tagBox } from "../layout/route/labels";
+import { isBadgeLabel, isTagLabel, tagBox } from "../layout/route/labels";
 import { groupArrowheadStems } from "../layout/route/padding";
 import { edgeArrowheadLength, WIRE_CORNER_RADIUS } from "../layout/route/router";
 import { setOverlaps } from "../layout/set-overlap";
@@ -795,7 +795,19 @@ export interface PaintedEdge {
  * `roundCorners()`). The geometry lint measures edges on this.
  */
 export function paintedEdges(ir: FigureIR, layout: LayoutIR): Map<ElementKey, PaintedEdge> {
-  return wires(ir, layout).painted;
+  const painted = wires(ir, layout).painted;
+  // The brackets of `block` ends (#642) are painted in the edge's group: the lint measures them
+  // as part of the edge (crossing a node, a label or another line).
+  for (const edge of layout.edges) {
+    const brackets = edge.route?.brackets;
+    if (brackets === undefined || brackets.length === 0) continue;
+    const own = painted.get(edge.key) ?? { pieces: [], arcs: [] };
+    const pieces = brackets.flatMap((b) =>
+      b.slice(1).map((to, i): [Point, Point] => [b[i] as Point, to]),
+    );
+    painted.set(edge.key, { ...own, pieces: [...own.pieces, ...pieces] });
+  }
+  return painted;
 }
 
 /**
@@ -1218,6 +1230,7 @@ function edgeGroup(
   groups: readonly PaintedGroup[],
   canvas: string,
   plane?: PlaneFrame,
+  bracketMarkup = "",
 ): string {
   const { style } = edge;
   const width = style.strokeWidth.units;
@@ -1249,11 +1262,23 @@ function edgeGroup(
       (isTagLabel(edge) ? tagFrame(edge, layoutLabel, groups, canvas) : "") +
       label(layoutLabel, style.fontColor);
   }
-  return `<g class="${elementClass(edge.key)} sumi-kind-edge"${opacity(style)}>${connection}${heads}${labelSvg}</g>`;
+  return `<g class="${elementClass(edge.key)} sumi-kind-edge"${opacity(style)}>${connection}${bracketMarkup}${heads}${labelSvg}</g>`;
 }
 
 /**
- * The framed box of a tag (`labelStyle: tag`, #610) under its text: filled
+ * The brackets of an edge's `block` ends (#642, `block-bracket.ts`): solid,
+ * in the line's color and width, with square corners, so a dashed line still
+ * meets a clear bracket.
+ */
+function bracketMarkup(edge: EdgeIR, brackets: readonly (readonly Point[])[] | undefined): string {
+  if (brackets === undefined || brackets.length === 0) return "";
+  const { style } = edge;
+  return `<path class="sumi-edge-bracket" d="${brackets.map((b) => pathData(b)).join(" ")}" fill="none" stroke="${paint(style.stroke)}" stroke-width="${n(style.strokeWidth.units)}" stroke-linejoin="miter" stroke-linecap="butt"/>`;
+}
+
+/**
+ * The framed box of a tag (`labelStyle: tag`, #610) or a badge
+ * (`labelStyle: badge`, #649, round) under its text: filled
  * with what is painted beneath it, so it hides the line it sits on, and
  * framed in the line's color at the line's width (at most 0.5pt), solid even
  * on a dashed line. Drawn just before the label's `<text>`, where the
@@ -1265,10 +1290,14 @@ function tagFrame(
   groups: readonly PaintedGroup[],
   canvas: string,
 ): string {
-  const box = tagBox(layout.box, layout);
+  const box = tagBox(layout.box, layout, edge);
   const width = Math.min(edge.style.strokeWidth.units, 1);
-  const radius = Math.min(box.height / 2, Math.round(layout.fontSizeUnits / 4));
-  return `<rect class="sumi-edge-tag" x="${n(box.x)}" y="${n(box.y)}" width="${n(box.width)}" height="${n(box.height)}" rx="${n(radius)}" fill="${paint(labelBackground(box, groups, canvas))}" stroke="${paint(edge.style.stroke)}" stroke-width="${n(width)}"/>`;
+  // A badge (#649) is round: a circle, or a pill around a longer label.
+  const badge = isBadgeLabel(edge);
+  const radius = badge
+    ? box.height / 2
+    : Math.min(box.height / 2, Math.round(layout.fontSizeUnits / 4));
+  return `<rect class="${badge ? "sumi-edge-badge" : "sumi-edge-tag"}" x="${n(box.x)}" y="${n(box.y)}" width="${n(box.width)}" height="${n(box.height)}" rx="${n(radius)}" fill="${paint(labelBackground(box, groups, canvas))}" stroke="${paint(edge.style.stroke)}" stroke-width="${n(width)}"/>`;
 }
 
 /**
@@ -1548,6 +1577,7 @@ export function writeStructuredSvg(
         painted,
         canvas,
         planarFrames.get(placed.key),
+        bracketMarkup(edge, placed.route?.brackets),
       ),
     );
     useText(placed.route?.label);
