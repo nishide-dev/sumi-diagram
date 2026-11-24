@@ -9,6 +9,7 @@ import type { TextMeasurer } from "../text";
 import {
   ALIGN_EPSILON,
   ALIGN_GAP_MM,
+  ALIGN_GAP_RATIO,
   ALIGN_GROWTH_MM,
   ALIGN_GROWTH_RATIO,
   converged,
@@ -16,6 +17,7 @@ import {
   MAX_ALIGN_LAYOUTS,
   MAX_ALIGN_ROUNDS,
   solveAlignment,
+  widened,
 } from "./align";
 import { layoutStructured, type PlacedStructured, placeStructured } from "./engine";
 
@@ -1131,6 +1133,60 @@ describe("side effects and move (#646)", () => {
     expect(gap - after).toBeGreaterThan(ALIGN_GAP_MM);
   });
 
+  test("only the constraints whose struts widened the gap are named", () => {
+    // A met constraint on the other axis shares "rl" but adds no space; it is not blamed,
+    // and the hint does not suggest moving its other item.
+    const text = fixture("widened-gap").replace(
+      "      - {x: [envs, rl]}\n",
+      "      - {x: [envs, rl]}\n      - {y: [rl, merge]}\n",
+    );
+    const placed = place(text, false);
+    expect(converged(placed.align?.residuals ?? [1])).toBe(true);
+    expect(codes(placed)).toEqual(["layout/align-widened-gap"]);
+    const [d] = placed.diagnostics;
+    expect(d?.message).toEndWith(", for figure.layout.align[1] (x: [envs, rl]).");
+    expect(d?.path).toEqual(["figure", "layout", "align", 1]);
+    expect(d?.related).toBeUndefined();
+    expect(d?.hint).toContain("`move: envs`");
+    expect(d?.hint).not.toContain("merge");
+  });
+
+  test("two constraints that both put space in one gap are both named", () => {
+    // The GCN example: [1] puts a trail after y1, [2] a lead before y4.
+    const text = readFileSync(
+      `${import.meta.dir}/../../../skills/sumi/examples/gcn/gcn.sumi.yaml`,
+      "utf8",
+    );
+    const placed = place(text, false);
+    expect(placed.align?.struts).toMatchObject({
+      "trail n:y1": expect.any(Number),
+      "lead n:y4": expect.any(Number),
+    });
+    const gaps = placed.diagnostics.filter((x) => x.code === "layout/align-widened-gap");
+    expect(gaps).toHaveLength(1);
+    const [d] = gaps;
+    expect(d?.message).toMatch(
+      /^figure\.layout\.align widens the gap between "y1" and "y4" in their stack from 4\.00mm to [\d.]+mm, for figure\.layout\.align\[1\] \(y: \[z1, y1\]\) and figure\.layout\.align\[2\] \(y: \[z4, y4\]\)\.$/,
+    );
+    expect(d?.path).toEqual(["figure", "layout", "align", 1]);
+    expect(d?.related?.map((r) => r.path)).toEqual([["figure", "layout", "align", 2]]);
+    expect(d?.related?.[0]?.message).toBe(
+      "figure.layout.align[2] (y: [z4, y4]) added space here too.",
+    );
+  });
+
+  test("the thresholds compare unrounded widths (boundaries)", () => {
+    // By more than 3mm…
+    expect(widened(6, 6 + ALIGN_GAP_MM)).toBe(false);
+    expect(widened(6, 6 + ALIGN_GAP_MM + 1e-6)).toBe(true);
+    // …and to more than 1.5 times the width.
+    expect(widened(8, 8 * ALIGN_GAP_RATIO)).toBe(false);
+    expect(widened(8, 8 * ALIGN_GAP_RATIO + 1e-6)).toBe(true);
+    // A gap that was negative (overlapping extents) counts as 0.
+    expect(widened(-1, 2.5)).toBe(true);
+    expect(widened(-1, 1.9)).toBe(false);
+  });
+
   test("alignGrowth: allow silences the gap info; the layout is the same", () => {
     const text = fixture("widened-gap");
     const allowed = place(
@@ -1184,6 +1240,22 @@ describe("side effects and move (#646)", () => {
     ).toBeLessThanOrEqual(ALIGN_EPSILON);
   });
 
+  test("a peer of fixed size in the stretch row is not one of the stretched frames", () => {
+    // The fixed box is as tall as the panels without align, but the row never resizes it.
+    const text = fixture("uneven-stretch")
+      .replace("items: [pa, pb]", "items: [pa, pb, fixed]")
+      .replace(
+        "nodes:\n",
+        "nodes:\n  - {id: fixed, component: box, label: Fixed, props: {width: 10mm, height: 33.75mm}}\n",
+      );
+    const plain = layoutStructured({ ...irOf(text), align: [] });
+    expect(rectOf(plain, "fixed").height).toBeCloseTo(rectOf(plain, "pa").height, 0);
+    const placed = place(text, false);
+    const d = placed.diagnostics.find((x) => x.code === "layout/align-uneven-stretch");
+    expect(d?.message).toContain('"pa" is');
+    expect(d?.message).not.toContain('"fixed"');
+  });
+
   test("move: a note moves to its cell instead of pulling the tokens apart", () => {
     // #639 run 3. Without move the cell takes the strut.
     const text = fixture("move-note");
@@ -1191,7 +1263,7 @@ describe("side effects and move (#646)", () => {
     expect(codes(unmoved)).toContain("layout/align-splits-tokens");
     expect(
       unmoved.diagnostics.find((x) => x.code === "layout/align-splits-tokens")?.hint,
-    ).toContain("add `move: note` to the constraint");
+    ).toContain("add `move: note` to the constraint (not checked by a trial layout)");
     expect(codes(unmoved)).not.toContain("layout/align-widened-gap");
 
     const plain = layoutStructured({ ...irOf(text), align: [] });

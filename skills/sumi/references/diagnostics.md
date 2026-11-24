@@ -31,7 +31,9 @@ In `sumi lint --json` diagnostics are under `results[i].diagnostics`; in
 - `path` is the place in the YAML to change (`["edges", 0, "to"]` = the `to` of
   the first edge); `location` is the same as line/column.
 - `hint`, when present, lists valid values or a near match (edit distance), or a
-  **verified** remedy (below). Prefer it over your own guess.
+  remedy. A remedy is **verified** only where the hint says so (below); others,
+  such as the `move` an align hint suggests, say they are not checked by a trial
+  layout: render again after applying one. Prefer a hint over your own guess.
 - `summary` has `errors` / `warnings` / `infos`; exit code 1 means errors (or
   more warnings than `--max-warnings`). Infos (`lint/self-loop`,
   `layout/edge-crossing`) never fail a run: read them, fix what is easy, report the rest.
@@ -52,7 +54,8 @@ only after applying it to an in-memory copy and re-running layout and routing
 (at most six trials per diagnostic; bounded by element and arrange-tree size).
 Width/scaling and empty-area trials support inline SVGs (`props.svg` and
 `figure.assets`) and bundled icons. They skip external asset files and HTML;
-the hint states the reason. A hint without a verified edit is neutral wording.
+the hint states the reason. A hint without a verified edit is neutral wording,
+or says the edit it suggests was not checked (the align side-effect hints).
 Apply one edit and re-check: independent savings are not additive.
 
 ## By stage

@@ -166,6 +166,24 @@ export function stretchableShape(shape: NodeShape): boolean {
   return shape !== "text" && shape !== "circle" && shape !== "square";
 }
 
+/**
+ * Whether `align: stretch` resizes `node` across a stack (`vertical`) or a row:
+ * no explicit size on that axis, no outline renderer (its footprint is its
+ * safe area), badge or glyphs, and a stretchable shape. Anything that is not a
+ * node (a group, a box) stretches.
+ */
+export function crossStretchable(node: NodeIR | undefined, vertical: boolean): boolean {
+  if (node === undefined) return true;
+  const explicit = vertical ? node.width : node.height;
+  return (
+    explicit === undefined &&
+    node.render === undefined &&
+    node.badge === undefined &&
+    node.glyphs === undefined &&
+    stretchableShape(node.shape)
+  );
+}
+
 function unreachable(value: never): never {
   throw new Error(`internal error: unknown node shape ${String(value)}`);
 }

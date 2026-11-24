@@ -124,8 +124,8 @@ lint し直して確かめる（1 図につき最大 4 group と元の図 1 回�
 
 `figure.layout.align` は要素の前後に空き（strut）を足して揃えるので、空きが 1 つの gap に入り、後ろの要素を動かす。描画（`sumi render` / `lint --geometry`）の配置の段が、揃えのない配置と比べて次の **info** を出す（`layout/*` なので lint の設定では変えられない）。
 
-- `layout/align-widened-gap`: stack / row の 2 つの item の間の gap が、揃えで **3mm を超えて**広がり、揃えなしの **1.5 倍を超え**、同じ箱のほかの gap（揃えた後）より 3mm を超えて・1.5 倍を超えて長いとき。メッセージは 2 つの item、前後の幅、空きを足した制約を示す（例: 「the gap between "sft" and "rl" in their row from 6.00mm to 12.61mm, for figure.layout.align[4] (x: [envs, rl])」）。キャプションの stack に入った空き（パネルとキャプションが離れる）も同じコードで報告する。同じ tokens の行のセルの間は `layout/align-splits-tokens`（warning）が報告するので除く。箱のすべての gap が同じだけ広がった場合（U-Net の段を揃えて下げる）は 1 つの間隔に読めるので出さない。`figure.layout.alignGrowth: allow` で `layout/align-grew-figure` と一緒に消える。
-- `layout/align-uneven-stretch`: `align: stretch` の stack / row が同じ大きさにした枠（揃えなしで最大の大きさだった item。キャプション付きの group はその group）が、揃えた後に **0.5mm を超えて**食い違うとき。空きが一方の枠の中に入り、箱が大きさを決めた後でその枠を変えたため。`alignGrowth` では消えない（枠の不揃いは stretch の意図に反する）。
+- `layout/align-widened-gap`: stack / row の 2 つの item の間の gap が、揃えで **3mm を超えて**広がり、揃えなしの **1.5 倍を超え**、同じ箱のほかの gap（揃えた後）より 3mm を超えて・1.5 倍を超えて長いとき。メッセージは 2 つの item、前後の幅、その空きを実際に足した制約（ソルバーが記録したもの）を示す（例: 「the gap between "sft" and "rl" in their row from 6.00mm to 12.61mm, for figure.layout.align[4] (x: [envs, rl])」）。しきい値は丸める前の値で比べる。キャプションの stack に入った空き（パネルとキャプションが離れる）も同じコードで報告する。同じ tokens の行のセルの間は `layout/align-splits-tokens`（warning）が報告するので除く。箱のすべての gap が同じだけ広がった場合（U-Net の段を揃えて下げる）は 1 つの間隔に読めるので出さない。`figure.layout.alignGrowth: allow` で `layout/align-grew-figure` と一緒に消える。
+- `layout/align-uneven-stretch`: `align: stretch` の stack / row が同じ大きさにした枠（エンジンが伸ばす item。その軸の明示サイズ・outline・badge・glyphs を持つ node や円などの固定の形は伸ばさないので除く。キャプション付きの group はその group）が、揃えた後に **0.5mm を超えて**食い違うとき。空きが一方の枠の中に入り、箱が大きさを決めた後でその枠を変えたため。`alignGrowth` では消えない（枠の不揃いは stretch の意図に反する）。
 
 hint は、空きが入った側と反対側の制約の item を `move` に書く案を示す（試行の配置では確かめない）。
 
