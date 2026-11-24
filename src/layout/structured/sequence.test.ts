@@ -480,3 +480,130 @@ describe("sequence errors (#630)", () => {
     expect(plainStyle?.strokeDotted).toBeUndefined();
   });
 });
+
+describe("fragment frames, participant heights and several targets (#645)", () => {
+  const themed = (theme: string, rows: string, sequence = "") =>
+    figure(rows, { nodes: "", edges: "", sequence }).replace("theme: sumi", `theme: ${theme}`);
+  const frameStyle = (text: string) => {
+    const p = layout(text);
+    const set = p.ir.sets?.find((s) => s.id === "seq-1-f1");
+    if (!set) throw new Error("no frame");
+    return set.style;
+  };
+
+  test("a fragment without variant or tone is outlined as the theme's group frame", () => {
+    const rows = "          - {fragment: loop, rows: [ab]}";
+    expect(frameStyle(themed("sumi", rows))).toMatchObject({
+      stroke: "#a9aebc",
+      strokeWidth: { pt: 0.5 },
+      fill: "transparent",
+    });
+    expect(frameStyle(themed("sumi-dark", rows))).toMatchObject({
+      stroke: "#6f7791",
+      strokeWidth: { pt: 0.5 },
+    });
+    expect(frameStyle(themed("paper", rows))).toMatchObject({ stroke: "#b4b8c0" });
+    // llama's panels have no frame: the fragment keeps a visible thin outline.
+    const llama = frameStyle(themed("llama", rows));
+    expect(llama.strokeWidth.pt).toBeGreaterThan(0);
+    // variant: outlined (or a tone) keeps the set's line, as before.
+    expect(
+      frameStyle(themed("sumi", "          - {fragment: loop, variant: outlined, rows: [ab]}")),
+    ).toMatchObject({ stroke: "#4e566b", strokeWidth: { pt: 1 } });
+    expect(
+      frameStyle(themed("sumi", "          - {fragment: loop, tone: blue, rows: [ab]}")).stroke,
+    ).not.toBe("#a9aebc");
+    // themeOverrides.groupStroke and frameWidth reach it like a group's frame.
+    const overridden = themed("sumi", rows).replace(
+      "  theme: sumi\n",
+      "  theme: sumi\n  themeOverrides: {groupStroke: '#123456', frameWidth: 1pt}\n",
+    );
+    expect(frameStyle(overridden)).toMatchObject({ stroke: "#123456", strokeWidth: { pt: 1 } });
+  });
+
+  test("a frame's sides keep clear of the lifelines inside and outside it", () => {
+    for (const profile of ["paper-single", "screen-doc"]) {
+      const p = layout(
+        figure("          - ba\n          - {fragment: loop, rows: [ab]}\n          - bc").replace(
+          "  theme: sumi\n",
+          `  theme: sumi\n  profile: ${profile}\n${profile === "screen-doc" ? "  themeOverrides: {textScale: 1.5}\n" : ""}`,
+        ),
+      );
+      const frame = p.layout.sets?.find((s) => s.id === "seq-1-f1")?.rect;
+      if (!frame) throw new Error("no frame");
+      const right = frame.x + frame.width;
+      // Twice the lifeline clearance (a quarter of the arrange gap), at least 8 units.
+      const inside = right - p.cx("n:b");
+      const outside = p.cx("n:c") - right;
+      expect(inside).toBeGreaterThanOrEqual(8);
+      expect(outside).toBeGreaterThanOrEqual(inside - 1e-6);
+      if (profile === "screen-doc") expect(inside).toBeGreaterThanOrEqual(16);
+    }
+  });
+
+  test("participants are as tall as the tallest; a fixed shape stays bottom-aligned", () => {
+    const p = layout(
+      figure("          - ab\n          - bc").replace(
+        "label: Bob}",
+        'label: "Bob\\nthe builder"}',
+      ),
+    );
+    const [a, b, c] = ["n:a", "n:b", "n:c"].map(p.rect) as [Rect, Rect, Rect];
+    expect(a.height).toBeCloseTo(b.height, 6);
+    expect(c.height).toBeCloseTo(b.height, 6);
+    expect(a.y).toBeCloseTo(b.y, 6);
+    const round = layout(
+      figure("          - ab").replace(
+        "{id: a, component: box, label: Alice}",
+        "{id: a, component: circle, label: A}",
+      ),
+    );
+    const circle = round.rect("n:a");
+    const box = round.rect("n:b");
+    expect(circle.y + circle.height).toBeCloseTo(box.y + box.height, 6);
+  });
+
+  test("a message to several targets draws one arrow to each, in rows, the label on the first", () => {
+    const text = figure("          - ab\n          - both\n          - ca", {
+      nodes: "",
+      edges: "  - {id: both, from: a, to: [c, b], variant: dashed, label: notify}\n",
+      sequence: "",
+    });
+    const p = layout(text);
+    expect(p.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
+    const first = p.edge("e:both");
+    const second = p.edge("e:seq-1-m3");
+    expect(p.ir.edges.find((e) => e.key === "e:seq-1-m3")?.label).toBe("");
+    expect(p.ir.edges.find((e) => e.key === "e:seq-1-m3")?.style.strokeDash).toBe(
+      p.ir.edges.find((e) => e.key === "e:both")?.style.strokeDash,
+    );
+    // The first to c, then the second to b just below it.
+    expect(p.cx("n:seq-1-m2-to")).toBeCloseTo(p.cx("n:c"), 6);
+    expect(p.cx("n:seq-1-m3-to")).toBeCloseTo(p.cx("n:b"), 6);
+    expect(p.cy("n:seq-1-m3-from")).toBeGreaterThan(p.cy("n:seq-1-m2-from"));
+    expect(p.cy("n:seq-1-m4-from")).toBeGreaterThan(p.cy("n:seq-1-m3-from"));
+    expect(first.route?.label).toBeDefined();
+    expect(second.route?.label).toBeUndefined();
+  });
+
+  test("several targets: only in a sequence row, once each, not the source, not in a band", () => {
+    const withEdge = (rows: string, edge: string) =>
+      figure(rows, { nodes: "", edges: `  - ${edge}\n`, sequence: "" });
+    expect(errorCodes(withEdge("          - ab", "{id: x, from: a, to: [b, c]}"))).toContain(
+      "layout/multiple-targets",
+    );
+    for (const to of ["[a, b]", "[b, b]"])
+      expect(errorCodes(withEdge("          - x", `{id: x, from: a, to: ${to}}`))).toContain(
+        "layout/sequence-invalid-row",
+      );
+    expect(errorCodes(withEdge("          - [x, cc]", "{id: x, from: a, to: [b, c]}"))).toContain(
+      "layout/sequence-invalid-row",
+    );
+    expect(errorCodes(withEdge("          - x", "{id: x, from: a, to: [b, d]}"))).toContain(
+      "layout/sequence-unknown-participant",
+    );
+    expect(errorCodes(withEdge("          - x", "{id: x, from: a, to: [b]}"))).toContain(
+      "schema/invalid-value",
+    );
+  });
+});

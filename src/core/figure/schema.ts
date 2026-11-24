@@ -535,7 +535,7 @@ export const SequenceFragmentSchema = z
       .enum(SET_VARIANTS)
       .optional()
       .describe(
-        "The frame's paint, as a rect set's: default (tint and outline), filled, outlined, dashed or dotted. Omitted means outlined.",
+        "The frame's paint, as a rect set's: default (tint and outline), filled, outlined (the set's gray 1pt line), dashed or dotted. Omitted (and no tone) means an outline drawn like the theme's group frame, e.g. sumi's thin pale hairline, with no tint.",
       ),
     tone: Tone.describe(
       "Color category of the frame (outline, tint) and its heading. Omitted means gray.",
@@ -558,7 +558,7 @@ export const SequenceFragmentSchema = z
   .meta({
     id: "SequenceFragment",
     description:
-      "A frame around consecutive rows with a heading at its top left (outside the first lifeline it encloses), drawn as a rect set.",
+      "A frame around consecutive rows with a heading at its top left (outside the first lifeline it encloses), drawn as a rect set (by default outlined like the theme's group frame).",
   });
 
 const SequenceMessage = Id.describe(
@@ -1364,7 +1364,11 @@ export const EdgeSchema = z.strictObject({
   fromAnchor: Anchor.optional().describe(
     "Where the edge leaves the source (structured layout only).",
   ),
-  to: Ref.describe("Target node or group ID, or a cell of a tokens node as <node>.<cell>."),
+  to: z
+    .union([Ref, z.array(Ref).min(2)])
+    .describe(
+      "Target node or group ID, or a cell of a tokens node as <node>.<cell>. A list of two or more participants only for a message of a sequence (#645): one arrow to each, in consecutive rows in the order written, the label on the first.",
+    ),
   toAnchor: Anchor.optional().describe(
     "Where the edge enters the target (structured layout only).",
   ),
@@ -1548,6 +1552,11 @@ export type FigureGroup = z.output<typeof GroupSchema>;
 export type FigureNode = z.output<typeof NodeSchema>;
 /** `nodes[].labelRotation` (#178): degrees, positive clockwise as in SVG's `rotate()`. */
 export type LabelRotation = NonNullable<FigureNode["labelRotation"]>;
-export type FigureEdge = z.output<typeof EdgeSchema>;
+/**
+ * An edge after validation: `to` is one target. A list of targets (`to: [a, b]`, #645) is
+ * recorded in `PartialFigure.recipients` and `to` keeps the first; only a sequence message
+ * may have several.
+ */
+export type FigureEdge = Omit<z.output<typeof EdgeSchema>, "to"> & { to: string };
 export type FigureSet = z.output<typeof SetSchema>;
 export type JsonValue = z.output<typeof JsonValue>;

@@ -26,6 +26,7 @@ import {
   EdgeSchema,
   FIGURE_SCHEMA_VERSION,
   FigureDocumentSchema,
+  type FigureEdge,
   FigureMetaSchema,
   GroupSchema,
   ID_PATTERN,
@@ -170,6 +171,15 @@ export function validateFigure(state: CheckState, raw: unknown, locate: Locator)
       return result.value;
     }) as never;
   }
+  // A list of targets (#645) is kept aside: every later stage sees one `to`.
+  const recipients = new Map<number, readonly string[]>();
+  for (const [index, edge] of (doc.edges ?? []).entries()) {
+    const to = (edge as { to: string | readonly string[] } | undefined)?.to;
+    if (edge === undefined || !Array.isArray(to)) continue;
+    recipients.set(index, to);
+    (doc.edges as (FigureEdge | undefined)[])[index] = { ...edge, to: to[0] as string };
+  }
+  if (recipients.size > 0) doc.recipients = recipients;
 }
 
 /**
