@@ -866,9 +866,21 @@
             "pattern": "^(?:straight(?::span)?|(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?)$"
           },
           "to": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9_-]{0,63}(?:\\.(?:[a-z][a-z0-9_-]{0,63}|[1-9][0-9]{0,3}))?$",
-            "description": "Target node or group ID, or a cell of a tokens node as <node>.<cell>."
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,63}(?:\\.(?:[a-z][a-z0-9_-]{0,63}|[1-9][0-9]{0,3}))?$"
+              },
+              {
+                "minItems": 2,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_-]{0,63}(?:\\.(?:[a-z][a-z0-9_-]{0,63}|[1-9][0-9]{0,3}))?$"
+                }
+              }
+            ],
+            "description": "Target node or group ID, or a cell of a tokens node as <node>.<cell>. A list of two or more participants only for a message of a sequence (#645): one arrow to each, in consecutive rows in the order written, the label on the first."
           },
           "toAnchor": {
             "description": "Where the edge enters the target (structured layout only).",
@@ -1860,7 +1872,7 @@
           "description": "The rows the frame encloses (messages, notes and nested fragments)."
         },
         "variant": {
-          "description": "The frame's paint, as a rect set's: default (tint and outline), filled, outlined, dashed or dotted. Omitted means outlined.",
+          "description": "The frame's paint, as a rect set's: default (tint and outline), filled, outlined (the set's gray 1pt line), dashed or dotted. Omitted (and no tone) means an outline drawn like the theme's group frame, e.g. sumi's thin pale hairline, with no tint.",
           "type": "string",
           "enum": [
             "default",
@@ -1914,7 +1926,7 @@
         "rows"
       ],
       "additionalProperties": false,
-      "description": "A frame around consecutive rows with a heading at its top left (outside the first lifeline it encloses), drawn as a rect set."
+      "description": "A frame around consecutive rows with a heading at its top left (outside the first lifeline it encloses), drawn as a rect set (by default outlined like the theme's group frame)."
     },
     "AlignConstraint": {
       "type": "object",

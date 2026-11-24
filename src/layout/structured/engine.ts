@@ -1627,6 +1627,8 @@ class StructuredLayout {
           : measureText(edge.label, edge.style, this.#measurer);
       },
       widenable: (key) => this.#stretchable(key, true),
+      // Only nodes: a group's frame would grow without its contents (#645).
+      tallable: (key) => key.startsWith("n:") && this.#stretchable(key, false),
       gap: this.#defaultGap,
     });
   }

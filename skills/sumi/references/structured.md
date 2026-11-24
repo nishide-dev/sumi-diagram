@@ -399,6 +399,12 @@ edges:
   self-message: a loop out to the east with its label beside it (`lane: {side: west}`
   loops west instead; other lanes, `outside`, `route`, `labelAt` and `labelSide` are
   errors: the label always sits outside the loop).
+- **Several targets** (0.20.1): `to: [b, c]` on a message sends it to each listed
+  participant: one arrow per target in consecutive rows, in the order written, all in
+  the message's style, the label only on the first (so the arrows read as one message).
+  The targets must be different participants other than the source, and the row cannot
+  be a band member (`layout/sequence-invalid-row`). A list of targets on an edge that
+  is not a sequence row is `layout/multiple-targets`.
 - **Lifelines** are generated `line` edges, `muted` and `dashed`, thinner than the
   messages (the theme's thin line). `lifeline: {variant, dash: solid | dashed | dotted,
   tone, lineWidth}` changes them; `dash: solid` is solid even on a dashed variant.
@@ -415,20 +421,26 @@ edges:
 - **Fragments**: `{fragment: "loop [until done]", rows: [...]}` frames its rows. The
   heading is written text (no UML kind is required), bold, inside the frame's top-left
   corner and left of the first lifeline it encloses; `text`, `weight`, `tone`, `variant`
-  (the paint of a rect set: `outlined` by default, `filled` / `dashed` with
-  `fillOpacity` for a band) style it. Fragments nest. For `alt` with an else branch,
-  write two fragments one after the other.
+  style it. Without `variant` and `tone` the frame is drawn like the theme's group frame
+  (0.20.1; in `sumi` / `sumi-dark` the thin pale 0.5pt hairline of the panels, quieter
+  than the messages; `themeOverrides.groupStroke` / `frameWidth` apply); `variant:
+  outlined` gives the darker 1pt line of a rect set, and a `tone` or `filled` /
+  `dashed` with `fillOpacity` paints a band. The frame's sides keep twice the lifeline
+  clearance from the lifelines inside and outside it. Fragments nest. For `alt` with an
+  else branch, write two fragments one after the other.
 - **Spacing**: lifelines are as far apart as the labels, notes and frames between them
   need, at least `participantGap` (default: the profile's arrange gap) between the
   participants' boxes; rows are `rowGap` apart (default: a third of it). Participants
-  are bottom-aligned. When the figure is too wide, the `geometry/exceeds-page-width`
-  hint names the gap that sets the width and tries a smaller `participantGap` (2mm or
-  more first) and folding the widest message labels onto two lines. When it is too
-  tall, the `geometry/exceeds-page-height` hint names `rowGap` (and how many times it
-  adds up), participants with `iconAt: top`, band rows for messages on separate
-  lifelines and one-line labels, and gives a `rowGap` a trial verified (1mm or more
-  first). With `figure.fit: scale` the height also follows the width: a narrower figure
-  is shrunk less.
+  are as tall as the tallest (0.20.1: a one-line box beside a two-line one gets the same
+  height, tops and bottoms aligned); a shape that cannot grow (a circle, a node with
+  `height`) stays bottom-aligned on its lifeline. When the figure is too wide, the
+  `geometry/exceeds-page-width` hint names the gap that sets the width and tries a smaller
+  `participantGap` (2mm or more first) and folding the widest message labels onto two
+  lines. When it is too tall, the `geometry/exceeds-page-height` hint names `rowGap` (and
+  how many times it adds up), participants with `iconAt: top`, band rows for messages on
+  separate lifelines and one-line labels, and gives a `rowGap` a trial verified (1mm or
+  more first). With `figure.fit: scale` the height also follows the width: a narrower
+  figure is shrunk less.
 - Any other edge (not in `rows`) is routed as usual, e.g. a dotted arrow between two
   notes. A group as a note holds several boxes (a `plain` group with `props.padding:
   0.5pt` keeps it compact).

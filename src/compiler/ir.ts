@@ -1136,6 +1136,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           element: set,
           text: set.text,
           weight: set.weight,
+          panel: doc.sequencePanels?.has(index),
         }),
         source: sourceEntry(doc.sequenceSets?.get(index) ?? ["sets", index]),
       }),
