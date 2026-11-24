@@ -17,6 +17,8 @@
   "examples/pipeline/pipeline.glued": "7059780db309e7e72d98403fb5ff1cccf07cc214ae9944ecfb56b2b84eccd361",
   "examples/system-architecture/system-architecture.freeform": "e78ffae10bec143be1f0883c487a4e9021b6b285046887628da94db494dced94",
   "examples/system-architecture/system-architecture.glued": "38ec46b28a266237e45c1ecede8523bb5dd66be809affbfef4d8fad3e56077aa",
+  "examples/transfer-heatmap/transfer-heatmap.freeform": "14554264b4ae5b11333263ca7230b89a85ba380b2b1a1cb29e1bff7813e8a3a0",
+  "examples/transfer-heatmap/transfer-heatmap.glued": "dc9d8aa1817ca0cddec14277723d2e120e494056f091ca5e72ee3ddc299c2228",
   "examples/tricl/tricl.freeform": "fbc7a8a7e21332408d528963564be707bd907309d11f0b7ff018392221a16ca8",
   "docs/gallery/components/sumi-box.minimal.freeform": "0b51713863f5d0ad225c0d1f4811f12702326562781c415261173fc4eded49e8",
   "docs/gallery/components/sumi-box.minimal.glued": "4b2c6bb092a51a859ae21e98e6bcab1f0e5d8a267327114149a3c620c03da744",

@@ -33,9 +33,16 @@ import {
   groupKey,
   invalidateDependents,
   nodeKey,
+  type PartialFigure,
 } from "../check-state";
 import { type DocPath, didYouMean } from "../diagnostics";
-import { builtinRegistry, LEGEND_ID, MATRIX_ID, TOKENS_ID } from "../registry/builtins";
+import {
+  builtinRegistry,
+  LEGEND_ID,
+  MATRIX_ID,
+  MATRIX_SCALE_LEGEND_SAMPLES,
+  TOKENS_ID,
+} from "../registry/builtins";
 import type { Arrowhead } from "../registry/manifest";
 import {
   componentId,
@@ -46,12 +53,21 @@ import {
 import type { Registry } from "../registry/registry";
 import { resolveComponents } from "../registry/resolve";
 import { getTheme } from "../theme/builtin";
+import { deltaE } from "../theme/color-math";
+import { expandColor, paleStyle } from "../theme/dim";
 import { figureTheme } from "../theme/overrides";
 import { resolveStyle, withDash } from "../theme/resolve";
 import { withStrokes } from "../theme/strokes";
 import type { Tone } from "../theme/tones";
 import { recordExpanded, reportReservedId, takenIds } from "./expand";
-import { type MatrixExpansion, MUTED_VARIANT } from "./matrix";
+import {
+  formatScaleValue,
+  MATRIX_SCALE_TONE,
+  MATRIX_SCALE_VARIANT,
+  type MatrixExpansion,
+  type MatrixScale,
+  MUTED_VARIANT,
+} from "./matrix";
 import { errorAt, relatedAt } from "./report";
 import type {
   ArrangeBox,
@@ -82,6 +98,8 @@ export interface LegendEntry {
   node?: { component?: string; variant?: string; tone?: Tone; cornerRadius?: number };
   /** A matrix class (#180): `<matrix>.<class>`. */
   class?: string;
+  /** A matrix's color scale (#644): the matrix's ID. */
+  scale?: string;
   /** An icon sample (#409), e.g. `tabler/file-text`. */
   icon?: string;
   /** The icon sample's side (#424): a number of ems or a length; one em when omitted. */
@@ -117,6 +135,8 @@ export interface LegendEntryExpansion {
   label: string;
   /** The matrix class a `class` entry explains (#180). */
   class?: { matrix: string; name: string };
+  /** The matrix whose color scale a `scale` entry explains (#644). */
+  scale?: string;
 }
 
 /** A legend node and what it was expanded into (`doc.legends`). */
@@ -206,6 +226,11 @@ export function legendPartIds(id: string, n: number) {
     /** The set of a set swatch (its own ID space, #409). */
     set: `${id}-${n}-set`,
     box: `${id}-${n}-box`,
+    /** The `k`-th (1-based) sample box of a scale's strip (#644). */
+    step: (k: number) => `${id}-${n}-step-${k}`,
+    /** The values at the two ends of a scale's strip (#644). */
+    low: `${id}-${n}-low`,
+    high: `${id}-${n}-high`,
     start: `${id}-${n}-start`,
     end: `${id}-${n}-end`,
     /** The sample edge (edges have their own ID space). */
@@ -378,12 +403,43 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
       }
       classes.set(j, { matrix, name, label });
     }
+    // 0b. Every scale entry (#644) must name a matrix with a scale.
+    const scales = new Map<number, { matrix: MatrixExpansion; label: string | undefined }>();
+    for (const [j, entry] of entries.entries()) {
+      if (entry.scale === undefined) continue;
+      const owner = entry.scale;
+      const matrix = doc.matrices?.find((m) => m.id === owner);
+      if (matrix?.scale === undefined) {
+        if (matrix === undefined && (invalid.has(nodeKey(owner)) || invalid.has(groupKey(owner)))) {
+          blocked = true;
+          continue;
+        }
+        fail(
+          "ref/unknown-scale",
+          matrix === undefined
+            ? `Entry ${j + 1} of legend "${node.id}" names the scale of "${owner}", which is not a matrix.`
+            : `Entry ${j + 1} of legend "${node.id}" names the scale of matrix "${owner}", which has none.`,
+          [...entriesPath, j, "scale"],
+          matrix === undefined
+            ? "A scale entry names a matrix with props.scale by its ID."
+            : `Give matrix "${owner}" a props.scale { from, to }, or explain its classes with class entries.`,
+        );
+        blocked = true;
+        continue;
+      }
+      scales.set(j, { matrix, label: entry.label ?? matrix.scale.spec.label });
+    }
     // 1. Every reserved ID must be free.
     for (const [j, entry] of entries.entries()) {
       const ids = legendPartIds(node.id, j + 1);
+      const steps = scales.get(j)?.matrix.scale?.spec.steps ?? MATRIX_SCALE_LEGEND_SAMPLES;
       const parts = [
         ids.label,
-        ...(entry.edge !== undefined ? [ids.start, ids.end] : [ids.box]),
+        ...(entry.edge !== undefined
+          ? [ids.start, ids.end]
+          : entry.scale !== undefined
+            ? [ids.low, ids.high, ...Array.from({ length: steps }, (_, k) => ids.step(k + 1))]
+            : [ids.box]),
         ...(entry.heading !== undefined ? [ids.heading] : []),
       ];
       const related = { path: [...entriesPath, j], message: "The legend entry is written here." };
@@ -486,7 +542,8 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
       const entryPath: DocPath = [...entriesPath, j];
       const of = `of entry ${n} of ${legendName}`;
       const matrixClass = classes.get(j);
-      const label = matrixClass?.label ?? entry.label ?? "";
+      const matrixScale = scales.get(j);
+      const label = matrixClass?.label ?? matrixScale?.label ?? entry.label ?? "";
       if (entry.heading !== undefined) {
         addNode(
           {
@@ -504,14 +561,19 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           sections.push({ heading: ids.heading, items: [] });
         }
       }
-      addNode(
-        { ...partNode(ids.label, "sumi/label", "default"), label, textAlign },
-        entryPath,
-        `the text ${of}`,
-      );
+      // A scale's strip may stand alone (#644): it has its values at its ends.
+      const hasText = label !== "";
+      if (hasText)
+        addNode(
+          { ...partNode(ids.label, "sumi/label", "default"), label, textAlign },
+          entryPath,
+          `the text ${of}`,
+        );
       // The sample and its text, side by side (the text first with labelAt: left).
       const withText = (sample: ArrangeItem): ArrangeBox =>
-        row(size.textGap, entry.labelAt === "left" ? [ids.label, sample] : [sample, ids.label]);
+        hasText
+          ? row(size.textGap, entry.labelAt === "left" ? [ids.label, sample] : [sample, ids.label])
+          : row(size.textGap, [sample]);
       let item: ArrangeBox;
       if (entry.edge !== undefined) {
         const linePath: DocPath = [...entryPath, "edge"];
@@ -611,6 +673,52 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           }
         }
         item = withText(row(line, [ids.start, ids.end]));
+      } else if (matrixScale !== undefined) {
+        // The strip of a matrix's color scale (#644): one box per step (five for a continuous
+        // scale) between the values at its ends, painted as the cells at those steps.
+        const { matrix } = matrixScale;
+        const scale = matrix.scale?.spec as MatrixScale;
+        const scalePath: DocPath = [...entryPath, "scale"];
+        const tone = scale.tone ?? MATRIX_SCALE_TONE;
+        const steps = scale.steps ?? MATRIX_SCALE_LEGEND_SAMPLES;
+        const boxes: string[] = [];
+        for (let k = 0; k < steps; k++) {
+          const id = ids.step(k + 1);
+          addNode(
+            {
+              ...partNode(id, "box", MATRIX_SCALE_VARIANT),
+              tone,
+              props: { width: `${size.box}pt`, height: `${size.box}pt` },
+            },
+            scalePath,
+            `step ${k + 1} of the scale ${of}`,
+          );
+          paints.set(nodeKey(id), {
+            ramp: k / (steps - 1),
+            ...(matrix.rules === true && { borderless: true }),
+          });
+          boxes.push(id);
+        }
+        for (const [id, value, end] of [
+          [ids.low, scale.from, "low"],
+          [ids.high, scale.to, "high"],
+        ] as const)
+          addNode(
+            {
+              ...partNode(id, "sumi/label", "default"),
+              label: formatScaleValue(value, scale),
+            },
+            scalePath,
+            `the ${end} end of the scale ${of}`,
+          );
+        expansion.entries.push({
+          kind: "node",
+          sample: nodeKey(ids.step(1)),
+          path: entryPath,
+          label,
+          scale: matrix.id,
+        });
+        item = withText(row(size.textGap / 2, [ids.low, row(0, boxes), ids.high]));
       } else if (matrixClass !== undefined) {
         // The sample box of a matrix class (#180): a box as the class's cells.
         const { matrix, name } = matrixClass;
@@ -622,13 +730,24 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
         }
         if (cls.tone !== undefined) box.tone = cls.tone;
         addNode(box, [...entryPath, "class"], `the sample box ${of}`);
-        // As pale as the class's muted cells (#612); a sample keeps its border in a ruled matrix.
+        // As pale as the class's muted cells (#612). In a ruled matrix the sample has no border,
+        // as its cells (#644); cells with no visible fill are explained by their text instead.
         const sampleVariant = cls.variant ?? matrix.cellVariant;
-        if (cls.pattern === "hatch" || sampleVariant === MUTED_VARIANT)
-          paints.set(nodeKey(ids.box), {
-            ...(cls.pattern === "hatch" && { hatch: true }),
-            ...(sampleVariant === MUTED_VARIANT && { pale: true }),
-          });
+        const bare =
+          matrix.rules === true &&
+          cls.pattern !== "hatch" &&
+          !fillShows(doc, cls.tone, sampleVariant);
+        const text = bare ? classText(doc, matrix, name) : undefined;
+        if (text !== undefined) {
+          box.label = text;
+          box.props = {};
+        }
+        const paint: ExpandedPaint = {
+          ...(cls.pattern === "hatch" && { hatch: true }),
+          ...(sampleVariant === MUTED_VARIANT && { pale: true }),
+          ...(matrix.rules === true && (!bare || text !== undefined) && { borderless: true }),
+        };
+        if (Object.keys(paint).length > 0) paints.set(nodeKey(ids.box), paint);
         expansion.entries.push({
           kind: "node",
           sample: nodeKey(ids.box),
@@ -867,4 +986,36 @@ function sampleBoxSize(manifest: NodeManifest, sizes: LegendSizes): Record<strin
     return { width: `${sizes.box}pt`, height: `${sizes.box}pt`, depth: `${sizes.box}pt` };
   const width = manifest.sizing === "fixed-aspect-1" ? sizes.box : sizes.sample;
   return { width: `${width}pt`, height: `${sizes.box}pt` };
+}
+
+/** A fill closer than this (CIE76) to the canvas is not seen (#644). */
+const UNSEEN_FILL = 2;
+
+/**
+ * Whether a matrix cell of this tone and variant shows a fill on the figure's
+ * canvas (#644): a ruled matrix's cells without one are only their text.
+ */
+function fillShows(doc: PartialFigure, tone: Tone | undefined, variant: string): boolean {
+  const builtin = getTheme(doc.figure?.theme ?? "paper");
+  if (builtin === undefined) return true;
+  const theme = figureTheme(builtin, doc.figure?.themeOverrides);
+  const { style } = resolveStyle(theme, {
+    kind: "node",
+    id: "sumi/box",
+    variant,
+    ...(tone !== undefined && { tone }),
+  });
+  const drawn = variant === MUTED_VARIANT ? paleStyle(style, theme.canvas) : style;
+  if (drawn.fill === "transparent") return false;
+  return deltaE(expandColor(drawn.fill), expandColor(theme.canvas)) > UNSEEN_FILL;
+}
+
+/** The text of the first cell of class `name` of `matrix` that has one (#644). */
+function classText(doc: PartialFigure, matrix: MatrixExpansion, name: string): string | undefined {
+  for (const part of matrix.parts) {
+    if (part.kind !== "cell" || part.class !== name || part.ellipsis !== undefined) continue;
+    const label = doc.nodes?.find((n) => n?.id === part.id)?.label;
+    if (label !== undefined && label.trim() !== "") return label;
+  }
+  return undefined;
 }

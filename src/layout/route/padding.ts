@@ -42,6 +42,27 @@ export function borderClearance(style: { readonly textScale?: number }): number 
 /** Extra padding per side of a group, in units. */
 export type SidePadding = Readonly<Record<Side, number>>;
 
+/**
+ * Why a side of a group grew (#640, for the width hints and `--explain-width`):
+ * - `fan-out`: edges leave one port outside the group for several members
+ *   (or the reverse, `fan-in`: they arrive at one port inside from several
+ *   places outside), and their shared trunk turns in the padding (#512);
+ * - `u-turn`: an edge enters a member through the side facing away from its
+ *   other end, so its turn lies in the padding;
+ * - `inside`: an edge between two elements of the group ends with an
+ *   arrowhead facing the border (#171).
+ * `mirrored`: the side grew only because the opposite side did (both sides
+ * of an axis grow equally, #247).
+ */
+export interface PaddingGrowth {
+  readonly side: Side;
+  readonly kind: "fan-out" | "fan-in" | "u-turn" | "inside" | "mirrored";
+  /** The edges (IDs, or `edges[i]`) that need the room; none for `mirrored`. */
+  readonly edges: readonly string[];
+  /** The room the side lacked, in units. */
+  readonly units: number;
+}
+
 /** The side a direction index (`DIRS`) points to. */
 const DIR_SIDE: readonly Side[] = ["east", "south", "west", "north"];
 
@@ -62,7 +83,15 @@ const DIR_SIDE: readonly Side[] = ["east", "south", "west", "north"];
 export function arrowheadPaddingDeficits(
   ir: FigureIR,
   layout: LayoutIR,
+  /** Filled with why each group's sides lack room (#640); the result is the same without it. */
+  reasons?: Map<ElementKey, PaddingGrowth[]>,
 ): Map<ElementKey, SidePadding> {
+  const why = (key: ElementKey, growth: PaddingGrowth) => {
+    if (reasons === undefined) return;
+    const list = reasons.get(key) ?? [];
+    list.push(growth);
+    reasons.set(key, list);
+  };
   const deficits = new Map<ElementKey, Record<Side, number>>();
   const parents = new Map(layout.groups.map((g) => [g.key, g.parent] as const));
   /** `key`'s ancestors, nearest first, and itself first. */
@@ -87,11 +116,14 @@ export function arrowheadPaddingDeficits(
       across: Set<number>;
       /** A U-turn: the edge alone puts its trunk beside the border. */
       solo: boolean;
+      /** The edges of the fan, by name (#640). */
+      edges: Set<string>;
     }
   >();
   routed.edges.forEach((edge, index) => {
     const ends = resolved[index];
     if (ends === undefined || "error" in ends) return;
+    const name = edge.id ?? `edges[${edge.index}] ${edge.from.slice(2)} → ${edge.to.slice(2)}`;
     const clearance = borderClearance(edge.style);
     const stub = Math.max(clearance, edgeArrowheadLength(edge.style) + ARROWHEAD_STEM_UNITS);
     // The end segment holds a small rounded corner before the stem (#260).
@@ -128,11 +160,13 @@ export function arrowheadPaddingDeficits(
             count: 0,
             across: new Set<number>(),
             solo: false,
+            edges: new Set<string>(),
           };
           fan.solo ||= solo;
           fan.count++;
           fan.deficit = Math.max(fan.deficit, need - entered.free);
           fan.across.add(at);
+          fan.edges.add(name);
           fans.set(id, fan);
         };
         // Edges leaving one port outside the group for several members.
@@ -183,25 +217,40 @@ export function arrowheadPaddingDeficits(
       const sides = deficits.get(nearest.key) ?? { north: 0, east: 0, south: 0, west: 0 };
       sides[side] = Math.max(sides[side], need - nearest.free);
       deficits.set(nearest.key, sides);
+      why(nearest.key, { side, kind: "inside", edges: [name], units: need - nearest.free });
     };
     if (edge.sourceArrowhead !== undefined) check(ends.from, ends.to);
     if (edge.targetArrowhead !== undefined) check(ends.to, ends.from);
   });
-  for (const fan of fans.values()) {
+  for (const [id, fan] of fans) {
     if (!fan.solo && (fan.count < 2 || fan.across.size < 2)) continue;
     if (fan.deficit <= 0) continue;
     const sides = deficits.get(fan.group) ?? { north: 0, east: 0, south: 0, west: 0 };
     sides[fan.side] = Math.max(sides[fan.side], fan.deficit);
     deficits.set(fan.group, sides);
+    why(fan.group, {
+      side: fan.side,
+      kind: fan.solo ? "u-turn" : id.startsWith("in|") ? "fan-in" : "fan-out",
+      edges: [...fan.edges],
+      units: fan.deficit,
+    });
   }
   // Grow both sides of the axis equally (#247): the group's border and its
   // content then share a centre line, so outer items that the arrangement
   // centres on the group (a column's trunk above and below it) stay straight
   // with the members inside instead of jogging by half the difference.
-  for (const sides of deficits.values()) {
-    sides.west = sides.east = Math.max(sides.west, sides.east);
-    sides.north = sides.south = Math.max(sides.north, sides.south);
-  }
+  for (const [key, sides] of deficits)
+    for (const [a, b] of [
+      ["west", "east"],
+      ["north", "south"],
+    ] as const) {
+      const most = Math.max(sides[a], sides[b]);
+      for (const side of [a, b])
+        if (sides[side] < most)
+          why(key, { side, kind: "mirrored", edges: [], units: most - sides[side] });
+      sides[a] = most;
+      sides[b] = most;
+    }
   return deficits;
 }
 

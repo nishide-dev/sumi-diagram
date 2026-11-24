@@ -29,6 +29,7 @@ import {
   type FigureEdge,
   FigureMetaSchema,
   GroupSchema,
+  ICON_SIZE_EM_RANGE,
   ID_PATTERN,
   type JsonValue,
   NodeSchema,
@@ -246,7 +247,7 @@ function issueToDiagnostics(
       const hint = (issue.params as { hint?: unknown } | undefined)?.hint;
       return [
         errorAt(locate, "schema/invalid-value", `Invalid value at ${at}: ${issue.message}`, path, {
-          hint: typeof hint === "string" ? hint : undefined,
+          hint: iconSizeHint(path, actual) ?? (typeof hint === "string" ? hint : undefined),
         }),
       ];
     }
@@ -343,6 +344,22 @@ function issueToDiagnostics(
   ];
 }
 
+/**
+ * The hint for a string `iconSize` that is not a length (#648): `1.2em` is
+ * written as the number 1.2, which already means a multiple of the font size.
+ */
+function iconSizeHint(path: DocPath, actual: unknown): string | undefined {
+  if (path.at(-1) !== "iconSize" || typeof actual !== "string") return undefined;
+  const { min, max } = ICON_SIZE_EM_RANGE;
+  const length = 'or a length with mm, cm, in or pt, e.g. "4mm".';
+  const em = /^\s*(\d+(?:\.\d+)?|\.\d+)\s*em\s*$/i.exec(actual)?.[1];
+  // Suggest the plain number only when the schema accepts it.
+  if (em !== undefined && Number(em) >= min && Number(em) <= max) {
+    return `Write iconSize: ${Number(em)} (a number is ${Number(em)} times the font size) ${length}`;
+  }
+  return `Write a number from ${min} to ${max} (a multiple of the font size, e.g. iconSize: 1.2) ${length}`;
+}
+
 function unknownField(
   key: string,
   path: DocPath,
@@ -356,7 +373,10 @@ function unknownField(
   const suggestion =
     component?.props.includes(key) && !known.includes(key)
       ? `"${key}" is an option of ${component.id}: write it under props (props: { ${key}: ... }).`
-      : didYouMean(key, known);
+      : key === "gap" && known.includes("rowGap") && known.includes("columnGap")
+        ? // A grid spaces rows and columns apart (#648): there is no single `gap`.
+          'A grid has no "gap": write rowGap and columnGap (e.g. rowGap: 4mm, columnGap: 4mm).'
+        : didYouMean(key, known);
   return [
     "schema/unknown-field",
     `Unknown field "${key}" in ${formatDocPath(path)}.`,

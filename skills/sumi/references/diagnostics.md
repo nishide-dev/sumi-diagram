@@ -61,11 +61,11 @@ Apply one edit and re-check: independent savings are not additive.
 | --- | --- | --- |
 | `yaml/syntax` | not valid YAML (often an unquoted `:` or `#` in a label, bad indentation) | quote the value / fix indentation at `location` |
 | `yaml/duplicate-key`, `yaml/alias-not-allowed`, `yaml/tag-not-allowed`, `yaml/multiple-documents`, `yaml/non-string-key` | YAML features Sumi does not accept | remove the duplicate / anchor / tag / extra document |
-| `schema/unknown-field` | a key the schema does not have (`color`, `style`, `children`, …); also a field newer than the CLI ([feature versions](figure-format.md#feature-versions)) | delete it; express it with a component, variant or `group:` |
+| `schema/unknown-field` | a key the schema does not have (`color`, `style`, `children`, …); also a field newer than the CLI ([feature versions](figure-format.md#feature-versions)) | delete it; express it with a component, variant or `group:`; `gap` on a `grid` is `rowGap` / `columnGap` |
 | `schema/reserved-key` | a key named `__proto__` (e.g. a matrix class); it would be dropped | rename it |
 | `schema/missing-field` | a required field is missing (`version`, `figure.id`, node `component`, edge `from`/`to`) | add it |
 | `schema/invalid-id` | ID does not match `^[a-z][a-z0-9_-]{0,63}$` | use the hint's lowercase form; update references |
-| `schema/invalid-type`, `schema/invalid-value` | wrong type or value (number as label, unknown `direction`) | quote strings; use an allowed value |
+| `schema/invalid-type`, `schema/invalid-value` | wrong type or value (number as label, unknown `direction`) | quote strings; use an allowed value; `iconSize: 1.2em` is written `iconSize: 1.2` (a number is a multiple of the font size) or a length (`"4mm"`) |
 | `schema/unsupported-version`, `schema/unsatisfied-requires` | `version` is not 1, or `requires` names a newer Sumi | use `version: 1`; drop `requires` or ask the user |
 | `ref/unknown-endpoint` | edge `from`/`to` is not a node or group ID | use the hint's ID, or add the missing element if the content calls for it |
 | `ref/unknown-group` | `group:` names no group | add it under `groups:` or fix the ID |
@@ -79,6 +79,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `ref/unknown-cell` | `<node>.<cell>` names no cell: not a `tokens` node, or no cell with that `id` (unnamed cells count from 1, across `lines`); or, on a `cuboid`, no `highlight` block with that `name`  | use the hint's cell ([tokens](structured.md#token-sequences)), or the block's `name` from the cuboid's `highlight` ([cuboids](structured.md#grids-highlighted-blocks-and-receptive-fields)) |
 | `layout/part-anchor` | `fromAnchor` / `toAnchor` on an arrow or line end that names a cuboid block (`<node>.<name>`; a `zoom` gets `component/anchor-on-zoom` instead): the edge meets the block's own silhouette, aimed at its centre | remove the anchor, or name the cuboid itself to pick a side ([cuboids](structured.md#grids-highlighted-blocks-and-receptive-fields)) |
 | `ref/unknown-class` | a legend entry's `class` (`<matrix>.<class>`) names no matrix or class | use the hint's class ([matrices](structured.md#matrices)) |
+| `ref/unknown-scale` | a legend entry's `scale` names no matrix, or a matrix without `props.scale` | name a matrix with a `scale`, or give it one ([matrices](structured.md#matrices)) |
 | `layout/structured-only` | a structured-only field or component in an auto figure ([engine rules](structured.md#engine-rules)) | remove it, or make the figure structured: root `figure.layout.arrange`, no `engine: auto`, every element placed |
 | `layout/set-overlap-budget` | more than 1024 overlap regions; deeper intersections may omit colors | reduce the overlapping sets or split the figure ([sets](structured.md#set-enclosures)) |
 | other `layout/*` (structure) | placement errors | [below](#fixing-layout) |
@@ -204,7 +205,7 @@ written; errors make the exit code 1. Configure like structural rules
 | Code | Default | Fix |
 | --- | --- | --- |
 | `geometry/exceeds-page-width` | error | see [too wide](#too-wide-the-width-breakdown); a wider profile only if the user agrees and the figure is not already on `paper-double` |
-| `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm: candidates: auto `direction: right`, fewer layers; structured a long stack as a row of stacks, smaller `gap`s; split the figure (ask) ([options](layout-tips.md#when-width-runs-short)) |
+| `geometry/exceeds-page-height` | error | paper profiles 220mm, `presentation-16x9` 190.5mm: candidates: auto `direction: right`, fewer layers; structured a long stack as a row of stacks, smaller `gap`s; split the figure (ask) ([options](layout-tips.md#when-width-runs-short)). A `sequence`: the hint names its `rowGap` (and how often it adds up), participants with `iconAt: top`, band rows and one-line labels instead, and gives a `rowGap` a trial verified (`Fits …`; under 1mm only as a last resort, at most 4 trial layouts) |
 | `geometry/text-too-small` | error | as `profile/font-too-small` (safety net); under `figure.fit: scale` a label printed below 5pt (or `figure.target.minFontSize`; a 7pt `sublabel` does at 71%): make the figure narrower so it shrinks less, or write the text into the label. HTML: font-size × placed/viewport scale × page-fit scale |
 | `geometry/script-too-small` | info | with `fit: scale`, math scripts print below the scaled profile minimum (paper: 5pt); one finding per figure; scripts remain exempt from errors; not used when `target.minFontSize` is set |
 | `geometry/script-below-target` | warning | with `figure.target.minFontSize`, a math script (0.7 × base, raised to the minimum up to the base size) prints below it at the final size, scaled or not; one finding per label, positioned; raise the base text to the minimum (a scaled figure: minimum ÷ 0.7 at the final size) or avoid scripts. The raise to the minimum applies to the structured layout only; an auto (D2) figure has no label math |
@@ -232,14 +233,14 @@ written; errors make the exit code 1. Configure like structural rules
 | `geometry/edge-label-on-corner` | info | an edge label's line box is under 1.5pt from a corner of a node's outline (rectangle, diamond, hexagon, parallelogram; not circles) without overlapping the shape: `labelAt` / `labelSide`, move the ends with anchors, or widen the gap |
 | `geometry/edge-label-detached` | info | structured: an edge label the router placed itself (no `labelAt` or `labelSide`, and not `labelStyle: tag`; an explicit `labelStyle: beside` is checked) sits farther from its own line than the label gap plus ¾ of its text size (lifted off a short span), so it reads as free text. The hint is an edit (`labelAt: middle`, `start`, `end`, then `labelStyle: tag`) verified by routing the figure again (the figure does not grow, the label sits within the gap or on the line as a tag, no new error or warning, nothing new about the edge); without one, place it yourself or widen the gap |
 | `geometry/edge-label-touches-line` | warning | structured: the letters of an edge label the router placed itself touch or cross its own line; the hint is verified the same way. Otherwise `labelAt` / `labelSide`, `labelStyle: tag`, or lengthen the segment |
-| `geometry/token-column-drift` | info | a horizontal token row and the nearest row below it (within three row heights, same cell count, cells overlapping 75% or more) have a cell whose centre is off its neighbour's by more than 0.5pt but at most 25% of the width: give both rows the same `width` and `gap`, or use one `sumi/matrix`. Stacks (`direction: down`) are not compared |
+| `geometry/token-column-drift` | info | a horizontal token row and the nearest row below it (within three row heights, same cell count, cells overlapping 75% or more) have a cell whose centre is off its neighbour's by more than 0.5pt but at most 25% of the width. The hint gives what was measured: cells of different width or gap, with the offsets at the first and last column (give both rows the same `width` and `gap`, or use one `sumi/matrix`), or the same cells starting at different x. When the nodes before (or after) the rows differ in width, such as step labels `t=1` / `t=2`, it lays the figure out again with one width on both and says "Verified: props.width …" only if that lines the rows up: write that value on both. Otherwise line up what positions the rows Stacks (`direction: down`) are not compared |
 | `geometry/edge-jog` | info | a straight segment under 1pt (printed) between two right-angle bends: align `fromAnchor` / `toAnchor`, widen the gap, or rearrange. Promotable like the rule above |
 | `geometry/avoidable-bend` | warning | structured: an orthogonal edge bends more than needed; the rule names the cause and a fix, it does not change routes. (1) A written anchor holds an end just off the span both sides share, two anchors sit at different positions, or one anchor is more than 1pt off the other end: the hint gives anchor values, e.g. `toAnchor "east:0.15"`, or (both ends anchored) the side to move for one bend, only after routing the figure again with them and seeing the line come out straight (or with one bend) without other lines getting more bends (up to 8 checks per figure; each check runs the render's routing steps once, which route several times when the figure has cuboid face edges); write them or drop the anchor. Corner anchors (0 / 1), junction ends and shared ports are exempt. (2) A step of 1pt–2mm between two bends (not in a fan's or multi-edge's branches): change the anchors or move what is in the way. (3) Three or more bends between facing ends with steps under 4mm, and no two-bend route between the current ends keeps clear of the elements around it: the message lists what is in the way (often attached labels or group titles); make room for one step. (4) A line turns under 4mm before a junction another line leaves along its axis: put the source and the junction in line (`figure.layout.align`, the junction's place). `figure.layout.straighten: true` moves nodes into line instead |
 | `geometry/relocatable-node` | info | structured: an edge bends more than its ends need (a Z or U where an L or a straight line would do; not fan branches), and moving one end, or the arrange item holding it, to an empty grid cell (`null`) within 2 rows and columns, or 1–2 places in its stack / row, removes bends. Each move is checked by laying the figure out and routing it again as render does (`straighten` as configured): kept only if those edges bend less (or detour less), no edge bends more, no other edge detours more than 1pt further, no edge turns around, the figure does not grow and the geometry lint (your rule levels) finds no new error or warning (at most 6 moves and 7 layouts per figure). The best one is reported as an edit of the named `items` field by index (`swap items[33] (retrying) with items[26]`, `delete the last 7 items`, or `move items[i] to items[j]`) with the row and columns (1-based) it changes; the rewritten `items` line is added only when it can be written back exactly (not when the list holds a nested box). Nothing moves by itself: apply it unless the current place carries meaning (failures kept below the main flow), then re-render |
 | `geometry/zoom-crosses-node` | warning | a zoom line crosses a node: move it, or the source or view |
 | `geometry/edge-on-border` | warning | an edge runs on a group border (3mm or more; short pieces of edges merging into one trunk on the same line add up): structured: move the ends with anchors, reorder items or change a `gap`; auto: change `direction` or grouping |
 | `geometry/edge-near-border` | info | as above, less than 1.5pt beside the border; often the router's turn outside a group: leave it if it reads clearly |
-| `geometry/edge-near-edge` | warning | two edges run less than 1.5pt apart for 3mm or more (an exactly shared trunk is fine): independent facing connectors separate automatically when the channel fits; for a narrow channel follow the hint's numeric port-to-port minimum by increasing the row/column gap and keeping it clear. For close fixed legs change anchors or cell spacing; merge a trunk only for genuinely shared endpoints |
+| `geometry/edge-near-edge` | warning | two edges run less than 1.5pt apart for 3mm or more (an exactly shared trunk is fine, and so are the final approaches of lines converging on one shared end): independent facing connectors separate automatically when the channel fits; for a narrow channel follow the hint's numeric port-to-port minimum by increasing the row/column gap and keeping it clear. For close fixed legs change anchors or cell spacing; merge a trunk only for genuinely shared endpoints |
 | `geometry/edge-touches-label` | info | an edge passes within 1.5pt of a group title, caption or `label`: as `edge-crosses-label` |
 | `geometry/aspect-distorted` | warning | fewer edges on that `circle` / `square`, or `ellipse` / `box` |
 | `geometry/reversed-edge` | warning | ELK reversed an edge of a cycle (typically inside a group): swap the loop's nodes in `nodes`, or move it out of the group |
@@ -272,7 +273,10 @@ you act on it:
 2. `Width path` (structured): from the page (margins + arranged content) down to the item
    that sets the width, in **natural widths** (what each needs before a parent stretches
    it): a row's items and `n × gap`, a group's content and padding (`profile default` or
-   `props.padding`), a stack's widest item and the next widest. Under `align: stretch` all
+   `props.padding`; a padding the layout **grew automatically** says what was written, by
+   how much each side grew and why: arrowheads of edges that fan into the group from
+   outside through one side (#512), an arrowhead inside facing the border, and the
+   opposite side grown as much so the content stays centred), a stack's widest item and the next widest. Under `align: stretch` all
    items of a stack are drawn equally wide; the path still names the one that sets the
    width, with the natural widths of the others. It ends at `Widest contributor`: a node,
    a legend / tokens / matrix (sized by its own props: `perRow`, `cellWidth`), a group
@@ -282,16 +286,32 @@ you act on it:
 3. `Fits <max>`: values that make the figure fit, each **tried**: the figure is laid out,
    routed, drawn and linted with that one change, and it is shown only if the page then
    fits and no new error or warning appears (`geometry/relocatable-node` counts only when
-   your config raises it to warning or error). One value at a time (a row's or grid's gap,
-   a group's `props.padding`, a node's explicit `width`, a sequence's `participantGap`;
-   smallest change first, up to 3); if none is enough alone, all of them together, each
-   giving its share (`(together)`). For a sequence whose gaps are set by message labels,
-   folding the widest label (then all of them) onto two lines is tried too.
+   your config raises it to warning or error). Tried in this order, up to 3 fits:
+   - the item that ends the path, by its own props: a `flow: row` legend's `perRow`, a
+     matrix's `flush: true` (a titled matrix: `labelAt: above`) or a smaller `cellWidth`
+     (not below its widest cell or column header), a `place` box's x coordinates (the
+     outermost items moved inward, then the room between its columns closed up with items
+     at one x moving together, then all x brought closer; values in `place.unit`);
+   - one value on the path at a time (a row's or grid's gap, a group's `props.padding`, a
+     node's explicit `width`, a sequence's `participantGap`; smallest change first);
+   - the same legend and matrix edits for other items that set the width (all items of a
+     row add up);
+   - all values together, each giving its share (`(together)`); for a sequence whose gaps
+     are set by message labels, the widest label (then all of them) folded onto two lines.
+   Gaps stay at **2mm or more** and paddings at 4pt or more while that is enough; a value
+   below (a gap of 0mm) is tried only when nothing else fits, the partial combinations below
+included, and is marked `(last resort)`. Legend and matrix values are written into the YAML
+and compiled again only when the YAML compiles to exactly the rendered figure.
+   A padding the layout grew for arrowheads (see below) is not offered: it stays as wide
+   whatever is written.
    Apply one, re-run. `would fit but adds <code>` names a value that fits but breaks
    something else (an edge label no longer fits, a cramped arrowhead): choose another.
-   When nothing fits, the hint says how much the path can give at most, and lists the
-   partial edits a trial verified (`Verified layout edits`, ranked by mm saved; not
-   additive).
+   When an edit narrows the figure but not enough (`Narrower but not enough alone`, laid
+   out but not linted), the narrowest is tried once more with one value of the width path
+   it leaves (a legend's `perRow` with the gap of the row that then sets the width) and
+   shown as `(together)`. When nothing fits, the hint says how much the path can give at
+   most, and lists the partial edits a trial verified (`Verified layout edits`, ranked by
+   mm saved; not additive; gaps to 2mm, or to 0mm only `as a last resort`).
 4. The reminder that Sumi never shrinks a figure on its own.
 
 The fine-grained breakdown of the painted geometry follows as `related` notes (and in
@@ -299,14 +319,15 @@ The fine-grained breakdown of the painted geometry follows as `related` notes (a
 descendant runs, the overhang of attached nodes, the largest label and the top-level
 span. For the whole tree, before or after it fits, run `sumi render --explain-width`
 (stderr; `--json` adds `widthTree`): every group, box and node with its natural width,
-padding, gaps, grid columns and stretched width, `*` marking what sets the width. It
-changes nothing in the output.
+padding (with what the layout added and why: `padding.grown` in JSON, per side and with
+the edges that need it), gaps, grid columns and stretched width, `*` marking what sets
+the width. It changes nothing in the output.
 
 **Auto:** only the top-level horizontal footprint and observed gaps, not ELK's internal
 layers or spacing; no trials run. Lengths are printed mm; `geometry/heavy-scaling` shows
 the same headline for the natural, pre-scaling width (values that fit without scaling).
-Trials need a figure of at most 240 elements without external or HTML assets; at most 8
-trial layouts run per diagnostic.
+Trials need a figure of at most 240 elements without external or HTML assets; at most 10
+trial layouts run per diagnostic (one more placement reads the width path of a partial edit).
 
 Procedure: apply a `Fits` value (or shorten labels), re-run. If nothing fits, build
 candidates from the [options](layout-tips.md#when-width-runs-short) (auto: the other

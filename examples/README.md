@@ -36,6 +36,7 @@ different theme defaults and requires identical painted colors.
 | [`llm-dialogue/`](llm-dialogue/llm-dialogue.sumi.yaml) | `llama` / `paper-single` | an original illustrative user–assistant math dialogue: `chat` with avatars on both sides (bundled user/robot icons), explicit speaker notes, a multi-line answer with inline math and a follow-up question (83.96mm × 61.56mm) |
 | [`multilayer-network/`](multilayer-network/multilayer-network.sumi.yaml) | `llama` / `paper-double` | a multilayer network: three tilted planes (`props.plane: floor`) with the same seven nodes at the same coordinates (`place`), straight links inside a layer, dotted `route: straight` correspondences between adjacent layers and one orange node followed through all of them (167mm × 96mm) |
 | [`attention-sheet/`](attention-sheet/attention-sheet.sumi.yaml) | `llama` / `paper-double` | a token sequence and its causal attention map lying flat on two planes (`contents: projected`): boxes as parallelograms, mapped arrowheads, a `matrix` of strong / medium / weak / masked cells and its legend (177mm × 68mm) |
+| [`transfer-heatmap/`](transfer-heatmap/transfer-heatmap.sumi.yaml) | `sumi` / `paper-single` | a heatmap of illustrative zero-shot transfer accuracies: a `matrix` with a continuous colour `scale` (cells written `{value}`), turned column headers (`headerRotate: -90`), a table with rules only, a merged cell (`span: 2`) and a legend with the scale's strip and the borderless class samples (64.38mm × 78.32mm) |
 
 `pipeline` and `decision-flow` use `direction: down`: four or more nodes in a
 row to the right are already wider than `paper-single` (88mm).
@@ -44,7 +45,7 @@ groups from the side (with `direction: down` they cross the groups' centered
 labels, `geometry/edge-crosses-label`), which makes them wider than one paper
 column: they use `paper-double` (180mm).
 
-All sixteen pass `sumi lint --geometry` without errors or warnings (CLIP uses
+All seventeen pass `sumi lint --geometry` without errors or warnings (CLIP uses
 `--config examples/clip/lint.json`, as explained below). The five
 structured `paper` figures use the color, ML-paper style and are laid out and routed by Sumi
 itself, without D2. `transformer` fits one column; `dit-block` is wider than

@@ -293,6 +293,7 @@
   "examples/multilayer-network/multilayer-network.svg": "158b1c825146037318b76781b3e0eec929a3f97d078d3ebf988a187f9e130613",
   "examples/pipeline/pipeline.svg": "dbebe2facef09c2b592784a6dc77224b92622c0fae967c11a6092fccba8e33bc",
   "examples/system-architecture/system-architecture.svg": "86262efcd5c34497b62f232163fcb31cd3297a63d8a285c9b2213d9429c67ea7",
+  "examples/transfer-heatmap/transfer-heatmap.svg": "83fe8f0f05f738d667c6e7d047806117afc9cd595e00d608498c594eccbc40a9",
   "examples/transformer/transformer.svg": "6c185098e94204e5e4d02149723ef2bd5bbea6ef3deb3586e0b6c2617a5efe39",
   "examples/tricl/tricl.svg": "a9d276a5d3c026ed9f58dfd4652109fe295c836492c48b7f0a1626363547c1ae",
   "tests/fixtures/pdf/japanese-mask.svg": "a49e95d8c95ca017d53b67dd41d76f9c57b53d31a90b01704aa5509d55a57305"
