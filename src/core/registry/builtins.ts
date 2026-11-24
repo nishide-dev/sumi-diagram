@@ -737,6 +737,8 @@ const ComponentField = z.string().min(1);
  */
 export const LEGEND_CLASS_PATTERN = /^[a-z][a-z0-9_-]{0,63}\.\S{1,16}$/;
 const VariantField = z.string().min(1);
+/** A legend entry's matrix with a scale (#644): the matrix's ID. */
+export const LEGEND_SCALE_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
 
 const legendEntry = z
   .strictObject({
@@ -803,6 +805,13 @@ const legendEntry = z
       .optional()
       .describe(
         "Draws the sample box of a class of a matrix, as <matrix>.<class>, e.g. mask.o: the class's tone, variant and hatch pattern. The label defaults to the class's label.",
+      ),
+    scale: z
+      .string()
+      .regex(LEGEND_SCALE_PATTERN)
+      .optional()
+      .describe(
+        "Draws the color scale of a matrix, by the matrix's ID (since 0.20.1; the matrix needs props.scale): a strip of sample boxes from the low end to the high end (one per step of a stepped scale, five for a continuous one) between the two end values. The label defaults to the scale's label; without either the strip stands alone.",
       ),
     icon: z
       .string()
@@ -871,11 +880,11 @@ const legendEntry = z
       .min(1)
       .optional()
       .describe(
-        "What the sample means, drawn beside it (a label; math allowed). Required, except that a class entry defaults to its class's label.",
+        "What the sample means, drawn beside it (a label; math allowed). Required, except that a class entry defaults to its class's label and a scale entry to its scale's label.",
       ),
   })
   .superRefine((entry, ctx) => {
-    if (entry.label === undefined && entry.class === undefined) {
+    if (entry.label === undefined && entry.class === undefined && entry.scale === undefined) {
       // As the message of a missing required string, which label was before #180.
       ctx.addIssue({
         code: "custom",
@@ -898,13 +907,20 @@ const legendEntry = z
         message: 'iconTone needs "icon" in the same entry',
       });
     }
-    const kinds = [entry.edge, entry.node, entry.class, entry.icon, entry.glyph, entry.set].filter(
-      (k) => k !== undefined,
-    ).length;
+    const kinds = [
+      entry.edge,
+      entry.node,
+      entry.class,
+      entry.scale,
+      entry.icon,
+      entry.glyph,
+      entry.set,
+    ].filter((k) => k !== undefined).length;
     if (kinds !== 1) {
       ctx.addIssue({
         code: "custom",
-        message: 'an entry needs exactly one of "edge", "node", "class", "icon", "glyph" or "set"',
+        message:
+          'an entry needs exactly one of "edge", "node", "class", "scale", "icon", "glyph" or "set"',
       });
     }
   });
@@ -924,7 +940,7 @@ const legend: NodeManifest = {
         .min(1)
         .max(LEGEND_MAX_ENTRIES)
         .describe(
-          "The entries, in order. Each has one sample: edge (a line), node (a box), class (the sample box of a matrix class), icon, glyph or set; and a label. An entry may start a group with a heading.",
+          "The entries, in order. Each has one sample: edge (a line), node (a box), class (the sample box of a matrix class), scale (the color strip of a matrix's scale), icon, glyph or set; and a label. An entry may start a group with a heading.",
         ),
       flow: z
         .enum(["column", "row"])
@@ -1188,12 +1204,128 @@ export const MATRIX_ELLIPSES = ["…", "⋮", "⋱"] as const;
 
 /** One cell of a row of a matrix written as a list (#280). */
 export interface MatrixEntry {
-  /** The cell's class; omitted only on an ellipsis cell. */
+  /** The cell's class; omitted on an ellipsis cell and on a cell with a value (#644). */
   class?: string | undefined;
   /** Text drawn in the cell (math allowed). */
   text?: string | undefined;
   /** Draws only this symbol instead of a bordered cell. */
   ellipsis?: (typeof MATRIX_ELLIPSES)[number] | undefined;
+  /** A number colored by the matrix's `scale` (#644). */
+  value?: number | undefined;
+  /** Merged cells (#644): a number of columns, or rows and columns. */
+  span?: number | { rows?: number | undefined; columns?: number | undefined } | undefined;
+}
+
+/** A cell of a matrix at its place in the grid (#644): 0-based, with the slots it covers. */
+export interface MatrixSlot {
+  readonly entry: MatrixEntry;
+  /** 0-based row and column of its top-left slot. */
+  readonly row: number;
+  readonly column: number;
+  /** How many rows and columns it covers (1 without a span). */
+  readonly rows: number;
+  readonly columns: number;
+  /** Its index in the written row (`cells[row][index]`). */
+  readonly index: number;
+}
+
+/** The rows and columns a cell covers (#644): `span: 2` is two columns. */
+export function matrixSpan(entry: MatrixEntry): { rows: number; columns: number } {
+  const span = entry.span;
+  if (span === undefined) return { rows: 1, columns: 1 };
+  if (typeof span === "number") return { rows: 1, columns: span };
+  return { rows: span.rows ?? 1, columns: span.columns ?? 1 };
+}
+
+/** A problem with how merged cells fill the grid (#644), at a written row (and cell). */
+export interface MatrixGridProblem {
+  readonly row: number;
+  readonly index?: number;
+  readonly message: string;
+  readonly hint?: string;
+}
+
+/**
+ * Places the written cells in the grid (#644), as an HTML table: each row
+ * lists the cells that start in it, left to right, skipping the slots that a
+ * merged cell from a row above covers. Without spans every cell is one slot
+ * and the width is the length of the rows. Returns the cells, the number of
+ * columns (row 1's) and the problems: a row that covers another number of
+ * columns than row 1, a merged cell that runs into another or past the last
+ * row.
+ */
+export function matrixGrid(
+  cells: readonly (string | readonly (string | MatrixEntry)[])[],
+  classes: readonly string[],
+): { slots: MatrixSlot[][]; width: number | undefined; problems: MatrixGridProblem[] } {
+  const taken: boolean[][] = cells.map(() => []);
+  const slots: MatrixSlot[][] = [];
+  const problems: MatrixGridProblem[] = [];
+  let width: number | undefined;
+  for (const [r, row] of cells.entries()) {
+    const entries = matrixRowEntries(row, classes);
+    const placed: MatrixSlot[] = [];
+    const line = taken[r] as boolean[];
+    let c = 0;
+    for (const [index, entry] of entries.entries()) {
+      while (line[c] === true) c++;
+      const span = matrixSpan(entry);
+      if (r + span.rows > cells.length) {
+        problems.push({
+          row: r,
+          index,
+          message: `cell ${index + 1} of row ${r + 1} spans ${span.rows} rows, past the last row`,
+          hint: "Lower span.rows, or add the rows it covers.",
+        });
+      }
+      for (let dr = 0; dr < span.rows; dr++) {
+        const below = taken[r + dr];
+        if (below === undefined) continue;
+        for (let dc = 0; dc < span.columns; dc++) {
+          if (below[c + dc] === true && problems.every((p) => p.row !== r || p.index !== index)) {
+            problems.push({
+              row: r,
+              index,
+              message: `cell ${index + 1} of row ${r + 1} runs into a merged cell from a row above`,
+              hint: "Lower its span, or leave out of each row the slots a merged cell from above covers.",
+            });
+          }
+          below[c + dc] = true;
+        }
+      }
+      placed.push({ entry, row: r, column: c, ...span, index });
+      c += span.columns;
+    }
+    while (line[c] === true) c++;
+    // Slots a merged cell from above covers further right also count; a row may be all covered.
+    const covered = line.length;
+    slots.push(placed);
+    const hole = Array.from({ length: covered }, (_, i) => i).find((i) => line[i] !== true);
+    if (hole !== undefined) {
+      problems.push({
+        row: r,
+        message: `row ${r + 1} leaves column ${hole + 1} empty before a merged cell from a row above`,
+        hint: "Write a cell for every slot a merged cell from above does not cover, left to right.",
+      });
+      continue;
+    }
+    if (covered === 0) {
+      problems.push({ row: r, message: `row ${r + 1} has no cells` });
+      continue;
+    }
+    if (width === undefined) width = covered;
+    else if (covered !== width && problems.every((p) => p.row !== r)) {
+      problems.push({
+        row: r,
+        message: `row ${r + 1} has ${covered} cells, but row 1 has ${width}`,
+        hint:
+          covered === entries.length
+            ? "Give every row of a matrix the same number of cells."
+            : "Give every row of a matrix the same number of cells; a merged cell counts the columns it spans, and a row leaves out the slots a merged cell from above covers.",
+      });
+    }
+  }
+  return { slots, width, problems };
 }
 
 /**
@@ -1209,13 +1341,42 @@ export function matrixRowEntries(
   return row.map((entry) => (typeof entry === "string" ? { class: entry } : entry));
 }
 
+const matrixSpanField = z
+  .union([
+    z.int().min(1).max(MATRIX_MAX_SIDE).describe("The number of columns the cell covers."),
+    z.strictObject({
+      rows: z
+        .int()
+        .min(1)
+        .max(MATRIX_MAX_SIDE)
+        .optional()
+        .describe("The number of rows the cell covers. Omitted means 1."),
+      columns: z
+        .int()
+        .min(1)
+        .max(MATRIX_MAX_SIDE)
+        .optional()
+        .describe("The number of columns the cell covers. Omitted means 1."),
+    }),
+  ])
+  .describe(
+    "Merges the cell with its neighbors (since 0.20.1): a number of columns, or { rows, columns }. The rows below leave out the slots it covers, as in an HTML table.",
+  );
+
 const matrixCell = z
   .strictObject({
     class: z
       .string()
       .regex(MATRIX_CLASS_PATTERN)
       .optional()
-      .describe("The cell's class. Omitted only with ellipsis."),
+      .describe("The cell's class. Omitted only with ellipsis or value."),
+    value: z
+      .number()
+      .optional()
+      .describe(
+        "A number the matrix's scale colors (since 0.20.1; needs props.scale): the cell is filled with the scale's color for it, and shows the number unless it has text or the scale has showValues: false. A cell has a class or a value, not both.",
+      ),
+    span: matrixSpanField.optional(),
     text: z
       .string()
       .min(1)
@@ -1229,11 +1390,95 @@ const matrixCell = z
       ),
   })
   .superRefine((cell, ctx) => {
-    if (cell.class === undefined && cell.ellipsis === undefined) {
-      ctx.addIssue({ code: "custom", message: "a cell needs a class (or ellipsis)" });
+    if (cell.class === undefined && cell.ellipsis === undefined && cell.value === undefined) {
+      ctx.addIssue({ code: "custom", message: "a cell needs a class (or ellipsis, or value)" });
     }
     if (cell.text !== undefined && cell.ellipsis !== undefined) {
       ctx.addIssue({ code: "custom", message: "a cell has text or ellipsis, not both" });
+    }
+    if (cell.value !== undefined && cell.class !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["value"],
+        message: "a cell has a class or a value, not both",
+      });
+    }
+    if (cell.value !== undefined && cell.ellipsis !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["value"],
+        message: "a cell has a value or ellipsis, not both",
+      });
+    }
+    if (cell.span !== undefined && cell.ellipsis !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["span"],
+        message: "an ellipsis cell cannot span other cells",
+      });
+    }
+  });
+
+/** The most steps a matrix's scale takes (#644). */
+export const MATRIX_SCALE_MAX_STEPS = 9;
+/** The samples a legend draws for a scale without steps (#644). */
+export const MATRIX_SCALE_LEGEND_SAMPLES = 5;
+/** The angles column headers may be turned by (#644), as a node's labelRotation. */
+export const MATRIX_HEADER_ROTATIONS = [90, -90] as const;
+
+const matrixScale = z
+  .strictObject({
+    from: z
+      .number()
+      .describe("The value drawn palest (the low end of the scale). Smaller values are clamped."),
+    to: z
+      .number()
+      .describe(
+        "The value drawn strongest (the high end). Larger values are clamped. May be below from, to make small values strong.",
+      ),
+    tone: z
+      .enum(TONE_NAMES)
+      .optional()
+      .describe(
+        "The hue of the scale: from a pale tint of the tone (its filled color, halfway to the canvas) to its solid color, in the figure's theme. Omitted means blue.",
+      ),
+    steps: z
+      .int()
+      .min(2)
+      .max(MATRIX_SCALE_MAX_STEPS)
+      .optional()
+      .describe(
+        "Splits the range into this many equal bins, each one color (a stepped scale). Omitted means a continuous scale.",
+      ),
+    decimals: z
+      .int()
+      .min(0)
+      .max(6)
+      .optional()
+      .describe(
+        "The decimals the cells (and the legend's ends) show, e.g. 1 for 75.0. Omitted means the number as written.",
+      ),
+    showValues: z
+      .boolean()
+      .optional()
+      .describe(
+        "false: the cells show no number (a cell's own text still shows). Omitted means each cell shows its value.",
+      ),
+    label: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        "What the scale measures, the text of a legend entry { scale: <matrix> } (math allowed), e.g. similarity (%).",
+      ),
+  })
+  .superRefine((scale, ctx) => {
+    if (scale.from === scale.to) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["to"],
+        message: "a scale needs two different ends",
+      });
     }
   });
 
@@ -1287,13 +1532,13 @@ const matrix: NodeManifest = {
         .array(
           z.union([
             z.string(),
-            z.array(z.union([z.string().regex(MATRIX_CLASS_PATTERN), matrixCell])).min(1),
+            z.array(z.union([z.string().regex(MATRIX_CLASS_PATTERN), matrixCell])),
           ]),
         )
         .min(1)
         .max(MATRIX_MAX_SIDE)
         .describe(
-          'The rows, top to bottom, each the class names of its cells from left to right: a list, or a string of names separated by spaces (when every class name is one character, the characters themselves, e.g. "o..L"). In a list a cell may also be { class, text } (text drawn in the cell, math allowed) or { ellipsis: "…" | "⋮" | "⋱" } (only the symbol). Every row has the same number of cells.',
+          'The rows, top to bottom, each the class names of its cells from left to right: a list, or a string of names separated by spaces (when every class name is one character, the characters themselves, e.g. "o..L"). In a list a cell may also be { class, text } (text drawn in the cell, math allowed), { value } (colored by scale), { ellipsis: "…" | "⋮" | "⋱" } (only the symbol), and may merge with its neighbors with span. Every row covers the same number of columns, with no slot left empty; a row leaves out the slots a merged cell from a row above covers ([] when it covers them all).',
         ),
       ellipsisRows: z
         .array(z.number().int().min(1).max(MATRIX_MAX_SIDE))
@@ -1311,11 +1556,20 @@ const matrix: NodeManifest = {
         ),
       classes: z
         .record(z.string().regex(MATRIX_CLASS_PATTERN), matrixClass)
-        .refine((classes) => Object.keys(classes).length > 0, {
-          error: "a matrix needs at least one class",
-        })
+        .optional()
         .describe(
-          "The classes by name (1 to 16 characters without spaces): each a tone, a variant and a pattern for its cells, and a label for a legend.",
+          "The classes by name (1 to 16 characters without spaces): each a tone, a variant and a pattern for its cells, and a label for a legend. Required unless the matrix has a scale.",
+        ),
+      scale: matrixScale
+        .optional()
+        .describe(
+          "A color scale (since 0.20.1): cells written { value } are filled from a pale tint of the tone (at from) to its solid color (at to), each with the theme's text color that reads best on it, and a legend explains it as { scale: <matrix> }. Omitted means cells are colored by class only.",
+        ),
+      headerRotate: z
+        .literal(MATRIX_HEADER_ROTATIONS)
+        .optional()
+        .describe(
+          "Turns the column headers (since 0.20.1): 90 (clockwise, reading top to bottom) or -90 (reading bottom to top), so long names fit over narrow columns. Each header is as wide as its column and as tall as its text; they line up on the cells' side. Not wrapped by wrapHeaders. Omitted means horizontal headers.",
         ),
       rows: z
         .array(matrixHeader)
@@ -1399,8 +1653,15 @@ const matrix: NodeManifest = {
           ...(hint !== undefined && { params: { hint } }),
         });
       const names = Object.keys(props.classes ?? {});
-      if (names.length === 0 || !Array.isArray(props.cells)) return;
-      let width: number | undefined;
+      if (names.length === 0 && props.scale === undefined) {
+        issue(
+          ["classes"],
+          "a matrix needs at least one class",
+          "Add classes, or a scale for cells written { value }.",
+        );
+        return;
+      }
+      if (!Array.isArray(props.cells)) return;
       for (const [r, row] of props.cells.entries()) {
         const entries = matrixRowEntries(row, names);
         for (const [c, entry] of entries.entries()) {
@@ -1411,26 +1672,58 @@ const matrix: NodeManifest = {
               ? ["cells", r]
               : [...["cells", r, c], ...(typeof row[c] === "string" ? [] : ["class"])],
             `cell ${c + 1} of row ${r + 1} has the unknown class "${name}"`,
-            didYouMean(name, names) ?? `Classes of the matrix: ${names.join(", ")}.`,
+            names.length === 0
+              ? "The matrix has no classes: add the class to classes, or write the cell as { value }."
+              : (didYouMean(name, names) ?? `Classes of the matrix: ${names.join(", ")}.`),
           );
           break;
         }
-        if (entries.length === 0) {
-          issue(["cells", r], `row ${r + 1} has no cells`);
-        } else if (entries.length > MATRIX_MAX_SIDE) {
+        if (props.scale === undefined) {
+          const c = entries.findIndex((entry) => entry.value !== undefined);
+          if (c >= 0)
+            issue(
+              ["cells", r, c, "value"],
+              `cell ${c + 1} of row ${r + 1} has a value, but the matrix has no scale`,
+              "Add props.scale { from, to } to color cells by value, or give the cell a class.",
+            );
+        }
+        if (entries.length > MATRIX_MAX_SIDE) {
           issue(
             ["cells", r],
             `row ${r + 1} has ${entries.length} cells, more than ${MATRIX_MAX_SIDE}`,
           );
-        } else if (width === undefined) {
-          width = entries.length;
-        } else if (entries.length !== width) {
-          issue(
-            ["cells", r],
-            `row ${r + 1} has ${entries.length} cells, but row 1 has ${width}`,
-            "Give every row of a matrix the same number of cells.",
-          );
         }
+      }
+      const grid = matrixGrid(props.cells, names);
+      const width = grid.width;
+      for (const problem of grid.problems) {
+        const row = props.cells[problem.row];
+        issue(
+          problem.index === undefined || typeof row === "string"
+            ? ["cells", problem.row]
+            : ["cells", problem.row, problem.index, "span"],
+          problem.message,
+          problem.hint,
+        );
+      }
+      if (width !== undefined && width > MATRIX_MAX_SIDE) {
+        issue(["cells"], `the matrix has ${width} columns, more than ${MATRIX_MAX_SIDE}`);
+      }
+      // A merged cell may not cross an ellipsis row or column (#644).
+      for (const slot of grid.slots.flat()) {
+        if (slot.rows === 1 && slot.columns === 1) continue;
+        const crosses =
+          props.ellipsisRows?.some((n) => n - 1 >= slot.row && n - 1 < slot.row + slot.rows) ===
+            true ||
+          props.ellipsisColumns?.some(
+            (n) => n - 1 >= slot.column && n - 1 < slot.column + slot.columns,
+          ) === true;
+        if (crosses)
+          issue(
+            ["cells", slot.row, slot.index, "span"],
+            `cell ${slot.index + 1} of row ${slot.row + 1} spans an ellipsis row or column`,
+            "Lower the span, or take the row or column out of ellipsisRows / ellipsisColumns.",
+          );
       }
       for (const [prop, limit, what] of [
         ["ellipsisRows", props.cells.length, "rows"],
@@ -1446,17 +1739,15 @@ const matrix: NodeManifest = {
           }
         }
       }
-      for (const [r, row] of props.cells.entries()) {
-        if (typeof row === "string") continue;
-        for (const [c, entry] of row.entries()) {
-          if (typeof entry === "string" || entry.text === undefined) continue;
-          if (props.ellipsisRows?.includes(r + 1) || props.ellipsisColumns?.includes(c + 1)) {
-            issue(
-              ["cells", r, c, "text"],
-              `cell ${c + 1} of row ${r + 1} has text, but its row or column is an ellipsis`,
-              "Remove the text, or take the row or column out of ellipsisRows / ellipsisColumns.",
-            );
-          }
+      for (const slot of grid.slots.flat()) {
+        const { entry, row: r, column: c, index } = slot;
+        if (typeof props.cells[r] === "string" || entry.text === undefined) continue;
+        if (props.ellipsisRows?.includes(r + 1) || props.ellipsisColumns?.includes(c + 1)) {
+          issue(
+            ["cells", r, index, "text"],
+            `cell ${index + 1} of row ${r + 1} has text, but its row or column is an ellipsis`,
+            "Remove the text, or take the row or column out of ellipsisRows / ellipsisColumns.",
+          );
         }
       }
       if (props.rows !== undefined && props.rows.length !== props.cells.length) {
@@ -1478,6 +1769,13 @@ const matrix: NodeManifest = {
           ["columnHeaderWidth"],
           "columnHeaderWidth is the width column headers wrap to, so it needs wrapHeaders: true",
           "Add wrapHeaders: true, or remove columnHeaderWidth.",
+        );
+      }
+      if (props.headerRotate !== undefined && props.columns === undefined) {
+        issue(
+          ["headerRotate"],
+          "headerRotate turns the column headers, so it needs columns",
+          "Add columns, or remove headerRotate.",
         );
       }
       if (props.corner !== undefined && (props.rows === undefined || props.columns === undefined)) {

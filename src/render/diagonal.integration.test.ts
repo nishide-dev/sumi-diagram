@@ -221,6 +221,49 @@ test("clean diagonal X-crossings and intentional shared straight trunks have no 
   }
 });
 
+/** Three boxes stacked far right of a hub, each with a straight edge into the hub's east side (#647). */
+const fan = (ends: readonly string[]) =>
+  stringify({
+    version: 1,
+    figure: {
+      id: "fan",
+      theme: "paper",
+      profile: "paper-double",
+      layout: {
+        arrange: {
+          row: {
+            gap: "130mm",
+            align: "center",
+            items: ["hub", { stack: { gap: "2mm", items: ["x", "y", "z"] } }],
+          },
+        },
+      },
+    },
+    nodes: ["hub", "x", "y", "z"].map((id) => ({ id, component: "box", label: id })),
+    edges: ["x", "y", "z"].map((from, i) => ({
+      from,
+      to: "hub",
+      route: "straight",
+      fromAnchor: "west",
+      toAnchor: ends[i],
+    })),
+  });
+
+test("straight edges converging on one port are not reported as running side by side (#647)", async () => {
+  const lint = await lintRenderedFigure(fan(["east", "east", "east"]));
+  expect(lint.diagnostics.filter((d) => d.code === "geometry/edge-near-edge")).toEqual([]);
+});
+
+test("near-parallel straight edges ending at distinct ports are still reported (#647)", async () => {
+  const lint = await lintRenderedFigure(fan(["east:0.45", "east:0.5", "east:0.55"]));
+  expect(
+    lint.diagnostics.filter((d) => d.code === "geometry/edge-near-edge").map((d) => d.path),
+  ).toEqual([
+    ["edges", 1],
+    ["edges", 2],
+  ]);
+});
+
 test("overlaps retain source-located node and label warnings", async () => {
   const text = simple({}, ["a", "obstacle", "b"], [{ id: "obstacle", label: "obstacle" }]);
   const lint = await lintRenderedFigure(text);

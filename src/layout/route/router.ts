@@ -949,8 +949,8 @@ class Router {
             ...(source?.location !== undefined && { location: source.location }),
             subject: { kind: "edge", id: first.ir.id ?? `edges[${first.ir.index}]` },
             hint: written
-              ? `Write the same ${field} on each of them (or none) so the bus shares one trunk, or give them lanes on different sides.`
-              : "Anchor the shared end at one point on each of them so the bus shares one trunk.",
+              ? `Write the same ${field} on each of them (or none) so the bus shares one trunk, give them lanes on different sides, or write lane.bus: false on each for separate lines.`
+              : "Anchor the shared end at one point on each of them so the bus shares one trunk, or write lane.bus: false on each for separate lines.",
             related: list.slice(1).map((e) => {
               const at = this.#ir.sourceMap.get(e.ir.key);
               return {

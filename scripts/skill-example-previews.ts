@@ -19,6 +19,7 @@ for (const name of [
   "grouped",
   "multilayer-network",
   "attention-sheet",
+  "transfer-heatmap",
 ]) {
   const pdf = join(root, "examples", name, `${name}.pdf`);
   const output = join(root, "skills", "sumi", "examples", name, name);

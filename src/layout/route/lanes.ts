@@ -11,7 +11,8 @@
  *   reference boxes: both ends, or the element named by `outside` (a group's
  *   frame, with its title where that sits outside the frame on that side).
  * - **Buses**: lanes on one side whose edges share a source (or a target),
- *   transitively, are one lane, the farthest of theirs: one trunk.
+ *   transitively, are one lane, the farthest of theirs: one trunk. A lane
+ *   with `bus: false` (#649) joins none and keeps its own line.
  * - **Ends**: an end whose face on `side` lies short of the lane attaches on
  *   `side`; an end wholly beyond the lane attaches on the opposite side (it
  *   faces the lane); a junction reaches it from its centre. An end the lane
@@ -141,7 +142,8 @@ export function planLanes(ir: FigureIR, layout: LayoutIR): ReadonlyMap<ElementKe
   };
   const firstAt = new Map<string, ElementKey>();
   for (const edge of edges) {
-    if (!own.has(edge.key)) continue;
+    // `bus: false` (#649): a lane of its own, merged with no other.
+    if (!own.has(edge.key) || edge.lane?.bus === false) continue;
     const side = (edge.lane as NonNullable<EdgeIR["lane"]>).side;
     for (const end of [`from ${edge.from}`, `to ${edge.to}`]) {
       const id = `${side} ${end}`;
