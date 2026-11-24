@@ -1280,10 +1280,22 @@ export function matrixGrid(
       c += span.columns;
     }
     while (line[c] === true) c++;
-    // Slots a merged cell from above covers further right also count.
-    const covered = Math.max(c, line.length);
+    // Slots a merged cell from above covers further right also count; a row may be all covered.
+    const covered = line.length;
     slots.push(placed);
-    if (entries.length === 0) continue;
+    const hole = Array.from({ length: covered }, (_, i) => i).find((i) => line[i] !== true);
+    if (hole !== undefined) {
+      problems.push({
+        row: r,
+        message: `row ${r + 1} leaves column ${hole + 1} empty before a merged cell from a row above`,
+        hint: "Write a cell for every slot a merged cell from above does not cover, left to right.",
+      });
+      continue;
+    }
+    if (covered === 0) {
+      problems.push({ row: r, message: `row ${r + 1} has no cells` });
+      continue;
+    }
     if (width === undefined) width = covered;
     else if (covered !== width && problems.every((p) => p.row !== r)) {
       problems.push({
@@ -1503,13 +1515,13 @@ const matrix: NodeManifest = {
         .array(
           z.union([
             z.string(),
-            z.array(z.union([z.string().regex(MATRIX_CLASS_PATTERN), matrixCell])).min(1),
+            z.array(z.union([z.string().regex(MATRIX_CLASS_PATTERN), matrixCell])),
           ]),
         )
         .min(1)
         .max(MATRIX_MAX_SIDE)
         .describe(
-          'The rows, top to bottom, each the class names of its cells from left to right: a list, or a string of names separated by spaces (when every class name is one character, the characters themselves, e.g. "o..L"). In a list a cell may also be { class, text } (text drawn in the cell, math allowed), { value } (colored by scale), { ellipsis: "…" | "⋮" | "⋱" } (only the symbol), and may merge with its neighbors with span. Every row covers the same number of columns; a row leaves out the slots a merged cell from a row above covers.',
+          'The rows, top to bottom, each the class names of its cells from left to right: a list, or a string of names separated by spaces (when every class name is one character, the characters themselves, e.g. "o..L"). In a list a cell may also be { class, text } (text drawn in the cell, math allowed), { value } (colored by scale), { ellipsis: "…" | "⋮" | "⋱" } (only the symbol), and may merge with its neighbors with span. Every row covers the same number of columns, with no slot left empty; a row leaves out the slots a merged cell from a row above covers ([] when it covers them all).',
         ),
       ellipsisRows: z
         .array(z.number().int().min(1).max(MATRIX_MAX_SIDE))
@@ -1658,9 +1670,7 @@ const matrix: NodeManifest = {
               "Add props.scale { from, to } to color cells by value, or give the cell a class.",
             );
         }
-        if (entries.length === 0) {
-          issue(["cells", r], `row ${r + 1} has no cells`);
-        } else if (entries.length > MATRIX_MAX_SIDE) {
+        if (entries.length > MATRIX_MAX_SIDE) {
           issue(
             ["cells", r],
             `row ${r + 1} has ${entries.length} cells, more than ${MATRIX_MAX_SIDE}`,

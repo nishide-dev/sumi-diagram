@@ -2411,8 +2411,8 @@ edges:
 - **Merged cells (since 0.20.1).** A list-row cell takes `span: 2` (two columns) or
   `span: {rows: 2, columns: 3}`; it is drawn as one cell over the slots and the gaps between
   them, with the ID of its top-left slot. As in an HTML table, the rows below leave out the
-  slots it covers (`[a, {class: b, span: {rows: 2}}]` then `[a]`); every row still covers
-  the same number of columns. A span may not cross an ellipsis row or column.
+  slots it covers (`[a, {class: b, span: {rows: 2}}]` then `[a]`; a row it covers entirely is
+  `[]`); every row still covers the same number of columns, with no slot left empty. A span may not cross an ellipsis row or column.
 - **Turned column headers (since 0.20.1).** `headerRotate: -90` (reading bottom to top) or
   `90` turns the column headers, so full names fit over narrow columns: each is as wide as
   its column and as tall as its text, lined up on the cells' side, and measured turned

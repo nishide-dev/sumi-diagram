@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { buildFigureIR, type NodeIR } from "../../compiler/ir";
-import { muddyColor } from "../../lint/geometry/color-composition";
+import { muddyColor, muddyFindings } from "../../lint/geometry/color-composition";
 import { colorHarmony } from "../../lint/geometry/color-harmony";
 import { colorUseOf, themeColorUse } from "../../lint/geometry/color-use";
+import type { Analysis } from "../../lint/geometry/composite";
 import { geometryContextFor } from "../../lint/geometry/lint";
 import { renderFigure } from "../../render";
 import { checkFigure } from "../check";
@@ -11,8 +12,9 @@ import { nodeKey } from "../check-state";
 import { matrixGrid } from "../registry/builtins";
 import { BUILTIN_THEMES, getTheme } from "../theme/builtin";
 import { contrastRatio } from "../theme/node-variants";
-import { rampColor } from "../theme/ramp";
+import { rampColor, rampInk } from "../theme/ramp";
 import { toneRamp } from "../theme/resolve";
+import { TONE_NAMES } from "../theme/tones";
 import { formatScaleValue, scaleStep } from "./matrix";
 
 /** A structured figure with the matrix `m` (props as YAML lines) and the legend `key`. */
@@ -92,26 +94,32 @@ describe("color scales (#644)", () => {
       expect(style("m-1-1")?.fill).toBe(ends.low);
       expect(style("m-1-3")?.fill).toBe(ends.high);
       expect(style("m-1-2")?.fill).toBe(rampColor(ends.low, ends.high, 0.5));
-      for (let k = 0; k <= 20; k++) {
-        for (const tone of [
-          "gray",
-          "red",
-          "orange",
-          "yellow",
-          "green",
-          "blue",
-          "purple",
-        ] as const) {
-          const toneEnds = toneRamp(theme, tone);
-          const fill = rampColor(toneEnds.low, toneEnds.high, k / 20);
-          const cell = checkFigure(
-            figure(SCALE.replace("tone: orange", `tone: ${tone}`), { theme: id }),
-          ).state.styles?.get(nodeKey("m-1-2"));
-          if (k === 10) expect(cell?.fill).toBe(fill);
-          if (k !== 10) continue;
-          expect(contrastRatio(cell?.fontColor ?? "", cell?.fill ?? "")).toBeGreaterThanOrEqual(
-            4.5,
+      // Every step of every tone: the fill is the ramp's, the ink the first of the theme's two
+      // inks that keeps 4.5:1 (or a nearer readable one), and the text always keeps 4.5:1.
+      const steps = Array.from({ length: 21 }, (_, k) => k / 2);
+      const row = steps.map((v) => `{ value: ${v} }`).join(", ");
+      for (const tone of TONE_NAMES) {
+        const toneEnds = toneRamp(theme, tone);
+        const cells = checkFigure(
+          figure(
+            `      scale: { from: 0, to: 10, tone: ${tone} }\n      cells:\n        - [${row}]`,
+            { theme: id },
+          ),
+        ).state;
+        expect(cells.diagnostics).toEqual([]);
+        for (const [k, v] of steps.entries()) {
+          const cell = cells.styles?.get(nodeKey(`m-1-${k + 1}`));
+          const fill = rampColor(toneEnds.low, toneEnds.high, v / 10);
+          expect(cell?.fill, `${id} ${tone} ${v}`).toBe(fill);
+          expect(cell?.fontColor).toBe(rampInk(toneEnds, fill));
+          const readable = [toneEnds.ink, toneEnds.inverse].find(
+            (ink) => contrastRatio(ink, fill) >= 4.5,
           );
+          if (readable !== undefined) expect(cell?.fontColor).toBe(readable);
+          expect(
+            contrastRatio(cell?.fontColor ?? "", fill),
+            `${id} ${tone} ${v}`,
+          ).toBeGreaterThanOrEqual(4.5);
         }
       }
     }
@@ -201,6 +209,46 @@ describe("merged cells (#644)", () => {
     expect(wrong.problems.map((p) => p.message)).toEqual([
       "cell 1 of row 1 spans 3 rows, past the last row",
       "row 2 has 3 cells, but row 1 has 2",
+    ]);
+  });
+
+  test("a row covered by merged cells from above is written empty; a hole is reported", () => {
+    const covered = matrixGrid(
+      [[{ class: "a", span: { rows: 2, columns: 2 } }], [], ["a", "a"]],
+      ["a"],
+    );
+    expect(covered.problems).toEqual([]);
+    expect(covered.width).toBe(2);
+    expect(covered.slots[1]).toEqual([]);
+    // A slot left empty before a cell merged from above (the row's width alone looks right).
+    const hole = matrixGrid([["a", "a", { class: "a", span: { rows: 2 } }], ["a"]], ["a"]);
+    expect(hole.problems.map((p) => p.message)).toEqual([
+      "row 2 leaves column 2 empty before a merged cell from a row above",
+    ]);
+    // An empty row nothing covers.
+    expect(matrixGrid([["a"], []], ["a"]).problems.map((p) => p.message)).toEqual([
+      "row 2 has no cells",
+    ]);
+    // Through the schema and the expansion: the covered row has its header and no cells.
+    const props = `      rows: [R1, R2, R3]
+      classes:
+        a: { label: a }
+      cells:
+        - [{ class: a, span: { rows: 2, columns: 2 } }]
+        - []
+        - [a, a]`;
+    const { state } = checkFigure(figure(props, { key: "        - { class: m.a }" }));
+    expect(state.diagnostics).toEqual([]);
+    expect(state.doc.nodes?.some((n) => n?.id.startsWith("m-2-"))).toBe(false);
+    expect(state.doc.nodes?.some((n) => n?.id === "m-row-2")).toBe(true);
+    // Partly covered: the row still has to write its other slots.
+    const partly = props.replace(
+      "- [{ class: a, span: { rows: 2, columns: 2 } }]",
+      "- [{ class: a, span: { rows: 2 } }, a]",
+    );
+    expect(codesOf(figure(partly, { key: "        - { class: m.a }" }))).toContainEqual([
+      "component/invalid-prop",
+      ["nodes", 0, "props", "cells", 1],
     ]);
   });
 
@@ -365,5 +413,38 @@ describe("color lints of a scale (#644)", () => {
     );
     if (!orange.ok) throw new Error(JSON.stringify(orange.diagnostics));
     expect(muddyColor.run(geometryContextFor(orange.value), undefined)).toEqual([]);
+  });
+});
+
+describe("muddy colors over a scale (#644)", () => {
+  const step = "#e8bfa2"; // an orange step in sumi-dark: ochre by geometry/muddy-color's measure
+  const analysis = (final: string) =>
+    ({
+      item: {
+        key: "n:m-1-1",
+        kind: "node",
+        name: 'node "m-1-1" fill',
+        color: step,
+        alpha: 1,
+        ink: step,
+        docPath: ["nodes", 0],
+        subject: { kind: "node", id: "m" },
+      },
+      canvas: "#30364f",
+      index: 0,
+      onWhite: step,
+      samples: Array.from({ length: 4 }, () => ({
+        final,
+        below: "#30364f",
+        under: [],
+        panel: "#30364f",
+      })),
+    }) as unknown as Analysis;
+
+  test("a step's own color is accepted, a translucent fill over it is still reported", () => {
+    const own = () => true;
+    expect(muddyFindings([analysis(step)])).toHaveLength(1);
+    expect(muddyFindings([analysis(step)], own)).toEqual([]);
+    expect(muddyFindings([analysis("#7d7468")], own)).toHaveLength(1);
   });
 });
