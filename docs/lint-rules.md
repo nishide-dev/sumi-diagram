@@ -119,6 +119,22 @@ hint の `contentAlign: top` は、その group に書いた写しを描画と�
 lint し直して確かめる（1 図につき最大 4 group と元の図 1 回。図の大きさが変わらず、
 中身が見出しの直下に来て、新しい error / warning が出ないときだけ「Verified」）。
 設計は [#613](design/decisions/613-content-align.md)。
+hint は、書き足す 1 行（group の `- id:` の下の `contentAlign: top`）と、その group が
+row に横に並んだパネルの 1 つなら、その row の `panels: true` も示す（#641）。
+`geometry/group-empty-area` の hint も、空きが中身の上下の帯（伸ばされて中央に置かれた中身）
+のときは同じ書き方を添える。
+
+## 横に並んだパネルの揃い（#641）
+
+`geometry/panel-misaligned` は **info**（structured、render / `lint --geometry` のみ）。
+`row` に直接並んだ 2 つ以上の group（パネル。tilted plane・tokens・matrix・legend を除く。
+キャプション付きの group も含む）の、枠の上端・枠の下端（枠か塗りが見える group）・
+見出し（下に置いた見出しを除く）・キャプションの y が **1mm 以上**ずれていれば、
+row ごとに 1 件報告する。`panels: true` を書いた row は対象外。
+hint は、その row のパスと項目を書き出した `panels: true`（各パネルが row の高さを取り、
+中身を見出しの直下に置き、見出しの帯を揃える。ノードは `align` のまま）。
+エンジンの動作が決まっているので、hint は写しの配置では確かめない。
+設計は [#641](design/decisions/641-panel-rows.md)。
 
 `sumi lint`（API: `lintFigure()`、`src/lint`）は、診断を集める段（`yaml` → `schema` → `ref` → `layout` → `component` → `theme` → `profile`）と、**構造 lint**（stage `lint`）を実行する。構造 lint は描画前の文書だけを検査し、D2 を必要としない。描画後の SVG を検査する幾何 lint（stage `geometry`、#13）は別の段で、`lintRenderedFigure()` / `lintGeometry()` が実行する（下記の「幾何 lint」）。
 

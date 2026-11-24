@@ -59,7 +59,11 @@ describe("geometry/content-band", () => {
     for (const d of found) {
       expect(d.severity).toBe("info");
       expect(d.message).toMatch(/empty above the content and \d+\.\dmm below/);
-      expect(d.hint).toMatch(/^Verified: setting groups\[[02]\]\.contentAlign to top puts/);
+      expect(d.hint).toMatch(
+        /^Verified: writing contentAlign: top in group "[ac]" \(groups\[[02]\]\.contentAlign; in YAML, the line "contentAlign: top" under "- id: [ac]"\) puts/,
+      );
+      // Both are panels of the root row, which can line them all up at once.
+      expect(d.hint).toContain("write panels: true in that row instead");
     }
   });
 

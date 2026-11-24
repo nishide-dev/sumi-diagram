@@ -173,6 +173,11 @@ export interface ArrangeBoxIR {
    * item, the group, instead of centring the items.
    */
   readonly growFirst?: true;
+  /**
+   * Rows only (#641, `row.panels`): the groups in the row are side-by-side panels;
+   * they take the row's height, their content sits at the top and their titles share a band.
+   */
+  readonly panels?: true;
 }
 
 /** A sequence diagram (#630, `core/figure/sequence.ts`), with IDs resolved to keys. */
@@ -1668,6 +1673,7 @@ function arrangeIR(
     ...(linear.justify !== undefined && { justify: linear.justify }),
     ...(linear.centerOn !== undefined && { centerOn: keyOf(linear.centerOn) }),
     ...(linear.align !== undefined && { align: linear.align }),
+    ...(box.row?.panels === true && { panels: true as const }),
     items: freeze(linear.items.map(item)),
   });
 }
