@@ -43,13 +43,7 @@ import {
   printedUnits,
   printScale,
 } from "./common";
-import {
-  contentAlignYaml,
-  contentBand,
-  MIN_BAND,
-  panelsSentence,
-  verticalBands,
-} from "./content-band";
+import { contentAlignYaml, contentBand, contentBands } from "./content-band";
 import type { GeometryContext, GeometryElement } from "./context";
 import { deadSpace } from "./dead-space";
 import { sparseFigure, textHeavy } from "./density";
@@ -2103,18 +2097,19 @@ export const badgeCollision = defineGeometryRule({
 export const GROUP_EMPTY_SPACE_THRESHOLD = 0.75;
 
 /**
- * For `geometry/group-empty-area` (#641): when the room is a band above the
- * content as well as below it (a stretched group that centres its content), the
- * concrete `contentAlign: top` (and a panels row's `panels: true`); else "".
+ * For `geometry/group-empty-area` (#641): when part of the room is the two
+ * bands `geometry/content-band` reports (at least 4mm above and below the
+ * content of a group that writes no `contentAlign`), a pointer to that rule,
+ * whose `contentAlign: top` is checked by a trial layout, with the line to
+ * write; else "". It asserts nothing the trial has not shown.
  */
 function contentAlignAdvice(context: GeometryContext, group: GeometryElement): string {
-  if (group.ir.kind !== "group" || group.ir.contentAlign !== undefined) return "";
-  const bands = verticalBands(context, group.key);
-  if (bands === undefined || bands.above < drawnUnits(context, MIN_BAND)) return "";
-  const yaml = contentAlignYaml(context, group.ir);
+  if (group.ir.kind !== "group") return "";
+  const band = contentBands(context).find((b) => b.group.key === group.key);
+  if (band === undefined) return "";
+  const yaml = contentAlignYaml(context, band.group);
   if (yaml === undefined) return "";
-  const room = `Part of the room is ${mmText(context, bands.above)} above the content and ${mmText(context, bands.below)} below it, so the content is centred in a stretched group: ${yaml.edit} puts it right under the title and keeps one band at the bottom (it moves the room, it does not remove it).`;
-  return `${room}${yaml.row === undefined ? "" : ` ${panelsSentence(yaml.row)}`} `;
+  return `Part of the room is ${mmText(context, band.above)} above the content and ${mmText(context, band.below)} below it: geometry/content-band reports this group with ${yaml.edit.replace(/^writing /, "")} as its hint (checked there by a trial layout), which would move the room to one band at the bottom, not remove it${yaml.row === undefined ? "" : `; for all the panels of ${yaml.row}, panels: true on that row`}. `;
 }
 
 export const groupEmptyArea = defineGeometryRule({

@@ -54,7 +54,7 @@ describe("geometry/panel-misaligned", () => {
       /^The panels side by side in figure\.layout\.arrange\.row \(group "a", group "b"\) are not aligned: frame tops \d+\.\dmm apart, frame bottoms \d+\.\dmm apart, titles \d+\.\dmm apart\.$/,
     );
     expect(d?.hint).toStartWith(
-      "Write panels: true in figure.layout.arrange.row (row: {panels: true, items: [a, b]})",
+      "Add panels: true to the row at figure.layout.arrange.row (its other fields stay):",
     );
   });
 
@@ -66,5 +66,63 @@ describe("geometry/panel-misaligned", () => {
   test("silent with panels: true and with align: stretch", async () => {
     expect(await misaligned(figure("panels: true,"))).toEqual([]);
     expect(await misaligned(figure("align: stretch,"))).toEqual([]);
+  });
+
+  /** Two framed panels in an `align: start` row whose bodies are `a` and `b` tall. */
+  const heights = (a: string, b: string, extra = "") => `version: 1
+figure:
+  id: panel-threshold
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 4mm, align: start, items: [a, b]}
+groups:
+  - {id: a, label: (a), ${extra} arrange: {stack: {items: [x]}}}
+  - {id: b, label: (b), ${extra} arrange: {stack: {items: [y]}}}
+nodes:
+  - {id: x, component: box, label: X, props: {height: ${a}}}
+  - {id: y, component: box, label: Y, props: {height: ${b}}}
+`;
+
+  test("offsets under 1mm are not reported, 1mm and more are", async () => {
+    expect(await misaligned(heights("10mm", "10.5mm"))).toEqual([]);
+    const [d] = await misaligned(heights("10mm", "11.5mm"));
+    expect(d?.message).toMatch(/frame bottoms 1\.\dmm apart\.$/);
+  });
+
+  test("frames that are not drawn (plain) are not compared", async () => {
+    expect(await misaligned(heights("10mm", "20mm", "variant: plain,"))).toEqual([]);
+  });
+
+  test("captions of panels at different heights are reported", async () => {
+    const source = figure("")
+      .replace("    label: (a) Short\n    labelAt: above-left\n", "    caption: (a) Short\n")
+      .replace("    label: (b) Tall\n    labelAt: above-left\n", "    caption: (b) Tall\n");
+    const [d] = await misaligned(source);
+    expect(d?.message).toMatch(/captions \d+\.\dmm apart/);
+  });
+
+  test("a legend, tokens or matrix beside a panel is not a panel", async () => {
+    const source = `version: 1
+figure:
+  id: panel-excluded
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 4mm, items: [a, key, seq]}
+groups:
+  - {id: a, label: (a), arrange: {stack: {items: [x, y, z]}}}
+nodes:
+  - {id: x, component: box, label: X}
+  - {id: y, component: box, label: Y}
+  - {id: z, component: box, label: Z}
+  - id: key
+    component: legend
+    props:
+      entries:
+        - {node: {component: box}, label: a step}
+  - {id: seq, component: tokens, props: {cells: [a, b, c]}}
+`;
+    expect(await misaligned(source)).toEqual([]);
   });
 });

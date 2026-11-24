@@ -158,6 +158,12 @@ export interface StructuredLayoutOptions {
 
 type Align = NonNullable<ArrangeBoxIR["align"]>;
 
+/** A `panels` row (#641): its title band name and its panels, each with its item in the row. */
+interface PanelRow {
+  readonly name: string;
+  readonly panels: { readonly key: ElementKey; readonly item: ArrangeItemIR }[];
+}
+
 /** Overhang of a container's attached nodes beyond its arrange tree, per side. */
 interface Overhang {
   north: number;
@@ -371,10 +377,17 @@ class StructuredLayout {
   /** `matchLabelHeight` (#613): the title band height (units) of each name. */
   readonly #matchedLabelHeights = new Map<string, number>();
   /**
-   * `row.panels` (#641): each panel group's key → the name its title band is
-   * matched by when it writes no `matchLabelHeight` (one name per row).
+   * `row.panels` (#641): each panel group's key → its row: the name its title
+   * band is matched by when it writes no `matchLabelHeight`, and the row's panels
+   * with the item each is (the group, or its caption's stack).
    */
-  readonly #panels = new Map<ElementKey, string>();
+  readonly #panels = new Map<ElementKey, PanelRow>();
+  /**
+   * `row.panels` (#641), per pass: the shared title band (units) of each panels
+   * row, or `null` where sharing it would make the row taller (each panel then
+   * keeps its own title band).
+   */
+  readonly #panelBands = new Map<string, number | null>();
   /** The tilted planes (#577) of the pass: the flat frame and the flat rectangles of their nodes. */
   readonly #planes = new Map<
     ElementKey,
@@ -506,7 +519,7 @@ class StructuredLayout {
     this.#collectPanels(ir);
     // `matchLabelHeight` (#613): one title band per name, the tallest label's.
     for (const group of ir.groups) {
-      const name = group.matchLabelHeight ?? this.#panels.get(group.key);
+      const name = group.matchLabelHeight ?? this.#panels.get(group.key)?.name;
       const label = this.#labels.get(group.key);
       if (name === undefined) continue;
       const height = label === undefined ? 0 : Math.ceil(label.height);
@@ -527,16 +540,65 @@ class StructuredLayout {
     const walk = (box: ArrangeBoxIR | undefined): void => {
       if (box === undefined) return;
       if (box.kind === "row" && box.panels === true) {
-        const name = `\u0000panels:${rows++}`;
+        const row: PanelRow = { name: `\u0000panels:${rows++}`, panels: [] };
         for (const item of box.items) {
           const key = this.#panelOf(item);
-          if (key !== undefined) this.#panels.set(key, name);
+          if (key === undefined || item === null) continue;
+          row.panels.push({ key, item });
+          this.#panels.set(key, row);
         }
       }
       for (const item of box.items) if (item !== null && typeof item !== "string") walk(item);
     };
     walk(ir.arrange);
     for (const group of ir.groups) walk(group.arrange);
+  }
+
+  /**
+   * The title band (units) the panels of a `panels` row (#641) share when they
+   * write no `matchLabelHeight`: the tallest of their titles, but only if that
+   * leaves the row as tall as with each panel's own title band (the tallest
+   * title and the tallest content may be in different panels); else `null`.
+   * Measured once per pass; while it is measured the panels keep their own band.
+   */
+  #panelBand(row: PanelRow): number | null {
+    const cached = this.#panelBands.get(row.name);
+    if (cached !== undefined) return cached;
+    this.#panelBands.set(row.name, null);
+    const shared = this.#matchedLabelHeights.get(row.name) ?? 0;
+    if (shared === 0) return null;
+    const space = (group: GroupIR, height: number | undefined) =>
+      height === undefined || height === 0 ? 0 : height + this.#padOf(group) / 2;
+    let own = 0;
+    let matched = 0;
+    for (const { key, item } of row.panels) {
+      const group = this.#group(key);
+      const p = this.#padding(key);
+      let body =
+        this.#containerSize(key, group.arrange).height +
+        p.north +
+        p.south +
+        groupLayerSpread(group);
+      // A captioned panel's item is its group, the caption gap and the caption (#130).
+      if (item !== null && typeof item !== "string") {
+        const caption = item.items[1];
+        if (typeof caption === "string") body += this.#itemSize(caption).height + this.#gap(item);
+      }
+      const label = this.#labels.get(key);
+      const explicit =
+        group.matchLabelHeight === undefined
+          ? undefined
+          : this.#matchedLabelHeights.get(group.matchLabelHeight);
+      const ownHeight = explicit ?? (label === undefined ? undefined : Math.ceil(label.height));
+      own = Math.max(own, space(group, ownHeight) + body);
+      matched = Math.max(
+        matched,
+        space(group, group.matchLabelHeight === undefined ? shared : explicit) + body,
+      );
+    }
+    const band = matched <= own ? shared : null;
+    this.#panelBands.set(row.name, band);
+    return band;
   }
 
   /** The group a direct item of a `panels` row (#641) is a panel for, if any. */
@@ -654,6 +716,7 @@ class StructuredLayout {
     this.#chatFrames.clear();
     this.#sequenceFrames.clear();
     this.#centerPaddings.clear();
+    this.#panelBands.clear();
     const root = this.#ir.arrange as ArrangeBoxIR;
     const size = this.#containerSize(ROOT, root);
     // Slots are recorded (and shifts applied) unless `figure.layout.straighten: false` (#618, #620).
@@ -1206,7 +1269,9 @@ class StructuredLayout {
    * `matchLabelHeight` (#613) the tallest label's of its name; `undefined` for no band.
    */
   #labelHeight(group: GroupIR): number | undefined {
-    const name = group.matchLabelHeight ?? this.#panels.get(group.key);
+    const row = group.matchLabelHeight === undefined ? this.#panels.get(group.key) : undefined;
+    const band = row === undefined ? undefined : this.#panelBand(row);
+    const name = group.matchLabelHeight ?? (band === null ? undefined : row?.name);
     if (name !== undefined) {
       const matched = this.#matchedLabelHeights.get(name) ?? 0;
       return matched > 0 ? matched : undefined;

@@ -8,7 +8,7 @@
  * path. It is not laid out as a trial: what it does is fixed by the engine.
  */
 
-import type { ArrangeItemIR, GroupIR } from "../../compiler/ir";
+import type { GroupIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { formatDocPath } from "../../core/diagnostics";
 import { mmToPt } from "../../core/units";
@@ -25,7 +25,8 @@ export const MIN_PANEL_OFFSET = mmToPt(1) * 2;
 
 /** Whether a group's frame is drawn: a visible border or fill. */
 function framed(group: GroupIR): boolean {
-  const { stroke, strokeWidth, fill } = group.style;
+  const { stroke, strokeWidth, fill, opacity } = group.style;
+  if (opacity <= 0) return false;
   return (stroke !== "transparent" && strokeWidth.units > 0) || fill !== "transparent";
 }
 
@@ -97,23 +98,11 @@ export const panelMisaligned = defineGeometryRule({
       if (parts.length === 0) return [];
       const names = irs.map((g) => context.get(g.key)?.name ?? `group "${g.id}"`);
       const path = formatDocPath(row.path);
-      const idOf = (key: ElementKey) => {
-        const subject = context.get(key)?.subject;
-        return subject !== undefined && "id" in subject ? subject.id : key;
-      };
-      const itemText = (item: ArrangeItemIR): string =>
-        item === null
-          ? "~"
-          : typeof item === "string"
-            ? idOf(item)
-            : item.growFirst === true && typeof item.items[0] === "string"
-              ? idOf(item.items[0])
-              : `{${item.kind}: ...}`;
       return [
         {
           message: `The panels side by side in ${path} (${names.join(", ")}) are not aligned: ${parts.join(", ")}.`,
           path: row.path,
-          hint: `Write panels: true in ${path} (row: {panels: true, items: [${row.box.items.map(itemText).join(", ")}]}): each panel then takes the row's height (frames share their top and bottom), its content sits right under its title (contentAlign: top unless the group writes contentAlign) and the titles share one band height, so the headings and first rows line up; nodes in the row keep align. Keep the offset if it is intended.`,
+          hint: `Add panels: true to the row at ${path} (its other fields stay): each panel then takes the row's height (frames share their top and bottom), its content sits right under its title (contentAlign: top unless the group writes contentAlign), and the titles share one band height unless that would make the row taller, so the headings line up and, with that band, the first rows too; nodes in the row keep align. Keep the offset if it is intended.`,
           related: irs.flatMap((g) => {
             const element = context.get(g.key);
             return element === undefined

@@ -95,4 +95,40 @@ ${[1, 2, 3, 4, 5].map((i) => `  - {id: t${i}, component: box, label: T${i}}`).jo
       /not checked \(at most \d+ groups are laid out again per figure\)/,
     );
   });
+
+  test("group-empty-area points at this rule only for a group it reports", async () => {
+    const source = (a: string) => `version: 1
+figure:
+  id: empty-and-band
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 4mm, align: stretch, items: [a, b]}
+groups:
+  - id: a
+    label: (a) Short
+    ${a}
+    arrange: {stack: {items: [a1]}}
+  - id: b
+    label: (b) Tall
+    arrange: {stack: {items: [b1, b2, b3, b4, b5, b6]}}
+nodes:
+  - {id: a1, component: box, label: In}
+${["One", "Two", "Three", "Four", "Five", "Six"].map((l, i) => `  - {id: b${i + 1}, component: box, label: ${l}}`).join("\n")}
+`;
+    const empty = async (text: string) => {
+      const result = await renderFigure(text);
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
+      return lintGeometry(result.value as RenderedStructuredFigure, { source: text }).filter(
+        (d) => d.code === "geometry/group-empty-area" && d.subject?.id === "a",
+      );
+    };
+    const [centred] = await empty(source(""));
+    expect(centred?.hint).toContain(
+      'geometry/content-band reports this group with contentAlign: top in group "a"',
+    );
+    // At the top there is one band, not two: no pointer (the rule may still report the area).
+    for (const d of await empty(source("contentAlign: top")))
+      expect(d.hint).not.toContain("geometry/content-band");
+  });
 });

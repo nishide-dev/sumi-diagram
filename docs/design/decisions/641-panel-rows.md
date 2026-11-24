@@ -20,7 +20,7 @@ row に `panels: true` を書くと、その row に直接書いた group（キ�
 
 - パネルは row の高さを取る（交差軸に伸ばす。`align` に関係なく）。枠の上端と下端、キャプションの行が揃う。
 - パネルの中身は見出しの直下に置く（group が `contentAlign` を書いていなければ `top`）。
-- パネルの見出しの帯を 1 つの高さに揃える（group が `matchLabelHeight` を書いていなければ、row ごとの内部の名前で揃える）。1 行と 2 行の見出しが並んでも、最初の行が揃う。
+- パネルの見出しの帯を 1 つの高さに揃える（group が `matchLabelHeight` を書いていなければ、row ごとの内部の名前で揃える）。1 行と 2 行の見出しが並んでも、最初の行が揃う。**ただし揃えると row が高くなるときは揃えない**（レビューの指摘）: 最も高い見出しと最も高い中身が別のパネルにあると、揃えた帯が中身の高いパネルにも加わり、row が「最大の見出し + 最大の中身」まで伸びる（指摘の例で 346 → 458 unit）。そこで pass ごとに、各パネルの「見出しの帯 + 枠の中身と padding + キャプション」の最大を、自分の帯のときと揃えた帯のときで比べ、揃えた方が高くなるなら各パネルは自分の帯のまま（見出しは枠の上端に揃い、最初の行だけがずれうる）。計算中は自分の帯を使い、再帰しない（`#panelBand`）。group が自分で `matchLabelHeight` を書けば、高くなっても揃える（書いた方が優先）。
 - ノード、入れ子の箱（`{stack: ...}` など）は今までどおり row の `align` に従う（run 7 の Base は中央のまま）。tilted plane・tokens・matrix・legend の group はパネルにしない（中身が固定の描画で、伸ばす意味がない）。
 - 実装はエンジン（`engine.ts`）だけで、IR の `contentAlign` / `matchLabelHeight` は書いたまま（as written）にした。パネルの判定は `src/layout/structured/panels.ts` の `panelGroupOf` 1 か所で、エンジンと lint が共有する。
   - `#placeLine`: パネルは `stretched` として扱い、オフセット 0、straighten（#618）で交差軸に動かさない。
@@ -28,7 +28,7 @@ row に `panels: true` を書くと、その row に直接書いた group（キ�
   - `#alignedContent`: `contentAlign ?? (パネルなら top)`。
   - `#labelHeight` と、`matchLabelHeight` の名前ごとの最大: `matchLabelHeight ?? row の名前`。名前は `\u0000panels:<n>` で、図が書ける ID（`^[a-z]…`）とぶつからない。
   - `#fillsHeight`: パネルのある panels row は高さを自分で埋める。その row を根に持つ group に `contentAlign` を書いても、パネルが伸びる方が優先する（#613 と同じ規則）。
-- 図は大きくならない: row の高さは最も高いパネル（見出しの帯を揃えた後）のまま。dogfood の 5 本と下の比較で、図の大きさは変わらない。
+- 図は大きくならない: row の高さは、各パネルが自分の見出しの帯を取ったときの最も高いパネルのまま。テスト（最大の見出しと最大の中身が別のパネル、`align: center` と同じキャンバス）と dogfood の 5 本で確かめた。
 
 ### 2. 既定を変える案との比較
 
@@ -42,8 +42,8 @@ row に `panels: true` を書くと、その row に直接書いた group（キ�
 ### 3. lint: `geometry/panel-misaligned`（info）
 
 - **対象**: structured の図で、`panels` を書いていない row のうち、パネル（上と同じ判定）が 2 つ以上あるもの。tilted plane（`quad`）は除く。
-- **測るもの**（描画の配置 `GeometryContext.placed` の Layout IR）: 枠の上端と下端（枠か塗りが見える group のみ。`plain` は枠が見えない）、見出しの y（下に置いた見出しは除く）、キャプションの y。どれかの差が **1mm（印刷時）以上**なら、row ごとに 1 件。
-- **hint**: その row のパスと項目を書き出した `panels: true`（例: `Write panels: true in figure.layout.arrange.row (row: {panels: true, items: [base_training, base, split, post_training]})`）と、それで何が起きるか。パネルの group を `related` に並べる。
+- **測るもの**（描画の配置 `GeometryContext.placed` の Layout IR）: 枠の上端と下端（枠か塗りが見え、`opacity` が 0 でない group のみ。`plain` は枠が見えない）、見出しの y（下に置いた見出しは除く）、キャプションの y。どれかの差が **1mm（印刷時）以上**なら、row ごとに 1 件。
+- **hint**: その row のパスに足す `panels: true`（`Add panels: true to the row at figure.layout.arrange.row (its other fields stay)`）と、それで何が起きるか。最初は row の項目も書き出したが、入れ子の箱を `{row: ...}` と略すと YAML として正しくないので、パスと足す欄だけにした（レビューの指摘）。パネルの group を `related` に並べる。
 - **trial で確かめない**: content-band と違い、`panels: true` で起きることはエンジンが決めている（伸ばす、上に寄せる、帯を揃える。図は大きくならない）。配置し直す費用（1 図につき最大 5 回の配置・配線・lint）に見合わない。
 - **path の制約**: arrange の IR は書いた場所を持たない。row のパスは IR を歩いて組み立てる。grid のセルを `{item: ...}` で書き、`span` も `align` もないときだけ、パスに `item` が抜ける（まれなので受け入れる）。
 - `maxWarnings` には数えない。自動では直さない（ずれが意図のこともある）。
@@ -51,7 +51,7 @@ row に `panels: true` を書くと、その row に直接書いた group（キ�
 ### 4. content-band / group-empty-area の hint を具体的にする
 
 - `geometry/content-band`: 「setting groups[0].contentAlign to top」を、`writing contentAlign: top in group "pa" (groups[0].contentAlign; in YAML, the line "contentAlign: top" under "- id: pa")` に変えた。その group が `panels` のない row のパネル（2 つ以上）なら、`To line up all the panels of <row> at once …, write panels: true in that row instead.` を添える。
-- `geometry/group-empty-area`: 空きが中身の上と下の両方の帯（4mm 以上。content-band と同じ測り方）のとき、上と同じ `contentAlign: top` の書き方と、パネルの row なら `panels: true` を hint の先頭に添える。`contentAlign` は空きを減らさず動かすだけなので、そう書く。
+- `geometry/group-empty-area`: その group を `geometry/content-band` も報告するとき（`contentAlign` を書いておらず、中身の上と下の両方に 4mm 以上の帯がある。同じ関数 `contentBands` で判定）だけ、帯の寸法と content-band の hint（`contentAlign: top` の書き方、パネルの row なら `panels: true`）を指す。「中央に置かれている」「直る」とは言い切らず、確かめは content-band の trial に任せると書く（レビューの指摘: 上の帯だけで判断していた。中身を埋める根の箱では `contentAlign` は何も動かさない）。`contentAlign` は空きを減らさず動かすだけなので、そう書く。
 
 ### 5. Skill
 
@@ -70,7 +70,7 @@ row に `panels: true` を書くと、その row に直接書いた group（キ�
 
 - **`align: panels`（`align` の新しい値）**: `align` は同じ軸の入れ子の箱に継承される。パネルの意味を継承させると入れ子の row のノードの扱いが曖昧になる。ノードの寄せ方（`align`）とパネルの扱い（`panels`）を別の欄にした。
 - **stack・grid にも `panels`**: stack で伸ばすのは幅で、`contentAlign` は縦だけ（#613）。grid は行の高さが行ごとに共通で、`align: stretch` と `contentAlign` で書ける。必要になったら足す。
-- **キャプションの行数の違いを揃える**: 2 行のキャプションのパネルは枠の下端が上がる。まれで、キャプションは短くするのが Skill の方針。
+- **キャプションの行数の違いを揃える**: 2 行のキャプションのパネルは枠の下端が上がる。まれで、キャプションは短くするのが Skill の方針。Skill（`structured.md`）と schema の説明に、キャプションが 1 行に揃うのは行数が同じときだけと書いた。
 - **hint を trial で確かめる**: 上記 3。
 
 ## 互換性

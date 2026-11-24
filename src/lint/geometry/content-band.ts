@@ -71,16 +71,6 @@ function contentBounds(layout: LayoutIR, key: ElementKey): Rect | undefined {
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
 }
 
-/** The empty room above and below a group's content as placed (drawn units), or `undefined`. */
-export function verticalBands(
-  context: GeometryContext,
-  key: ElementKey,
-): { above: number; below: number } | undefined {
-  const placed = context.placed;
-  if (placed === undefined || placed.ir.meta.engine !== "structured") return undefined;
-  return bandsOf(placed.layout, key);
-}
-
 /** The empty room above and below a group's content in `layout`, or `undefined`. */
 function bandsOf(layout: LayoutIR, key: ElementKey): { above: number; below: number } | undefined {
   const group = layout.groups.find((g) => g.key === key);
@@ -117,7 +107,7 @@ export function contentAlignYaml(
 
 /** The sentence pointing at a row's `panels: true` (#641) for the panels of `row`. */
 export const panelsSentence = (row: string): string =>
-  `To line up all the panels of ${row} at once (one height, content under the titles, one title band), write panels: true in that row instead.`;
+  `To line up all the panels of ${row} at once (one height, content under the titles, one title band where it does not make the row taller), write panels: true in that row instead.`;
 
 /** Groups (document order) whose centred content leaves at least {@link MIN_BAND} above and below. */
 export function contentBands(context: GeometryContext): Band[] {

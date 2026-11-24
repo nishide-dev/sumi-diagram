@@ -359,7 +359,7 @@ export const RowSchema = z.strictObject({
     .literal(true)
     .optional()
     .describe(
-      "Side-by-side panels (#641): every group written directly in the row (or captioned there) takes the row's height, so the frames share their top and bottom; its content sits right under its title (contentAlign: top unless the group writes contentAlign); and the titles share one band height (as one matchLabelHeight unless a group writes matchLabelHeight), so the headings and first rows line up. Nodes, nested boxes, tilted planes, tokens, matrices and legends keep align. Omitted means groups follow align like any item.",
+      "Side-by-side panels (#641): every group written directly in the row (or captioned there) takes the row's height, so the frames share their top and bottom; its content sits right under its title (contentAlign: top unless the group writes contentAlign); and the titles share one band height (as one matchLabelHeight unless a group writes matchLabelHeight) unless that would make the row taller, so the headings and, with that band, the first rows line up. Captions share a line when they have the same number of lines. Nodes, nested boxes, tilted planes, tokens, matrices and legends keep align. Omitted means groups follow align like any item.",
     ),
   get items() {
     return z

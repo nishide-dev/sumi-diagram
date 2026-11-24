@@ -108,6 +108,40 @@ describe("row.panels (#641)", () => {
     expect(node(l, "a1").y).toBe(node(l, "b1").y);
   });
 
+  test("the tallest title and the tallest content in different panels: no shared band, no growth", () => {
+    // (a) has a three-line title and short content, (b) a one-line title and the tallest content:
+    // sharing (a)'s band would make (b), and the row, taller.
+    const source = (row: string) =>
+      figure(row)
+        .replace("    label: (a) Short\n", '    label: "(a) A title\\non three\\nlines"\n')
+        .replace('    label: "(b) A title on\\ntwo lines"\n', "    label: (b) Tall\n");
+    const panels = layout(source("panels: true,"));
+    const centred = layout(source(""));
+    expect(panels.canvas).toEqual(centred.canvas);
+    const a = group(panels, "a");
+    const b = group(panels, "b");
+    expect(a.rect).toMatchObject({ y: b.rect.y, height: b.rect.height });
+    expect(a.label?.box.y).toBe(b.label?.box.y);
+    // Each keeps its own title band: (b)'s first row is right under its one-line title.
+    expect(b.content.y).toBeLessThan(a.content.y);
+    expect(node(panels, "b1").y).toBeCloseTo(b.content.y, 6);
+    expect(node(panels, "a1").y).toBeCloseTo(a.content.y, 6);
+  });
+
+  test("a panel's own matchLabelHeight wins over the row's band", () => {
+    const l = layout(
+      figure("panels: true,", { a: "matchLabelHeight: mine" })
+        .replace(
+          "  - id: b\n",
+          "  - id: c\n    label: (c) Other\n    matchLabelHeight: mine\n    arrange: {stack: {items: [c1]}}\n  - id: b\n",
+        )
+        .replace("nodes:\n", "nodes:\n  - {id: c1, component: box, label: C}\n")
+        .replace("items: [a, mid, b]", "items: [a, mid, b, c]"),
+    );
+    // (a) shares (c)'s one-line band, not (b)'s two-line one.
+    expect(group(l, "a").content.y).toBeLessThan(group(l, "b").content.y);
+  });
+
   test("panels is a row field only", () => {
     const result = checkFigure(
       figure("panels: true,").replace(

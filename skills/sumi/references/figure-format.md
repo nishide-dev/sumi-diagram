@@ -89,7 +89,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.16.1 | Set `enclose: footprint` includes member glyphs and padding; the default `body` preserves existing outlines. |
 | 0.19.0 | `cuboid`: a solid drawn in oblique projection, with `dims`; `figure.projection` (`angle`, `depthScale`); container `props.plane` (`floor` / `wall`): a tilted plane group, with `props.contents: projected` laying node outlines, arrowheads and a `matrix` flat on it; `cuboid` `cells` / `highlight` and `<node>.<name>` zoom ends |
 | 0.20.0 | `sequence` arrange box (participants, lifelines, message rows, notes, bands, fragments); edge `dash` / `strands`, set `text` / `weight`, cylinder `capDepth`; `matrix` `labelAt: above` (title outside, no padding), `wrapHeaders` / `columnHeaderWidth`, `rules: true` (a table with rules only); `muted` matrix cells drawn pale |
-| 0.20.1 | row `panels: true`: the groups in the row take its height, their content sits under their titles and their titles share one band; `geometry/panel-misaligned` |
+| 0.20.1 | row `panels: true`: the groups in the row take its height, their content sits under their titles and their titles share one band unless that makes the row taller; `geometry/panel-misaligned` |
 
 ## IDs
 

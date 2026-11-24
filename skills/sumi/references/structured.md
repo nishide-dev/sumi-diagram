@@ -738,10 +738,14 @@ the other end beside the group (a `row`) so the edge crosses a side.
 
 **Panels side by side: `panels: true` on the row.** Write `panels: true` on the `row`
 that holds the panels (groups, captioned or not). Every group in that row then takes
-the row's height (frames share their top and bottom, captions share a line), its content
+the row's height (frames share their top and bottom; captions share a line when they
+have the same number of lines, a two-line caption raises its frame's bottom), its content
 sits right under its title (`contentAlign: top` unless the group writes `contentAlign`),
 and the titles share one band height (as one `matchLabelHeight`), so the headings and
-first rows line up even when one title has two lines. Nodes and nested boxes in the row
+first rows line up even when one title has two lines. The band is shared only if that
+leaves the row as tall as without it: when the tallest title and the tallest content are
+in different panels, each panel keeps its own title band (headings still line up, the
+first rows may not; shorten the long title, or write `matchLabelHeight` to share it anyway). Nodes and nested boxes in the row
 keep the row's `align` (a model box between two panels stays centred); tilted planes,
 tokens, matrices and legends are not panels. It does not grow the figure: the row is as
 tall as its tallest panel. Use it instead of `align: stretch` for panels; `align:
@@ -749,7 +753,7 @@ stretch` also stretches the nodes in the row and **centres** each stretched grou
 vertically (an empty band between the title and the first row and another under the
 content). `geometry/panel-misaligned` (info) names a row whose panels' frame tops,
 bottoms, titles or captions are 1mm or more apart, with this row's `panels: true` written
-out. A frameless panel next to framed ones is a group with `variant: plain` and a
+out (add the field to the row; its other fields stay). A frameless panel next to framed ones is a group with `variant: plain` and a
 `caption`, not a stack with a `label` node under it.
 
 ```yaml
