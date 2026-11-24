@@ -850,6 +850,27 @@ function checkAlign(
         ),
       );
     }
+    // `move` (#646) picks the items that may move: each must be an item of this constraint.
+    const move = constraint.move;
+    if (move === undefined) continue;
+    const moves = typeof move === "string" ? [move] : move;
+    for (const [i, id] of moves.entries()) {
+      if (items.includes(id) || isInvalidId(refOwner(id))) continue;
+      const movePath: DocPath = ["figure", "layout", "align", index, "move"];
+      if (typeof move !== "string") movePath.push(i);
+      state.diagnostics.push(
+        errorAt(
+          locate,
+          "layout/invalid-align-move",
+          `"${id}" in figure.layout.align[${index}].move is not an item of the constraint; move names which of its items may move.`,
+          movePath,
+          {
+            subject: figureSubject,
+            hint: `Name one of ${items.map((item) => `"${item}"`).join(", ")}, or add "${id}" to "${axis}".`,
+          },
+        ),
+      );
+    }
   }
 }
 

@@ -969,6 +969,26 @@ describe("figure.layout.align (#132)", () => {
     );
   });
 
+  test("move names items of its constraint (#646)", () => {
+    expect(check(structured("      - { y: [a, b], move: b }\n"))).toEqual([]);
+    expect(check(structured("      - { y: [a, b], move: [a, b] }\n"))).toEqual([]);
+    const text = structured(
+      "      - { y: [a, b], move: c }\n      - { x: [a, b], move: [b, c] }\n",
+    );
+    expect(check(text)).toEqual([
+      ["layout/invalid-align-move", ["figure", "layout", "align", 0, "move"], 7, 28],
+      ["layout/invalid-align-move", ["figure", "layout", "align", 1, "move", 1], 8, 32],
+    ]);
+    const [d] = checkFigureSource(text).state.diagnostics;
+    expect(d?.severity).toBe("error");
+    expect(d?.message).toBe(
+      '"c" in figure.layout.align[0].move is not an item of the constraint; move names which of its items may move.',
+    );
+    expect(d?.hint).toBe('Name one of "a", "b", or add "c" to "y".');
+    // An empty list is a schema error.
+    expect(check(structured("      - { y: [a, b], move: [] }\n"))[0]?.[0]).toMatch(/^schema\//);
+  });
+
   test("an edge ID is not an element", () => {
     const text = `${structured("      - { y: [a, e] }\n")}edges:\n  - { id: e, from: a, to: b }\n`;
     const [d] = checkFigureSource(text).state.diagnostics;
