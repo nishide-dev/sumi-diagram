@@ -519,25 +519,52 @@ describe("fragment frames, participant heights and several targets (#645)", () =
       "  theme: sumi\n  themeOverrides: {groupStroke: '#123456', frameWidth: 1pt}\n",
     );
     expect(frameStyle(overridden)).toMatchObject({ stroke: "#123456", strokeWidth: { pt: 1 } });
+    // Also on llama's visible fallback (regression: frameWidth fell back to the zero width).
+    const llamaWide = themed("llama", rows).replace(
+      "  theme: llama\n",
+      "  theme: llama\n  themeOverrides: {frameWidth: 1pt}\n",
+    );
+    expect(frameStyle(llamaWide).strokeWidth.pt).toBe(1);
   });
 
   test("a frame's sides keep clear of the lifelines inside and outside it", () => {
     for (const profile of ["paper-single", "screen-doc"]) {
-      const p = layout(
-        figure("          - ba\n          - {fragment: loop, rows: [ab]}\n          - bc").replace(
-          "  theme: sumi\n",
-          `  theme: sumi\n  profile: ${profile}\n${profile === "screen-doc" ? "  themeOverrides: {textScale: 1.5}\n" : ""}`,
-        ),
-      );
-      const frame = p.layout.sets?.find((s) => s.id === "seq-1-f1")?.rect;
-      if (!frame) throw new Error("no frame");
-      const right = frame.x + frame.width;
+      const at = (rows: string) =>
+        layout(
+          figure(rows).replace(
+            "  theme: sumi\n",
+            `  theme: sumi\n  profile: ${profile}\n${profile === "screen-doc" ? "  themeOverrides: {textScale: 1.5}\n" : ""}`,
+          ),
+        );
       // Twice the lifeline clearance (a quarter of the arrange gap), at least 8 units.
-      const inside = right - p.cx("n:b");
-      const outside = p.cx("n:c") - right;
-      expect(inside).toBeGreaterThanOrEqual(8);
-      expect(outside).toBeGreaterThanOrEqual(inside - 1e-6);
-      if (profile === "screen-doc") expect(inside).toBeGreaterThanOrEqual(16);
+      const least = profile === "screen-doc" ? 16 : 8;
+      const frameOf = (p: ReturnType<typeof layout>, id: string) => {
+        const frame = p.layout.sets?.find((s) => s.id === id)?.rect;
+        if (!frame) throw new Error(`no frame ${id}`);
+        return { left: frame.x, right: frame.x + frame.width };
+      };
+      // Right side: a frame around a and b, c outside it.
+      const right = at("          - ba\n          - {fragment: loop, rows: [ab]}\n          - bc");
+      const r = frameOf(right, "seq-1-f1");
+      expect(r.right - right.cx("n:b")).toBeGreaterThanOrEqual(least);
+      expect(right.cx("n:c") - r.right).toBeGreaterThanOrEqual(least);
+      // Left side: a frame around b and c, a outside it (the heading sits left of b).
+      const left = at("          - ab\n          - {fragment: loop, rows: [bc]}\n          - ca");
+      const l = frameOf(left, "seq-1-f1");
+      expect(left.cx("n:b") - l.left).toBeGreaterThanOrEqual(least);
+      expect(l.left - left.cx("n:a")).toBeGreaterThanOrEqual(least);
+      expect(l.right - left.cx("n:c")).toBeGreaterThanOrEqual(least);
+      // Nested: the outer frame keeps the same room around the inner one.
+      const nested = at(
+        "          - ab\n          - {fragment: outer, rows: [{fragment: inner, rows: [bc]}]}\n          - ca",
+      );
+      const outer = frameOf(nested, "seq-1-f1");
+      const inner = frameOf(nested, "seq-1-f2");
+      expect(inner.left - outer.left).toBeGreaterThanOrEqual(least);
+      expect(outer.right - inner.right).toBeGreaterThanOrEqual(least);
+      expect(nested.cx("n:b") - inner.left).toBeGreaterThanOrEqual(least);
+      expect(inner.right - nested.cx("n:c")).toBeGreaterThanOrEqual(least);
+      expect(outer.left - nested.cx("n:a")).toBeGreaterThanOrEqual(least);
     }
   });
 
@@ -561,6 +588,38 @@ describe("fragment frames, participant heights and several targets (#645)", () =
     const circle = round.rect("n:a");
     const box = round.rect("n:b");
     expect(circle.y + circle.height).toBeCloseTo(box.y + box.height, 6);
+    // A node with a fixed height keeps it, bottom-aligned with the others.
+    const fixed = layout(
+      figure("          - ab")
+        .replace(
+          "{id: a, component: box, label: Alice}",
+          "{id: a, component: box, label: Alice, props: {height: 4mm}}",
+        )
+        .replace("label: Bob}", 'label: "Bob\\nthe builder"}'),
+    );
+    const short = fixed.rect("n:a");
+    const tall = fixed.rect("n:b");
+    expect(short.height).toBeLessThan(tall.height - 1);
+    expect(short.y + short.height).toBeCloseTo(tall.y + tall.height, 6);
+    // A group keeps its natural height (its contents would not follow), bottom-aligned too.
+    const grouped = layout(
+      figure("          - ab")
+        .replace("participants: [a, b, c]", "participants: [g, b, c]")
+        .replace("{id: a, component: box, label: Alice}", "{id: a, component: box, label: Alice}")
+        .replace("  - {id: ab, from: a,", "  - {id: ab, from: g,")
+        .replace("  - {id: ba, from: b, to: a,", "  - {id: ba, from: b, to: g,")
+        .replace("  - {id: ca, from: c, to: a,", "  - {id: ca, from: c, to: g,")
+        .replace("label: Bob}", 'label: "Bob\\nthe\\nbuilder\\nof\\nthings"}')
+        .replace(
+          "nodes:\n",
+          "groups:\n  - {id: g, label: Team, arrange: {stack: {items: [a]}}}\nnodes:\n",
+        ),
+    );
+    const group = grouped.rect("g:g");
+    const bob = grouped.rect("n:b");
+    expect(group.height).toBeLessThan(bob.height - 1);
+    expect(group.y + group.height).toBeCloseTo(bob.y + bob.height, 6);
+    expect(grouped.rect("n:c").height).toBeCloseTo(bob.height, 6);
   });
 
   test("a message to several targets draws one arrow to each, in rows, the label on the first", () => {

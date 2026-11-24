@@ -260,9 +260,15 @@ export function resolveSetStyle(theme: Theme, options: SetStyleOptions): SetStyl
   return Object.freeze({
     kind: "set",
     stroke: panelFrame?.stroke ?? (outlined ? ink : "transparent"),
+    // A panel frame always draws (#645): the set's or the figure's width replaces the
+    // theme's, including the visible fallback of a theme whose panels have no frame.
     strokeWidth:
-      own === undefined && wide === undefined && panelFrame !== undefined
-        ? panelFrame.strokeWidth
+      panelFrame !== undefined
+        ? own !== undefined
+          ? { pt: own, units: own * 2 }
+          : wide !== undefined
+            ? { pt: wide, units: wide * 2 }
+            : panelFrame.strokeWidth
         : outlined
           ? strokeWidth
           : zero,
