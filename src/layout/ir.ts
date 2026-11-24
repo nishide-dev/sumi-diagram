@@ -269,6 +269,11 @@ export interface EdgeRoute {
    * zoom edge (#176), `route: straight` (#349) or `route: curve` (#366), which belong to no net.
    */
   readonly net?: number;
+  /**
+   * The brackets of the route's `block` ends (#642) on frames without a border, as polylines
+   * (`block-bracket.ts`); the route ends on a bracket's bar. Omitted when there are none.
+   */
+  readonly brackets?: readonly (readonly Point[])[];
   /** The side of the source the route leaves; omitted at a junction. */
   readonly fromSide?: Side;
   /** The side of the target the route enters; omitted at a junction. */

@@ -793,6 +793,14 @@ look at the preview. `toAnchor: west` on the member does not help; put the capti
 outer group that also holds the other end (`variant: plain` hides its border), or place
 the other end beside the group (a `row`) so the edge crosses a side.
 
+**An edge from (or to) a whole group** leaves at the side the arrange tree gives, at
+its middle when it is the only end there; with a caption below, a downward edge takes a
+side instead (the caption covers the bottom's middle), so from a one-row group it can
+look as if it left the end child. Anchors work on groups as on nodes: write
+`fromAnchor: "south:0.5"` (or `block:south`, the same point, never shared out) to leave
+from the middle of the bottom border, and expect the line to pass the caption; move
+the caption to an outer group or the title inside (`label`) when that crowds it.
+
 **Panels side by side: `panels: true` on the row.** Write `panels: true` on the `row`
 that holds the panels (groups, captioned or not). Every group in that row then takes
 the row's height (frames share their top and bottom; captions share a line when they
@@ -1543,6 +1551,23 @@ edges:
   diagonal or overlapping, or parallel edges run from a wide box into a narrow one,
   `layout/straight-off-side` (warning) and the end acts as if unanchored: line them up
   in the tree, put `straight` on the wide end, or write a side anchor.
+- **`block`** (`fromAnchor: block`, or `block:north` to name the side): the end meets a
+  **whole** tokens row, matrix or group at the **middle** of a side (the default side,
+  or the one named), never shared out with other ends. On a frame without a border (a
+  whole tokens sequence, a matrix, a `plain` group) Sumi draws a **bracket** along that
+  side, spanning the cells, and the line starts on its bar: use it when the whole
+  sequence feeds the next block (query tokens into a decoder, a feature column into a
+  head), since a line from the frame's middle otherwise touches one cell and reads as
+  that cell's. Name the tokens node itself (`from: query`, not `query.3`); `block` on a
+  node or a cell, on a `route: straight` / `curve` edge or on a `zoom` is
+  `layout/block-anchor` (error). The geometry lint measures the bracket with its edge
+  (`edge-crosses-label`, `edge-through-node`, `edge-near-edge`): keep notes attached
+  to the cells clear of that side.
+
+  ```yaml
+  - {from: query, to: decoder, fromAnchor: block}      # bracket over the whole row
+  - {from: feat, to: decoder, fromAnchor: "block:east"}
+  ```
 - **Two inputs from another column, one from its own**: the two edges from the other
   column leave its top block with `fromAnchor: north` (one shared trunk) and enter at
   `toAnchor: "south:0.2"` and `"south:0.4"`, the column's own input at `"south:0.8"`;
@@ -1606,7 +1631,9 @@ edges:
   farther away from the line instead of widening the gap; check the preview.
   **`labelAt: start | middle | end`** picks the
   first, longest or last segment; **`labelSide: left | right`** the side **as seen
-  travelling from source to target** (left of a rightward line is above it). Either
+  travelling from source to target** (left of a rightward line is above it; on a
+  **downward** line `left` is **east**, `right` is west; on an upward line `left` is
+  west). Either
   alone is fine (default segment: `end` with a target arrowhead, `start` with only a
   source one, `middle` with none). The label slides along that segment and keeps its
   side; a short span may need extra distance from the line to clear nodes or labels.
@@ -1615,7 +1642,12 @@ edges:
   belongs to (`K,V` at the `start`). A label the router placed by itself that drifts
   off its line is `geometry/edge-label-detached` (info), one whose letters touch it
   `geometry/edge-label-touches-line` (warning); their hint names an edit already
-  checked by routing the figure again, when one works.
+  checked by routing the figure again, when one works, and otherwise how long a run
+  the label needs (`labelStyle: tag` on a short span, or by how much to lengthen it).
+  A label about as close to another edge's line as to its own (at most 1.75 times as
+  far) is `geometry/edge-label-ambiguous` (warning): it reads as the other edge's.
+  Its hint names the `labelSide` to flip to; a tag, `labelAt` or ends further apart
+  also fix it.
   **`labelAt: 0.3`** (a fraction from 0 to 1 of the route's length from `from`) centres
   the label at that point on the segment it falls on, kept off the arrowheads; it then
   slides like `middle`.
@@ -1639,6 +1671,9 @@ edges:
   - {from: client, to: tracker, label: "1", labelStyle: badge}
   - {from: dev1, to: dev2, label: grads, labelAt: 0.25}
   - {from: reply, to: client, route: straight, label: response}   # above, though leftward
+  # a downward line (encoder above decoder): left of travel is east, right is west
+  - {from: encoder, to: decoder, label: latents, labelSide: right}  # label west of the line
+  - {from: decoder, to: encoder, label: grads, labelSide: right}    # upward: label east
 ```
 - **Titled group alignment**: frame centers and content centers differ because the
   title reserves space. `layout/group-title-offset` (info) explains a horizontal jog
@@ -2397,7 +2432,11 @@ edges:
   fill or padding); tokens that nothing names as a whole get no frame.
   Whole-sequence edge endpoints use the cells' bounding rectangle, excluding
   attached annotations, even when a wide note enlarges the layout frame or
-  `align: stretch` widens it (`fromAnchor: east` starts at the last cell).
+  `align: stretch` widens it (`fromAnchor: east` starts at the last cell). A line
+  from the middle of the frame touches one cell; write **`fromAnchor: block`** (or
+  `toAnchor: block`) to draw a bracket along the row so the line reads as the whole
+  sequence's ([`block`](#edges-anchors-junctions-and-trunks)): the bracket stands 3pt off the cells and the
+  line is shortened to it, so the layout does not change.
 - **Blank cells.** `{blank: true}` (optionally `id`, `width`, `height`) keeps a
   slot in the sequence: it reserves the cell's size, draws nothing (no frame, no
   text, no `component/missing-label`) and counts in positions, so a sparse row
