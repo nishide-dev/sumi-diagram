@@ -1,6 +1,4 @@
 /** `geometry/content-band` (#613): a stretched group centres its content; `contentAlign: top`, checked by a trial layout. */
-// The rule table first: the lint config first: content-band → trial → config → rules is a cycle that must be entered at config.
-import "../config";
 import { describe, expect, test } from "bun:test";
 import { type RenderedStructuredFigure, renderFigure } from "../../render/render";
 import { CONTENT_BAND, MAX_BAND_TRIALS } from "./content-band";
