@@ -433,7 +433,7 @@ export const tokenColumnDrift = defineGeometryRule({
       if (worst === undefined) continue;
       const { cell, other, drift } = worst;
       findings.push({
-        message: `${capitalize(cell.name)} sits ${mmText(context, drift, 2)} (${unitsToPt(printedUnits(context, drift)).toFixed(1)}pt) off the centre of ${other.name}, so the two token rows drift apart column by column.`,
+        message: `${capitalize(cell.name)} sits ${mmText(context, drift, 2)} (${unitsToPt(printedUnits(context, drift)).toFixed(1)}pt) off the centre of ${other.name}, so the columns of tokens "${upper.cells[0]?.ir.tokens?.id ?? "?"}" and tokens "${(lower as TokenRow).cells[0]?.ir.tokens?.id ?? "?"}" do not line up.`,
         path: cell.docPath,
         subject: cell.subject,
         hint: driftHint(context, upper, lower as TokenRow),

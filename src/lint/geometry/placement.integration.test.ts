@@ -174,6 +174,9 @@ ${labels}nodes:
     );
     expect(wider[0]?.hint).toContain("start the rows at the same x");
     expect(wider[0]?.hint).not.toContain("further");
+    expect(wider[0]?.message).toMatch(
+      /^Cell "[14]" of tokens "t2" sits 0\.\d\dmm \(\d\.\dpt\) off the centre of cell "[14]" of tokens "t1", so the columns of tokens "t1" and tokens "t2" do not line up\.$/,
+    );
     const gaps = await findings(steps(["t=1", "t=1"], "", "6mm, gap: 1.3mm"), file, code);
     expect(gaps[0]?.hint).toContain('tokens "t2" has 6');
     expect(gaps[0]?.hint).toContain("1.3");
