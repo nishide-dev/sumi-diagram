@@ -1657,10 +1657,49 @@ function parallelChannelHint(context: GeometryContext, pair: readonly GeometryEl
   return `${space} Keep the channel free of nodes and group titles. Sumi separates independent middle runs automatically when they fit; where the router detoured around a node or the lanes do not fit, the runs stay as routed, so clear the channel (move the node or port) or enlarge the gap. For close fixed legs, move the ports farther apart with fromAnchor / toAnchor or increase spacing between cells within each row. Merge a trunk only if the connections really share an endpoint.`;
 }
 
+/** The two ends of an edge's route (its logical ends, before arrowheads trim what is painted). */
+function routeEnds(edge: GeometryElement): Point[] {
+  const route = edge.route ?? [];
+  const start = route[0]?.[0];
+  const end = route.at(-1)?.at(-1);
+  return [start, end].filter((p): p is Point => p !== undefined);
+}
+
+/** Distance of `p` from the (infinite) line through a piece. */
+function distanceToLine(p: Point, piece: DirectedPiece<GeometryElement>): number {
+  const length = Math.hypot(piece.b.x - piece.a.x, piece.b.y - piece.a.y);
+  if (length === 0) return Math.hypot(p.x - piece.a.x, p.y - piece.a.y);
+  return (
+    Math.abs(
+      (piece.b.x - piece.a.x) * (p.y - piece.a.y) - (piece.b.y - piece.a.y) * (p.x - piece.a.x),
+    ) / length
+  );
+}
+
+/**
+ * Two pieces of edges that end (or start) at the same point and both lie on
+ * lines through it: a fan converging on one port (#647). Lines through one
+ * point are closest at it, so the stretch where they run within reach is the
+ * convergence itself, as intended as a shared trunk; pieces of the same edges
+ * farther from the point are still compared.
+ */
+function convergeOnSharedEnd(
+  a: DirectedPiece<GeometryElement>,
+  b: DirectedPiece<GeometryElement>,
+): boolean {
+  const bEnds = routeEnds(b.owner);
+  return routeEnds(a.owner).some(
+    (p) =>
+      bEnds.some((q) => Math.hypot(p.x - q.x, p.y - q.y) <= COINCIDENT_UNITS) &&
+      distanceToLine(p, a) <= COINCIDENT_UNITS &&
+      distanceToLine(p, b) <= COINCIDENT_UNITS,
+  );
+}
+
 export const edgeNearEdge = defineGeometryRule({
   id: "geometry/edge-near-edge",
   description:
-    "Two edges run side by side for 3mm or more less than 1.5pt apart (stroke to stroke) without coinciding, so they read as one blurred or doubled line. A trunk the edges share (drawn on the same line) is not reported.",
+    "Two edges run side by side for 3mm or more less than 1.5pt apart (stroke to stroke) without coinciding, so they read as one blurred or doubled line. A trunk the edges share (drawn on the same line) is not reported, nor are straight lines converging on an end they share.",
   defaultSeverity: "warning",
   fixable: false,
   run(context) {
@@ -1769,6 +1808,7 @@ export const edgeNearEdge = defineGeometryRule({
       const a = directed[i] as DirectedPiece<GeometryElement>;
       for (const b of directed.slice(i + 1)) {
         if (a.owner === b.owner || (!diagonal(a) && !diagonal(b))) continue;
+        if (convergeOnSharedEnd(a, b)) continue;
         const run = directedRun(a, b, gapUnits + (a.width + b.width) / 2);
         if (run === undefined || run.to - run.from < minRun) continue;
         const gap = run.distance - (a.width + b.width) / 2;

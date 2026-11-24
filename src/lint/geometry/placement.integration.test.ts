@@ -69,6 +69,63 @@ describe("geometry/token-column-drift", () => {
   });
 });
 
+describe("geometry/token-column-drift: the hint names the cause (#647)", () => {
+  const code = "geometry/token-column-drift";
+  const file = join(ROOT, "steps.sumi.yaml");
+  /** Step rows as in a decoding figure: a step label, then the step's tokens. */
+  const steps = (
+    labels: readonly [string, string],
+    width = "",
+    cells = "6mm, gap: 1mm",
+  ) => `version: 1
+figure:
+  id: steps
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 2mm
+        items:
+          - row: { gap: 2mm, align: center, items: [l1, t1] }
+          - row: { gap: 2mm, align: center, items: [l2, t2] }
+nodes:
+  - { id: l1, component: label, label: '${labels[0]}'${width} }
+  - { id: t1, component: tokens, props: { width: 6mm, height: 6mm, gap: 1mm, cells: [a, b, c, d] } }
+  - { id: l2, component: label, label: '${labels[1]}'${width} }
+  - { id: t2, component: tokens, props: { width: ${cells}, height: 6mm, cells: [a, b, c, d] } }
+`;
+
+  test("the same cells shifted by step labels of different widths: names the labels", async () => {
+    const found = await findings(steps(["t=1", "t=2"]), file, code);
+    expect(found).toHaveLength(1);
+    const hint = found[0]?.hint ?? "";
+    expect(hint).toMatch(
+      /^Both rows have the same cells, but tokens "t2" starts 0\.\d\dmm right of tokens "t1"/,
+    );
+    expect(hint).toMatch(
+      /node "l1" \(before tokens "t1"\) is \d\.\d\dmm wide and node "l2" \(before tokens "t2"\) \d\.\d\dmm/,
+    );
+    expect(hint).toContain('Give node "l1" and node "l2" the same width');
+    expect(hint).not.toContain("props.gap");
+    // The fix the hint gives: the same width on both labels.
+    expect(await findings(steps(["t=1", "t=2"], ", props: { width: 5mm }"), file, code)).toEqual(
+      [],
+    );
+  });
+
+  test("cells of different widths or gaps: says that the cells differ", async () => {
+    const wider = await findings(steps(["t=1", "t=1"], "", "6.4mm, gap: 1mm"), file, code);
+    expect(wider[0]?.hint).toMatch(
+      /^The cells differ \(tokens "t1" has 6\.00mm cells with 1\.00mm gaps, tokens "t2" has 6\.\d\dmm cells with 1\.00mm gaps\)/,
+    );
+    const gaps = await findings(steps(["t=1", "t=1"], "", "6mm, gap: 1.3mm"), file, code);
+    expect(gaps[0]?.hint).toContain('tokens "t2" has 6');
+    expect(gaps[0]?.hint).toContain("1.3");
+    expect(gaps[0]?.hint).toContain("props.gap");
+  });
+});
+
 describe("geometry/edge-label-hugging", () => {
   const code = "geometry/edge-label-hugging";
 

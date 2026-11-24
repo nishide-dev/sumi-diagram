@@ -361,6 +361,76 @@ describe("geometry/edge-near-edge", () => {
   });
 });
 
+describe("geometry/edge-near-edge: a fan converging on one end (#647)", () => {
+  const code = "geometry/edge-near-edge";
+  const FAN = `version: 1
+figure: { id: fan, layout: { arrange: { row: { items: [a, b, c, d] } } } }
+nodes:
+  - { id: a, component: box, label: A }
+  - { id: b, component: box, label: B }
+  - { id: c, component: box, label: C }
+  - { id: d, component: box, label: D }
+edges:
+  - { from: a, to: d, route: straight }
+  - { from: b, to: d, route: straight }
+  - { from: c, to: d }
+`;
+  const fan = compile(FAN);
+  /** The shared end of the fan. */
+  const P = { x: 0, y: 100 };
+  /** A straight line from `x, y` into P, painted `trim` units short of it (the arrowhead). */
+  const into = (x: number, y: number, trim = 10) => {
+    const length = Math.hypot(P.x - x, P.y - y);
+    const k = (length - trim) / length;
+    return {
+      route: [{ x, y }, { ...P }],
+      painted: [
+        [
+          { x, y },
+          { x: x + (P.x - x) * k, y: y + (P.y - y) * k },
+        ],
+      ],
+    };
+  };
+
+  test("straight edges meeting at one port are a fan, not two lines side by side", () => {
+    // 2 units apart at 200 units from P: within 1.5pt for the last ~70 units.
+    const upper = into(200, 99);
+    const lower = into(200, 101);
+    const result = lintSpec(
+      fan,
+      {
+        elements: { "e:#0": { path: upper.route }, "e:#1": { path: lower.route } },
+        painted: { "e:#0": upper.painted, "e:#1": lower.painted },
+      },
+      { code },
+    );
+    expect(result).toEqual([]);
+  });
+
+  test("the same lines ending a few units apart still read as one line", () => {
+    const upper = { path: [{ x: 200, y: 99 }, { ...P }] };
+    const lower = {
+      path: [
+        { x: 200, y: 101 },
+        { x: 0, y: 103 },
+      ],
+    };
+    const result = lintSpec(fan, { elements: { "e:#0": upper, "e:#1": lower } }, { code });
+    expect(result.map((d) => d.path)).toEqual([["edges", 1]]);
+  });
+
+  test("a converging edge's earlier piece beside the other edge is still reported", () => {
+    // Edge 2 ends at P too, but first runs 0.2 units off edge 0's line.
+    const straight = { path: [{ x: 200, y: 0 }, { ...P }] };
+    const bent = {
+      path: [{ x: 202.5, y: 2.5 }, { x: 102.5, y: 52.5 }, { ...P }],
+    };
+    const result = lintSpec(fan, { elements: { "e:#0": straight, "e:#2": bent } }, { code });
+    expect(result.map((d) => d.path)).toEqual([["edges", 2]]);
+  });
+});
+
 describe("geometry/edge-touches-label", () => {
   const code = "geometry/edge-touches-label";
   // "Group" at 16 units, centred at x 200: its line box spans x 172.96–227.04
