@@ -6,9 +6,16 @@
  * routed, drawn and linted like the figure (`trial.ts`), and only an edit
  * whose trial fits and adds no error or warning is suggested.
  *
+ * Since #640 (design `docs/design/decisions/640-fit-hints.md`) the edits also
+ * include a legend's `perRow`, a matrix's `flush` / `cellWidth` and `place`
+ * x coordinates (`fit-candidates.ts`), keep gaps of 2mm and paddings of 4pt
+ * before going lower (a last resort), and combine the narrowest partial edit
+ * with one value of the width path it leaves.
+ *
  * Cost, only when a figure is too wide (or shrunk by `fit: scale`): one more
  * placement for the width tree, then at most {@link MAX_FIT_TRIALS} trial
- * layouts (the unedited baseline included), each linted once.
+ * layouts (the unedited baseline included), each that fits linted once, and
+ * one placement more for the width tree of a partial edit.
  */
 import { loadFigureAssets } from "../../assets/load";
 import type { ArrangeBoxIR, FigureIR } from "../../compiler/ir";
@@ -17,14 +24,17 @@ import { getProfile } from "../../core/profile/builtin";
 import { spacedProfile } from "../../core/profile/schema";
 import { formatMm, formatPt, mmToPt, ptToMm } from "../../core/units";
 import { asHintTrial, hintLayoutOptions, inHintTrial, mapBoxes } from "../../layout/hint-trials";
+import type { PaddingGrowth } from "../../layout/route/padding";
 import { structuredWidthTree } from "../../layout/structured/engine";
 import { PARTICIPANT_GAP } from "../../layout/structured/sequence";
 import { setsWidth, type WidthEntry, widest, widthPath } from "../../layout/structured/width-tree";
+import { unitsToPt } from "../../render/geometry";
 import type { GeometryContext } from "./context";
+import { elementCandidates, type FitCandidate } from "./fit-candidates";
 import { layoutTrial, newProblems, type Problems, problemsOf } from "./trial";
 
 /** Trial layouts per diagnostic, the unedited baseline included. */
-export const MAX_FIT_TRIALS = 8;
+export const MAX_FIT_TRIALS = 10;
 /** Larger figures get the width path only (each trial is linted in full). */
 export const MAX_FIT_ELEMENTS = 240;
 
@@ -33,8 +43,8 @@ export const MAX_FIT_ELEMENTS = 240;
  * checked for fitting directly; a narrower figure scales less, so its text
  * only grows). `geometry/relocatable-node` is skipped only at its default
  * info level: configured as warning or error it runs in the trial too (it
- * then lays out its own candidates; the trials only change gaps, paddings
- * and widths, so its hint still points at the same YAML items).
+ * then lays out its own candidates; the trials keep the arrange items, so
+ * its hint still points at the same YAML items).
  */
 const WIDTH_RULES = ["geometry/exceeds-page-width", "geometry/heavy-scaling"];
 const RELOCATABLE = "geometry/relocatable-node";
@@ -123,10 +133,7 @@ function describe(entry: WidthEntry, next: WidthEntry | undefined): string {
     case "group": {
       if (entry.leaf !== undefined)
         return `${entry.name} ${w} (a ${entry.leaf} sized by its own props${entry.leaf === "legend" ? ", e.g. perRow" : entry.leaf === "plane" ? "" : ", e.g. cellWidth"})`;
-      const p = entry.padding;
-      const pad = p
-        ? ` + padding ${formatPt(p.west)} + ${formatPt(p.east)}${p.written ? "" : " (profile default)"}`
-        : "";
+      const pad = entry.padding ? ` + ${paddingText(entry.padding)}` : "";
       const inner =
         entry.titlePt !== undefined
           ? `title ${mm(entry.titlePt)} (wider than its content ${mm(entry.contentPt ?? 0)})`
@@ -142,6 +149,68 @@ function describe(entry: WidthEntry, next: WidthEntry | undefined): string {
             : ""
       }${entry.placedPt !== undefined ? `, stretched to ${mm(entry.placedPt)}` : ""}`;
   }
+}
+
+/**
+ * A group's padding as text: `padding 8pt + 8pt (profile default)`, and when
+ * the layout grew it for the room before arrowheads (#171, #512), what was
+ * written, by how much each side grew and why (#640).
+ */
+export function paddingText(padding: NonNullable<WidthEntry["padding"]>): string {
+  const { west, east, written, grown } = padding;
+  const source = written ? "props.padding" : "profile default";
+  if (grown === undefined)
+    return `padding ${formatPt(west)} + ${formatPt(east)}${written ? "" : ` (${source})`}`;
+  const base = west - grown.west;
+  const amount =
+    Math.abs(grown.west - grown.east) < 0.01
+      ? `${formatPt(grown.west)} on both sides`
+      : `${formatPt(grown.west)} west, ${formatPt(grown.east)} east`;
+  return `padding ${formatPt(west)} + ${formatPt(east)} (${source} ${formatPt(base)}, grown automatically by ${amount}: ${growthText(grown.reasons)})`;
+}
+
+/** Why a padding grew, from `PaddingGrowth` records (#640). */
+export function growthText(reasons: readonly PaddingGrowth[]): string {
+  const quoted = (edges: Iterable<string>) => {
+    const list = [...new Set(edges)];
+    const shown = list.slice(0, 3).map((e) => `"${e}"`);
+    return `${list.length === 1 ? "edge" : "edges"} ${shown.join(", ")}${list.length > 3 ? ` and ${list.length - 3} more` : ""}`;
+  };
+  const parts: string[] = [];
+  const seen = new Set<string>();
+  for (const reason of reasons) {
+    const id = `${reason.kind}|${reason.side}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const same = reasons.filter((r) => r.kind === reason.kind && r.side === reason.side);
+    const edges = quoted(same.flatMap((r) => r.edges));
+    const side = `the ${reason.side} side`;
+    switch (reason.kind) {
+      case "fan-out":
+        parts.push(
+          `the arrowheads of ${edges}, which fan out from one port outside the group to its members, enter through ${side} and turn in its padding (#512)`,
+        );
+        break;
+      case "fan-in":
+        parts.push(
+          `${edges} from outside the group join before one port of a member on ${side} and turn in its padding (#512)`,
+        );
+        break;
+      case "u-turn":
+        parts.push(`${edges} turn back into a member through ${side}`);
+        break;
+      case "inside":
+        parts.push(`the arrowhead of ${edges} inside the group faces ${side} (#171)`);
+        break;
+      default:
+        parts.push(
+          `${side} grows as much as the opposite one, so the content stays centred in the frame (#247)`,
+        );
+    }
+  }
+  // Mirrored sides last: they follow from the others.
+  parts.sort((a, b) => Number(a.includes("(#247)")) - Number(b.includes("(#247)")));
+  return parts.length === 0 ? "room before arrowheads" : parts.join("; ");
 }
 
 /** The headline: from the page to the item that sets the width, natural widths, at most 8 steps. */
@@ -174,6 +243,12 @@ interface Part {
   readonly current: number;
   /** The least value that stays valid. */
   readonly least: number;
+  /**
+   * The least value that keeps the figure's intent (#640): a gap of 2mm
+   * still holds a line or an arrowhead, a padding of 4pt still reads as a
+   * frame around its content. Values below it are tried last.
+   */
+  readonly floor: number;
   /** Values are multiples of this step. */
   readonly step: number;
   /** Page width removed per unit of the value, in pt (a row's gap counts once per gap). */
@@ -186,13 +261,27 @@ interface Part {
     | { readonly node: ElementKey };
 }
 
-/** Values for `parts` that remove `overflowPt`, sharing it in proportion to what each can give; `undefined` if they cannot. */
-function valuesFor(parts: readonly Part[], overflowPt: number): number[] | undefined {
-  const room = parts.reduce((sum, p) => sum + p.weight * (p.current - p.least), 0);
+/** Spacing the hints keep before going lower (#640): a gap or `participantGap` of 2mm. */
+export const INTENT_GAP_MM = 2;
+/** A group padding the hints keep before going lower (#640). */
+export const INTENT_PADDING_PT = 4;
+
+/**
+ * Values for `parts` that remove `overflowPt`, sharing it in proportion to
+ * what each can give down to its intent floor (`extreme`: down to its least
+ * valid value); `undefined` if they cannot.
+ */
+function valuesFor(
+  parts: readonly Part[],
+  overflowPt: number,
+  extreme = false,
+): number[] | undefined {
+  const low = (p: Part) => (extreme ? p.least : p.floor);
+  const room = parts.reduce((sum, p) => sum + p.weight * (p.current - low(p)), 0);
   if (room < overflowPt - 1e-6 || room <= 0) return undefined;
   const share = overflowPt / room;
   const values = parts.map((p) =>
-    Math.max(p.least, floorTo(p.current - share * (p.current - p.least), p.step)),
+    Math.max(low(p), floorTo(p.current - share * (p.current - low(p)), p.step)),
   );
   return values.every((v, i) => v >= (parts[i] as Part).current - 1e-9) ? undefined : values;
 }
@@ -264,6 +353,7 @@ function partsOf(ir: FigureIR, tree: WidthEntry): Part[] {
         unit: "mm",
         current: ptToMm(gap.pt),
         least: 0,
+        floor: Math.min(ptToMm(gap.pt), INTENT_GAP_MM),
         step: 0.5,
         weight: gap.count * mmToPt(1),
         now: `${mm(gap.pt)}${gap.written ? "" : ", the profile default"}`,
@@ -277,12 +367,20 @@ function partsOf(ir: FigureIR, tree: WidthEntry): Part[] {
         unit: "mm",
         current: ptToMm(entry.sequence.participantGap.pt),
         least: 0,
+        floor: Math.min(ptToMm(entry.sequence.participantGap.pt), INTENT_GAP_MM),
         step: 0.5,
         weight: set * mmToPt(1),
         now: `${mm(entry.sequence.participantGap.pt)}${entry.sequence.participantGap.written ? "" : ", the profile default"}`,
         patch: { sequence: box },
       });
-    if (entry.kind === "group" && entry.key && entry.padding && entry.leaf === undefined) {
+    // A padding the layout grew for arrowheads (#171, #512) stays as wide whatever is written.
+    if (
+      entry.kind === "group" &&
+      entry.key &&
+      entry.padding &&
+      entry.padding.grown === undefined &&
+      entry.leaf === undefined
+    ) {
       const key = entry.key;
       const group = ir.groups.find((g) => g.key === key);
       const written = group?.paddingPt ?? groupPad;
@@ -292,6 +390,7 @@ function partsOf(ir: FigureIR, tree: WidthEntry): Part[] {
           unit: "pt",
           current: written,
           least: 0.5,
+          floor: Math.min(written, INTENT_PADDING_PT),
           step: 0.5,
           weight: 2,
           now: `${formatPt(written)}${group.paddingPt === undefined ? ", the profile default" : ""}; every side`,
@@ -313,6 +412,7 @@ function partsOf(ir: FigureIR, tree: WidthEntry): Part[] {
         unit: "mm",
         current,
         least,
+        floor: least,
         step: 0.5,
         weight: mmToPt(1),
         now: mm(node.width.pt),
@@ -364,20 +464,38 @@ function foldLabel(label: string): string | undefined {
 
 export interface FitResult {
   /** Edits whose trial fits the profile and adds no error or warning, with the page width after. */
-  readonly fits: readonly { text: string; widthPt: number }[];
+  readonly fits: readonly { text: string; widthPt: number; extreme?: boolean }[];
   /** Edits whose trial fits but adds problems (code of the first). */
-  readonly rejected: readonly { text: string; problem: string }[];
+  readonly rejected: readonly { text: string; problem: string; extreme?: boolean }[];
+  /** Edits whose trial narrows the figure without making it fit (laid out, not linted), narrowest first. */
+  readonly partial?: readonly { text: string; widthPt: number }[];
   /** Trial layouts run (the baseline included). */
   readonly trials: number;
   /** Why no trial ran, if none did. */
   readonly skipped?: string;
 }
 
+/** Fitting edits enough for a hint: the trials stop once this many fit. */
+const ENOUGH_FITS = 3;
+
 /**
  * Edits with concrete values that bring the natural page width to the
- * profile's maximum, each verified by a trial (see the module comment): one
- * value at a time, smallest change first; if none fits, every value on the
- * width path together, each giving its share of what it can give.
+ * profile's maximum, each verified by a trial (see the module comment), in
+ * this order (#640):
+ *
+ * 1. the legend, matrix or `place` edits for the item that ends the width
+ *    path (`fit-candidates.ts`), then one value on the width path at a time
+ *    (a gap, a padding, a width, a sequence's `participantGap`), smallest
+ *    change first, keeping the intent floors (gaps 2mm, paddings 4pt);
+ * 2. the legend and matrix edits for other items that set the width;
+ * 3. the gaps and paddings together, then with the explicit widths, each
+ *    giving its share down to its floor;
+ * 4. sequence message labels folded onto two lines;
+ * 5. the narrowest partial edit (one that narrows but does not fit) with one
+ *    value of the width path it leaves;
+ * 6. only when nothing above fits, the same values below the floors (a gap
+ *    of 0mm): reported as a last resort.
+ *
  * `overflowPt`: natural page width minus the profile's maximum.
  */
 export function fitHints(
@@ -402,29 +520,96 @@ export function fitHints(
   )
     return none("external asset files are not loaded during trials");
   const parts = partsOf(ir, tree);
-  const singles = parts
-    .flatMap((part) => {
-      const values = valuesFor([part], overflowPt);
-      return values === undefined ? [] : [{ parts: [part], values }];
-    })
-    // The smallest change first: the share of the current value it removes.
-    .sort((a, b) => {
-      const change = (c: { parts: Part[]; values: number[] }) =>
-        ((c.parts[0] as Part).current - (c.values[0] as number)) / (c.parts[0] as Part).current;
-      return change(a) - change(b);
-    });
+  /** Values of `group` written into `base` (the figure, or a partial edit of it named by `prefix`). */
+  const numeric = (
+    group: readonly Part[],
+    extreme: boolean,
+    base: FigureIR = ir,
+    prefix?: string,
+  ): FitCandidate => ({
+    kind: group.length > 1 ? "together" : (Object.keys((group[0] as Part).patch)[0] as string),
+    extreme,
+    make: (need) => {
+      const values = valuesFor(group, need, extreme);
+      if (values === undefined) return undefined;
+      const text = [prefix, ...group.map((p, i) => valueText(p, values[i] as number))]
+        .filter(Boolean)
+        .join(", ");
+      return {
+        ir: edited(base, group, values),
+        text: group.length > 1 || prefix !== undefined ? `${text} (together)` : text,
+      };
+    },
+  });
+  // One value at a time, the smallest change first: the share of the current value it removes.
+  const singles = (extreme: boolean, list = parts, base = ir, prefix?: string, need = overflowPt) =>
+    list
+      .flatMap((part) => {
+        const values = valuesFor([part], need, extreme);
+        const c =
+          values === undefined ? undefined : (part.current - (values[0] as number)) / part.current;
+        // Extreme: only the values that cannot fit within the floor.
+        return c === undefined || (extreme && valuesFor([part], need, false) !== undefined)
+          ? []
+          : [{ part, c }];
+      })
+      .sort((a, b) => a.c - b.c)
+      .map(({ part }) => numeric([part], extreme, base, prefix));
   // Together: the spacing first (gaps and paddings), then with the explicit widths too.
   const spacing = parts.filter((p) => !("node" in p.patch));
-  const combos = [spacing, parts].flatMap((group, i) => {
-    if (group.length < 2 || (i === 1 && group.length === spacing.length)) return [];
-    const values = valuesFor(group, overflowPt);
-    return values === undefined ? [] : [{ parts: group, values }];
+  const combos = (extreme: boolean) =>
+    [spacing, parts].flatMap((group, i) =>
+      group.length < 2 ||
+      (i === 1 && group.length === spacing.length) ||
+      valuesFor(group, overflowPt, extreme) === undefined
+        ? []
+        : [numeric(group, extreme)],
+    );
+  const elements = elementCandidates(ir, tree, context.source, (key) => {
+    const box = context.get(key)?.labels[0]?.box;
+    return box === undefined ? undefined : unitsToPt(box.width);
   });
-  const wraps = labelWraps(ir, tree);
-  if (singles.length === 0 && combos.length === 0 && wraps.length === 0)
+  const last = widthPath(tree).at(-1);
+  // The edits of the item that ends the width path (the widest contributor) go first.
+  const ending = (c: FitCandidate) => last !== undefined && c.target === last.name;
+  const wraps = labelWraps(ir, tree).map(
+    (wrap): FitCandidate => ({
+      kind: "wrap",
+      extreme: false,
+      make: () => ({
+        ir: mapBoxes(
+          {
+            ...ir,
+            edges: ir.edges.map((e) => {
+              const label = wrap.labels.get(e.key);
+              return label === undefined ? e : { ...e, label };
+            }),
+          },
+          (b) => b,
+        ),
+        text: wrap.text,
+      }),
+    }),
+  );
+  const stages: { candidates: FitCandidate[]; whileNone: boolean }[] = [
+    {
+      candidates: [
+        ...elements.filter(ending),
+        ...singles(false),
+        ...elements.filter((c) => !ending(c)),
+      ],
+      whileNone: false,
+    },
+    { candidates: combos(false), whileNone: true },
+    { candidates: wraps, whileNone: true },
+  ];
+  // Values below the intent floors: only after every intent-keeping edit, the
+  // combination with a partial edit included (#640).
+  const lastResort = [...singles(true), ...combos(true)];
+  if (stages.every((s) => s.candidates.length === 0) && lastResort.length === 0)
     return none(
       parts.length === 0
-        ? "the width path has no gap, padding or explicit width to reduce"
+        ? "nothing on the width path can be reduced by a trial (no gap, padding, explicit width, legend perRow, matrix cellWidth or flush, or place coordinate)"
         : `the gaps, paddings and widths on the width path can remove at most ${mm(
             parts.reduce((sum, p) => sum + p.weight * (p.current - p.least), 0),
           )} together, even at their least: shorten labels, rearrange (fold a row into rows) or shrink`,
@@ -450,22 +635,37 @@ export function fitHints(
         baseline = problemsOf(context, base, assets.value, skip, context.source);
       return baseline;
     };
-    const fits: { text: string; widthPt: number }[] = [];
-    const rejected: { text: string; problem: string }[] = [];
+    const left = () => MAX_FIT_TRIALS - trials - (baseline === null ? 1 : 0);
+    const fits: { text: string; widthPt: number; extreme?: boolean }[] = [];
+    const rejected: { text: string; problem: string; extreme?: boolean }[] = [];
+    const partial: { text: string; widthPt: number; ir: FigureIR }[] = [];
     let broken = false;
-    const attempt = (edit: readonly Part[], first: number[]) => {
-      let values: number[] | undefined = first;
-      let need = overflowPt;
-      // One refinement: values that remove part of the overflow are lowered by the rest once.
-      for (let round = 0; round < 2 && values !== undefined; round++) {
-        if (trials >= MAX_FIT_TRIALS - (baseline === null ? 1 : 0)) return;
-        const trial = run(edited(ir, edit, values));
-        if (trial === undefined || trial.diagnostics.some((d) => d.severity === "error")) return;
+    const attempt = (candidate: FitCandidate, first = overflowPt) => {
+      let need = first;
+      let delta = 0;
+      let previous: string | undefined;
+      let narrowest: { text: string; widthPt: number; ir: FigureIR } | undefined;
+      // One refinement: an edit that removes part of the overflow is made again for the rest once.
+      for (let round = 0; round < 2; round++) {
+        if (left() <= 0) break;
+        let made = candidate.make(need);
+        // Values on a step (0.5mm, a whole perRow) may not move for a small rest: ask for more.
+        for (let k = 0; k < 6 && made !== undefined && made.text === previous; k++) {
+          delta *= 2;
+          need += delta;
+          made = candidate.make(need);
+        }
+        if (made === undefined || made.text === previous) break;
+        previous = made.text;
+        const trial = run(made.ir);
+        if (trial === undefined || trial.diagnostics.some((d) => d.severity === "error")) break;
         const width = trial.layout.canvas.width / 2;
-        const text = edit.map((p, i) => valueText(p, values?.[i] as number)).join(", ");
         if (width > max + 1e-6) {
-          need += width - max;
-          values = naturalPt - width > 0 ? valuesFor(edit, need) : undefined;
+          if (width < naturalPt - 0.5 && (narrowest === undefined || width < narrowest.widthPt))
+            narrowest = { text: made.text, widthPt: width, ir: made.ir };
+          if (!(width < naturalPt - 0.5)) break;
+          delta = Math.max(width - max, 0.25);
+          need += delta;
           continue;
         }
         const before = baselineProblems();
@@ -477,57 +677,55 @@ export function fitHints(
         if (after === undefined) return;
         const added = newProblems(before, after);
         if (added.length > 0)
-          rejected.push({ text, problem: (added[0] as string).split(" ")[0] as string });
-        else fits.push({ text: edit.length > 1 ? `${text} (together)` : text, widthPt: width });
+          rejected.push({
+            text: made.text,
+            problem: (added[0] as string).split(" ")[0] as string,
+            ...(candidate.extreme && { extreme: true }),
+          });
+        else
+          fits.push({
+            text: made.text,
+            widthPt: width,
+            ...(candidate.extreme && { extreme: true }),
+          });
         return;
       }
+      if (narrowest !== undefined) partial.push(narrowest);
     };
-    // Two fitting edits of a kind (gap, padding, width) are enough: try the other kinds instead.
-    const kindOf = (part: Part) => Object.keys(part.patch)[0] as string;
+    // Two fitting edits of a kind (gap, padding, width, legend, …) are enough: try the other kinds instead.
     const found = new Map<string, number>();
-    for (const single of singles) {
-      if (broken || trials >= MAX_FIT_TRIALS) break;
-      const kind = kindOf(single.parts[0] as Part);
-      if ((found.get(kind) ?? 0) >= 2) continue;
-      const before = fits.length;
-      attempt(single.parts, single.values);
-      if (fits.length > before) found.set(kind, (found.get(kind) ?? 0) + 1);
-    }
-    for (const combo of combos) {
-      if (broken || fits.length > 0 || trials >= MAX_FIT_TRIALS) break;
-      attempt(combo.parts, combo.values);
-    }
-    // Sequence message labels (#630) that widen their lifelines' gap, folded onto two lines.
-    for (const wrap of wraps) {
-      if (broken || fits.length > 0 || trials >= MAX_FIT_TRIALS - (baseline === null ? 1 : 0))
-        break;
-      const trial = run(
-        mapBoxes(
-          {
-            ...ir,
-            edges: ir.edges.map((e) => {
-              const label = wrap.labels.get(e.key);
-              return label === undefined ? e : { ...e, label };
-            }),
-          },
-          (b) => b,
-        ),
-      );
-      if (trial === undefined || trial.diagnostics.some((d) => d.severity === "error")) continue;
-      const width = trial.layout.canvas.width / 2;
-      if (width > max + 1e-6) continue;
-      const before = baselineProblems();
-      if (before === undefined) {
-        broken = true;
-        break;
+    const tryAll = (candidates: readonly FitCandidate[]) => {
+      for (const candidate of candidates) {
+        if (broken || left() <= 0 || fits.length >= ENOUGH_FITS) break;
+        if ((found.get(candidate.kind) ?? 0) >= 2) continue;
+        const before = fits.length;
+        attempt(candidate);
+        if (fits.length > before) found.set(candidate.kind, (found.get(candidate.kind) ?? 0) + 1);
       }
-      const after = problemsOf(context, trial, assets.value, skip, context.source);
-      if (after === undefined) continue;
-      const added = newProblems(before, after);
-      if (added.length > 0)
-        rejected.push({ text: wrap.text, problem: (added[0] as string).split(" ")[0] as string });
-      else fits.push({ text: wrap.text, widthPt: width });
+    };
+    for (const stage of stages) {
+      if (stage.whileNone && fits.length > 0) break;
+      tryAll(stage.candidates);
     }
+    // The narrowest partial edit with one value of its own width path (#640: a legend's
+    // perRow and the gap of the row that then sets the width, run 2 of #639).
+    const best = [...partial].sort((a, b) => a.widthPt - b.widthPt)[0];
+    if (!broken && fits.length === 0 && best !== undefined && left() > 0) {
+      let next: WidthEntry | undefined;
+      try {
+        next = structuredWidthTree(best.ir, options);
+      } catch {
+        next = undefined;
+      }
+      const need = best.widthPt - max;
+      if (next !== undefined)
+        for (const candidate of singles(false, partsOf(best.ir, next), best.ir, best.text, need)) {
+          if (broken || left() <= 0 || fits.length > 0) break;
+          attempt(candidate, need);
+        }
+    }
+    // The last resort, only when nothing above fits.
+    if (fits.length === 0) tryAll(lastResort);
     if (broken)
       return {
         fits: [],
@@ -535,16 +733,28 @@ export function fitHints(
         trials,
         skipped: "the unedited trial layout did not reproduce the figure",
       };
-    return { fits, rejected, trials };
+    return {
+      fits,
+      rejected,
+      ...(partial.length > 0 && {
+        partial: [...partial]
+          .sort((a, b) => a.widthPt - b.widthPt)
+          .filter((p) => !fits.some((f) => f.text.startsWith(p.text)))
+          .map(({ text, widthPt }) => ({ text, widthPt })),
+      }),
+      trials,
+    };
   });
 }
 
 /** The fitting part of the hint. */
 export function describeFits(result: FitResult, maxWidthPt: number): string {
+  const lastResort = (f: { extreme?: boolean }) =>
+    f.extreme ? " (last resort: below 2mm between items or 4pt of padding)" : "";
   if (result.fits.length > 0)
     return `Fits ${mm(maxWidthPt)} (verified: laid out, routed and linted as a trial, no new error or warning; apply one): ${result.fits
       .slice(0, 3)
-      .map((f) => `${f.text} → ${mm(f.widthPt)}`)
+      .map((f) => `${f.text} → ${mm(f.widthPt)}${lastResort(f)}`)
       .join("; ")}.${
       result.rejected.length > 0
         ? ` Rejected: ${result.rejected[0]?.text} fits but adds ${result.rejected[0]?.problem}.`
@@ -554,12 +764,19 @@ export function describeFits(result: FitResult, maxWidthPt: number): string {
     result.rejected.length > 0
       ? ` ${result.rejected
           .slice(0, 2)
-          .map((r) => `${r.text} would fit but adds ${r.problem}`)
+          .map((r) => `${r.text}${lastResort(r)} would fit but adds ${r.problem}`)
+          .join("; ")}.`
+      : "";
+  const partial =
+    result.partial !== undefined && result.partial.length > 0
+      ? ` Narrower but not enough alone (laid out, not linted; combine them or add another change): ${result.partial
+          .slice(0, 2)
+          .map((p) => `${p.text} → ${mm(p.widthPt)}`)
           .join("; ")}.`
       : "";
   return result.skipped !== undefined
     ? `No fitting edit verified: ${result.skipped}.${rejected}`
-    : `No single gap, padding or width edit on the width path verified to fit (${result.trials} trial layouts).${rejected}`;
+    : `No single edit on the width path verified to fit (${result.trials} trial layouts).${rejected}${partial}`;
 }
 
 /**
@@ -596,7 +813,17 @@ export interface WidthTreeJson {
   kind: WidthEntry["kind"];
   widthPt: number;
   placedPt?: number;
-  padding?: { westPt: number; eastPt: number; written: boolean };
+  padding?: {
+    westPt: number;
+    eastPt: number;
+    written: boolean;
+    /** What the layout added for the room before arrowheads, and why (#640). */
+    grown?: {
+      westPt: number;
+      eastPt: number;
+      reasons: { side: string; kind: PaddingGrowth["kind"]; edges: string[]; pt: number }[];
+    };
+  };
   contentPt?: number;
   titlePt?: number;
   gap?: { pt: number; count: number; field: "gap" | "columnGap"; written: boolean };
@@ -625,6 +852,18 @@ export function widthTreeJson(entry: WidthEntry, sets = true): WidthTreeJson {
         westPt: entry.padding.west,
         eastPt: entry.padding.east,
         written: entry.padding.written,
+        ...(entry.padding.grown && {
+          grown: {
+            westPt: round(entry.padding.grown.west),
+            eastPt: round(entry.padding.grown.east),
+            reasons: entry.padding.grown.reasons.map((r) => ({
+              side: r.side,
+              kind: r.kind,
+              edges: [...r.edges],
+              pt: round(r.units / 2),
+            })),
+          },
+        }),
       },
     }),
     ...(entry.contentPt !== undefined && { contentPt: round(entry.contentPt) }),

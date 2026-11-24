@@ -88,6 +88,12 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 <img src="../../examples/system-architecture/system-architecture.svg" alt="Generic three-tier system">
 
+## Zero\-shot transfer accuracy
+
+[<code>examples/transfer\-heatmap/transfer\-heatmap\.sumi\.yaml</code>](../../examples/transfer-heatmap/transfer-heatmap.sumi.yaml) · [PDF](../../examples/transfer-heatmap/transfer-heatmap.pdf) · theme <code>sumi</code> · profile <code>paper\-single</code> · 64\.38mm × 78\.32mm \(max width 88mm, max height 220mm\)
+
+<img src="../../examples/transfer-heatmap/transfer-heatmap.svg" alt="Zero-shot transfer accuracy">
+
 ## Transformer \(structured layout, paper theme\)
 
 [<code>examples/transformer/transformer\.sumi\.yaml</code>](../../examples/transformer/transformer.sumi.yaml) · [PDF](../../examples/transformer/transformer.pdf) · theme <code>paper</code> · profile <code>paper\-single</code> · 83\.43mm × 114\.12mm \(max width 88mm, max height 220mm\)<br>info geometry/color\-on\-panel \(×2\): Group &quot;encoder&quot; is filled \#f2f2f2 and holds 4 colored elements \(node &quot;enc\-mha&quot;, node &quot;enc\-norm1&quot;, node &quot;enc\-ff&quot;, and 1 more\): the colors compete with the panel's\.

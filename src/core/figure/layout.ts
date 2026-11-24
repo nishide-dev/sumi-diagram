@@ -417,6 +417,28 @@ function checkStructured(state: CheckState, locate: Locator): void {
           }
           continue;
         }
+        // `origin: place` (#649) needs a flat group arranged by its own place.
+        if (kind === "place" && wrapped && "origin" in cell && cell.origin === "place" && !silent) {
+          const target = elements.get(item);
+          const group = target?.kind === "group" ? (target.value as FigureGroup) : undefined;
+          const inner = group?.arrange;
+          // A tilted plane (#577) maps its content, so its inner [0, 0] is no page point.
+          const plane = group?.props?.plane !== undefined;
+          if (target !== undefined && (inner?.place === undefined || plane)) {
+            push(
+              errorAt(
+                locate,
+                "layout/invalid-place-origin",
+                `origin: place on "${item}" needs a flat group arranged by its own place, but "${item}" is ${target.kind !== "group" ? "a node" : plane ? "a tilted plane (props.plane)" : inner === undefined ? "a group without an arrange tree" : "a group arranged by another box"}.`,
+                [...path, kind, "items", index, "origin"],
+                {
+                  subject: ownerSubject,
+                  hint: "Arrange a flat group (no props.plane) with place, or use origin: footprint or body.",
+                },
+              ),
+            );
+          }
+        }
         add({ id: item, path: itemPath, via: "arrange", owner, silent });
       }
       if (kind === "grid" && column !== 0 && !silent) {

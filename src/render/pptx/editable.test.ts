@@ -171,9 +171,11 @@ for (const item of corpus)
             ]);
           }
         } else if (element.label.trim()) {
-          // A caption below a waveform's frame (#491) is a text box of its own.
+          // A caption below a waveform's frame (#491) is a text box of its own, and so is a
+          // turned label (#178; a matrix's turned column headers, #644).
           const textShape =
-            element.kind === "node" && element.labelBelow
+            element.kind === "node" &&
+            (element.labelBelow === true || element.labelRotation !== undefined)
               ? all.find(
                   (e) =>
                     e.name === "p:sp" &&

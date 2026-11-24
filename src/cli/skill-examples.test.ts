@@ -26,6 +26,7 @@ const NAMES = [
   "grouped",
   "multilayer-network",
   "attention-sheet",
+  "transfer-heatmap",
 ];
 
 /** Do not follow symlinks: Git archives preserve them, rather than their targets. */
