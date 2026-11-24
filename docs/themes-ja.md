@@ -25,7 +25,7 @@
 | 色 | 白黒。tone は 3 段階の灰色 | 灰色のみ。tone は 3 段階の灰色 | 白黒（濃いめの灰色）。tone は 3 段階の灰色 | パステルの tone、強調は青 | パステルの tone と tone ごとの線色。青は tone の 1 つ | 青灰色と灰色。`solid` は濃い青灰色、`emphasis` は青、`filled` / `muted` は枠のない灰色 / 淡い箱。tone は淡い塗り | 紺色の文字と砂色のアクセント。灰色を基本に、tone は淡い塗り（アクセントは 3 色まで） | 紺色の地にクリーム色の文字と砂色のアクセント。tone は淡い塗り |
 | 角 | 四角 | 四角 | 四角 | 四角 | 角丸（箱 2pt、グループ 6pt） | 角丸（箱 3pt、グループ 5pt） | 四角 | 四角 |
 | 線 | 1pt、強調 2pt | 0.5pt、強調 1pt | 2pt、強調 4pt | 1pt、強調 2pt | 枠 1pt、エッジ 0.5pt（矢じりは小さい）。強調は図形 1.5pt、エッジ 1pt | 枠とエッジ 1pt、**開いた山形の矢じり**（箱から少し離す）。強調のエッジは 1.5pt の青、拡大の破線は 0.5pt | 1pt（ノードの枠・エッジ）、強調のエッジ 2pt | `sumi` と同じ |
-| グループ | 薄い灰色の塗り、灰色の枠 | 塗りなし、灰色の枠 | 薄い灰色の塗り、灰色の枠 | 薄い灰色の塗り、灰色の枠 | 白いパネル、黒 1pt の枠、角丸（`filled` は薄い灰色で枠なし） | 枠のない淡いパネル、見出しは細字。`muted` は白いパネル | 白いパネル、淡い灰色の 0.5pt の細い枠（`filled` は砂色） | 地と同じ色のパネル、淡い 0.5pt の細い枠（`filled` は明るい紺） |
+| グループ | 薄い灰色の塗り、灰色の枠 | 塗りなし、灰色の枠 | 薄い灰色の塗り、灰色の枠 | 薄い灰色の塗り、灰色の枠 | 白いパネル、淡い灰色の 0.5pt の枠、角丸（`filled` は薄い灰色で枠なし） | 枠のない淡いパネル、見出しは細字。`muted` は白いパネル | 白いパネル、淡い灰色の 0.5pt の細い枠（`filled` は砂色） | 地と同じ色のパネル、淡い 0.5pt の細い枠（`filled` は明るい紺） |
 | フォント | BIZ UDPGothic。8pt、エッジ 7pt | BIZ UDPGothic。8pt、エッジ 7pt | BIZ UDPGothic。16pt、エッジ 14pt | BIZ UDPGothic。8pt、エッジ 7pt | structured の図の欧文は Inter、日本語は BIZ UDPGothic。8pt、エッジ 7pt | `paper` と同じ | `paper` と同じ。グループの見出しは 9pt | `paper` と同じ。グループの見出しは 9pt |
 | 典型的なプロファイル | `paper-single`、`paper-double` | `paper-single`、`paper-double` | `presentation-16x9` | `paper-single`、`paper-double` | `paper-single`、`paper-double` | `paper-single`、`paper-double` | `paper-single`、`paper-double`。`screen-doc`（`textScale: 1.5`）、`presentation-16x9`（`textScale: 2`） | `sumi` と同じ |
 
