@@ -161,6 +161,30 @@ function lifelineWidth(
 const PREFIX = "seq-";
 
 export function expandSequences(state: CheckState, locate: Locator): void {
+  const consumed = new Set<number>();
+  expandBoxes(state, locate, consumed);
+  // A list of targets (#645) means one arrow per target in a sequence's rows; elsewhere an
+  // edge has one target.
+  for (const [index, targets] of state.doc.recipients ?? []) {
+    const edge = state.doc.edges?.[index];
+    if (edge === undefined || consumed.has(index)) continue;
+    state.invalid.add(edgeKey(edge.id, index));
+    state.diagnostics.push(
+      errorAt(
+        locate,
+        "layout/multiple-targets",
+        `Edge ${edge.id === undefined ? `edges[${index}]` : `"${edge.id}"`} lists ${targets.length} targets; only a message in a sequence's rows may have several.`,
+        ["edges", index, "to"],
+        {
+          subject: { kind: "edge", id: edge.id ?? `edges[${index}]` },
+          hint: "Write one edge per target, or put the edge's id in the rows of an arrange sequence.",
+        },
+      ),
+    );
+  }
+}
+
+function expandBoxes(state: CheckState, locate: Locator, consumed: Set<number>): void {
   const { doc } = state;
   if (!doc.nodes || !doc.edges || !doc.figure || doc.figure.layout.engine !== "structured") return;
   const profile = getProfile(doc.figure.profile) ?? getProfile("paper-single");
@@ -180,6 +204,8 @@ export function expandSequences(state: CheckState, locate: Locator): void {
   const origins: [ElementKey, ExpandedOrigin][] = [];
   /** Where each generated fragment set is written, by its index in `sets`. */
   const setOrigins = new Map<number, DocPath>();
+  /** The fragment frames drawn as the theme's group frame (#645): no variant or tone written. */
+  const panels = new Set<number>();
   const figureSubject = { kind: "figure", id: doc.figure.id } as const;
 
   const reserved = (id: string, path: DocPath): boolean => {
@@ -262,12 +288,16 @@ export function expandSequences(state: CheckState, locate: Locator): void {
       );
       return undefined;
     };
-    const rowsOf = (rows: readonly SequenceRow[], rowsPath: DocPath): SequenceRowX[] => {
+    const rowsOf = (
+      rows: readonly SequenceRow[],
+      rowsPath: DocPath,
+      inBand = false,
+    ): SequenceRowX[] => {
       const out: SequenceRowX[] = [];
       for (const [r, row] of rows.entries()) {
         const rowPath = [...rowsPath, r];
         if (Array.isArray(row)) {
-          const inner = rowsOf(row, rowPath);
+          const inner = rowsOf(row, rowPath, true);
           // What each member covers across the lifelines, at 4 steps per lifeline (lifeline i
           // at 4i): a message spans its lifelines, a self-message its lifeline and the start
           // of the gap to its right, a note over lifelines those and the edges of the gaps
@@ -351,14 +381,44 @@ export function expandSequences(state: CheckState, locate: Locator): void {
             continue;
           }
           const from = participantOf(edge.from, rowPath, `The source of message "${row}",`);
-          const to = participantOf(edge.to, rowPath, `The target of message "${row}",`);
-          if (from === undefined || to === undefined) continue;
+          // Several targets (#645): one arrow to each, in consecutive rows, the label on the first.
+          const written = doc.recipients?.get(index);
+          const targets = (written ?? [edge.to]).map((id) =>
+            participantOf(id, rowPath, `The target of message "${row}",`),
+          );
+          if (written !== undefined) consumed.add(index);
+          if (from === undefined || targets.some((t) => t === undefined)) continue;
+          const to = targets[0] as number;
+          if (written !== undefined) {
+            const problem = inBand
+              ? "is a band member: a band holds one row"
+              : targets.includes(from)
+                ? `lists its source "${edge.from}" as a target`
+                : new Set(targets).size < targets.length
+                  ? "lists a target twice"
+                  : undefined;
+            if (problem !== undefined) {
+              state.diagnostics.push(
+                errorAt(
+                  locate,
+                  "layout/sequence-invalid-row",
+                  `Message "${row}" with several targets ${problem}.`,
+                  rowPath,
+                  {
+                    subject: figureSubject,
+                    hint: "A message to several participants draws one arrow to each, in consecutive rows: list each target once, not the source, and write it as a row of its own.",
+                  },
+                ),
+              );
+              continue;
+            }
+          }
           // Sumi owns a message's geometry: a straight line between the lifelines with its
           // label above it, next to the source across several lifelines; a self-message is a
           // loop east (or, with lane: {side: west}, west) with its label outside it.
           const lane = edge.lane;
           const self = from === to;
-          const written = [
+          const fields = [
             ...(edge.labelAt !== undefined ? ["labelAt"] : []),
             ...(edge.labelSide !== undefined ? ["labelSide"] : []),
             ...(edge.fromAnchor !== undefined ? ["fromAnchor"] : []),
@@ -371,12 +431,12 @@ export function expandSequences(state: CheckState, locate: Locator): void {
               ? [self ? "a lane other than {side: east | west, offset}" : "lane"]
               : []),
           ];
-          if (written.length > 0) {
+          if (fields.length > 0) {
             state.diagnostics.push(
               errorAt(
                 locate,
                 "layout/sequence-invalid-row",
-                `${self ? "Self-message" : "Message"} "${row}" is drawn by the sequence, which places its line and label: remove ${written.join(", ")}.`,
+                `${self ? "Self-message" : "Message"} "${row}" is drawn by the sequence, which places its line and label: remove ${fields.join(", ")}.`,
                 rowPath,
                 {
                   subject: figureSubject,
@@ -390,50 +450,61 @@ export function expandSequences(state: CheckState, locate: Locator): void {
           }
           const west = from === to && lane?.side === "west";
           used.set(row, rowPath);
-          messages++;
-          const fromNode = junction(
-            `${prefix}-m${messages}-from`,
-            rowPath,
-            `the start of message "${row}"`,
-          );
-          const toNode = junction(
-            `${prefix}-m${messages}-to`,
-            rowPath,
-            `the end of message "${row}"`,
-          );
-          if (fromNode === undefined || toNode === undefined) continue;
-          stops[from]?.push({ id: fromNode });
-          stops[to]?.push({ id: toNode });
-          const span = Math.abs(to - from);
-          // Labels sit above the line: left of travel going right, right of it going left.
-          edges[index] = {
-            ...edge,
-            from: fromNode,
-            to: toNode,
-            ...(self
-              ? {
-                  lane: { side: west ? "west" : "east", offset: lane?.offset ?? loopPt },
-                  labelAt: "middle",
-                  // Outside the loop: right of the downward segment going east, left going west.
-                  labelSide: west ? "right" : "left",
-                }
-              : {
-                  route: "straight",
-                  labelSide: to > from ? "left" : "right",
-                  // Across several lifelines the label stays in the gap next to the source.
-                  ...(span > 1 && { labelAt: "start" }),
-                }),
-          };
-          out.push({
-            kind: "message",
-            edge: edgeKey(edge.id, index),
-            from,
-            to,
-            fromNode,
-            toNode,
-            ...(west && { west: true as const }),
-            path: rowPath,
-          });
+          for (const [k, target] of (targets as number[]).entries()) {
+            messages++;
+            const recipient = participants[target] as string;
+            const what = k === 0 ? `message "${row}"` : `message "${row}" to "${recipient}"`;
+            const fromNode = junction(
+              `${prefix}-m${messages}-from`,
+              rowPath,
+              `the start of ${what}`,
+            );
+            const toNode = junction(`${prefix}-m${messages}-to`, rowPath, `the end of ${what}`);
+            if (fromNode === undefined || toNode === undefined) continue;
+            stops[from]?.push({ id: fromNode });
+            stops[target]?.push({ id: toNode });
+            const span = Math.abs(target - from);
+            // Labels sit above the line: left of travel going right, right of it going left.
+            const drawn: FigureEdge = {
+              ...edge,
+              from: fromNode,
+              to: toNode,
+              ...(self
+                ? {
+                    lane: { side: west ? "west" : "east", offset: lane?.offset ?? loopPt },
+                    labelAt: "middle",
+                    // Outside the loop: right of the downward segment going east, left going west.
+                    labelSide: west ? "right" : "left",
+                  }
+                : {
+                    route: "straight",
+                    labelSide: target > from ? "left" : "right",
+                    // Across several lifelines the label stays in the gap next to the source.
+                    ...(span > 1 && { labelAt: "start" }),
+                  }),
+            };
+            let key: string;
+            if (k === 0) {
+              edges[index] = drawn;
+              key = edgeKey(edge.id, index);
+            } else {
+              // The other targets: a copy of the message without its label (#645).
+              const id = `${prefix}-m${messages}`;
+              addEdge({ ...drawn, id, label: "" }, rowPath, `the arrow of ${what}`);
+              if (edges.at(-1)?.id !== id) continue;
+              key = edgeKey(id, edges.length - 1);
+            }
+            out.push({
+              kind: "message",
+              edge: key,
+              from,
+              to: target,
+              fromNode,
+              toNode,
+              ...(west && { west: true as const }),
+              path: rowPath,
+            });
+          }
           continue;
         }
         if ("note" in row) {
@@ -532,6 +603,7 @@ export function expandSequences(state: CheckState, locate: Locator): void {
           });
           doc.sets = [...(doc.sets ?? []), set];
           setOrigins.set(doc.sets.length - 1, rowPath);
+          if (row.variant === undefined && row.tone === undefined) panels.add(doc.sets.length - 1);
         }
         out.push({ kind: "fragment", label, topLeft, bottomRight, rows: inner, path: rowPath });
       }
@@ -601,6 +673,7 @@ export function expandSequences(state: CheckState, locate: Locator): void {
   if (expansions.length === 0) return;
   doc.sequences = expansions;
   if (setOrigins.size > 0) doc.sequenceSets = setOrigins;
+  if (panels.size > 0) doc.sequencePanels = panels;
   if (solid.size > 0) doc.solidLifelines = solid;
   recordExpanded(doc, origins);
 }
