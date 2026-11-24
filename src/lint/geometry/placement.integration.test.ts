@@ -106,19 +106,74 @@ nodes:
     expect(hint).toMatch(
       /node "l1" \(before tokens "t1"\) is \d\.\d\dmm wide and node "l2" \(before tokens "t2"\) \d\.\d\dmm/,
     );
-    expect(hint).toContain('Give node "l1" and node "l2" the same width');
+    // Named as the cause only because a trial layout with one width lines the rows up.
+    const verified =
+      /Verified: props\.width (\d+(?:\.\d)?)mm on both node "l1" and node "l2" lines the rows up/.exec(
+        hint,
+      );
+    expect(verified).not.toBeNull();
     expect(hint).not.toContain("props.gap");
-    // The fix the hint gives: the same width on both labels.
-    expect(await findings(steps(["t=1", "t=2"], ", props: { width: 5mm }"), file, code)).toEqual(
-      [],
+    // The fix the hint gives: that width on both labels.
+    const width = `, props: { width: ${verified?.[1]}mm }`;
+    expect(await findings(steps(["t=1", "t=2"], width), file, code)).toEqual([]);
+  });
+
+  /** Two rows placed by coordinates, the lower one 0.3mm right: what sits beside them does not move them. */
+  const placed = (labels: string) => `version: 1
+figure:
+  id: placed
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: t1, at: [40, 10]}
+          - {item: t2, at: [40.3, 20]}
+${labels}nodes:
+  - { id: t1, component: tokens, props: { width: 6mm, height: 6mm, gap: 1mm, cells: [a, b, c, d] } }
+  - { id: t2, component: tokens, props: { width: 6mm, height: 6mm, gap: 1mm, cells: [a, b, c, d] } }
+  - { id: l1, component: label, label: 't=1' }
+  - { id: l2, component: label, label: 'step 2' }
+`;
+
+  test("neighbours of different widths that do not position the rows are not named as the cause", async () => {
+    const found = await findings(
+      placed("          - {item: l1, at: [15, 10]}\n          - {item: l2, at: [15, 20]}\n"),
+      file,
+      code,
+    );
+    expect(found).toHaveLength(1);
+    const hint = found[0]?.hint ?? "";
+    expect(hint).toMatch(
+      /^Both rows have the same cells, but tokens "t2" starts 0\.\d\dmm right of tokens "t1"\. /,
+    );
+    expect(hint).not.toContain("Verified");
+    // The trial ran (equal widths left the rows apart), so not even "not checked".
+    expect(hint).not.toContain('node "l1"');
+    expect(hint).not.toContain("not checked");
+    expect(hint).toContain("Make the rows start at the same x");
+  });
+
+  test("no neighbour: the measured start, and a fix without a cause", async () => {
+    const source = placed("").replace(/ {2}- \{ id: l[12],.*\n/g, "");
+    const found = await findings(source, file, code);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.hint).toMatch(
+      /^Both rows have the same cells, but tokens "t2" starts 0\.\d\dmm right of tokens "t1"\. Make the rows start at the same x/,
     );
   });
 
   test("cells of different widths or gaps: says that the cells differ", async () => {
     const wider = await findings(steps(["t=1", "t=1"], "", "6.4mm, gap: 1mm"), file, code);
+    // The rows are centred, so wider cells also start the row further left:
+    // both differences are reported, with the offsets measured at both ends.
     expect(wider[0]?.hint).toMatch(
-      /^The cells differ \(tokens "t1" has 6\.00mm cells with 1\.00mm gaps, tokens "t2" has 6\.\d\dmm cells with 1\.00mm gaps\)/,
+      /^The cells differ \(tokens "t1" has 6\.00mm cells with 1\.00mm gaps, tokens "t2" has 6\.\d\dmm cells with 1\.00mm gaps\), and tokens "t2" starts 0\.\d\dmm left of tokens "t1": the centres are 0\.\d\dmm apart at the first column and 0\.\d\dmm at the last\./,
     );
+    expect(wider[0]?.hint).toContain("start the rows at the same x");
+    expect(wider[0]?.hint).not.toContain("further");
     const gaps = await findings(steps(["t=1", "t=1"], "", "6mm, gap: 1.3mm"), file, code);
     expect(gaps[0]?.hint).toContain('tokens "t2" has 6');
     expect(gaps[0]?.hint).toContain("1.3");

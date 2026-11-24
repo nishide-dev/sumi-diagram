@@ -420,6 +420,17 @@ edges:
     expect(result.map((d) => d.path)).toEqual([["edges", 1]]);
   });
 
+  test("an earlier piece on a line through the shared end, but not connected to it, is still reported", () => {
+    // Edge 2 ends at P, approaching it from above; its first piece lies on a
+    // line through P (beside edge 0), but the edge leaves that line before P.
+    const straight = { path: [{ x: 200, y: 0 }, { ...P }] };
+    const detached = {
+      path: [{ x: 200, y: 2 }, { x: 120, y: 41.2 }, { x: 120, y: 50 }, { x: 0, y: 50 }, { ...P }],
+    };
+    const result = lintSpec(fan, { elements: { "e:#0": straight, "e:#2": detached } }, { code });
+    expect(result.map((d) => d.path)).toEqual([["edges", 2]]);
+  });
+
   test("a converging edge's earlier piece beside the other edge is still reported", () => {
     // Edge 2 ends at P too, but first runs 0.2 units off edge 0's line.
     const straight = { path: [{ x: 200, y: 0 }, { ...P }] };

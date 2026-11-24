@@ -1658,11 +1658,14 @@ function parallelChannelHint(context: GeometryContext, pair: readonly GeometryEl
 }
 
 /** The two ends of an edge's route (its logical ends, before arrowheads trim what is painted). */
-function routeEnds(edge: GeometryElement): Point[] {
+function routeEnds(edge: GeometryElement): { at: Point; end: "start" | "end" }[] {
   const route = edge.route ?? [];
   const start = route[0]?.[0];
   const end = route.at(-1)?.at(-1);
-  return [start, end].filter((p): p is Point => p !== undefined);
+  return [
+    ...(start === undefined ? [] : [{ at: start, end: "start" as const }]),
+    ...(end === undefined ? [] : [{ at: end, end: "end" as const }]),
+  ];
 }
 
 /** Distance of `p` from the (infinite) line through a piece. */
@@ -1677,11 +1680,38 @@ function distanceToLine(p: Point, piece: DirectedPiece<GeometryElement>): number
 }
 
 /**
- * Two pieces of edges that end (or start) at the same point and both lie on
- * lines through it: a fan converging on one port (#647). Lines through one
- * point are closest at it, so the stretch where they run within reach is the
- * convergence itself, as intended as a shared trunk; pieces of the same edges
- * farther from the point are still compared.
+ * The piece is its edge's final approach to the route end `at` (`end` names
+ * which end): the first painted piece for the start, the last for the end,
+ * on a line through the end, and stopping short of it by no more than an
+ * arrowhead (what painting trims) and a stroke.
+ */
+function approaches(
+  piece: DirectedPiece<GeometryElement>,
+  at: Point,
+  end: "start" | "end",
+): boolean {
+  const lines = piece.owner.drawn ?? [];
+  const line = end === "start" ? lines[0] : lines.at(-1);
+  if (line === undefined || line.length < 2) return false;
+  const [p, q] =
+    end === "start" ? [line[0], line[1]] : [line[line.length - 2], line[line.length - 1]];
+  const same = (u: Point | undefined, v: Point) =>
+    u !== undefined && Math.abs(u.x - v.x) < 1e-6 && Math.abs(u.y - v.y) < 1e-6;
+  if (!same(p, piece.a) || !same(q, piece.b)) return false;
+  if (distanceToLine(at, piece) > COINCIDENT_UNITS) return false;
+  const near = end === "start" ? piece.a : piece.b;
+  const style = piece.owner.ir.kind === "edge" ? piece.owner.ir.style : undefined;
+  const trim =
+    (style === undefined ? 0 : edgeArrowheadLength(style)) + 2 * piece.width + COINCIDENT_UNITS;
+  return Math.hypot(near.x - at.x, near.y - at.y) <= trim;
+}
+
+/**
+ * Two pieces that are each their edge's final approach to the same route
+ * end: a fan converging on one port (#647). Lines through one point are
+ * closest at it, so the stretch where they run within reach is the
+ * convergence itself, as intended as a shared trunk. Other pieces of the
+ * same edges (even ones on a line through that point) are still compared.
  */
 function convergeOnSharedEnd(
   a: DirectedPiece<GeometryElement>,
@@ -1690,16 +1720,19 @@ function convergeOnSharedEnd(
   const bEnds = routeEnds(b.owner);
   return routeEnds(a.owner).some(
     (p) =>
-      bEnds.some((q) => Math.hypot(p.x - q.x, p.y - q.y) <= COINCIDENT_UNITS) &&
-      distanceToLine(p, a) <= COINCIDENT_UNITS &&
-      distanceToLine(p, b) <= COINCIDENT_UNITS,
+      approaches(a, p.at, p.end) &&
+      bEnds.some(
+        (q) =>
+          Math.hypot(p.at.x - q.at.x, p.at.y - q.at.y) <= COINCIDENT_UNITS &&
+          approaches(b, q.at, q.end),
+      ),
   );
 }
 
 export const edgeNearEdge = defineGeometryRule({
   id: "geometry/edge-near-edge",
   description:
-    "Two edges run side by side for 3mm or more less than 1.5pt apart (stroke to stroke) without coinciding, so they read as one blurred or doubled line. A trunk the edges share (drawn on the same line) is not reported, nor are straight lines converging on an end they share.",
+    "Two edges run side by side for 3mm or more less than 1.5pt apart (stroke to stroke) without coinciding, so they read as one blurred or doubled line. A trunk the edges share (drawn on the same line) is not reported, nor are the final approaches of lines converging on an end they share.",
   defaultSeverity: "warning",
   fixable: false,
   run(context) {
