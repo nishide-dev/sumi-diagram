@@ -46,7 +46,7 @@
 - 表の出力は設定ごとに、見出し（profile・density・theme・textScale）、文字・線・間隔の 3 行、部品の表（COMPONENT・WIDTH・HEIGHT・MIN WIDTH・PROPS・LABEL）と、2 つの幅の意味の 1 行。
 - ラベルのある行は幅を 2 つ出す。
   - **自然な幅**（WIDTH）: ラベル + 左右のノードの余白。`width` を書かないときに Sumi が描く幅。
-  - **最小の幅**（MIN WIDTH、`minWidth`）: `geometry/label-overflow` にならない最も狭い `props.width`（0.5pt の倍数）。この規則は文字が枠の線に掛からないことだけを見るので、余白の分だけ自然な幅より狭い（paper の「Encoder」の箱は自然な幅 16.05mm、最小 11.11mm）。値は推定ではなく、その幅でノードを描いて SVG を書き、規則そのもの（`ALL_LINT_RULES` の `geometry/label-overflow`）をかけて二分探索で求める。最後に試した 2 つの幅（収まる m と、m − 0.5pt で溢れる）は実際に評価したもの。自然な幅で溢れる、またはどんな幅でも溢れない（枠のない `label`）、`width` を取らない部品は `null`。1 回の試しは数 ms で、既定の 3 設定でも 1 秒程度。sizes.md の表には足さない（生成を軽く保ち、表の列を増やさない）。
+  - **最小の幅**（MIN WIDTH、`minWidth`）: `geometry/label-overflow` にならない最も狭い `props.width`（0.5pt の倍数）。この規則は文字が枠の線に掛からないことだけを見るので、余白の分だけ自然な幅より狭い（paper の「Encoder」の箱は自然な幅 16.05mm、最小 11.11mm）。値は推定ではなく、その幅でノードを描いて SVG を書き、規則そのもの（`allLintRules()` の `geometry/label-overflow`）をかけて二分探索で求める。最後に試した 2 つの幅（収まる m と、m − 0.5pt で溢れる）は実際に評価したもの。自然な幅で溢れる、またはどんな幅でも溢れない（枠のない `label`）、`width` を取らない部品は `null`。1 回の試しは数 ms で、既定の 3 設定でも 1 秒程度。sizes.md の表には足さない（生成を軽く保ち、表の列を増やさない）。
 - `--label` と `--component` で、実際のラベルの 2 つの幅を聞ける。MIN WIDTH より狭い箱は、描画すると `geometry/label-overflow` になる。
 - 不正な組み合わせ（`--sizes` なしの `--profile` など、`--sizes` と `--section` / `--kind` / `--icons`、`--css` と `--json`、`--css` と `--component` / `--label`（`--css` の `--box-h` は 1 語の箱の高さなので、ラベルで変えない）、`--profile` なしの `--css`）と未知の profile・theme・部品、範囲外の textScale は終了コード 2 で、何も出力しない。textScale の範囲は Figure の schema の検査（`schema/invalid-value`）をそのまま返す。
 - `--profile`・`--theme` は `render` の同名のフラグと同じ意味（その図の Profile・テーマ）なので、名前を揃えた。
