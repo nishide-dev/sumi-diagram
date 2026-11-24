@@ -42,7 +42,7 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 
 ## GCN — Graph Convolutional Network
 
-[<code>examples/gcn/gcn\.sumi\.yaml</code>](../../examples/gcn/gcn.sumi.yaml) · [PDF](../../examples/gcn/gcn.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 178\.86mm × 65\.44mm \(max width 180mm, max height 220mm\)<br>info geometry/panel\-misaligned \(×2\): The panels side by side in figure\.layout\.arrange\.row \(group &quot;network&quot;, group &quot;activations&quot;\) are not aligned: captions 3\.0mm apart\.<br>info geometry/group\-empty\-area \(×2\): Group &quot;input&quot; has 86\.5% empty bounding\-box area \(threshold 75%; edges excluded\)\.<br>info geometry/low\-stroke\-contrast \(×2\): edge edges\[7\] has a stroke contrast of 2\.51:1 against background \#ffffff \(minimum 3:1\)\.
+[<code>examples/gcn/gcn\.sumi\.yaml</code>](../../examples/gcn/gcn.sumi.yaml) · [PDF](../../examples/gcn/gcn.pdf) · theme <code>paper</code> · profile <code>paper\-double</code> · 178\.86mm × 65\.44mm \(max width 180mm, max height 220mm\)<br>info layout/align\-widened\-gap: figure\.layout\.align widens the gap between &quot;y1&quot; and &quot;y4&quot; in their stack from 4\.00mm to 16\.65mm, for figure\.layout\.align\[1\] \(y: \[z1, y1\]\) and figure\.layout\.align\[2\] \(y: \[z4, y4\]\)\.<br>info geometry/panel\-misaligned \(×2\): The panels side by side in figure\.layout\.arrange\.row \(group &quot;network&quot;, group &quot;activations&quot;\) are not aligned: captions 3\.0mm apart\.<br>info geometry/group\-empty\-area \(×2\): Group &quot;input&quot; has 86\.5% empty bounding\-box area \(threshold 75%; edges excluded\)\.<br>info geometry/low\-stroke\-contrast \(×2\): edge edges\[7\] has a stroke contrast of 2\.51:1 against background \#ffffff \(minimum 3:1\)\.
 
 <img src="../../examples/gcn/gcn.svg" alt="GCN — Graph Convolutional Network">
 
@@ -87,6 +87,12 @@ The committed SVGs of <code>examples/</code>, rendered from their sources as wri
 [<code>examples/system\-architecture/system\-architecture\.sumi\.yaml</code>](../../examples/system-architecture/system-architecture.sumi.yaml) · [PDF](../../examples/system-architecture/system-architecture.pdf) · theme <code>academic</code> · profile <code>paper\-double</code> · 157\.34mm × 71\.97mm \(max width 180mm, max height 220mm\)
 
 <img src="../../examples/system-architecture/system-architecture.svg" alt="Generic three-tier system">
+
+## Zero\-shot transfer accuracy
+
+[<code>examples/transfer\-heatmap/transfer\-heatmap\.sumi\.yaml</code>](../../examples/transfer-heatmap/transfer-heatmap.sumi.yaml) · [PDF](../../examples/transfer-heatmap/transfer-heatmap.pdf) · theme <code>sumi</code> · profile <code>paper\-single</code> · 64\.38mm × 78\.32mm \(max width 88mm, max height 220mm\)
+
+<img src="../../examples/transfer-heatmap/transfer-heatmap.svg" alt="Zero-shot transfer accuracy">
 
 ## Transformer \(structured layout, paper theme\)
 

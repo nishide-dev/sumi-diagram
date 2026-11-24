@@ -38,21 +38,39 @@ export function labelGap(
 /**
  * The padding of a tag (`labelStyle: tag`, #610) around its text's line box,
  * in units: a third of the font size on the left and right, a tenth above
- * and below (the line box already holds the half-leading).
+ * and below (the line box already holds the half-leading). A badge
+ * (`labelStyle: badge`, #649) has the same height and is at least as wide
+ * as it is high, with at least a sixth of the font size at the sides: a
+ * circle while the text with that room fits inside it, a pill as wide as
+ * the text needs otherwise.
  */
-export function tagPadding(metrics: Pick<TextMetrics, "fontSizeUnits">): {
+export function tagPadding(
+  metrics: Pick<TextMetrics, "fontSizeUnits" | "width" | "height">,
+  edge?: Pick<EdgeIR, "labelStyle">,
+): {
   readonly x: number;
   readonly y: number;
 } {
+  const y = Math.round(metrics.fontSizeUnits / 10);
+  if (edge === undefined || !isBadgeLabel(edge))
+    return { x: Math.round(metrics.fontSizeUnits / 3), y };
+  const height = metrics.height + 2 * y;
   return {
-    x: Math.round(metrics.fontSizeUnits / 3),
-    y: Math.round(metrics.fontSizeUnits / 10),
+    x: Math.max(Math.round(metrics.fontSizeUnits / 6), (height - metrics.width) / 2),
+    y,
   };
 }
 
-/** The framed box of a tag around its text's line box `box` (#610). */
-export function tagBox(box: Rect, metrics: Pick<TextMetrics, "fontSizeUnits">): Rect {
-  const pad = tagPadding(metrics);
+/** The framed box of a tag (#610) or badge (#649) around its text's line box `box`. */
+export function tagBox(
+  box: Rect,
+  metrics: Pick<TextMetrics, "fontSizeUnits">,
+  edge?: Pick<EdgeIR, "labelStyle">,
+): Rect {
+  const pad = tagPadding(
+    { fontSizeUnits: metrics.fontSizeUnits, width: box.width, height: box.height },
+    edge,
+  );
   return {
     x: box.x - pad.x,
     y: box.y - pad.y,
@@ -61,8 +79,16 @@ export function tagBox(box: Rect, metrics: Pick<TextMetrics, "fontSizeUnits">): 
   };
 }
 
-/** Whether an edge's label is drawn as a tag on its line (#610). */
-export const isTagLabel = (edge: Pick<EdgeIR, "labelStyle">): boolean => edge.labelStyle === "tag";
+/**
+ * Whether an edge's label is drawn on its line in a frame: a tag (#610) or
+ * a badge (#649), which is placed like a tag.
+ */
+export const isTagLabel = (edge: Pick<EdgeIR, "labelStyle">): boolean =>
+  edge.labelStyle === "tag" || edge.labelStyle === "badge";
+
+/** Whether an edge's label is drawn as a round badge on its line (#649). */
+export const isBadgeLabel = (edge: Pick<EdgeIR, "labelStyle">): boolean =>
+  edge.labelStyle === "badge";
 
 /**
  * The point at `fraction` (0 to 1) of a route's length from its first point
@@ -566,7 +592,7 @@ function placeRequestedLabel(
 ): TextLayout {
   const g = labelGap(edge.style);
   const tag = isTagLabel(edge);
-  const pad = tag ? tagPadding(metrics) : { x: 0, y: 0 };
+  const pad = tag ? tagPadding(metrics, edge) : { x: 0, y: 0 };
   // The extent kept clear: a tag's framed box.
   const w = metrics.width + 2 * pad.x;
   const h = metrics.height + 2 * pad.y;

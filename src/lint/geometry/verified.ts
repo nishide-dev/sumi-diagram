@@ -12,15 +12,18 @@ import { getProfile } from "../../core/profile/builtin";
 import { spacedProfile } from "../../core/profile/schema";
 import { SEPARATOR_ID } from "../../core/registry/builtins";
 import { getFontSet } from "../../core/theme/fonts";
-import { formatMm } from "../../core/units";
+import { formatMm, mmToPt } from "../../core/units";
 import { HintTrials, inHintTrial, MAX_HINT_TRIALS, mapBoxes } from "../../layout/hint-trials";
 import { unitsToPt } from "../../render/geometry";
 import { inspectSvg } from "../../render/inspect";
 import { writeStructuredSvg } from "../../render/structured";
 import { createGeometryContext, type GeometryContext } from "./context";
+import { INTENT_GAP_MM } from "./width-fit";
 
 interface Candidate {
   text: string;
+  /** A value that leaves no room between items (#640): reported after the others, as a last resort. */
+  extreme?: boolean;
   /** A copy of the figure with exactly one edit. */
   make: () => FigureIR;
   priority: number;
@@ -74,17 +77,29 @@ export function verifyHints(
   const assets = loadFigureAssets(original);
   if (!assets.ok) return skipped("inline or bundled assets could not be prepared");
   const candidates: Candidate[] = [];
+  const profile = getProfile(original.meta.profileId);
+  const defaultGapPt = profile
+    ? spacedProfile(profile, original.meta.density).layout.arrangeGap.pt
+    : 0;
+  const intentGapPt = mmToPt(INTENT_GAP_MM);
   for (const { box, path } of boxes(original)) {
     const edit = (patch: Partial<ArrangeBoxIR>) =>
       mapBoxes(original, (b, o) => (o === box ? { ...b, ...patch } : b));
     const field = box.kind === "grid" ? "columnGapPt" : "gapPt";
-    if (mode === "width" && box.kind !== "stack" && box[field] !== 0)
+    // Gaps go down to 2mm, which still holds an arrow; only a gap already that
+    // narrow is taken to 0mm, a last resort (#640).
+    const gapPt = box[field] ?? defaultGapPt;
+    if (mode === "width" && box.kind !== "stack" && gapPt > 0) {
+      const extreme = gapPt <= intentGapPt + 1e-6;
+      const target = extreme ? 0 : intentGapPt;
       candidates.push({
         priority: 0,
-        impact: (box[field] ?? 0) * Math.max(0, (box.columns ?? box.items.length) - 1),
-        text: `set ${path}.${box.kind}.${box.kind === "grid" ? "columnGap" : "gap"} to 0mm`,
-        make: () => edit({ [field]: 0 }),
+        impact: (gapPt - target) * Math.max(0, (box.columns ?? box.items.length) - 1),
+        text: `set ${path}.${box.kind}.${box.kind === "grid" ? "columnGap" : "gap"} to ${extreme ? 0 : INTENT_GAP_MM}mm`,
+        ...(extreme && { extreme }),
+        make: () => edit({ [field]: target }),
       });
+    }
     if (mode === "empty") {
       for (const [key, value] of [
         ["align", "stretch"],
@@ -128,28 +143,39 @@ export function verifyHints(
   }
   if (mode === "width") {
     const attached = original.nodes.filter((n) => n.attach !== undefined && n.attach.gapPt > 0);
-    const zero = (targets: readonly NodeIR[]) =>
+    // Like the gaps: down to 2mm, or to 0mm (a last resort) when already that close.
+    const targetOf = (n: NodeIR) => ((n.attach?.gapPt ?? 0) > intentGapPt + 1e-6 ? intentGapPt : 0);
+    const narrow = (targets: readonly NodeIR[]) =>
       withNodes((n) =>
-        targets.includes(n) && n.attach ? { ...n, attach: { ...n.attach, gapPt: 0 } } : n,
+        targets.includes(n) && n.attach ? { ...n, attach: { ...n.attach, gapPt: targetOf(n) } } : n,
       );
+    const describe = (targets: readonly NodeIR[]) => {
+      const values = [...new Set(targets.map(targetOf))];
+      return values.length === 1
+        ? `${values[0] === 0 ? 0 : INTENT_GAP_MM}mm`
+        : `${INTENT_GAP_MM}mm (0mm where already closer)`;
+    };
+    const extreme = (targets: readonly NodeIR[]) => targets.every((n) => targetOf(n) === 0);
     if (attached.length > 1)
       candidates.push({
         priority: 0,
-        impact: attached.reduce((sum, n) => sum + (n.attach?.gapPt ?? 0), 0),
-        text: `set attach.gap of all ${attached.length} attached nodes to 0mm`,
-        make: () => zero(attached),
+        impact: attached.reduce((sum, n) => sum + (n.attach?.gapPt ?? 0) - targetOf(n), 0),
+        text: `set attach.gap of all ${attached.length} attached nodes to ${describe(attached)}`,
+        ...(extreme(attached) && { extreme: true }),
+        make: () => narrow(attached),
       });
     for (const node of attached)
       candidates.push({
         priority: 0,
-        impact: node.attach?.gapPt ?? 0,
-        text: `set attach.gap of node "${node.id}" to 0mm`,
-        make: () => zero([node]),
+        impact: (node.attach?.gapPt ?? 0) - targetOf(node),
+        text: `set attach.gap of node "${node.id}" to ${describe([node])}`,
+        ...(extreme([node]) && { extreme: true }),
+        make: () => narrow([node]),
       });
   }
   const fonts = getFontSet(original.meta.fontSetId);
   if (!fonts) return neutral;
-  const verified: { text: string; reduction: number }[] = [];
+  const verified: { text: string; reduction: number; extreme?: boolean }[] = [];
   const baseline = score(context);
   const ordered = candidates.sort(
     (a, b) => b.impact - a.impact || a.priority - b.priority || a.text.localeCompare(b.text),
@@ -173,18 +199,27 @@ export function verifyHints(
       const after = score(trial);
       const reduction = baseline - after;
       if (reduction > 1e-6 && (mode === "width" || after === 0))
-        verified.push({ text: candidate.text, reduction });
+        verified.push({
+          text: candidate.text,
+          reduction,
+          ...(candidate.extreme && { extreme: true }),
+        });
     } catch {
       // A counterfactual may be invalid; it is never a recommendation.
     }
   }
   if (!verified.length) return neutral;
   return `Verified layout edits (independent trials): ${verified
-    .sort((a, b) => b.reduction - a.reduction || a.text.localeCompare(b.text))
+    .sort(
+      (a, b) =>
+        Number(a.extreme ?? false) - Number(b.extreme ?? false) ||
+        b.reduction - a.reduction ||
+        a.text.localeCompare(b.text),
+    )
     .slice(0, 3)
     .map((v) =>
       mode === "width"
-        ? `${v.text} (page width reduced by ${formatMm(unitsToPt(v.reduction) * (context.inspection.scale ?? 1))})`
+        ? `${v.text} (page width reduced by ${formatMm(unitsToPt(v.reduction) * (context.inspection.scale ?? 1))})${v.extreme ? " as a last resort, no room left between the items" : ""}`
         : `${v.text} (removes this diagnostic)`,
     )
     .join("; ")}.`;

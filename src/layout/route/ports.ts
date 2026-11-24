@@ -15,7 +15,7 @@ import { outlineRegions } from "../../lint/geometry/outlines";
 import { rectPolygon, shapeOutline } from "../../lint/geometry/shapes";
 import { type LayoutIR, type Point, type Rect, roundUnits } from "../ir";
 import { endpointRects, makeInside } from "./endpoint-rects";
-import { planLanes } from "./lanes";
+import { type LanePlan, planLanes } from "./lanes";
 
 /** Direction indices: 0 = east (+x), 1 = south (+y), 2 = west (−x), 3 = north (−y). */
 export const DIRS: readonly Point[] = [
@@ -1287,6 +1287,46 @@ function straighten(
   }
 }
 
+/**
+ * `lane.bus: false` (#649): where two or more such lanes meet one side of an
+ * element with no anchor written there, their ends are spread along that
+ * side (at 1/(k+1), 2/(k+1), …), ordered by where the other end lies, so the
+ * lines leave apart instead of from one shared point. Keyed
+ * `"<edge key> from|to"`; the offset is a fraction of the side.
+ */
+function unbussedLaneOffsets(
+  ir: FigureIR,
+  lanes: ReadonlyMap<ElementKey, LanePlan>,
+  rectOf: (key: ElementKey) => Rect | undefined,
+): Map<string, number> {
+  const groups = new Map<string, { id: string; index: number; along: number }[]>();
+  for (const edge of ir.edges) {
+    if (edge.lane?.bus !== false) continue;
+    const plan = lanes.get(edge.key);
+    if (plan === undefined || plan.problem !== undefined) continue;
+    for (const which of ["from", "to"] as const) {
+      const side = plan[which];
+      const anchor = which === "from" ? edge.fromAnchor : edge.toAnchor;
+      if (side === undefined || (typeof anchor === "object" && anchor.side === side)) continue;
+      const other = rectOf(which === "from" ? edge.to : edge.from);
+      if (other === undefined) continue;
+      const along =
+        side === "east" || side === "west" ? other.y + other.height / 2 : other.x + other.width / 2;
+      const key = `${which === "from" ? edge.from : edge.to} ${side}`;
+      const list = groups.get(key) ?? [];
+      list.push({ id: `${edge.key} ${which}`, index: edge.index, along });
+      groups.set(key, list);
+    }
+  }
+  const out = new Map<string, number>();
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    list.sort((a, b) => a.along - b.along || a.index - b.index);
+    for (const [i, end] of list.entries()) out.set(end.id, (i + 1) / (list.length + 1));
+  }
+  return out;
+}
+
 /** {@link resolveEnds}, with the ends in `spread` (keyed {@link endKey}) at that side and offset. */
 function resolveEndsWith(
   ir: FigureIR,
@@ -1327,6 +1367,7 @@ function resolveEndsWith(
   );
   const inside = (inner: Element, outer: Element): boolean => insideKeys(inner.key, outer.key);
   const lanes = planLanes(ir, layout);
+  const ownLanePoints = unbussedLaneOffsets(ir, lanes, (key) => elements.get(key)?.rect);
 
   // The side of each end: the anchor's, or the default.
   const chooseSide = (
@@ -1351,10 +1392,14 @@ function resolveEndsWith(
     if (lane !== undefined && lane.problem === undefined) {
       const side = isSource ? lane.from : lane.to;
       const anchor = isSource ? edge.fromAnchor : edge.toAnchor;
+      // `bus: false` (#649): lanes of their own leave a shared side at points of their own.
+      const own = ownLanePoints.get(`${edge.key} ${isSource ? "from" : "to"}`);
       if (side !== undefined)
         return typeof anchor === "object" && anchor.side === side
           ? { side, offset: anchor.offset, inward: false, anchored: true }
-          : { side, inward: false, anchored: false };
+          : own !== undefined
+            ? { side, offset: own, inward: false, anchored: true }
+            : { side, inward: false, anchored: false };
     }
     // A blocked face-port cuboid edge (#587): the end is the top or bottom face's centroid.
     const faceSide = edge.faceSides?.[isSource ? "from" : "to"];

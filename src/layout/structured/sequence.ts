@@ -6,6 +6,8 @@
  * fragment frames between them need (at least `participantGap` between the
  * participants' boxes), and each row starts `rowGap` below the previous one.
  *
+ * - Participants are as tall as the tallest one (top and bottom aligned) when their
+ *   component can grow, else bottom-aligned above their lifelines.
  * - A message's two junctions sit on its lifelines at the row's line; the
  *   label above the line (`labelSide` from the direction, set by the
  *   expansion) is clear of every lifeline it does not end on.
@@ -33,6 +35,8 @@ export interface SequenceContext {
   readonly labelOf: (key: ElementKey) => TextMetrics | undefined;
   /** Whether a note may be drawn wider than its natural width (to span several lifelines). */
   readonly widenable: (key: ElementKey) => boolean;
+  /** Whether a participant may be drawn taller than its natural height (#645); omitted means no. */
+  readonly tallable?: (key: ElementKey) => boolean;
   /** The profile's arrange gap in units. */
   readonly gap: number;
 }
@@ -90,6 +94,9 @@ export function sequenceGeometry(box: ArrangeBoxIR, ctx: SequenceContext): Seque
   // A frame's padding around its rows, and the inset of its heading.
   const framePad = Math.max(6, Math.round(ctx.gap / 3));
   const inset = Math.max(3, Math.round(framePad / 2));
+  // A frame's sides run parallel to lifelines: twice the clearance keeps a side clearly apart
+  // from the outermost lifeline it encloses and from the next one outside it (#645).
+  const sidePad = Math.max(framePad, 2 * clear);
   const heads = seq.participants.map(ctx.sizeOf);
   const half = (key: ElementKey) => ctx.sizeOf(key).width / 2;
 
@@ -259,14 +266,14 @@ export function sequenceGeometry(box: ArrangeBoxIR, ctx: SequenceContext): Seque
         out.push({
           lo: inner.lo - 1,
           hi: inner.lo,
-          width: (x[inner.lo] as number) - frame.left + framePad,
+          width: (x[inner.lo] as number) - frame.left + sidePad,
           reason: `the frame of ${name}`,
         });
       if (inner.hi < count - 1)
         out.push({
           lo: inner.hi,
           hi: inner.hi + 1,
-          width: frame.right - (x[inner.hi] as number) + framePad,
+          width: frame.right - (x[inner.hi] as number) + sidePad,
           reason: `the frame of ${name}`,
         });
       extend(inner.lo, inner.hi, frame.left, frame.right);
@@ -279,8 +286,8 @@ export function sequenceGeometry(box: ArrangeBoxIR, ctx: SequenceContext): Seque
     x: readonly number[],
   ) => {
     const first = x[inner.lo] as number;
-    const left = Math.min(inner.left - framePad, first - clear - headingWidth(row.label) - inset);
-    const right = Math.max(inner.right, x[inner.hi] as number) + framePad;
+    const left = Math.min(inner.left - sidePad, first - clear - headingWidth(row.label) - inset);
+    const right = Math.max(inner.right, x[inner.hi] as number) + sidePad;
     return { left, right };
   };
 
@@ -307,12 +314,19 @@ export function sequenceGeometry(box: ArrangeBoxIR, ctx: SequenceContext): Seque
   }
   const x = xs();
 
-  // Vertical: heads bottom-aligned, then one row after another.
+  // Vertical: heads as tall as the tallest (#645: a one-line box beside a two-line one), else
+  // bottom-aligned on the lifelines' top; then one row after another.
   const rects = new Map<ElementKey, Rect>();
   const headBottom = Math.max(...heads.map((h) => h.height));
   for (const [i, key] of seq.participants.entries()) {
     const h = heads[i] as Size;
-    rects.set(key, { x: (x[i] as number) - h.width / 2, y: headBottom - h.height, ...h });
+    const height = ctx.tallable?.(key) === true ? headBottom : h.height;
+    rects.set(key, {
+      x: (x[i] as number) - h.width / 2,
+      y: headBottom - height,
+      width: h.width,
+      height,
+    });
   }
   const point = (key: ElementKey, px: number, py: number) => {
     const s = ctx.sizeOf(key);

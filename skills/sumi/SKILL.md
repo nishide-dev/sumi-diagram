@@ -176,7 +176,7 @@ Write PDF or PPTX (one picture) only when asked ([output formats](references/fig
 Geometry errors exit 1 but **the SVG is still written**. It prints `Wrote figure.svg:
 <W>mm × <H>mm (…)`; `--json` has `size` (`widthMm`, `heightMm`, limits, `fits`; `scale` if scaled).
 
-- `geometry/exceeds-page-width` / `-height`: the width hint follows the natural widths to the item that sets the width (`Widest contributor`) and gives values that fit (`Fits …`: a gap, a group's `props.padding` or a node's `width`, each tried as a trial layout): apply one, re-run ([width breakdown](references/diagnostics.md#too-wide-the-width-breakdown)). Else compare the [options](references/layout-tips.md#when-width-runs-short) and what each costs. A wider profile is the user's choice: ask, never switch on your own. Plan widths before the first render with the [default sizes](references/sizes.md); `sumi render --explain-width` prints every group's width, padding and gaps.
+- `geometry/exceeds-page-width` / `-height`: the width hint follows the natural widths to the item that sets the width (`Widest contributor`) and gives values that fit (`Fits …`: a legend's `perRow`, a matrix's `flush` / `cellWidth`, `place` x coordinates, a gap (2mm or more first; `last resort` below), a group's `props.padding` or a node's `width`, each tried as a trial layout; a sequence too tall gets a `rowGap`): apply one, re-run ([width breakdown](references/diagnostics.md#too-wide-the-width-breakdown)). Else compare the [options](references/layout-tips.md#when-width-runs-short) and what each costs. A wider profile is the user's choice: ask, never switch on your own. Plan widths before the first render with the [default sizes](references/sizes.md); `sumi render --explain-width` prints every group's width, padding and gaps.
 - `figure.target` adds `geometry/exceeds-target-height` (over budget) and
   `geometry/placement-usage` (reserved area: compare candidates by it).
 - Geometry warnings (`edge-crosses-label`, `label-collision`, …): try the
@@ -186,8 +186,8 @@ Geometry errors exit 1 but **the SVG is still written**. It prints `Wrote figure
   `geometry/relocatable-node` (info): apply its checked `items` edit unless the place means something.
 - Structured: `layout/no-route` (no SVG written): an edge has no room; widen that `gap`
   or move an attached node out of it ([spacing](references/structured.md#spacing-that-routes)).
-  Also `layout/unsatisfied-align`, `layout/edge-label-overlap` (warnings),
-  `layout/edge-crossing`, `layout/align-grew-figure` (infos); no `--emit-d2`.
+  Also `layout/unsatisfied-align`, `layout/edge-label-overlap` (warnings), `layout/edge-crossing`,
+  `layout/align-grew-figure` / `-widened-gap` / `-uneven-stretch` (infos; align `move: <id>` picks the side that moves); no `--emit-d2`.
 - Other `svg/*`, `backend/*`, `asset/*`, `geometry/*` codes: [diagnostics](references/diagnostics.md).
 
 ### 7. Check content, then readability

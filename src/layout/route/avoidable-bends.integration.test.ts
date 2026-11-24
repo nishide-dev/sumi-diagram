@@ -575,3 +575,70 @@ edges:
     );
   });
 });
+
+describe("#639 run 9: a Z between ends that share no span (#647)", () => {
+  // working → completed leaves working's south side at 0.25. The two boxes
+  // share no x span, so no line is straight; one bend would need working's
+  // west side (it holds the two edges to input-required) or completed's
+  // east side past failed, which sits under working. The Z is the fewest
+  // bends at this placement: avoidable-bend stays quiet, and each L written
+  // as anchors is drawn with more bends, not fewer.
+  const source = (anchors: string) => `
+version: 1
+figure:
+  id: run9
+  theme: sumi
+  profile: screen-doc
+  themeOverrides: {textScale: 1.5}
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: input, at: [20, 10]}
+          - {item: working, at: [70, 10]}
+          - {item: terminal, at: [50, 50], origin: body}
+groups:
+  - id: terminal
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: completed, at: [35, 0]}
+          - {item: failed, at: [70, 0]}
+nodes:
+  - {id: input, component: box, label: input-required}
+  - {id: working, component: box, label: working}
+  - {id: completed, component: box, label: completed}
+  - {id: failed, component: box, label: failed}
+edges:
+  - {from: working, to: input, fromAnchor: "west:0.3", toAnchor: "east:0.3"}
+  - {from: input, to: working, fromAnchor: "east:0.7", toAnchor: "west:0.7"}
+  - {from: working, to: completed, ${anchors}, label: success}
+  - {from: working, to: failed, label: error}
+`;
+
+  test("the Z is not reported, and neither L is drawn with fewer bends", async () => {
+    const value = await render(source(`fromAnchor: "south:0.25"`));
+    const box = (key: string) => value.layout.nodes.find((n) => n.key === key)?.rect;
+    const working = box("n:working");
+    const completed = box("n:completed");
+    const failed = box("n:failed");
+    if (working === undefined || completed === undefined || failed === undefined)
+      throw new Error("no boxes");
+    expect(completed.x + completed.width).toBeLessThan(working.x);
+    const z = routeOf(value, "n:working", "n:completed");
+    expect(bendCount(z)).toBe(2);
+    // The line leaves working above failed.
+    expect(z[0]?.x).toBeGreaterThan(failed.x);
+    expect(z[0]?.x).toBeLessThan(failed.x + failed.width);
+    expect(avoidable(value)).toEqual([]);
+    for (const anchors of [
+      `fromAnchor: "south:0.25", toAnchor: east`,
+      `fromAnchor: west, toAnchor: north`,
+    ]) {
+      const l = await render(source(anchors));
+      expect(bendCount(routeOf(l, "n:working", "n:completed")), anchors).toBeGreaterThan(2);
+    }
+  });
+});

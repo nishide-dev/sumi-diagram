@@ -89,7 +89,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.16.1 | Set `enclose: footprint` includes member glyphs and padding; the default `body` preserves existing outlines. |
 | 0.19.0 | `cuboid`: a solid drawn in oblique projection, with `dims`; `figure.projection` (`angle`, `depthScale`); container `props.plane` (`floor` / `wall`): a tilted plane group, with `props.contents: projected` laying node outlines, arrowheads and a `matrix` flat on it; `cuboid` `cells` / `highlight` and `<node>.<name>` zoom ends |
 | 0.20.0 | `sequence` arrange box (participants, lifelines, message rows, notes, bands, fragments); edge `dash` / `strands`, set `text` / `weight`, cylinder `capDepth`; `matrix` `labelAt: above` (title outside, no padding), `wrapHeaders` / `columnHeaderWidth`, `rules: true` (a table with rules only); `muted` matrix cells drawn pale |
-| 0.20.1 | row `panels: true`: the groups in the row take its height, their content sits under their titles and their titles share one band unless that makes the row taller; `geometry/panel-misaligned` |
+| 0.20.1 | `matrix` `scale` (a colour scale for cells written `{value}`) and legend `scale` entries, merged cells (`span`), `headerRotate`; a ruled matrix's legend samples have no border; `sequence` messages to several participants (`to: [b, c]`: one arrow each, the label on the first); fragment frames drawn as the theme's group frame without `variant` / `tone`; participants as tall as the tallest; row `panels: true`: the groups in the row take its height, their content sits under their titles and their titles share one band unless that makes the row taller; `geometry/panel-misaligned` |
 
 ## IDs
 
@@ -242,7 +242,10 @@ frames and toned edges take the dim gray.
 `dim: true` on a group draws it pale together with everything inside: nested groups, nodes
 (legends and tokens cells too), its caption and the edges whose two ends are both inside:
 the panels of variants a paper compares against. Text and lines take the theme's dim gray
-(a group frame already paler than it, such as a `sumi` or `paper` panel frame, stays as it is: dimming never makes a frame louder)
+(a line already paler than it stays quiet: a `sumi` or `paper` panel frame and `llama`'s pale
+operator frame stay as they are, and a `muted` flow arrow, toned or not, pales with no border; dimming
+never makes a line louder). In `sumi` / `sumi-dark` the dim gray is a step paler than `muted`
+(#8a8f9d / #7a8595, about 3.2:1), so text, `muted` and dimmed elements read apart
 and fills move toward the theme canvas (white by default; dark in `sumi-dark`); sizes, dashes, fonts and layout do
 not change. Write it once on the group instead of `variant: muted` on every element (tone
 fills stay strong).

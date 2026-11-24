@@ -417,6 +417,28 @@ function checkStructured(state: CheckState, locate: Locator): void {
           }
           continue;
         }
+        // `origin: place` (#649) needs a flat group arranged by its own place.
+        if (kind === "place" && wrapped && "origin" in cell && cell.origin === "place" && !silent) {
+          const target = elements.get(item);
+          const group = target?.kind === "group" ? (target.value as FigureGroup) : undefined;
+          const inner = group?.arrange;
+          // A tilted plane (#577) maps its content, so its inner [0, 0] is no page point.
+          const plane = group?.props?.plane !== undefined;
+          if (target !== undefined && (inner?.place === undefined || plane)) {
+            push(
+              errorAt(
+                locate,
+                "layout/invalid-place-origin",
+                `origin: place on "${item}" needs a flat group arranged by its own place, but "${item}" is ${target.kind !== "group" ? "a node" : plane ? "a tilted plane (props.plane)" : inner === undefined ? "a group without an arrange tree" : "a group arranged by another box"}.`,
+                [...path, kind, "items", index, "origin"],
+                {
+                  subject: ownerSubject,
+                  hint: "Arrange a flat group (no props.plane) with place, or use origin: footprint or body.",
+                },
+              ),
+            );
+          }
+        }
         add({ id: item, path: itemPath, via: "arrange", owner, silent });
       }
       if (kind === "grid" && column !== 0 && !silent) {
@@ -846,6 +868,27 @@ function checkAlign(
             subject: figureSubject,
             hint: "List each element once in a constraint.",
             related: [relatedAt(locate, [...path, earlier], "First listed here.")],
+          },
+        ),
+      );
+    }
+    // `move` (#646) picks the items that may move: each must be an item of this constraint.
+    const move = constraint.move;
+    if (move === undefined) continue;
+    const moves = typeof move === "string" ? [move] : move;
+    for (const [i, id] of moves.entries()) {
+      if (items.includes(id) || isInvalidId(refOwner(id))) continue;
+      const movePath: DocPath = ["figure", "layout", "align", index, "move"];
+      if (typeof move !== "string") movePath.push(i);
+      state.diagnostics.push(
+        errorAt(
+          locate,
+          "layout/invalid-align-move",
+          `"${id}" in figure.layout.align[${index}].move is not an item of the constraint; move names which of its items may move.`,
+          movePath,
+          {
+            subject: figureSubject,
+            hint: `Name one of ${items.map((item) => `"${item}"`).join(", ")}, or add "${id}" to "${axis}".`,
           },
         ),
       );

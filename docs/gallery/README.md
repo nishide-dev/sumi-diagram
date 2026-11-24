@@ -21,6 +21,7 @@
   - <a id="multilayer-network-with-correspondences"></a>[Multilayer network with correspondences](examples.md#multilayer-network-with-correspondences)
   - <a id="generic-processing-pipeline"></a>[Generic processing pipeline](examples.md#generic-processing-pipeline)
   - <a id="generic-three-tier-system"></a>[Generic three\-tier system](examples.md#generic-three-tier-system)
+  - <a id="zero-shot-transfer-accuracy"></a>[Zero\-shot transfer accuracy](examples.md#zero-shot-transfer-accuracy)
   - <a id="examplestransformertransformersumiyaml"></a><a id="transformer-structured-layout-paper-theme"></a>[Transformer \(structured layout, paper theme\)](examples.md#transformer-structured-layout-paper-theme)
   - <a id="tricl--overview-of-tri-directional-contrastive-learning"></a>[TriCL — overview of tri\-directional contrastive learning](examples.md#tricl--overview-of-tri-directional-contrastive-learning)
 - <a id="themes-and-profiles"></a>[Themes](themes.md): The built\-in themes side by side: a structured Transformer and an auto\-layout pipeline under every theme\.
