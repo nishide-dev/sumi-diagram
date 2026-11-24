@@ -97,7 +97,7 @@ import {
 import { projectableShape } from "../plane-nodes";
 import { sampleCubic } from "../route/cubic";
 import { curveLabel, loopLabelEdge, selfLoopAnchors, selfLoopPoints } from "../route/curve";
-import { arrowheadPaddingDeficits, type SidePadding } from "../route/padding";
+import { arrowheadPaddingDeficits, type PaddingGrowth, type SidePadding } from "../route/padding";
 import { anchorPoint, isJunction } from "../route/ports";
 import { outlineBounds } from "../set-shape";
 import { captionGap, fontSetMeasurer, measureText, type TextMeasurer } from "../text";
@@ -328,9 +328,10 @@ function placeWith(
   let placed = place();
   for (let round = 0; round < ARROWHEAD_PADDING_RELAYOUTS; round++) {
     if (ir.align !== undefined && ir.align.length > 0 && spent >= budget) break;
-    const deficits = arrowheadPaddingDeficits(ir, placed.layout);
+    const reasons = new Map<ElementKey, PaddingGrowth[]>();
+    const deficits = arrowheadPaddingDeficits(ir, placed.layout, reasons);
     if (deficits.size === 0) break;
-    engine.growPadding(deficits);
+    engine.growPadding(deficits, reasons);
     placed = place();
   }
   after?.(engine, strutsOf.get(placed.layout) ?? NO_STRUTS);
@@ -365,6 +366,8 @@ class StructuredLayout {
   readonly #groupPadding: number;
   /** Padding added to sides of groups for the room before arrowheads (#171, `growPadding`). */
   readonly #extraPadding = new Map<ElementKey, Overhang>();
+  /** Why `#extraPadding` grew (#640): for the width tree only. */
+  readonly #paddingReasons = new Map<ElementKey, PaddingGrowth[]>();
   readonly #margin: number;
   readonly #nodePaddingX: number;
 
@@ -583,7 +586,12 @@ class StructuredLayout {
    * the room an edge needs before an arrowhead in a group's padding (#171,
    * `arrowheadPaddingDeficits`). Adds to what earlier calls added.
    */
-  growPadding(extra: ReadonlyMap<ElementKey, SidePadding>): void {
+  growPadding(
+    extra: ReadonlyMap<ElementKey, SidePadding>,
+    reasons?: ReadonlyMap<ElementKey, readonly PaddingGrowth[]>,
+  ): void {
+    for (const [key, list] of reasons ?? [])
+      this.#paddingReasons.set(key, [...(this.#paddingReasons.get(key) ?? []), ...list]);
     for (const [key, sides] of extra) {
       const current = this.#extraPadding.get(key) ?? { ...NO_OVERHANG };
       current.north += sides.north;
@@ -743,6 +751,19 @@ class StructuredLayout {
       };
       if (leaf !== undefined) return { ...base, leaf, children: [] };
       const p = this.#padding(entry);
+      const extra = this.#extraPadding.get(entry);
+      const grown =
+        extra !== undefined && extra.west + extra.east > 0
+          ? {
+              grown: {
+                west: pt(extra.west),
+                east: pt(extra.east),
+                reasons: (this.#paddingReasons.get(entry) ?? []).filter(
+                  (r) => r.side === "west" || r.side === "east",
+                ),
+              },
+            }
+          : {};
       const content = this.#containerSize(entry, group.arrange).width;
       const title = this.#labels.get(entry);
       const titleWidth = title === undefined ? 0 : Math.ceil(title.width);
@@ -750,7 +771,12 @@ class StructuredLayout {
         group.arrange === undefined ? undefined : box(group.arrange, `group "${group.id}".arrange`);
       return {
         ...base,
-        padding: { west: pt(p.west), east: pt(p.east), written: group.paddingPt !== undefined },
+        padding: {
+          west: pt(p.west),
+          east: pt(p.east),
+          written: group.paddingPt !== undefined,
+          ...grown,
+        },
         contentPt: pt(content),
         ...(titleWidth > content && { titlePt: pt(titleWidth) }),
         ...this.#attachEntry(entry, group.arrange),
@@ -1672,6 +1698,8 @@ class StructuredLayout {
           : measureText(edge.label, edge.style, this.#measurer);
       },
       widenable: (key) => this.#stretchable(key, true),
+      // Only nodes: a group's frame would grow without its contents (#645).
+      tallable: (key) => key.startsWith("n:") && this.#stretchable(key, false),
       gap: this.#defaultGap,
     });
   }

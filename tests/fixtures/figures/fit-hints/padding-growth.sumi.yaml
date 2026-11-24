@@ -1,0 +1,42 @@
+# Reduced from run 7 of the #639 dogfood: edges fan out from a junction
+# outside the panel into its members, so the panel's 2mm padding grows on
+# the side they enter (#512), and on the opposite side as much (#247).
+version: 1
+figure:
+  id: padding-growth
+  theme: sumi
+  profile: paper-double
+  layout:
+    density: compact
+    arrange:
+      row:
+        gap: 3mm
+        items: [base, split, post]
+groups:
+  - id: post
+    label: (b) Post-training
+    labelAt: above-left
+    props: {padding: 2mm}
+    arrange:
+      grid:
+        columns: 3
+        rowGap: 4mm
+        columnGap: 3mm
+        items: [think_sft, think_dpo, think, inst_sft, inst_dpo, instruct]
+nodes:
+  - {id: base, component: box, label: "Base\nmodel", variant: emphasis}
+  - {id: split, component: junction}
+  - {id: think_sft, component: box, label: SFT, tone: green, variant: tinted}
+  - {id: think_dpo, component: box, label: DPO, tone: green, variant: tinted}
+  - {id: think, component: box, label: Thinking model, variant: emphasis}
+  - {id: inst_sft, component: box, label: SFT, tone: green, variant: tinted}
+  - {id: inst_dpo, component: box, label: DPO, tone: green, variant: tinted}
+  - {id: instruct, component: box, label: Instruct model, variant: emphasis}
+edges:
+  - {from: base, to: split, component: line}
+  - {id: to-think, from: split, to: think_sft, toAnchor: west}
+  - {id: to-inst, from: split, to: inst_sft, toAnchor: west}
+  - {from: think_sft, to: think_dpo}
+  - {from: think_dpo, to: think}
+  - {from: inst_sft, to: inst_dpo}
+  - {from: inst_dpo, to: instruct}

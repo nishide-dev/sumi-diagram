@@ -42,8 +42,20 @@ export interface SetStyleOptions {
   readonly fillOpacity?: number | undefined;
   /** `figure.themeOverrides.nodeCorners: square`. */
   readonly square?: boolean | undefined;
-  /** The figure's frame widths and corners (#427, `themeOverrides`). */
-  readonly figure?: Pick<FigureStrokes, "frameWidth" | "cornerRadius"> | undefined;
+  /** The figure's frame widths and corners (#427, `themeOverrides`); `groupStroke` for a `panel` outline. */
+  readonly figure?:
+    | (Pick<FigureStrokes, "frameWidth" | "cornerRadius"> & {
+        readonly groupStroke?: string | undefined;
+      })
+    | undefined;
+  /**
+   * Outline the set as the theme draws a group's frame (#645): the stroke and width of
+   * the container's default variant (`sumi`'s pale hairline), no fill. A theme whose
+   * panels have no frame (`llama`) gives its frame color at the thin line width.
+   * Only for an outlined set without a tone, e.g. a sequence fragment written without
+   * `variant` and `tone`.
+   */
+  readonly panel?: boolean | undefined;
   /** The set's own `lineWidth` and `cornerRadius` (#427), in pt. */
   readonly element?: Pick<ElementStrokes, "lineWidth" | "cornerRadius"> | undefined;
   /** The label's size as a role of the theme's text (#614); omitted means the group title's. */
@@ -188,6 +200,28 @@ function setFontSize(theme: Theme, heading: StyleLength, text: TextRole | undefi
   return { pt: units / 2, units };
 }
 
+/**
+ * The frame the theme draws around a group (#645): the container's default variant,
+ * with `themeOverrides.groupStroke`. A theme that draws no frame there (its panels are
+ * fills) gives the frame's color at its thin line (`line.frame`, else `line.thin`, else
+ * 0.5pt), so the outline stays visible without a fill.
+ */
+function panelOutline(
+  theme: Theme,
+  groupStroke: string | undefined,
+): { stroke: Color; strokeWidth: StyleLength } {
+  const group = resolveStyle(theme, {
+    kind: "group",
+    id: "sumi/container",
+    variant: "default",
+  }).style;
+  const stroke = groupStroke ?? group.stroke;
+  if (group.strokeWidth.units > 0) return { stroke, strokeWidth: group.strokeWidth };
+  const token = theme.tokens.get("line.frame") ?? theme.tokens.get("line.thin");
+  const pt = token?.type === "length" ? token.value.pt : 0.5;
+  return { stroke, strokeWidth: { pt, units: Math.round(pt * 2) } };
+}
+
 /** Resolves the style of a set under `theme` (already carrying the figure's tone overrides). */
 export function resolveSetStyle(theme: Theme, options: SetStyleOptions): SetStyle {
   const { variant, tone } = options;
@@ -215,6 +249,8 @@ export function resolveSetStyle(theme: Theme, options: SetStyleOptions): SetStyl
       : wide !== undefined && frame.strokeWidth.units > 0
         ? { pt: wide, units: wide * 2 }
         : frame.strokeWidth;
+  const panel = options.panel === true && variant === "outlined" && tone === undefined;
+  const panelFrame = panel ? panelOutline(theme, options.figure?.groupStroke) : undefined;
   const radius: StyleLength =
     options.square === true && options.element?.cornerRadius === undefined
       ? zero
@@ -223,8 +259,19 @@ export function resolveSetStyle(theme: Theme, options: SetStyleOptions): SetStyl
         : { pt: radiusPt, units: radiusPt * 2 };
   return Object.freeze({
     kind: "set",
-    stroke: outlined ? ink : "transparent",
-    strokeWidth: outlined ? strokeWidth : zero,
+    stroke: panelFrame?.stroke ?? (outlined ? ink : "transparent"),
+    // A panel frame always draws (#645): the set's or the figure's width replaces the
+    // theme's, including the visible fallback of a theme whose panels have no frame.
+    strokeWidth:
+      panelFrame !== undefined
+        ? own !== undefined
+          ? { pt: own, units: own * 2 }
+          : wide !== undefined
+            ? { pt: wide, units: wide * 2 }
+            : panelFrame.strokeWidth
+        : outlined
+          ? strokeWidth
+          : zero,
     strokeDash: variant === "dashed" ? Math.max(1, dashed.strokeDash) : 0,
     ...(variant === "dotted" && { strokeDotted: true as const }),
     opacity: 1,
