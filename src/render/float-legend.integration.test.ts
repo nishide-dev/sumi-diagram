@@ -316,9 +316,41 @@ describe("floating legends are painted last and exported (#643)", () => {
     const after = names.slice(first).filter((n) => /^[gne]:/.test(n));
     expect(after.every((n) => n === "g:key" || /^[ne]:key-/.test(n))).toBe(true);
     expect(names.slice(0, first)).toContain("n:p");
-    const pdf = svgToPdf(figure.svg);
+  });
+
+  test("the PDF is converted from the SVG that paints the legend last", async () => {
+    // The PDF engine draws the SVG's elements in document order: the input carries the order.
+    const figure = await rendered(covering);
+    const input = figure.svg;
+    const order = paintOrder(input);
+    expect(order.at(-1)?.startsWith("e:key-")).toBe(true);
+    expect(order.indexOf("g:key")).toBeGreaterThan(order.indexOf("n:p"));
+    const pdf = svgToPdf(input);
     if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
     expect(new TextDecoder().decode(pdf.value.slice(0, 5))).toBe("%PDF-");
+  });
+
+  test("a set sample is painted with its floating legend, over the frame", async () => {
+    const text = ROW(
+      LEGEND("      float: top-left\n").replace(
+        "        - {edge: {tone: orange}, label: signed}\n",
+        "        - {edge: {tone: orange}, label: signed}\n        - {set: {tone: green}, label: Hyperedge}\n",
+      ),
+    ).replace("edges:\n", "sets:\n  - {id: hyper, members: [a, b], tone: green}\nedges:\n");
+    const { svg } = await rendered(text);
+    const at = (pattern: RegExp) => svg.search(pattern);
+    const frame = svg.indexOf(
+      [...svg.matchAll(/class="([^"]*sumi-k-[^"]*)"/g)].find((m) =>
+        (m[1] ?? "").split(" ").some((c) => decodeElementClass(c) === "g:key"),
+      )?.[0] ?? "\u0000",
+    );
+    const swatch = at(/sumi-set-key-\d+-set\b/);
+    const content = at(/sumi-set-hyper\b/);
+    expect(frame).toBeGreaterThan(0);
+    expect(content).toBeGreaterThan(0);
+    // The figure's own set is painted with the content, the swatch after the legend's frame.
+    expect(content).toBeLessThan(frame);
+    expect(swatch).toBeGreaterThan(frame);
   });
 
   test("the other edges are routed exactly as without the legend", async () => {

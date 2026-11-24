@@ -1495,21 +1495,34 @@ export function writeStructuredSvg(
   // Set enclosures (#407) are drawn over the groups and under the nodes and edges:
   // the opaque tints first (#440), then each set's outline and label.
   const setIRs = new Map((ir.sets ?? []).map((set) => [set.id, set]));
-  const drawnSets = (layout.sets ?? []).map((placed) => {
+  const allSets = (layout.sets ?? []).map((placed) => {
     const set = setIRs.get(placed.id);
     if (set === undefined)
       throw new Error(`internal error: set "${placed.id}" is not in the figure`);
     return { set, placed };
   });
-  const fills = setFills(drawnSets, canvas);
-  if (fills.markup !== "") body.push(fills.markup);
-  painted.push(...fills.painted);
-  for (const { set, placed } of drawnSets) {
-    body.push(
-      setGroup(set, placed, colored(placed.label, { key: SET_COLOR_KEY, style: set.style })),
+  // The swatch of a floating legend's set entry (#643) encloses that legend's parts: it is
+  // painted with the legend, over its frame.
+  const legendOfSet = (set: SetIR): string | undefined => {
+    const ids = set.members.map((key) =>
+      floating.has(key) ? ir.elements.get(key)?.legend?.id : undefined,
     );
-    useText(placed.label);
-  }
+    return ids.length > 0 && ids.every((id) => id !== undefined && id === ids[0])
+      ? ids[0]
+      : undefined;
+  };
+  const drawSets = (drawn: typeof allSets): void => {
+    const fills = setFills(drawn, canvas);
+    if (fills.markup !== "") body.push(fills.markup);
+    painted.push(...fills.painted);
+    for (const { set, placed } of drawn) {
+      body.push(
+        setGroup(set, placed, colored(placed.label, { key: SET_COLOR_KEY, style: set.style })),
+      );
+      useText(placed.label);
+    }
+  };
+  drawSets(allSets.filter(({ set }) => legendOfSet(set) === undefined));
   const drawNode = (placed: (typeof layout.nodes)[number]): void => {
     const node = nodes.get(placed.key);
     if (node === undefined)
@@ -1574,6 +1587,7 @@ export function writeStructuredSvg(
     drawGroup(g);
     const id = ir.elements.get(g.key)?.legend?.id;
     const own = (key: ElementKey) => ir.elements.get(key)?.legend?.id === id;
+    drawSets(allSets.filter(({ set }) => id !== undefined && legendOfSet(set) === id));
     for (const placed of layout.nodes) if (own(placed.key)) drawNode(placed);
     for (const placed of layout.edges)
       if (own(placed.key)) body.push(wireSet.deferred.get(placed.key) ?? "");
