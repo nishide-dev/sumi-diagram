@@ -1,0 +1,21 @@
+version: 1
+figure:
+  id: probe
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange: {row: {gap: 6mm, items: [g, b, o, m, grp]}}
+groups:
+  - id: grp
+    label: Group
+    arrange: {row: {items: [e]}}
+nodes:
+  - {id: g, component: box, label: G, tone: green, variant: tinted}
+  - {id: b, component: box, label: B, tone: blue, variant: tinted}
+  - {id: o, component: box, label: O, tone: orange, variant: tinted}
+  - {id: m, component: box, label: M, variant: muted}
+  - {id: e, component: box, label: E, variant: emphasis}
+edges:
+  - {from: g, to: b, tone: blue}
+  - {from: b, to: o, tone: orange}
+  - {from: o, to: m}

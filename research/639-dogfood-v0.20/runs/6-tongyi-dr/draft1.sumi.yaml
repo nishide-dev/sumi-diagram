@@ -1,0 +1,109 @@
+version: 1
+figure:
+  id: tongyi-dr
+  theme: sumi
+  profile: presentation-16x9
+  themeOverrides:
+    textScale: 2
+  layout:
+    arrange:
+      stack:
+        gap: 10mm
+        align: stretch
+        items: [infer, train]
+    align:
+      - {x: [report, thought]}
+      - {x: [answer, action]}
+      - {x: [cpt_data, cpt]}
+      - {x: [qa_data, sft]}
+      - {x: [envs, rl]}
+groups:
+  - id: infer
+    label: "(a) ReAct loop with context management"
+    labelAt: above-left
+    arrange:
+      row:
+        gap: 16mm
+        align: center
+        items:
+          - question
+          - stack:
+              gap: 10mm
+              items:
+                - row: {gap: 14mm, items: [report, answer]}
+                - agent
+                - observation
+          - tools
+  - id: agent
+    label: Agent
+    labelAt: top-left
+    arrange:
+      row: {gap: 12mm, items: [thought, action]}
+  - id: tools
+    label: Tools
+    labelAt: top-left
+    arrange:
+      grid:
+        columns: 3
+        rowGap: 5mm
+        columnGap: 5mm
+        items:
+          [search, visit, scholar,
+           python, parser, null]
+  - id: train
+    label: "(b) Agentic training pipeline"
+    labelAt: above-left
+    arrange:
+      stack:
+        gap: 12mm
+        align: start
+        items:
+          - row: {gap: 12mm, align: center, items: [base, cpt, post]}
+          - row: {gap: 12mm, items: [cpt_data, qa_data, envs]}
+  - id: cpt
+    label: Agentic CPT
+    labelAt: top-left
+    arrange:
+      row: {gap: 8mm, items: [cpt1, cpt2]}
+  - id: post
+    label: Post-training
+    labelAt: top-left
+    arrange:
+      row: {gap: 10mm, items: [sft, rl, merge]}
+nodes:
+  - {id: question, component: box, label: Question}
+  - {id: thought, component: box, label: Thought, props: {width: 36mm}}
+  - {id: action, component: box, label: Action, props: {width: 36mm}}
+  - {id: report, component: box, label: "Report $S_t$", tone: blue, variant: tinted}
+  - {id: answer, component: box, label: Final answer, tone: orange, variant: tinted}
+  - {id: observation, component: box, label: Observation}
+  - {id: search, component: box, label: Search, tone: green, variant: tinted, props: {width: 36mm}}
+  - {id: visit, component: box, label: Visit, tone: green, variant: tinted, props: {width: 36mm}}
+  - {id: scholar, component: box, label: Scholar, tone: green, variant: tinted, props: {width: 36mm}}
+  - {id: python, component: box, label: Python, tone: green, variant: tinted, props: {width: 36mm}}
+  - {id: parser, component: box, label: File Parser, tone: green, variant: tinted, props: {width: 36mm}}
+  - {id: base, component: box, label: "Qwen3-30B-A3B\nBase"}
+  - {id: cpt1, component: box, label: "Stage 1\n32K"}
+  - {id: cpt2, component: box, label: "Stage 2\n128K"}
+  - {id: sft, component: box, label: SFT cold start}
+  - {id: rl, component: box, label: Agentic RL}
+  - {id: merge, component: box, label: Model merging}
+  - {id: cpt_data, component: box, label: Agentic data synthesis, tone: blue, variant: tinted}
+  - {id: qa_data, component: box, label: QA synthesis, tone: blue, variant: tinted}
+  - {id: envs, component: box, label: Real + simulated envs, tone: green, variant: tinted}
+edges:
+  - {from: question, to: thought}
+  - {from: thought, to: action}
+  - {from: action, to: tools, label: call}
+  - {from: tools, to: observation, fromAnchor: south, toAnchor: east, label: result}
+  - {from: observation, to: thought, fromAnchor: west, toAnchor: south}
+  - {from: thought, to: report, component: double-arrow, label: update}
+  - {from: action, to: answer, label: final step}
+  - {from: base, to: cpt}
+  - {from: cpt1, to: cpt2}
+  - {from: cpt, to: post}
+  - {from: sft, to: rl}
+  - {from: rl, to: merge}
+  - {from: cpt_data, to: cpt}
+  - {from: qa_data, to: sft}
+  - {from: envs, to: rl}
