@@ -865,14 +865,13 @@ describe("headers, titles, pale cells and rules (#612)", () => {
     expect(style("m-rule-mid")?.strokeWidth.units).toBe(
       (style("m-rule-top")?.strokeWidth.units ?? 0) / 2,
     );
-    // The legend's sample keeps its border.
+    // The legend's sample has no border either, as its cells (#644).
     const unruled = checkFigure(SOURCE.replace("variant: filled", "variant: default"));
     const outlined = checkFigure(
       figure(`${PROPS.replace("variant: filled", "variant: default")}\n      rules: true`),
     );
-    expect(outlined.state.styles?.get(nodeKey("key-1-box"))?.strokeWidth).toEqual(
-      unruled.state.styles?.get(nodeKey("key-1-box"))?.strokeWidth,
-    );
+    expect(unruled.state.styles?.get(nodeKey("key-1-box"))?.strokeWidth.units).toBeGreaterThan(0);
+    expect(outlined.state.styles?.get(nodeKey("key-1-box"))?.strokeWidth.units).toBe(0);
     expect(outlined.state.styles?.get(nodeKey("m-1-1"))?.strokeWidth.units).toBe(0);
     const frame = check.state.doc.groups?.find((g) => g?.id === "m");
     expect(frame?.arrange).toEqual({

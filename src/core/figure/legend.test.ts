@@ -222,15 +222,19 @@ describe("expansion (#131)", () => {
   });
 
   test("reserved IDs are the legend's ID, the entry number and the part", () => {
-    expect(legendPartIds("key", 3)).toEqual({
+    const { step, ...ids } = legendPartIds("key", 3);
+    expect(ids).toEqual({
       label: "key-3-label",
       heading: "key-3-heading",
       set: "key-3-set",
       box: "key-3-box",
+      low: "key-3-low",
+      high: "key-3-high",
       start: "key-3-start",
       end: "key-3-end",
       line: "key-3-line",
     });
+    expect(step(2)).toBe("key-3-step-2");
   });
 });
 
@@ -307,7 +311,7 @@ nodes:
       ["component/invalid-prop", ["nodes", 2, "props", "entries", 2, "label"], 16, 11],
     ]);
     expect(state.diagnostics[0]?.message).toBe(
-      'Invalid prop "entries[0]" for sumi/legend: an entry needs exactly one of "edge", "node", "class", "icon", "glyph" or "set".',
+      'Invalid prop "entries[0]" for sumi/legend: an entry needs exactly one of "edge", "node", "class", "scale", "icon", "glyph" or "set".',
     );
   });
 

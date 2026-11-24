@@ -49,12 +49,21 @@ function name(element: ElementIR): string {
 /** Every color the figure paints, in document order (groups, nodes, edges, sets). */
 export function paintedColors(ir: FigureIR): PaintedColor[] {
   const out: PaintedColor[] = [];
-  const add = (color: string | undefined, role: PaintRole | "area", where: string) => {
+  const add = (color: string | undefined, role: PaintRole | "area" | "step", where: string) => {
     const value = hex(color);
     if (value === undefined) return;
     const oklch = toOklch(value);
+    // A step of a matrix's color scale (#644) spans pale to strong on purpose: its pale steps
+    // are not fills to harmonize, its strong ones are dark colors like a solid fill.
+    if (role === "step" && oklch.l >= PALE_LIGHTNESS) return;
     const resolved: PaintRole =
-      role === "area" ? (oklch.l >= PALE_LIGHTNESS ? "fill" : "line") : role;
+      role === "area"
+        ? oklch.l >= PALE_LIGHTNESS
+          ? "fill"
+          : "line"
+        : role === "step"
+          ? "line"
+          : role;
     out.push({ color: value, role: resolved, oklch, where });
   };
   for (const element of ir.elements.values()) {
@@ -64,7 +73,11 @@ export function paintedColors(ir: FigureIR): PaintedColor[] {
       continue;
     }
     // A frame is painted only when it has a width; a label's or a junction's fill is transparent.
-    add(style.fill, element.kind === "group" ? "panel" : "area", `${name(element)} fill`);
+    add(
+      style.fill,
+      element.kind === "group" ? "panel" : element.scaleStep === true ? "step" : "area",
+      `${name(element)} fill`,
+    );
     if (style.strokeWidth.units > 0) add(style.stroke, "line", `${name(element)} frame`);
     if (element.kind === "node") {
       for (const glyph of element.glyphs ?? []) {
