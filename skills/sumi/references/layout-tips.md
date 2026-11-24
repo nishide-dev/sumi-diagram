@@ -542,7 +542,7 @@ the reference's arrangement), then map each look you want to a field:
 | a bold title on a band (a set) | `text: heading`, `weight: bold` on the set |
 | a sequence diagram (lifelines, ordered messages, replies, notes, loop / alt frames) | an [arrange box `sequence`](structured.md#sequence-diagrams) (0.20.0): `participants` and `rows` of edge IDs, `{note, over}` and `{fragment, rows}`; no coordinates, junctions or lifeline edges to write. Start from the [sequence-diagram](../layouts/sequence-diagram/sequence-diagram.sumi.yaml) layout |
 | a white framed panel (`paper`'s default), a panel without a frame, a shaded gray panel (only if the reference has one), a dashed panel | group (default) / `plain` / `filled` / `dashed`, with `caption: (a) …` |
-| panels side by side: equal frame heights, content right under each title (no empty band), headings and captions on one line | `panels: true` on the `row` that holds them (0.20.1; [panels](structured.md#group-titles-and-captions)) |
+| panels side by side: equal frame heights, content right under each title (no empty band), headings and captions on one line (captions with the same number of lines) | `panels: true` on the `row` that holds them (0.20.1; [panels](structured.md#group-titles-and-captions)) |
 | one stretched panel (or a column of panels) whose content starts right under the title | `contentAlign: top` on that panel; titles of one and two lines: also `matchLabelHeight: <name>` ([stretched panels](structured.md#group-titles-and-captions)) |
 | panels separated by a dashed vertical (or horizontal) line | a `separator` between them ([recipe below](#two-panels-with-a-dashed-divider)) |
 | a pale panel (a variant compared against) | `dim: true` on the group ([dimmed](figure-format.md#dimmed-groups)) |

@@ -127,6 +127,9 @@ ${["One", "Two", "Three", "Four", "Five", "Six"].map((l, i) => `  - {id: b${i + 
     expect(centred?.hint).toContain(
       'geometry/content-band reports this group with contentAlign: top in group "a"',
     );
+    // The outcome is content-band's to state (its hint is checked by a trial).
+    expect(centred?.hint).toContain("see geometry/content-band for whether that edit was checked");
+    expect(centred?.hint).not.toContain("would move");
     // At the top there is one band, not two: no pointer (the rule may still report the area).
     for (const d of await empty(source("contentAlign: top")))
       expect(d.hint).not.toContain("geometry/content-band");

@@ -23,8 +23,8 @@ export const PANEL_MISALIGNED = "geometry/panel-misaligned";
 /** The least offset (printed, in units: 1mm) between panels that counts. */
 export const MIN_PANEL_OFFSET = mmToPt(1) * 2;
 
-/** Whether a group's frame is drawn: a visible border or fill. */
-function framed(group: GroupIR): boolean {
+/** Whether a group's frame is drawn: a visible border or fill, not fully transparent. */
+export function framed(group: GroupIR): boolean {
   const { stroke, strokeWidth, fill, opacity } = group.style;
   if (opacity <= 0) return false;
   return (stroke !== "transparent" && strokeWidth.units > 0) || fill !== "transparent";
@@ -33,6 +33,14 @@ function framed(group: GroupIR): boolean {
 /** The spread (largest minus smallest) of `values`; 0 for fewer than two. */
 function spread(values: readonly number[]): number {
   return values.length < 2 ? 0 : Math.max(...values) - Math.min(...values);
+}
+
+/** The offsets of {@link PanelOffsets} that count: `least` (drawn units) or more, in order. */
+export function misalignedParts(
+  offsets: PanelOffsets,
+  least: number,
+): ("tops" | "bottoms" | "titles" | "captions")[] {
+  return (["tops", "bottoms", "titles", "captions"] as const).filter((k) => offsets[k] >= least);
 }
 
 export interface PanelOffsets {
@@ -89,12 +97,15 @@ export const panelMisaligned = defineGeometryRule({
       const panels = irs.map((g) => layouts.get(g.key)).filter((g) => g !== undefined);
       if (panels.length !== irs.length || panels.length < 2) return [];
       const offsets = panelOffsets(panels, irs, (key) => captions.get(key));
-      const parts = [
-        offsets.tops >= least && `frame tops ${mmText(context, offsets.tops)} apart`,
-        offsets.bottoms >= least && `frame bottoms ${mmText(context, offsets.bottoms)} apart`,
-        offsets.titles >= least && `titles ${mmText(context, offsets.titles)} apart`,
-        offsets.captions >= least && `captions ${mmText(context, offsets.captions)} apart`,
-      ].filter((part) => typeof part === "string");
+      const words = {
+        tops: "frame tops",
+        bottoms: "frame bottoms",
+        titles: "titles",
+        captions: "captions",
+      };
+      const parts = misalignedParts(offsets, least).map(
+        (k) => `${words[k]} ${mmText(context, offsets[k])} apart`,
+      );
       if (parts.length === 0) return [];
       const names = irs.map((g) => context.get(g.key)?.name ?? `group "${g.id}"`);
       const path = formatDocPath(row.path);

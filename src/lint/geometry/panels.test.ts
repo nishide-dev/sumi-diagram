@@ -2,9 +2,10 @@
 // The lint config first: content-band → trial → config → rules is a cycle that must be entered at config.
 import "../config";
 import { describe, expect, test } from "bun:test";
+import type { GroupIR } from "../../compiler/ir";
 import { type RenderedStructuredFigure, renderFigure } from "../../render/render";
 import { lintGeometry } from "./lint";
-import { PANEL_MISALIGNED } from "./panels";
+import { framed, MIN_PANEL_OFFSET, misalignedParts, PANEL_MISALIGNED } from "./panels";
 
 function figure(row: string, extra = "") {
   return `version: 1
@@ -122,6 +123,49 @@ nodes:
       entries:
         - {node: {component: box}, label: a step}
   - {id: seq, component: tokens, props: {cells: [a, b, c]}}
+`;
+    expect(await misaligned(source)).toEqual([]);
+  });
+
+  test("the 1mm threshold is inclusive", () => {
+    const at = (value: number) =>
+      misalignedParts({ tops: value, bottoms: 0, titles: value, captions: 0 }, MIN_PANEL_OFFSET);
+    expect(at(MIN_PANEL_OFFSET)).toEqual(["tops", "titles"]);
+    expect(at(MIN_PANEL_OFFSET - 1e-9)).toEqual([]);
+  });
+
+  test("a frame with opacity 0 is not drawn", () => {
+    const style = (opacity: number) =>
+      ({
+        style: { stroke: "#000000", strokeWidth: { units: 1 }, fill: "transparent", opacity },
+      }) as unknown as GroupIR;
+    expect(framed(style(1))).toBe(true);
+    expect(framed(style(0))).toBe(false);
+  });
+
+  test("a matrix beside a panel is not a panel", async () => {
+    const source = `version: 1
+figure:
+  id: panel-matrix
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 4mm, items: [a, grid]}
+groups:
+  - {id: a, label: (a), arrange: {stack: {items: [x, y, z]}}}
+nodes:
+  - {id: x, component: box, label: X}
+  - {id: y, component: box, label: Y}
+  - {id: z, component: box, label: Z}
+  - id: grid
+    component: matrix
+    props:
+      columns: [P, Q]
+      rows: [P, Q]
+      classes:
+        h: {variant: default, label: high}
+        l: {variant: muted, label: low}
+      cells: [hl, lh]
 `;
     expect(await misaligned(source)).toEqual([]);
   });

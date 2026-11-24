@@ -789,7 +789,8 @@ last panel grows, then `contentAlign: top` on that panel.
 reserve the tallest of their title bands (`matchLabelHeight: panels`), so a two-line
 title does not push its panel's first row below its neighbours'; a group without a label
 reserves the band too. In a row, `panels: true` does this and `contentAlign: top` in one
-word (a group's own `matchLabelHeight` / `contentAlign` wins):
+word (a group's own `matchLabelHeight` / `contentAlign` wins), except that it skips the
+shared band when that would make the row taller:
 
 ```yaml
 # expect-render: fits

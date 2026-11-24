@@ -51,7 +51,7 @@ row に `panels: true` を書くと、その row に直接書いた group（キ�
 ### 4. content-band / group-empty-area の hint を具体的にする
 
 - `geometry/content-band`: 「setting groups[0].contentAlign to top」を、`writing contentAlign: top in group "pa" (groups[0].contentAlign; in YAML, the line "contentAlign: top" under "- id: pa")` に変えた。その group が `panels` のない row のパネル（2 つ以上）なら、`To line up all the panels of <row> at once …, write panels: true in that row instead.` を添える。
-- `geometry/group-empty-area`: その group を `geometry/content-band` も報告するとき（`contentAlign` を書いておらず、中身の上と下の両方に 4mm 以上の帯がある。同じ関数 `contentBands` で判定）だけ、帯の寸法と content-band の hint（`contentAlign: top` の書き方、パネルの row なら `panels: true`）を指す。「中央に置かれている」「直る」とは言い切らず、確かめは content-band の trial に任せると書く（レビューの指摘: 上の帯だけで判断していた。中身を埋める根の箱では `contentAlign` は何も動かさない）。`contentAlign` は空きを減らさず動かすだけなので、そう書く。
+- `geometry/group-empty-area`: その group を `geometry/content-band` も報告するとき（`contentAlign` を書いておらず、中身の上と下の両方に 4mm 以上の帯がある。同じ関数 `contentBands` で判定）だけ、帯の寸法と content-band の hint（`contentAlign: top` の書き方、パネルの row なら `panels: true`）を指す。「中央に置かれている」「直る」とは言い切らず、効果は content-band の trial で確かめた hint を見るよう案内し、group-empty-area 自身は結果を言わない（レビューの指摘: 上の帯だけで判断していた。中身を埋める根の箱では `contentAlign` は何も動かさない）。
 
 ### 5. Skill
 

@@ -2109,7 +2109,7 @@ function contentAlignAdvice(context: GeometryContext, group: GeometryElement): s
   if (band === undefined) return "";
   const yaml = contentAlignYaml(context, band.group);
   if (yaml === undefined) return "";
-  return `Part of the room is ${mmText(context, band.above)} above the content and ${mmText(context, band.below)} below it: geometry/content-band reports this group with ${yaml.edit.replace(/^writing /, "")} as its hint (checked there by a trial layout), which would move the room to one band at the bottom, not remove it${yaml.row === undefined ? "" : `; for all the panels of ${yaml.row}, panels: true on that row`}. `;
+  return `Part of the room is ${mmText(context, band.above)} above the content and ${mmText(context, band.below)} below it: geometry/content-band reports this group with ${yaml.edit.replace(/^writing /, "")} as its hint; see geometry/content-band for whether that edit was checked and what it does${yaml.row === undefined ? "" : ` (for all the panels of ${yaml.row}: panels: true on that row)`}. `;
 }
 
 export const groupEmptyArea = defineGeometryRule({

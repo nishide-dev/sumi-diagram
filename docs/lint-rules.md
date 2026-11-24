@@ -122,8 +122,8 @@ lint し直して確かめる（1 図につき最大 4 group と元の図 1 回�
 hint は、書き足す 1 行（group の `- id:` の下の `contentAlign: top`）と、その group が
 row に横に並んだパネルの 1 つなら、その row の `panels: true` も示す（#641）。
 `geometry/group-empty-area` の hint は、その group を `geometry/content-band` も報告するとき
-（中身の上下の両方に 4mm 以上の帯）だけ、帯の寸法とその書き方を添え、確かめは content-band の
-trial に任せる（空きを減らさず、下の 1 本の帯に動かすだけだと書く）。
+（中身の上下の両方に 4mm 以上の帯）だけ、帯の寸法とその書き方を添え、効果の判断は content-band の
+trial で確かめた hint に任せる（group-empty-area 自身は結果を言わない）。
 
 ## 横に並んだパネルの揃い（#641）
 
