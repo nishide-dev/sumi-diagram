@@ -1,0 +1,23 @@
+# #646, reduced from a training-pipeline dogfood figure (#639 run 6): the data
+# boxes are wider than the stages above them, so aligning "envs" under "rl"
+# pushes "rl" right and widens the gap after "sft" (layout/align-widened-gap).
+version: 1
+figure:
+  id: align-widened-gap
+  layout:
+    arrange:
+      stack:
+        gap: 8mm
+        align: start
+        items:
+          - row: {gap: 6mm, items: [sft, rl, merge]}
+          - row: {gap: 6mm, items: [data, envs]}
+    align:
+      - {x: [data, sft]}
+      - {x: [envs, rl]}
+nodes:
+  - {id: sft, component: box, label: SFT, props: {width: 30mm}}
+  - {id: rl, component: box, label: RL, props: {width: 30mm}}
+  - {id: merge, component: box, label: Merge, props: {width: 30mm}}
+  - {id: data, component: box, label: Data, props: {width: 30mm}}
+  - {id: envs, component: box, label: Environments, props: {width: 50mm}}

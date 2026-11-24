@@ -41,6 +41,7 @@ async function render(
   hugEdges: readonly string[] = [],
   bendEdges: readonly string[] = [],
   bandGroups: readonly string[] = [],
+  misalignedRows = 0,
 ): Promise<RenderedFigure> {
   const result = await renderFigure(source, {
     backend: createD2CliBackend(),
@@ -61,6 +62,12 @@ async function render(
       .filter((d) => d.code !== "geometry/group-empty-area" && d.code !== "geometry/dash-hidden")
       .map((d) => [d.code, d.severity, d.subject?.id]),
   ).toEqual([
+    // Rows of captioned panels of different heights (#641).
+    ...Array.from({ length: misalignedRows }, () => [
+      "geometry/panel-misaligned",
+      "info",
+      undefined,
+    ]),
     ...jogEdges.map((id) => ["geometry/edge-jog", "info", id]),
     // Anchors that keep a straight line out (#604).
     ...bendEdges.map((id) => ["geometry/avoidable-bend", "warning", id]),
@@ -152,7 +159,15 @@ describe("structured", () => {
   const source = readFileSync(join(FIXTURES, "figures/layout/group-caption.sumi.yaml"), "utf8");
 
   test("each caption is centred below its group, half the group padding away", async () => {
-    const rendered = (await render(source, undefined, ["edges[2]"])) as RenderedStructuredFigure;
+    const rendered = (await render(
+      source,
+      undefined,
+      ["edges[2]"],
+      [],
+      [],
+      [],
+      1,
+    )) as RenderedStructuredFigure;
     // The label's line box adds its half-leading to the 8-unit gap.
     expectCaptionsBelow(rendered, 12, 0.01);
     const { layout } = rendered;
@@ -208,7 +223,15 @@ nodes:
   });
 
   test("no route crosses a caption", async () => {
-    const { layout } = (await render(source, undefined, ["edges[2]"])) as RenderedStructuredFigure;
+    const { layout } = (await render(
+      source,
+      undefined,
+      ["edges[2]"],
+      [],
+      [],
+      [],
+      1,
+    )) as RenderedStructuredFigure;
     for (const id of CAPTIONED) {
       const box = layout.nodes.find((n) => n.key === `n:${id}-caption`)?.label?.box;
       if (box === undefined) throw new Error(`no caption of ${id}`);
@@ -219,7 +242,15 @@ nodes:
   });
 
   test("a caption's title at the bottom stays inside the border, above the caption", async () => {
-    const { layout } = (await render(source, undefined, ["edges[2]"])) as RenderedStructuredFigure;
+    const { layout } = (await render(
+      source,
+      undefined,
+      ["edges[2]"],
+      [],
+      [],
+      [],
+      1,
+    )) as RenderedStructuredFigure;
     const group = layout.groups.find((g) => g.key === "g:dec");
     const caption = layout.nodes.find((n) => n.key === "n:dec-caption")?.label?.box;
     if (group?.label === undefined || caption === undefined) throw new Error("no dec");
@@ -230,7 +261,7 @@ nodes:
   });
 
   test("the editable PPTX keeps each caption where the SVG draws it", async () => {
-    expectPptxCaptions(await render(source, undefined, ["edges[2]"]));
+    expectPptxCaptions(await render(source, undefined, ["edges[2]"], [], [], [], 1));
   });
 });
 

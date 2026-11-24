@@ -663,7 +663,7 @@ edges:
 `block-arrow`, `triangle-arrow` and `chevron` are shapes that show the flow
 between stages, as in paper figures: put one as an ordinary item of a row or
 stack between two panels. With `align: center` (the default) it sits on the
-middle line of the panels; it is never stretched or grown, and works in
+middle line of the panels (`panels: true` on the row makes the panels equally tall); it is never stretched or grown, and works in
 `place` too. They are markers, not connections: no label, sublabel, badge,
 glyphs or `grow`, and an edge cannot start or end at one
 (`component/flow-arrow-connection`). Default size, from the theme's text size:
@@ -679,21 +679,23 @@ figure:
   id: stage-flow
   theme: paper
   layout:
-    arrange: {row: {gap: 3mm, align: center, items: [views, flow1, encoder, flow2, heads]}}
+    arrange: {row: {gap: 3mm, panels: true, items: [views, flow1, encoder, flow2, heads]}}
 groups:
   - {id: views, arrange: {stack: {items: [v1, v2]}}}
-  - {id: encoder, arrange: {stack: {items: [enc]}}}
+  - {id: encoder, arrange: {stack: {items: [enc, pool]}}}
   - {id: heads, arrange: {stack: {items: [h1, h2]}}}
 nodes:
   - {id: v1, component: box, label: View 1}
   - {id: v2, component: box, label: View 2}
   - {id: flow1, component: block-arrow}
   - {id: enc, component: box, label: Encoder}
+  - {id: pool, component: box, label: Pooling}
   - {id: flow2, component: triangle-arrow, variant: muted}
   - {id: h1, component: box, label: Head 1}
   - {id: h2, component: box, label: Head 2}
 edges:
   - {from: v1, to: v2}
+  - {from: enc, to: pool}
 ```
 
 ## Group titles and captions
@@ -795,12 +797,43 @@ look at the preview. `toAnchor: west` on the member does not help; put the capti
 outer group that also holds the other end (`variant: plain` hides its border), or place
 the other end beside the group (a `row`) so the edge crosses a side.
 
-**Panels of equal height.** Panels (groups with captions) in one `row` with `align:
-stretch` grow to the tallest so captions share a line. A frameless panel next to framed
-ones is a group with `variant: plain` and a `caption`, not a stack with a `label` node
-under it (its items are centred in the extra height). A stretched group's tree is
-**centred vertically** by default, which leaves an empty band between the title and the
-first row and another under the content.
+**An edge from (or to) a whole group** leaves at the side the arrange tree gives, at
+its middle when it is the only end there; with a caption below, a downward edge takes a
+side instead (the caption covers the bottom's middle), so from a one-row group it can
+look as if it left the end child. Anchors work on groups as on nodes: write
+`fromAnchor: "south:0.5"` (or `block:south`, the same point, never shared out) to leave
+from the middle of the bottom border, and expect the line to pass the caption; move
+the caption to an outer group or the title inside (`label`) when that crowds it.
+
+**Panels side by side: `panels: true` on the row.** Write `panels: true` on the `row`
+that holds the panels (groups, captioned or not). Every group in that row then takes
+the row's height (frames share their top and bottom; captions share a line when they
+have the same number of lines, a two-line caption raises its frame's bottom), its content
+sits right under its title (`contentAlign: top` unless the group writes `contentAlign`),
+and the titles share one band height (as one `matchLabelHeight`), so the headings and
+first rows line up even when one title has two lines. The band is shared only if that
+leaves the row as tall as without it: when the tallest title and the tallest content are
+in different panels, each panel keeps its own title band (headings still line up, the
+first rows may not; shorten the long title, or write `matchLabelHeight` to share it anyway). Nodes and nested boxes in the row
+keep the row's `align` (a model box between two panels stays centred); tilted planes,
+tokens, matrices and legends are not panels. It does not grow the figure: the row is as
+tall as its tallest panel. Use it instead of `align: stretch` for panels; `align:
+stretch` also stretches the nodes in the row and **centres** each stretched group's tree
+vertically (an empty band between the title and the first row and another under the
+content). `geometry/panel-misaligned` (info) names a row whose panels' frame tops,
+bottoms, titles or captions are 1mm or more apart, with this row's `panels: true` written
+out (add the field to the row; its other fields stay). A frameless panel next to framed ones is a group with `variant: plain` and a
+`caption`, not a stack with a `label` node under it.
+
+```yaml
+figure:
+  layout:
+    arrange:
+      row: {gap: 4mm, panels: true, items: [a, model, b]}   # a, b: groups; model: a node
+```
+
+The two settings below are what `panels: true` writes for you; use them on their own for
+a single stretched group, a column of panels, or to keep one panel centred.
 
 **Where the content sits: `contentAlign`.** `groups[].contentAlign: top | center | bottom`
 places the group's content (its tree and attached nodes, as one block at its natural
@@ -813,7 +846,9 @@ the height instead, use the tree's `justify: stretch` / `space-between` (above);
 box that really fills the height (those growing or spreading items, or a root `row`
 whose `align: stretch` stretches an item) wins and leaves `contentAlign` nothing to move.
 `geometry/content-band` (info) names a stretched panel with at least 4mm empty above and
-below its content, with `contentAlign: top` checked by a trial layout. With
+below its content, with `contentAlign: top` checked by a trial layout and written as the
+line to add under the group's `- id:` (and the row's `panels: true` when the group is one
+of several panels in a row). With
 `figure.layout.straighten` (default) an item may still move to straighten an edge, but
 only within its own box, never back into the band. A column of panels (a `stack` beside a
 taller panel) is stretched as one box and centres them: give it `justify: stretch` so its
@@ -822,7 +857,9 @@ last panel grows, then `contentAlign: top` on that panel.
 **Titles of different heights: `matchLabelHeight`.** Groups that write the same name
 reserve the tallest of their title bands (`matchLabelHeight: panels`), so a two-line
 title does not push its panel's first row below its neighbours'; a group without a label
-reserves the band too. Use it with `contentAlign: top`:
+reserves the band too. In a row, `panels: true` does this and `contentAlign: top` in one
+word (a group's own `matchLabelHeight` / `contentAlign` wins), except that it skips the
+shared band when that would make the row taller:
 
 ```yaml
 # expect-render: fits
@@ -832,17 +869,13 @@ figure:
   profile: paper-double
   layout:
     arrange:
-      row: {gap: 4mm, align: stretch, items: [a, b]}
+      row: {gap: 4mm, panels: true, items: [a, b]}
 groups:
   - id: a
     label: (a) Input
-    contentAlign: top
-    matchLabelHeight: panels
     arrange: {stack: {gap: 3mm, items: [img, enc]}}
   - id: b
     label: "(b) Tokens after\nthe encoder"
-    contentAlign: top
-    matchLabelHeight: panels
     arrange: {stack: {gap: 2mm, items: [t1, t2, t3]}}
 nodes:
   - {id: img, component: box, label: Image}
@@ -1142,6 +1175,13 @@ figure:
   sits alone in a box of its own (wrap it in a `stack` / `row`), choose the box
   `align` that moves the side you want (`start` pushes only down / right),
   or write the `gap`s so nothing needs to move.
+- **`move: <id>` (or a list) picks the side** (since 0.20.1): only the listed
+  items of the constraint take space, the others stay where their boxes put
+  them. `{x: [note, seq.f], move: note}` moves a note under its cell instead of
+  pulling the cells apart. Space is still only added, so a listed item that would
+  have to travel back toward the start of its box cannot move (a
+  `layout/unsatisfied-align` whose hint names the `move`): list the item that
+  sits before the line, or drop `move`.
 - Sumi only **adds space** before or after items in a stack (for `y`) or row
   (for `x`) that holds just one of them, never inside a `gap: 0` box. So it
   aligns elements in different branches (`y` across stacks side by side in a
@@ -1156,7 +1196,8 @@ figure:
   no such space. Put the element **in the tree** (not `attach`ed into a gap).
 - **A cell of a one-line `tokens` row is not a box of its own**: aligning
   `{x: [patches.3, emb.2]}` adds space inside the `emb` row, pulling its cells apart
-  (`layout/align-splits-tokens`, warning, no other signal). Align the whole
+  (`layout/align-splits-tokens`, warning). To line a note or label up with one
+  cell, let only the note move (`{x: [note, emb.2], move: note}`). Align the whole
   sequences instead (`{x: [patches, emb], at: start}`), or give both the same cell
   width and `gap` so the cells line up without `align`. Cells of multi-line
   `tokens` keep their block and report `layout/unsatisfied-align` instead.
@@ -1178,6 +1219,16 @@ figure:
   item that can move alone (wrap it in its own `stack` / `row`), bring the two
   closer in the tree, or use an anchor instead. For an intended growth set
   `figure.layout.alignGrowth: allow` to drop this info.
+- **Render reports the side effects** (infos, #646): `layout/align-widened-gap`
+  names a gap the space widened by more than 3mm, to more than 1.5× its width
+  without `align` and past the other gaps of its box (e.g. "the gap between
+  "sft" and "rl" in their row from 6.00mm to 12.61mm, for
+  figure.layout.align[4] (x: [envs, rl])"; a caption pushed away from its panel
+  is reported the same way); `alignGrowth: allow` drops it too.
+  `layout/align-uneven-stretch` says that panels a row with `align: stretch` gave
+  one height no longer match, because the space landed inside one of them (it is
+  not silenced by `alignGrowth`). The hints suggest a `move` for the other side
+  when the constraint has one; render again to check it.
 
 ```yaml
 # expect-render: fits
@@ -1202,6 +1253,7 @@ figure:
     align: # straight skips: each concat level with its encoder level
       - {y: [enc1, cat1]}
       - {y: [enc2, cat2]}
+    alignGrowth: allow # the longer gap between the encoder levels is intended
 nodes:
   - {id: enc1, component: box, label: "Conv ×2\n64", tone: blue}
   - {id: enc2, component: box, label: "Conv ×2\n128", tone: blue}
@@ -1503,6 +1555,23 @@ edges:
   diagonal or overlapping, or parallel edges run from a wide box into a narrow one,
   `layout/straight-off-side` (warning) and the end acts as if unanchored: line them up
   in the tree, put `straight` on the wide end, or write a side anchor.
+- **`block`** (`fromAnchor: block`, or `block:north` to name the side): the end meets a
+  **whole** tokens row, matrix or group at the **middle** of a side (the default side,
+  or the one named), never shared out with other ends. On a frame without a border (a
+  whole tokens sequence, a matrix, a `plain` group) Sumi draws a **bracket** along that
+  side, spanning the cells, and the line starts on its bar: use it when the whole
+  sequence feeds the next block (query tokens into a decoder, a feature column into a
+  head), since a line from the frame's middle otherwise touches one cell and reads as
+  that cell's. Name the tokens node itself (`from: query`, not `query.3`); `block` on a
+  node or a cell, on a `route: straight` / `curve` edge or on a `zoom` is
+  `layout/block-anchor` (error). The geometry lint measures the bracket with its edge
+  (`edge-crosses-label`, `edge-through-node`, `edge-near-edge`): keep notes attached
+  to the cells clear of that side.
+
+  ```yaml
+  - {from: query, to: decoder, fromAnchor: block}      # bracket over the whole row
+  - {from: feat, to: decoder, fromAnchor: "block:east"}
+  ```
 - **Two inputs from another column, one from its own**: the two edges from the other
   column leave its top block with `fromAnchor: north` (one shared trunk) and enter at
   `toAnchor: "south:0.2"` and `"south:0.4"`, the column's own input at `"south:0.8"`;
@@ -1566,7 +1635,9 @@ edges:
   farther away from the line instead of widening the gap; check the preview.
   **`labelAt: start | middle | end`** picks the
   first, longest or last segment; **`labelSide: left | right`** the side **as seen
-  travelling from source to target** (left of a rightward line is above it). Either
+  travelling from source to target** (left of a rightward line is above it; on a
+  **downward** line `left` is **east**, `right` is west; on an upward line `left` is
+  west). Either
   alone is fine (default segment: `end` with a target arrowhead, `start` with only a
   source one, `middle` with none). The label slides along that segment and keeps its
   side; a short span may need extra distance from the line to clear nodes or labels.
@@ -1575,7 +1646,12 @@ edges:
   belongs to (`K,V` at the `start`). A label the router placed by itself that drifts
   off its line is `geometry/edge-label-detached` (info), one whose letters touch it
   `geometry/edge-label-touches-line` (warning); their hint names an edit already
-  checked by routing the figure again, when one works.
+  checked by routing the figure again, when one works, and otherwise how long a run
+  the label needs (`labelStyle: tag` on a short span, or by how much to lengthen it).
+  A label about as close to another edge's line as to its own (at most 1.75 times as
+  far) is `geometry/edge-label-ambiguous` (warning): it reads as the other edge's.
+  Its hint names the `labelSide` to flip to; a tag, `labelAt` or ends further apart
+  also fix it.
   **`labelAt: 0.3`** (a fraction from 0 to 1 of the route's length from `from`) centres
   the label at that point on the segment it falls on, kept off the arrowheads; it then
   slides like `middle`.
@@ -1599,6 +1675,9 @@ edges:
   - {from: client, to: tracker, label: "1", labelStyle: badge}
   - {from: dev1, to: dev2, label: grads, labelAt: 0.25}
   - {from: reply, to: client, route: straight, label: response}   # above, though leftward
+  # a downward line (encoder above decoder): left of travel is east, right is west
+  - {from: encoder, to: decoder, label: latents, labelSide: right}  # label west of the line
+  - {from: decoder, to: encoder, label: grads, labelSide: right}    # upward: label east
 ```
 - **Titled group alignment**: frame centers and content centers differ because the
   title reserves space. `layout/group-title-offset` (info) explains a horizontal jog
@@ -2380,7 +2459,11 @@ edges:
   fill or padding); tokens that nothing names as a whole get no frame.
   Whole-sequence edge endpoints use the cells' bounding rectangle, excluding
   attached annotations, even when a wide note enlarges the layout frame or
-  `align: stretch` widens it (`fromAnchor: east` starts at the last cell).
+  `align: stretch` widens it (`fromAnchor: east` starts at the last cell). A line
+  from the middle of the frame touches one cell; write **`fromAnchor: block`** (or
+  `toAnchor: block`) to draw a bracket along the row so the line reads as the whole
+  sequence's ([`block`](#edges-anchors-junctions-and-trunks)): the bracket stands 3pt off the cells and the
+  line is shortened to it, so the layout does not change.
 - **Blank cells.** `{blank: true}` (optionally `id`, `width`, `height`) keeps a
   slot in the sequence: it reserves the cell's size, draws nothing (no frame, no
   text, no `component/missing-label`) and counts in positions, so a sparse row

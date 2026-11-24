@@ -281,7 +281,7 @@
               }
             },
             "alignGrowth": {
-              "description": "allow: the space the align constraints add is intended, so the info layout/align-grew-figure is not reported. Omitted means report (structured layout only).",
+              "description": "allow: the space the align constraints add is intended, so the infos layout/align-grew-figure and layout/align-widened-gap are not reported. Omitted means report (structured layout only).",
               "type": "string",
               "enum": [
                 "report",
@@ -867,7 +867,7 @@
           "fromAnchor": {
             "description": "Where the edge leaves the source (structured layout only).",
             "type": "string",
-            "pattern": "^(?:straight(?::span)?|(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?)$"
+            "pattern": "^(?:straight(?::span)?|block(?::(?:north|east|south|west))?|(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?)$"
           },
           "to": {
             "anyOf": [
@@ -889,7 +889,7 @@
           "toAnchor": {
             "description": "Where the edge enters the target (structured layout only).",
             "type": "string",
-            "pattern": "^(?:straight(?::span)?|(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?)$"
+            "pattern": "^(?:straight(?::span)?|block(?::(?:north|east|south|west))?|(north|east|south|west)(?::(0(?:\\.\\d+)?|1(?:\\.0+)?))?)$"
           },
           "label": {
             "default": "",
@@ -1349,6 +1349,11 @@
                 "stretch",
                 "space-between"
               ]
+            },
+            "panels": {
+              "description": "Side-by-side panels (#641): every group written directly in the row (or captioned there) takes the row's height, so the frames share their top and bottom; its content sits right under its title (contentAlign: top unless the group writes contentAlign); and the titles share one band height (as one matchLabelHeight unless a group writes matchLabelHeight) unless that would make the row taller, so the headings and, with that band, the first rows line up. Captions share a line when they have the same number of lines. Nodes, nested boxes, tilted planes, tokens, matrices and legends keep align. Omitted means groups follow align like any item.",
+              "type": "boolean",
+              "const": true
             },
             "items": {
               "minItems": 1,
@@ -1964,6 +1969,23 @@
             "center",
             "start",
             "end"
+          ]
+        },
+        "move": {
+          "description": "Item (or items) of this constraint that may move to meet it (since 0.20.1): only these take the space that aligns them, the others stay where their boxes put them, e.g. move a note to its cell instead of pulling the cells apart. Omitted means any item may move.",
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}(?:\\.(?:[a-z][a-z0-9_-]{0,63}|[1-9][0-9]{0,3}))?$"
+            },
+            {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,63}(?:\\.(?:[a-z][a-z0-9_-]{0,63}|[1-9][0-9]{0,3}))?$"
+              }
+            }
           ]
         }
       },

@@ -2,6 +2,7 @@
 export * from "./context";
 export * from "./density";
 export * from "./edges";
+export * from "./label-ambiguity";
 export * from "./lint";
 export * from "./measure";
 export * from "./placement-drift";

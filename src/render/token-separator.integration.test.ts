@@ -91,6 +91,9 @@ describe("dotted token separators (#216)", () => {
       ["info", "geometry/heavy-scaling"],
       ["info", "geometry/script-too-small"],
       ["info", "geometry/text-heavy-nodes"],
+      // #646: align widens two gaps of the left column (headings pushed to their rows).
+      ["info", "layout/align-widened-gap"],
+      ["info", "layout/align-widened-gap"],
       ["info", "geometry/color-on-panel"],
     ]);
     const rendered = report.rendered;

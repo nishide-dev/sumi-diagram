@@ -43,7 +43,7 @@ import {
   printedUnits,
   printScale,
 } from "./common";
-import { contentBand } from "./content-band";
+import { contentAlignYaml, contentBand, contentBands } from "./content-band";
 import type { GeometryContext, GeometryElement } from "./context";
 import { deadSpace } from "./dead-space";
 import { sparseFigure, textHeavy } from "./density";
@@ -53,9 +53,11 @@ import { floatOverlap } from "./float";
 import { sequenceHeightFits, sequenceHeightOptions } from "./height-fit";
 import { iconFamilyMix, iconOveruse } from "./icons";
 import { microJogLengths } from "./jogs";
+import { edgeLabelAmbiguous } from "./label-ambiguity";
 import { type FitSize, fitSentence, fitTrials, fittingSize } from "./label-fit";
 import { inkLines, unionOf } from "./measure";
 import { regionsOverlap } from "./outlines";
+import { panelMisaligned } from "./panels";
 import { edgeLabelHugging, edgeLabelOnCorner, tokenColumnDrift } from "./placement";
 import { edgeLabelDetached, edgeLabelTouchesLine } from "./placement-drift";
 import {
@@ -1016,6 +1018,14 @@ export function edgeCrossesLabelHint(context: GeometryContext, other: GeometryEl
   return `A container's label sits at its ${group.at}: if edges enter the container from ${from}, they can cross it when the label is wide. Move the label with labelAt (e.g. ${group.others}), shorten the label, connect elements inside the container instead of the container itself, or change layout.direction.`;
 }
 
+/** The brackets of an edge's `block` ends (#642), from the routed layout; none without one. */
+function bracketsOf(context: GeometryContext, edge: GeometryElement): Point[][] {
+  if (edge.ir.kind !== "edge" || (edge.ir.fromBlock !== true && edge.ir.toBlock !== true))
+    return [];
+  const route = context.layout?.edges.find((e) => e.key === edge.key)?.route;
+  return (route?.brackets ?? []).map((b) => [...b]);
+}
+
 export const edgeCrossesLabel = defineGeometryRule({
   id: "geometry/edge-crosses-label",
   description:
@@ -1025,8 +1035,9 @@ export const edgeCrossesLabel = defineGeometryRule({
   run(context) {
     const findings: LintFinding[] = [];
     for (const edge of context.elements) {
-      const { route } = edge;
-      if (route === undefined) continue;
+      if (edge.route === undefined) continue;
+      // The brackets of `block` ends (#642) are drawn with the edge.
+      const route = [...edge.route, ...bracketsOf(context, edge)];
       for (const other of context.elements) {
         if (other === edge) continue;
         const crossed = other.labels
@@ -1068,12 +1079,36 @@ export const edgeThroughNode = defineGeometryRule({
       // A zoom edge's straight lines are not routed around nodes (#176): zoom-crosses-node.
       if (edge.ir.routing === "zoom") continue;
       const ends = new Set([edge.ir.from, edge.ir.to]);
-      for (const key of obstaclesCrossedByRoute(
-        edge.route,
-        obstacles,
-        ends,
-        GEOMETRY_TOLERANCE_UNITS,
-      )) {
+      // The brackets of `block` ends (#642) face the cells of their own tokens row or matrix:
+      // those are left out (a node attached beside the row is not).
+      const brackets = bracketsOf(context, edge);
+      const endIds = new Set(
+        [...ends].flatMap((end) => {
+          const ir = context.get(end)?.ir;
+          return ir?.kind === "group" ? [ir.id] : [];
+        }),
+      );
+      const own = new Set(
+        brackets.length === 0
+          ? []
+          : obstacles
+              .filter((o) => {
+                const ir = context.get(o.key)?.ir;
+                const block = ir?.kind === "node" ? (ir.tokens?.id ?? ir.matrix?.id) : undefined;
+                return block !== undefined && endIds.has(block);
+              })
+              .map((o) => o.key),
+      );
+      const crossed = new Set([
+        ...obstaclesCrossedByRoute(edge.route, obstacles, ends, GEOMETRY_TOLERANCE_UNITS),
+        ...obstaclesCrossedByRoute(
+          brackets,
+          obstacles,
+          new Set([...ends, ...own]),
+          GEOMETRY_TOLERANCE_UNITS,
+        ),
+      ]);
+      for (const key of crossed) {
         const node = context.get(key) as GeometryElement;
         findings.push({
           message: `${capitalize(edge.name)} passes through the shape of ${node.name}.`,
@@ -1165,12 +1200,36 @@ export const zoomCrossesNode = defineGeometryRule({
       if (edge.route === undefined || edge.ir.kind !== "edge" || edge.ir.routing !== "zoom")
         continue;
       const ends = new Set([edge.ir.from, edge.ir.to]);
-      for (const key of obstaclesCrossedByRoute(
-        edge.route,
-        obstacles,
-        ends,
-        GEOMETRY_TOLERANCE_UNITS,
-      )) {
+      // The brackets of `block` ends (#642) face the cells of their own tokens row or matrix:
+      // those are left out (a node attached beside the row is not).
+      const brackets = bracketsOf(context, edge);
+      const endIds = new Set(
+        [...ends].flatMap((end) => {
+          const ir = context.get(end)?.ir;
+          return ir?.kind === "group" ? [ir.id] : [];
+        }),
+      );
+      const own = new Set(
+        brackets.length === 0
+          ? []
+          : obstacles
+              .filter((o) => {
+                const ir = context.get(o.key)?.ir;
+                const block = ir?.kind === "node" ? (ir.tokens?.id ?? ir.matrix?.id) : undefined;
+                return block !== undefined && endIds.has(block);
+              })
+              .map((o) => o.key),
+      );
+      const crossed = new Set([
+        ...obstaclesCrossedByRoute(edge.route, obstacles, ends, GEOMETRY_TOLERANCE_UNITS),
+        ...obstaclesCrossedByRoute(
+          brackets,
+          obstacles,
+          new Set([...ends, ...own]),
+          GEOMETRY_TOLERANCE_UNITS,
+        ),
+      ]);
+      for (const key of crossed) {
         const node = context.get(key) as GeometryElement;
         findings.push({
           message: `A line of ${edge.name} passes through the shape of ${node.name}.`,
@@ -1912,10 +1971,16 @@ export const edgeTouchesLabel = defineGeometryRule({
       for (const other of context.elements) {
         if (!isFreeText(other) || ends.has(other.key)) continue;
         const boxes = other.labels.flatMap((l) => l.visibleLines);
-        // Crossing the label is edge-crosses-label's (on the route, as it checks).
+        // Crossing the label is edge-crosses-label's (on the route and brackets, as it checks).
         if (
           boxes.length === 0 ||
-          boxes.some((box) => polylinesCrossRect(route, box, GEOMETRY_TOLERANCE_UNITS))
+          boxes.some((box) =>
+            polylinesCrossRect(
+              [...route, ...bracketsOf(context, edge)],
+              box,
+              GEOMETRY_TOLERANCE_UNITS,
+            ),
+          )
         )
           continue;
         // Room between the painted stroke and the letters' outlines.
@@ -2180,6 +2245,22 @@ export const badgeCollision = defineGeometryRule({
 /** Rounded repository p90 (75.25%); see design §6.71 and research/248-fill. */
 export const GROUP_EMPTY_SPACE_THRESHOLD = 0.75;
 
+/**
+ * For `geometry/group-empty-area` (#641): when part of the room is the two
+ * bands `geometry/content-band` reports (at least 4mm above and below the
+ * content of a group that writes no `contentAlign`), a pointer to that rule,
+ * whose `contentAlign: top` is checked by a trial layout, with the line to
+ * write; else "". It asserts nothing the trial has not shown.
+ */
+function contentAlignAdvice(context: GeometryContext, group: GeometryElement): string {
+  if (group.ir.kind !== "group") return "";
+  const band = contentBands(context).find((b) => b.group.key === group.key);
+  if (band === undefined) return "";
+  const yaml = contentAlignYaml(context, band.group);
+  if (yaml === undefined) return "";
+  return `Part of the room is ${mmText(context, band.above)} above the content and ${mmText(context, band.below)} below it: geometry/content-band reports this group with ${yaml.edit.replace(/^writing /, "")} as its hint; see geometry/content-band for whether that edit was checked and what it does${yaml.row === undefined ? "" : ` (for all the panels of ${yaml.row}: panels: true on that row)`}. `;
+}
+
 export const groupEmptyArea = defineGeometryRule({
   id: "geometry/group-empty-area",
   description:
@@ -2195,7 +2276,7 @@ export const groupEmptyArea = defineGeometryRule({
           message: `${capitalize(group.name)} has ${(empty * 100).toFixed(1)}% empty bounding-box area (threshold 75%; edges excluded).`,
           path: group.docPath,
           subject: group.subject,
-          hint: `Whitespace can be intentional; this is information only. ${verifyHints(
+          hint: `Whitespace can be intentional; this is information only. ${contentAlignAdvice(context, group)}${verifyHints(
             context,
             "empty",
             (trial) => {
@@ -2275,58 +2356,70 @@ export const glyphCollision = defineGeometryRule({
   },
 });
 
-export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
-  deadSpace,
-  sparseFigure,
-  textHeavy,
-  iconFamilyMix,
-  iconOveruse,
-  heavyScaling,
-  exceedsTargetHeight,
-  placementUsage,
-  colorHarmony,
-  themeColorUse,
-  strokeContrast,
-  muddyColor,
-  translucentOverColor,
-  colorOnPanel,
-  lineTooThin,
-  groupEmptyArea,
-  contentBand,
-  badgeCollision,
-  glyphCollision,
-  exceedsPageWidth,
-  exceedsPageHeight,
-  textTooSmall,
-  scriptTooSmall,
-  scriptBelowTarget,
-  labelOverflow,
-  outOfCanvas,
-  nodeOverlap,
-  labelCollision,
-  edgeCrossesLabel,
-  edgeThroughNode,
-  arrowheadOnBend,
-  dashHidden,
-  arrowheadCramped,
-  edgeJog,
-  avoidableBend,
-  relocatableNode,
-  zoomCrossesNode,
-  edgeOnBorder,
-  edgeNearBorder,
-  edgeNearEdge,
-  edgeTouchesLabel,
-  edgeLabelHugging,
-  edgeLabelOnCorner,
-  edgeLabelDetached,
-  edgeLabelTouchesLine,
-  tokenColumnDrift,
-  aspectDistorted,
-  reversedEdge,
-  setContainsNonMember,
-  setLabelCollision,
-  setOutlineCrossesNode,
-  setOutlineCrossesText,
-  floatOverlap,
-] as GeometryRule[]);
+let builtinGeometryRuleList: readonly GeometryRule[] | undefined;
+
+/**
+ * The built-in geometry rules, in registry order. Built on first call, not at
+ * load: the rules' modules and `lint/config` import each other (a rule's trial
+ * lints with every rule, #664), so the list must not read them while they load.
+ */
+export function builtinGeometryRules(): readonly GeometryRule[] {
+  builtinGeometryRuleList ??= Object.freeze([
+    deadSpace,
+    sparseFigure,
+    textHeavy,
+    iconFamilyMix,
+    iconOveruse,
+    heavyScaling,
+    exceedsTargetHeight,
+    placementUsage,
+    colorHarmony,
+    themeColorUse,
+    strokeContrast,
+    muddyColor,
+    translucentOverColor,
+    colorOnPanel,
+    lineTooThin,
+    groupEmptyArea,
+    contentBand,
+    panelMisaligned,
+    badgeCollision,
+    glyphCollision,
+    exceedsPageWidth,
+    exceedsPageHeight,
+    textTooSmall,
+    scriptTooSmall,
+    scriptBelowTarget,
+    labelOverflow,
+    outOfCanvas,
+    nodeOverlap,
+    labelCollision,
+    edgeCrossesLabel,
+    edgeThroughNode,
+    arrowheadOnBend,
+    dashHidden,
+    arrowheadCramped,
+    edgeJog,
+    avoidableBend,
+    relocatableNode,
+    zoomCrossesNode,
+    edgeOnBorder,
+    edgeNearBorder,
+    edgeNearEdge,
+    edgeTouchesLabel,
+    edgeLabelHugging,
+    edgeLabelOnCorner,
+    edgeLabelDetached,
+    edgeLabelTouchesLine,
+    edgeLabelAmbiguous,
+    tokenColumnDrift,
+    aspectDistorted,
+    reversedEdge,
+    setContainsNonMember,
+    setLabelCollision,
+    setOutlineCrossesNode,
+    setOutlineCrossesText,
+    floatOverlap,
+  ] as GeometryRule[]);
+  return builtinGeometryRuleList;
+}

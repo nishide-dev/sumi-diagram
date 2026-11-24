@@ -12,15 +12,20 @@
 import { z } from "zod";
 import { didYouMean, type Severity } from "../core/diagnostics";
 import { reservedKeyMessage, reservedKeyPaths } from "../core/reserved-keys";
-import { BUILTIN_GEOMETRY_RULES } from "./geometry/rules";
+import { builtinGeometryRules } from "./geometry/rules";
 import type { AnyLintRule } from "./rule";
 import { BUILTIN_LINT_RULES } from "./rules";
 
-/** Every built-in rule of both stages: structural (`lint/*`), then geometry (`geometry/*`). */
-export const ALL_LINT_RULES: readonly AnyLintRule[] = Object.freeze([
-  ...BUILTIN_LINT_RULES,
-  ...BUILTIN_GEOMETRY_RULES,
-]);
+let allLintRuleList: readonly AnyLintRule[] | undefined;
+
+/**
+ * Every built-in rule of both stages: structural (`lint/*`), then geometry (`geometry/*`).
+ * Built on first call: geometry rules import this module back (#664), see {@link builtinGeometryRules}.
+ */
+export function allLintRules(): readonly AnyLintRule[] {
+  allLintRuleList ??= Object.freeze([...BUILTIN_LINT_RULES, ...builtinGeometryRules()]);
+  return allLintRuleList;
+}
 
 export const RULE_LEVELS = ["off", "error", "warning", "info"] as const;
 export type RuleLevel = (typeof RULE_LEVELS)[number];
@@ -74,7 +79,7 @@ export interface ResolvedLintConfig {
  */
 export function resolveLintConfig(
   config: unknown = {},
-  rules: readonly AnyLintRule[] = ALL_LINT_RULES,
+  rules: readonly AnyLintRule[] = allLintRules(),
 ): ResolvedLintConfig {
   // A `__proto__` key would be dropped without a word (#180).
   const reserved = reservedKeyPaths(config);

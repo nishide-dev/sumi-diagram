@@ -10,7 +10,7 @@ import {
   textHeavyNodes,
 } from "./density";
 import { geometryContextFor, lintRenderedFigure } from "./lint";
-import { BUILTIN_GEOMETRY_RULES } from "./rules";
+import { builtinGeometryRules } from "./rules";
 import { centeredBaseline, compile, inspection, label } from "./testing";
 
 const ROOT = join(import.meta.dir, "..", "..", "..");
@@ -135,7 +135,7 @@ describe("text-heavy nodes", () => {
     const run = (count: number, heavy: number) => {
       const texts = Array.from({ length: count }, (_, i) => (i < heavy ? sentence : "Name"));
       const { context } = grid(count, 20, 25, { texts });
-      const rule = BUILTIN_GEOMETRY_RULES.find((r) => r.id === "geometry/text-heavy-nodes");
+      const rule = builtinGeometryRules().find((r) => r.id === "geometry/text-heavy-nodes");
       return rule?.run(context, {}) ?? [];
     };
     expect(run(11, 3)).toEqual([]);

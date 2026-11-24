@@ -86,9 +86,9 @@ export const FAN_IN_MODES = ["merge", "spread"] as const;
 export type FanInMode = (typeof FAN_IN_MODES)[number];
 
 /**
- * `figure.layout.alignGrowth` (#333): `report` (default) keeps the info
- * `layout/align-grew-figure`; `allow` says the growth is intended and
- * silences it.
+ * `figure.layout.alignGrowth` (#333): `report` (default) keeps the infos
+ * `layout/align-grew-figure` and `layout/align-widened-gap` (#646); `allow`
+ * says the space is intended and silences them.
  */
 export const ALIGN_GROWTH_MODES = ["report", "allow"] as const;
 export type AlignGrowthMode = (typeof ALIGN_GROWTH_MODES)[number];
@@ -248,12 +248,14 @@ export const ROW_DIRECTIONS = ["right", "left"] as const;
 /**
  * An edge anchor: a side, optionally with a position along it from 0 to 1
  * (left to right on north/south, top to bottom on east/west; default 0.5),
- * or `straight` (#179): in line with the other end, on the side facing it.
+ * or `straight` (#179): in line with the other end, on the side facing it,
+ * or `block` / `block:<side>` (#642): the middle of a side of a whole
+ * element, drawn with a bracket on a tokens row or a matrix.
  * The schema accepts any string so the `layout` stage can report a malformed
  * anchor as `layout/invalid-anchor`; the pattern is for editors.
  */
 export const ANCHOR_PATTERN =
-  /^(?:straight(?::span)?|(north|east|south|west)(?::(0(?:\.\d+)?|1(?:\.0+)?))?)$/;
+  /^(?:straight(?::span)?|block(?::(?:north|east|south|west))?|(north|east|south|west)(?::(0(?:\.\d+)?|1(?:\.0+)?))?)$/;
 
 /** A non-negative layout length such as `3mm` (or `0`), for the JSON Schema. */
 const LAYOUT_LENGTH_PATTERN = /^(0|\d+(\.\d+)?(mm|cm|in|pt))$/;
@@ -373,6 +375,12 @@ export const StackSchema = z.strictObject({
 export const RowSchema = z.strictObject({
   direction: z.enum(ROW_DIRECTIONS).default("right"),
   ...arrangeFields,
+  panels: z
+    .literal(true)
+    .optional()
+    .describe(
+      "Side-by-side panels (#641): every group written directly in the row (or captioned there) takes the row's height, so the frames share their top and bottom; its content sits right under its title (contentAlign: top unless the group writes contentAlign); and the titles share one band height (as one matchLabelHeight unless a group writes matchLabelHeight) unless that would make the row taller, so the headings and, with that band, the first rows line up. Captions share a line when they have the same number of lines. Nodes, nested boxes, tilted planes, tokens, matrices and legends keep align. Omitted means groups follow align like any item.",
+    ),
   get items() {
     return z
       .array(ArrangeItemSchema)
@@ -848,7 +856,7 @@ const Anchor = z
   .string()
   .meta({ pattern: ANCHOR_PATTERN.source })
   .describe(
-    '"<side>" or "<side>:<0..1>", e.g. "south" or "south:0.25"; or "straight": in line with the other end, on the side facing it; or "straight:span": straight at the middle of the span the two ends share, for boxes that span several grid columns and do not centre over each other (structured layout only).',
+    '"<side>" or "<side>:<0..1>", e.g. "south" or "south:0.25"; or "straight": in line with the other end, on the side facing it; or "straight:span": straight at the middle of the span the two ends share, for boxes that span several grid columns and do not centre over each other; or "block" / "block:<side>": the end meets a whole tokens row, matrix or group at the middle of a side (the facing side, or the one named), and a tokens row or matrix gets a bracket along that side so the line reads as coming from the whole block, not one cell (structured layout only).',
   );
 
 /**
@@ -882,6 +890,12 @@ export const AlignConstraintSchema = z
       .enum(ALIGN_POSITIONS)
       .optional()
       .describe("Which coordinate: center (default), start (top / left) or end (bottom / right)."),
+    move: z
+      .union([Ref, z.array(Ref).min(1)])
+      .optional()
+      .describe(
+        "Item (or items) of this constraint that may move to meet it (since 0.20.1): only these take the space that aligns them, the others stay where their boxes put them, e.g. move a note to its cell instead of pulling the cells apart. Omitted means any item may move.",
+      ),
   })
   .check((ctx) => {
     const axes = [ctx.value.x, ctx.value.y].filter((v) => v !== undefined).length;
@@ -925,7 +939,7 @@ export const LayoutFieldsSchema = z.strictObject({
     .enum(ALIGN_GROWTH_MODES)
     .optional()
     .describe(
-      "allow: the space the align constraints add is intended, so the info layout/align-grew-figure is not reported. Omitted means report (structured layout only).",
+      "allow: the space the align constraints add is intended, so the infos layout/align-grew-figure and layout/align-widened-gap are not reported. Omitted means report (structured layout only).",
     ),
   fanIn: z
     .enum(FAN_IN_MODES)

@@ -730,10 +730,10 @@ describe("anchors", () => {
     ]);
     const [east, sooth] = checkFigureSource(text).state.diagnostics;
     expect(east?.message).toBe(
-      'Invalid anchor "east:1.5" at edges[0].fromAnchor; expected "<side>", "<side>:<position>", "straight" or "straight:span".',
+      'Invalid anchor "east:1.5" at edges[0].fromAnchor; expected "<side>", "<side>:<position>", "straight", "straight:span", "block" or "block:<side>".',
     );
     expect(sooth?.hint).toBe(
-      'Did you mean "south"? Sides: north, east, south, west; the position is a number from 0 to 1 (default 0.5), e.g. "south:0.25". Or "straight": in line with the other end, on the side facing it ("straight:span": at the middle of the span the two share, for boxes that span several grid columns).',
+      'Did you mean "south"? Sides: north, east, south, west; the position is a number from 0 to 1 (default 0.5), e.g. "south:0.25". Or "straight": in line with the other end, on the side facing it ("straight:span": at the middle of the span the two share, for boxes that span several grid columns). Or "block" / "block:<side>": the middle of a side of a whole tokens row, matrix or group, with a bracket on a tokens row or matrix.',
     );
   });
 });
@@ -967,6 +967,26 @@ describe("figure.layout.align (#132)", () => {
     expect(diagnostics[2]?.message).toBe(
       'figure.layout.align[2] lists only "a"; an align constraint needs at least two.',
     );
+  });
+
+  test("move names items of its constraint (#646)", () => {
+    expect(check(structured("      - { y: [a, b], move: b }\n"))).toEqual([]);
+    expect(check(structured("      - { y: [a, b], move: [a, b] }\n"))).toEqual([]);
+    const text = structured(
+      "      - { y: [a, b], move: c }\n      - { x: [a, b], move: [b, c] }\n",
+    );
+    expect(check(text)).toEqual([
+      ["layout/invalid-align-move", ["figure", "layout", "align", 0, "move"], 7, 28],
+      ["layout/invalid-align-move", ["figure", "layout", "align", 1, "move", 1], 8, 32],
+    ]);
+    const [d] = checkFigureSource(text).state.diagnostics;
+    expect(d?.severity).toBe("error");
+    expect(d?.message).toBe(
+      '"c" in figure.layout.align[0].move is not an item of the constraint; move names which of its items may move.',
+    );
+    expect(d?.hint).toBe('Name one of "a", "b", or add "c" to "y".');
+    // An empty list is a schema error.
+    expect(check(structured("      - { y: [a, b], move: [] }\n"))[0]?.[0]).toMatch(/^schema\//);
   });
 
   test("an edge ID is not an element", () => {
