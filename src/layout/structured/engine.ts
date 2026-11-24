@@ -350,7 +350,7 @@ class StructuredLayout {
   /** Floating legends (#643) by container (their parent), in document order. */
   readonly #floats = new Map<Container, GroupIR[]>();
   /** Where each floating legend was placed in the last pass, and the area it floats in. */
-  readonly #floatPlacements = new Map<ElementKey, { rect: Rect; area: Rect }>();
+  readonly #floatPlacements = new Map<ElementKey, { rect: Rect; area: Rect; inset: number }>();
   readonly #labels = new Map<ElementKey, TextMetrics>();
   /** Nodes' sublabels (#184), measured at their own font size. */
   readonly #sublabels = new Map<ElementKey, TextMetrics>();
@@ -909,26 +909,42 @@ class StructuredLayout {
 
   placementDiagnostics(): Diagnostic[] {
     const diagnostics: Diagnostic[] = [...this.#setDiagnostics, ...this.#matchWidthDiagnostics()];
-    // A floating legend (#643) larger than the area it floats in sticks out of it.
-    for (const [key, { rect, area }] of this.#floatPlacements) {
-      const wide = rect.width > area.width + 1;
-      const tall = rect.height > area.height + 1;
-      if (!wide && !tall) continue;
+    // A floating legend (#643) that does not fit the area it floats in (with its inset)
+    // sticks out of it, and the container grows to hold it.
+    for (const [key, { rect, area, inset }] of this.#floatPlacements) {
+      const over = (start: number, length: number, from: number, size: number) =>
+        Math.max(0, from - start) + Math.max(0, start + length - (from + size));
+      const width = over(rect.x, rect.width, area.x, area.width);
+      const height = over(rect.y, rect.height, area.y, area.height);
+      if (width <= 0.5 && height <= 0.5) continue;
       const group = this.#groups.get(key);
       const source = this.#ir.sourceMap.get(key);
       const mm = (units: number) => `${((units * 0.5 * 25.4) / 72).toFixed(1)}mm`;
+      const withInset = inset > 0 ? ` with the inset ${mm(inset)}` : "";
       const axes = [
-        ...(wide ? [`${mm(rect.width)} wide (the area: ${mm(area.width)})`] : []),
-        ...(tall ? [`${mm(rect.height)} tall (the area: ${mm(area.height)})`] : []),
+        ...(width > 0.5
+          ? [
+              `the width by ${mm(width)} (the legend is ${mm(rect.width)} wide${withInset}, the area ${mm(area.width)})`,
+            ]
+          : []),
+        ...(height > 0.5
+          ? [
+              `the height by ${mm(height)} (the legend is ${mm(rect.height)} tall${withInset}, the area ${mm(area.height)})`,
+            ]
+          : []),
       ];
+      const scope =
+        group?.parent === undefined
+          ? "the figure's content area: the figure grows to hold it"
+          : `the content area of group "${group.parent.slice(2)}": it sticks out of the group's frame`;
       diagnostics.push({
         code: "layout/float-too-large",
         severity: "warning",
-        message: `Floating legend "${key.slice(2)}" is ${axes.join(" and ")}: larger than the content it floats over, so it widens the ${group?.parent === undefined ? "figure" : `group "${group.parent.slice(2)}"`}.`,
+        message: `Floating legend "${key.slice(2)}" overflows ${axes.join(" and ")} of ${scope}.`,
         path: [...(source?.path ?? ["nodes"]), "props", "float"],
         ...(source?.location !== undefined && { location: source.location }),
         subject: { kind: "node", id: key.slice(2) },
-        hint: "Make the legend smaller (flow: row with perRow, shorter labels), drop the inset, or list it in an arrange tree beside the content instead of floating it.",
+        hint: `Make the legend smaller (flow: row with perRow, shorter labels)${inset > 0 ? ", reduce the inset" : ""}, float it in a larger container, or list it in an arrange tree beside the content instead of floating it.`,
       });
     }
     for (const box of this.#boxSizes.keys()) {
@@ -1802,7 +1818,7 @@ class StructuredLayout {
           ? area.y + area.height - inset - size.height
           : area.y + (area.height - size.height) / 2;
       const rect = { x, y, ...size };
-      this.#floatPlacements.set(group.key, { rect, area });
+      this.#floatPlacements.set(group.key, { rect, area, inset });
       this.#placeElement(group.key, this.#bodyRect(group.key, rect));
     }
   }

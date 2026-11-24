@@ -59,7 +59,14 @@
 import { assetMarkup, badgeMarkup, imagePlaceholder } from "../assets/draw";
 import { glyphMarkup } from "../assets/glyphs";
 import type { FigureAssets } from "../assets/load";
-import type { EdgeIR, FigureIR, GroupIR, NodeIR, SetIR } from "../compiler/ir";
+import {
+  type EdgeIR,
+  type FigureIR,
+  floatingLegendKeys,
+  type GroupIR,
+  type NodeIR,
+  type SetIR,
+} from "../compiler/ir";
 import type { ElementKey } from "../core/check-state";
 import { isSpaceRun } from "../core/label/runs";
 import { SEPARATOR_ID } from "../core/registry/builtins";
@@ -1458,7 +1465,14 @@ export function writeStructuredSvg(
   // and then once more, faint, over the part of it inside the upper plane.
   const planeGroups = layout.groups.filter((g) => g.quad !== undefined);
   const crossing = crossPlaneEdges(ir, layout, planeGroups);
-  const wireSet = wires(ir, layout, new Set(crossing.edges.keys()));
+  // Floating legends (#643) lie over the content: their frames, parts and sample lines are
+  // painted last, after every other edge.
+  const floating = floatingLegendKeys(ir);
+  const wireSet = wires(
+    ir,
+    layout,
+    new Set([...crossing.edges.keys(), ...[...floating].filter((key) => edges.has(key))]),
+  );
   const planarFrames = planarEdgeFrames(ir, layout);
   // The flat rectangle of each node on a projected plane (#577) and the plane's map, for its hatch.
   const flatRects = new Map<ElementKey, { rect: Rect; frame: PlaneFrame }>();
@@ -1466,7 +1480,7 @@ export function writeStructuredSvg(
     const frame = planeFrameOf(plane);
     for (const flat of plane.flat) flatRects.set(flat.key, { rect: flat.rect, frame });
   }
-  for (const g of layout.groups) if (g.quad === undefined) drawGroup(g);
+  for (const g of layout.groups) if (g.quad === undefined && !floating.has(g.key)) drawGroup(g);
   for (const g of planeGroups.sort((a, b) => planeBottom(b) - planeBottom(a))) {
     for (const key of crossing.hiddenBy.get(g.key) ?? [])
       body.push(wireSet.deferred.get(key) ?? "");
@@ -1496,7 +1510,7 @@ export function writeStructuredSvg(
     );
     useText(placed.label);
   }
-  for (const placed of layout.nodes) {
+  const drawNode = (placed: (typeof layout.nodes)[number]): void => {
     const node = nodes.get(placed.key);
     if (node === undefined)
       throw new Error(`internal error: ${placed.key} is not a node of the figure`);
@@ -1527,9 +1541,10 @@ export function writeStructuredSvg(
     );
     useText(placed.label);
     useText(placed.sublabel);
-  }
+  };
+  for (const placed of layout.nodes) if (!floating.has(placed.key)) drawNode(placed);
   body.push(...wireSet.markup);
-  for (const placed of layout.edges) {
+  const drawEdge = (placed: (typeof layout.edges)[number]): void => {
     const edge = edges.get(placed.key);
     const points = placed.route?.points;
     if (edge === undefined || points === undefined || points.length < 2) {
@@ -1538,7 +1553,7 @@ export function writeStructuredSvg(
     const lines = placed.route?.lines;
     if (lines !== undefined) {
       body.push(zoomGroup(edge, lines));
-      continue;
+      return;
     }
     body.push(
       edgeGroup(
@@ -1551,6 +1566,18 @@ export function writeStructuredSvg(
       ),
     );
     useText(placed.route?.label);
+  };
+  for (const placed of layout.edges) if (!floating.has(placed.key)) drawEdge(placed);
+  // The floating legends (#643), each whole over everything else: frame, parts, sample lines.
+  for (const g of layout.groups) {
+    if (!floating.has(g.key)) continue;
+    drawGroup(g);
+    const id = ir.elements.get(g.key)?.legend?.id;
+    const own = (key: ElementKey) => ir.elements.get(key)?.legend?.id === id;
+    for (const placed of layout.nodes) if (own(placed.key)) drawNode(placed);
+    for (const placed of layout.edges)
+      if (own(placed.key)) body.push(wireSet.deferred.get(placed.key) ?? "");
+    for (const placed of layout.edges) if (own(placed.key)) drawEdge(placed);
   }
   const drawing = body.join("");
   const id = `sumi-${figureHash(drawing)}`;

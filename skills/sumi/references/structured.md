@@ -1758,9 +1758,11 @@ that corner of its container's content area (the figure's; a group's with `group
 adds nothing to the width or height. `float: {at: bottom-left, inset: 2mm}` keeps it off
 the edges (e.g. inside a sequence fragment's frame). In a [sequence](#sequence-diagrams),
 lifelines with no row from just above the legend down stop above it, so a key fits under
-lifelines that end early. Nothing moves out of its way: `geometry/float-overlap` (warning)
-names what it covers (choose another corner, an inset, or `flow: row`), and
-`layout/float-too-large` (warning) a legend larger than the content. Keep a key whenever
+lifelines that end early. It is painted last, over everything, in SVG, PDF and PPTX;
+edges are routed as if it were not there. Nothing moves out of its way:
+`geometry/float-overlap` (warning) names what it covers (choose another corner, an inset,
+or `flow: row`), and `layout/float-too-large` (warning) a legend that, with its inset, does
+not fit the content area. Keep a key whenever
 colours carry meaning; floating it is the way to keep it in a tight page.
 
 ```yaml

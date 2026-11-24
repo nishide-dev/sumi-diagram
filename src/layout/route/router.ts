@@ -68,7 +68,12 @@
  * (`labels.ts`) and the content and canvas grow to hold the routes.
  */
 
-import type { ArrangeBoxIR, EdgeIR, FigureIR } from "../../compiler/ir";
+import {
+  type ArrangeBoxIR,
+  type EdgeIR,
+  type FigureIR,
+  floatingLegendKeys,
+} from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Diagnostic, hasErrors } from "../../core/diagnostics";
 import type { Side } from "../../core/figure/schema";
@@ -2566,20 +2571,4 @@ function sharedSpan(self: Rect, other: Rect, side: Side, me: string, them: strin
   const at = (offset: number) => Math.round(offset * 1000) / 1000;
   const opposite = { north: "south", south: "north", east: "west", west: "east" } as const;
   return ` The two overlap across the same span, so a straight line fits there: write "straight:span" at both ends of the edge, or anchor ${me} at "${side}:${at((mid - a0) / aLength)}" and ${them} at "${opposite[side]}:${at((mid - b0) / bLength)}".`;
-}
-
-/**
- * The keys of the frames and parts of the floating legends (#643): the
- * router leaves them out of the grid, so routes do not depend on them.
- */
-function floatingLegendKeys(ir: FigureIR): Set<ElementKey> {
-  const floating = new Set<string>();
-  for (const group of ir.groups) if (group.float !== undefined) floating.add(group.id);
-  const keys = new Set<ElementKey>();
-  if (floating.size === 0) return keys;
-  for (const element of ir.elements.values()) {
-    if (element.kind !== "edge" && element.legend !== undefined && floating.has(element.legend.id))
-      keys.add(element.key);
-  }
-  return keys;
 }

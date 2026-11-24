@@ -18,7 +18,7 @@ figure:
 nodes:
   - {id: a, component: box, label: Agent, tone: blue}
   - {id: b, component: box, label: Surface}
-  - {id: c, component: box, label: Provider${extra.label}}
+  - {id: c, component: box, label: "Provider${extra.label}"}
   - {id: d, component: box, label: Merchant}
 ${extra.nodes}edges:
   - {from: a, to: b, label: request}
@@ -35,7 +35,9 @@ describe("lint/unexplained-colors (#643)", () => {
     const hits = found(edges());
     expect(hits).toHaveLength(1);
     expect(hits[0]?.severity).toBe("info");
-    expect(hits[0]?.message).toContain("orange (2 edges), green (2 edges)");
+    expect(hits[0]?.message).toContain(
+      "orange (2 edges), green (2 edges) are explained by no legend",
+    );
     expect(hits[0]?.hint).toContain("props.float");
   });
 
@@ -49,8 +51,21 @@ describe("lint/unexplained-colors (#643)", () => {
         - {edge: {tone: green, variant: dashed}, label: receipt}
 `;
     expect(found(edges({ nodes: legend, label: "" }))).toEqual([]);
-    expect(found(edges({ nodes: "", label: " (orange: signed)" }))).toEqual([]);
-    expect(found(edges({ nodes: "", label: " (橙は署名済み)" }))).toEqual([]);
+    expect(found(edges({ nodes: "", label: " (orange: signed, green: receipt)" }))).toEqual([]);
+    expect(found(edges({ nodes: "", label: " (橙色は署名、緑色は受領証)" }))).toEqual([]);
+  });
+
+  test("naming one color leaves the others unexplained", () => {
+    const hits = found(edges({ nodes: "", label: " (orange: signed)" }));
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.message).toContain("green (2 edges) is explained by no legend");
+    expect(hits[0]?.message).not.toContain("orange (2 edges)");
+  });
+
+  test("a colour character inside an unrelated word explains nothing", () => {
+    for (const word of ["特色", "青木", "赤字", "黄金", "緑地"])
+      expect(found(edges({ nodes: "", label: ` ${word}` }))).toHaveLength(1);
+    expect(found(edges({ nodes: "", label: " rendered greenhouse" }))).toHaveLength(1);
   });
 
   test("two colors, or one coded color, are not reported", () => {

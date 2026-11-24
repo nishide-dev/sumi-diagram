@@ -1695,6 +1695,22 @@ function alignIR(
   });
 }
 
+/**
+ * The keys of the frames and parts (nodes and sample edges) of the floating
+ * legends (#643): the router leaves them out of its grid and the writer paints
+ * them last, over the content.
+ */
+export function floatingLegendKeys(ir: FigureIR): Set<ElementKey> {
+  const floating = new Set<string>();
+  for (const group of ir.groups) if (group.float !== undefined) floating.add(group.id);
+  const keys = new Set<ElementKey>();
+  if (floating.size === 0) return keys;
+  for (const element of ir.elements.values()) {
+    if (element.legend !== undefined && floating.has(element.legend.id)) keys.add(element.key);
+  }
+  return keys;
+}
+
 /** `{ float }` for the frame of a floating legend (#643), otherwise `{}`. */
 function floatOf(doc: PartialFigure, key: ElementKey): Pick<GroupIR, "float"> {
   const origin = doc.expanded?.get(key);

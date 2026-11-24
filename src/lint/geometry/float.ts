@@ -2,10 +2,11 @@
  * `geometry/float-overlap` (#643, design record 643): a floating legend
  * (`props.float`) is drawn over its container's content without taking room
  * in it, so nothing checks for free space when it is placed. This rule
- * reports what its frame covers: a node, a group's frame or title that is not
- * one of its ancestors, an edge or an edge label, or the outline of a set it
- * is not entirely inside (a legend inside a sequence's fragment frame is
- * fine; one across its border is not).
+ * reports what its frame covers: a node's painted shape or text, the drawn
+ * frame or title of a group that is not one of its ancestors (not the empty
+ * inside), an edge or an edge label, or a set's drawn outline it lies across
+ * or the set's label (a legend inside a sequence's fragment frame is fine;
+ * one across its border is not).
  */
 
 import { groupKey } from "../../core/check-state";
@@ -13,6 +14,7 @@ import type { Point, Rect } from "../../render/geometry";
 import { defineGeometryRule, type LintFinding } from "../rule";
 import { capitalize } from "./common";
 import type { GeometryContext, GeometryElement } from "./context";
+import { rectDepthInside, regionIntersectsRect } from "./shapes";
 
 /** Overlaps up to this deep (units) are touching, not covering. */
 const TOUCH = 0.5;
@@ -29,11 +31,12 @@ const overlaps = (a: Rect, b: Rect): boolean =>
   Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > TOUCH &&
   Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) > TOUCH;
 
-const inside = (inner: Rect, outer: Rect): boolean =>
-  inner.x >= outer.x - TOUCH &&
-  inner.y >= outer.y - TOUCH &&
-  inner.x + inner.width <= outer.x + outer.width + TOUCH &&
-  inner.y + inner.height <= outer.y + outer.height + TOUCH;
+/** `inner` lies inside `outer` clear of its border (by more than {@link TOUCH}). */
+const strictlyInside = (inner: Rect, outer: Rect): boolean =>
+  inner.x > outer.x + TOUCH &&
+  inner.y > outer.y + TOUCH &&
+  inner.x + inner.width < outer.x + outer.width - TOUCH &&
+  inner.y + inner.height < outer.y + outer.height - TOUCH;
 
 /** Whether the segment `a`–`b` passes through the inside of `r` (shrunk by {@link TOUCH}). */
 function segmentEnters(a: Point, b: Point, r: Rect): boolean {
@@ -85,6 +88,8 @@ export const floatOverlap = defineGeometryRule({
       if (frame === undefined) continue;
       const id = legend.ir.legend?.id ?? legend.ir.id;
       const covered: GeometryElement[] = [];
+      const labelHit = (labels: readonly { box?: Rect }[]) =>
+        labels.some((label) => label.box !== undefined && overlaps(label.box, frame));
       for (const other of context.elements) {
         if (other === legend || floatingLegendOf(context, other) === id) continue;
         if (other.kind === "group" && context.isAncestor(other.key, legend.key)) continue;
@@ -96,22 +101,38 @@ export const floatOverlap = defineGeometryRule({
               other.ir.style.stroke !== "transparent" &&
               other.ir.style.strokeWidth.units > 0 &&
               routeEnters(route, frame)) ||
-            other.labels.some((label) => label.box !== undefined && overlaps(label.box, frame));
+            labelHit(other.labels);
           if (hit) covered.push(other);
+          continue;
+        }
+        if (other.kind === "group") {
+          // A group is its drawn frame and its title: the legend may lie in its empty inside
+          // without touching either.
+          const box = other.bbox;
+          const framed =
+            box !== undefined &&
+            other.ir.style.stroke !== "transparent" &&
+            other.ir.style.strokeWidth.units > 0;
+          const crossesFrame = framed && overlaps(box, frame) && !strictlyInside(frame, box);
+          if (crossesFrame || labelHit(other.labels)) covered.push(other);
           continue;
         }
         // A junction is a point on a wire: the wire is checked as an edge.
         if (other.ir.kind === "node" && other.ir.mark?.type === "point") continue;
-        const boxes = [
-          ...(other.bbox !== undefined ? [other.bbox] : []),
-          ...other.labels.flatMap((label) => (label.box !== undefined ? [label.box] : [])),
-        ];
-        if (boxes.some((box) => overlaps(box, frame))) covered.push(other);
+        // A node is its painted shape (a circle's, not its bounding box) and its text.
+        const shape =
+          other.outline !== undefined
+            ? regionIntersectsRect(other.outline, frame, TOUCH)
+            : other.bbox !== undefined && overlaps(other.bbox, frame);
+        if (shape || labelHit(other.labels)) covered.push(other);
       }
-      // A set's outline: the legend may sit inside the set (a fragment of a sequence), not across it.
+      // A set's drawn outline (an ellipse, a tilted ellipse, a hull) and its label: the legend
+      // may lie wholly inside the set (a fragment of a sequence) or wholly outside, not across.
       const sets = context.sets.filter((set) => {
-        const box = set.geometry.bbox;
-        return overlaps(box, frame) && !inside(frame, box);
+        const region = set.geometry.region;
+        const across =
+          regionIntersectsRect(region, frame, TOUCH) && rectDepthInside(region, frame) < -TOUCH;
+        return across || labelHit(set.labels);
       });
       if (covered.length === 0 && sets.length === 0) continue;
       const names = [...covered.map((e) => e.name), ...sets.map((s) => s.name)];
