@@ -125,16 +125,19 @@ layer gap (paper profiles). Measured with short labels:
 
 ## Slides (`presentation-16x9`)
 
-Use `theme: slides` + `profile: presentation-16x9`: the profile requires 14pt text
-and only `slides` meets it (16pt text); `minimal` and `academic` fail every labelled
-element with `profile/font-too-small` by design (the profile never enlarges text).
-Slide guidance often asks for 18pt or more: set `figure.target.minFontSize`. A slide
-is about 338mm × 190mm and `slides` spacing makes figures 1.5–2× larger than on
-paper: 3–4 layers `right` take about 280mm × 100mm, while long flows can overflow
-both ways (`examples/pipeline`, `examples/decision-flow`: 240–250mm tall `down`, 356 /
-434mm wide `right`; for any other figure render and check `size`). On
-`geometry/exceeds-page-height` / `-width` compare the
-[options](#when-width-runs-short); never switch theme or profile alone.
+Use `theme: sumi` + `profile: presentation-16x9` with `figure.themeOverrides.textScale: 2`
+(SKILL.md step 3): the profile requires 14pt text and `sumi`'s 7-9pt text meets it only scaled
+(`textScaleFor` in `sumi catalog --section themes`; `minimal`, `paper` and the other 7-9pt
+themes likewise). Without the scale every labelled element fails `profile/font-too-small` by
+design (the profile never enlarges text); its hint names the scale. The `slides` theme (16pt
+text, 2pt lines, no scale needed) remains for a plain projection look. Slide guidance often asks
+for 18pt or more: set `figure.target.minFontSize` and raise the scale to match (the smallest
+`sumi` text is 7pt, so 18pt takes `textScale: 2.75`). A slide is about
+338mm × 190mm and text, lines and arrowheads grow with the scale, so a figure is about twice its
+paper width (a 140mm `sumi` figure at 2 is 280mm): 3–4 layers `right` fit, while long flows can
+overflow both ways; render and check `size`. On `geometry/exceeds-page-height` / `-width` compare
+the [options](#when-width-runs-short) (shorter labels, folded rows); never switch theme or profile
+alone.
 
 ## Folding a flow into rows
 
@@ -336,7 +339,7 @@ a strong accent for one result: `cyan-pink`. Set it once with `themeOverrides.pa
 and do not mix per-element colours that fight it; for black-and-white print use the
 `academic` theme without a palette. Then follow these rules while writing the YAML:
 
-- **Colour and ground.** Keep the page **white**: `paper` panels are white with a thin
+- **Colour and ground.** Keep the page **white**: `sumi` and `paper` panels are white with a thin
   frame, so leave them alone (a gray or tinted panel only when the reference has one:
   `variant: filled`, `themeOverrides.groupFill`). Colour only what carries meaning, in
   **at most 2–3 hues plus one accent** (a loss, the result), the palest tones at the
@@ -368,6 +371,9 @@ and do not mix per-element colours that fight it; for black-and-white print use 
   one thing.
 - **One legend**, in one place (usually the bottom), covering every tone and mark
   that needs explaining ([legends](structured.md#legends)); no per-panel keys.
+  If colours carry meaning, keep that legend or explain the colours in the text (the
+  caption or a label); never drop it to save height without saying where the
+  meaning went.
 - **Read in order.** Stages go left to right or top to bottom as numbered columns,
   with a block arrow or triangle between them to carry the flow;
   no edge leaves its panel except the main flow, so repeat a small icon instead of
@@ -507,16 +513,20 @@ them against the reference.
 Fix what fails (arrangement, sizes, tones, text), re-render, and compare again until
 no item fails or the rest is justified in your report. The `lint` infos about density
 and colour (`geometry/sparse-figure`, `geometry/text-heavy-nodes`, `geometry/color-harmony`, `geometry/muddy-color`, `geometry/color-on-panel`) are inputs to this critique:
-they are rough, and a figure can pass them and still fail the checklist.
+they are rough, and a figure can pass them and still fail the checklist. Before you keep any
+info as intended (an empty band, a relocatable node, a colour count), apply its hint once,
+re-render and compare; keep the info only if the figure got worse, and say why in the report.
 
 ## Paper figure recipe
 
-A paper figure is a **structured** figure with the `paper` theme. Start from
+A paper figure is a **structured** figure with the `sumi` theme (`paper` for the pastel
+ML-paper look, `academic` for grayscale print). Start from
 [example 6](examples.md#6-success-a-paper-figure) and the arrangement you planned (or
 the reference's arrangement), then map each look you want to a field:
 
 | To draw | Write |
 | --- | --- |
+| white panels, navy lines, a few muted accents, sans-serif | `figure.theme: sumi` (the default choice) |
 | rounded pastel boxes, thin black lines, small arrowheads, sans-serif | `figure.theme: paper` (`academic` for a grayscale, square-cornered figure) |
 | boxes without a border (pastel fill only) | `variant: filled` + `tone` ([variants](figure-format.md#tones-and-variants)) |
 | white boxes with a coloured frame and text (encoders, tokens) | `variant: outlined` + `tone` |

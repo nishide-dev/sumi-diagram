@@ -206,7 +206,8 @@ Both draw two lines (structured figures; auto draws the math as written). Inside
 `slides` map them to three gray fills (yellow/green, gray/orange/blue,
 red/purple/pink look alike). Use tones to encode categories consistently (all
 attention blocks `orange`), not for decoration; when the user wants
-distinguishable colours use `color` (`paper` for a paper figure).
+distinguishable colours use `sumi` (its accent tones; `color`, or `paper` for the pastel
+ML-paper look).
 
 ```yaml
 nodes:
@@ -487,9 +488,10 @@ They are built in; a figure cannot define its own. `sumi catalog --json` lists t
 | `sumi` | white canvas (`themeOverrides.canvas: "#f8f8ee"` for the former cream), navy ink and sand accents, white panels with a thin pale gray frame (0.5pt, quieter than the 1pt node outlines; `filled` = sand) |
 | `sumi-dark` | navy canvas, cream ink and sand accents, canvas-colored panels with a thin pale frame (0.5pt; `filled` = a lighter navy) |
 
-`minimal`, `academic`, `color`, `paper` and `llama` use 8pt text (7pt on edges). `academic` is
-for black-and-white journals, `paper` for the coloured figures of ML papers; both fit
-`paper-single` / `paper-double`, and the same YAML renders under either with
+`minimal`, `academic`, `color`, `paper` and `llama` use 8pt text (7pt on edges). `sumi` is the
+recommended theme for papers, READMEs (`textScale: 1.5`) and slides (`textScale: 2`). `academic` is
+for black-and-white journals, `paper` for the pastel look of ML-paper figures; all three fit
+`paper-single` / `paper-double`, and the same YAML renders under any of them with
 `--theme`. Fonts: `minimal`, `academic`, `slides`, `color` use `sumi/biz-ud-gothic`
 (Latin and Japanese); `paper`, `llama`, `sumi` and `sumi-dark` use `sumi/inter-biz-ud-gothic` (structured figures:
 Inter for Latin, BIZ UDPGothic for Japanese; auto figures all BIZ UDPGothic). Inter's
