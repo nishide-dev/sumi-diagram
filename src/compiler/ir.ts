@@ -148,6 +148,8 @@ export interface ArrangeBoxIR {
   readonly positionsPt?: readonly (readonly [number, number])[];
   /** Place boxes only: items whose center is the body without attached nodes (#517), parallel to items. */
   readonly bodyCentered?: readonly boolean[];
+  /** Place boxes only: groups whose `at` is where their own place puts [0, 0] (#649, `origin: place`), parallel to items. */
+  readonly innerOrigin?: readonly boolean[];
   readonly placementSources?: readonly SourceMapEntry[];
   /** Grid-only track count, spans (parallel to items), and gaps in pt. */
   readonly columns?: number;
@@ -296,6 +298,8 @@ export interface AttachIR {
   readonly side: AttachSide;
   /** Space between the target and the node in pt (0 when omitted). */
   readonly gapPt: number;
+  /** `inFlow: false` (#649): the node takes no room in its target's group. Absent: it does. */
+  readonly inFlow?: false;
 }
 
 interface ElementIRBase {
@@ -326,6 +330,12 @@ interface ElementIRBase {
    * "mask"`) and, for a part, where its fields are written.
    */
   readonly matrix?: TokensCellIR;
+  /**
+   * Set on a node painted at a step of a matrix's color scale (#644): a cell
+   * with a value, or a sample of a legend's scale strip. Its fill encodes data,
+   * so the color lints count its tone but not the block of color.
+   */
+  readonly scaleStep?: true;
 }
 
 /** See {@link ElementIRBase.tokens} and {@link ElementIRBase.matrix}. */
@@ -568,6 +578,8 @@ export interface EdgeIR extends ElementIRBase {
     readonly side: Side;
     readonly offset?: number;
     readonly outside?: ElementKey;
+    /** `bus: false` (#649): the lane joins no bus; absent: it does. */
+    readonly bus?: false;
   };
   /**
    * The manifest's `routing` (#176): `zoom` joins corners of the two ends
@@ -852,6 +864,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
       freeze({
         ...objectBase(key, "n", n),
         ...(chatParts.has(key) && { chatPart: chatParts.get(key) as "meta" | "divider" }),
+        ...(doc.paints?.get(key)?.ramp !== undefined && { scaleStep: true as const }),
         ...(chatWidths.has(key) && { chatMessage: true as const }),
         ...(component.id === "sumi/bubble" && {
           label: wrapText(n.label),
@@ -981,6 +994,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
             to: attachTarget(n.attach),
             side: n.attach.side,
             gapPt: n.attach.gap ?? 0,
+            ...(n.attach.inFlow === false && { inFlow: false as const }),
           }),
         }),
         ...(n.labelRotation !== undefined && { labelRotation: n.labelRotation }),
@@ -1129,6 +1143,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           element: set,
           text: set.text,
           weight: set.weight,
+          panel: doc.sequencePanels?.has(index),
         }),
         source: sourceEntry(doc.sequenceSets?.get(index) ?? ["sets", index]),
       }),
@@ -1413,6 +1428,7 @@ function edgeIR(
         side: e.lane.side,
         ...(e.lane.offset !== undefined && { offset: ptToD2Units(e.lane.offset) }),
         ...(e.lane.outside !== undefined && { outside: endpointKey(e.lane.outside) }),
+        ...(e.lane.bus === false && { bus: false as const }),
       }),
     }),
     // A line to a block of a cuboid (#584) is one straight segment: the router knows no blocks.
@@ -1650,6 +1666,9 @@ function arrangeIR(
       positionsPt: freeze(items.map(({ at }) => freeze([at[0] * unit, at[1] * unit] as const))),
       ...(items.some((cell) => cell.origin === "body") && {
         bodyCentered: freeze(items.map((cell) => cell.origin === "body")),
+      }),
+      ...(items.some((cell) => cell.origin === "place") && {
+        innerOrigin: freeze(items.map((cell) => cell.origin === "place")),
       }),
       ...(sourceEntry && {
         placementSources: freeze(

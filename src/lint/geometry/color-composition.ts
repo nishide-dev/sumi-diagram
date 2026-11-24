@@ -110,10 +110,21 @@ function namesOf(items: readonly PaintItem[], skip: ReadonlySet<string> = new Se
   return names.slice(0, 3).join(", ") + (names.length > 3 ? `, and ${names.length - 3} more` : "");
 }
 
+/** Colors within this CIE76 distance are the same paint. */
+const SAME_COLOR = 1;
+
 /** The most common reason across the samples of an item, if at least `SAMPLE_SHARE` of them are muddy. */
-function muddyReason(a: Analysis): { reason: keyof typeof REASONS; sample: Sample } | undefined {
+function muddyReason(
+  a: Analysis,
+  ownPaintKept: boolean,
+): { reason: keyof typeof REASONS; sample: Sample } | undefined {
   const { item } = a;
-  if (a.samples.length === 0) return undefined;
+  // An item whose own paint is accepted (#644, a step of a matrix's color scale) is judged only
+  // where something over it changes the color it shows.
+  const samples = ownPaintKept
+    ? a.samples.filter((sample) => deltaE(sample.final, a.onWhite) > SAME_COLOR)
+    : a.samples;
+  if (samples.length === 0) return undefined;
   // A perceptual mix intentionally changes hue and chroma; judge it against its
   // own opaque paint, rather than against the most chromatic input tint.
   // An overlap is judged against the sets it mixes; anything else against itself on white.
@@ -124,7 +135,7 @@ function muddyReason(a: Analysis): { reason: keyof typeof REASONS; sample: Sampl
     .map((c) => toOklch(c))
     .reduce((best, next) => (next.c > best.c ? next : best));
   const found: { reason: keyof typeof REASONS; sample: Sample }[] = [];
-  for (const sample of a.samples) {
+  for (const sample of samples) {
     const final = toOklch(sample.final);
     // A product of sets is darker by construction: only its chroma counts.
     const reason =
@@ -135,7 +146,7 @@ function muddyReason(a: Analysis): { reason: keyof typeof REASONS; sample: Sampl
         : muddinessOf(reference, final);
     if (reason !== undefined) found.push({ reason, sample });
   }
-  if (found.length < a.samples.length * SAMPLE_SHARE) return undefined;
+  if (found.length < samples.length * SAMPLE_SHARE) return undefined;
   return found.sort((x, y) => toOklch(x.sample.final).c - toOklch(y.sample.final).c)[0];
 }
 
@@ -155,7 +166,13 @@ export const muddyColor = defineGeometryRule({
   defaultSeverity: "warning",
   fixable: false,
   run: (context) => {
-    const findings = muddyFindings(analysisOf(context));
+    // The steps of a matrix's color scale (#644) are opaque mixes of the theme's own two colors
+    // for a tone: their mid steps may pass through ochre (an orange scale on a dark canvas),
+    // which is the scale, not a muddy choice. Their own color is accepted; a translucent fill
+    // over them that turns it muddy is still reported.
+    const step = ({ item }: Analysis) =>
+      item.key !== undefined && context.ir.elements.get(item.key)?.scaleStep === true;
+    const findings = muddyFindings(analysisOf(context), step);
     // Fills and lines, not text (#465): a small label in a dark tone of its hue reads as that
     // hue, while a dark yellow line or area reads as ochre.
     for (const element of [...context.elements, ...context.sets]) {
@@ -178,10 +195,13 @@ export const muddyColor = defineGeometryRule({
 });
 
 /** The findings of `geometry/muddy-color` on an analysis (also of one painted with translucent sets, to calibrate). */
-export function muddyFindings(analysis: readonly Analysis[]): LintFinding[] {
+export function muddyFindings(
+  analysis: readonly Analysis[],
+  ownPaintKept: (a: Analysis) => boolean = () => false,
+): LintFinding[] {
   const findings: LintFinding[] = [];
   for (const a of analysis) {
-    const muddy = muddyReason(a);
+    const muddy = muddyReason(a, ownPaintKept(a));
     if (muddy === undefined) continue;
     const { item } = a;
     const { sample } = muddy;

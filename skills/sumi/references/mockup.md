@@ -10,8 +10,11 @@ mockup's quality caps the result, so fix the mockup, not the YAML, when the pict
 Rule: if the arrangement is not obvious, mock it up, however few nodes there are (a three-state
 machine with a loop, two panels, a Venn pair). Several panels, loops or feedback, state machines,
 sets and taxonomies qualify. Skip it only when the arrangement is obvious: a one-directional flow
-(a pipeline, a three-row comparison). Size and editing an existing figure are secondary: a small
-edit that keeps the layout needs none.
+(a pipeline, a three-row comparison), or when a base layout that fully determines the positions
+fits as it is: the `sequence-diagram` layout (a `sequence` box places every row and lifeline) and the
+`state-machine` layout (a `place` with its coordinates written), adapted by their `Change:` notes. A
+state machine whose states or transitions do not follow that layout still needs a mockup. Size and
+editing an existing figure are secondary: a small edit that keeps the layout needs none.
 
 ## 1. Take the theme's values from Sumi
 

@@ -28,6 +28,7 @@ import { resolveTheme } from "./builtin";
 import { dimmedElements, dimStyle, expandColor, paleStyle } from "./dim";
 import { contrastRatio as contrast, filledToneNode, luminance, readableInk } from "./node-variants";
 import { figureTheme } from "./overrides";
+import { type RampEnds, rampEnds, rampStyle } from "./ramp";
 import type { Theme, ToneOverride } from "./schema";
 import { withRadius, withStrokes } from "./strokes";
 import {
@@ -418,8 +419,13 @@ export function styleFigure(state: CheckState, locate: Locator): Theme | undefin
           })
         : hatchedStyle;
     // A muted matrix cell or its legend sample (#612) is drawn pale.
-    const pale =
+    const paled =
       paint?.pale === true && painted.kind === "node" ? paleStyle(painted, theme.canvas) : painted;
+    // A step of a matrix's color scale (#644): the tone's ramp at the step, with a readable ink.
+    const pale =
+      paint?.ramp !== undefined && paled.kind === "node"
+        ? rampStyle(paled, toneRamp(theme, tone ?? "gray"), paint.ramp)
+        : paled;
     // A node's own `mono` (#279) overrides the theme's: true needs the font set's mono font.
     const mono = entry.kind === "node" ? entry.element.mono : paint?.mono;
     if (mono === true && theme.fontSet.mono === undefined) {
@@ -639,6 +645,13 @@ function toneTextUses(state: CheckState): { onFill: Set<Tone>; onWhite: Set<Tone
         if (isTone(match[1] ?? "")) onWhite.add(match[1] as Tone);
   }
   return { onFill, onWhite };
+}
+
+/** The ramp of a tone in a theme (#644): see `rampEnds()`. */
+export function toneRamp(theme: Theme, tone: Tone): RampEnds {
+  const of = (variant: string) =>
+    resolveStyle(theme, { kind: "node", id: "sumi/box", variant, tone }).style as NodeStyle;
+  return rampEnds(of("filled"), of("solid"), theme.canvas);
 }
 
 /**

@@ -89,6 +89,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.16.1 | Set `enclose: footprint` includes member glyphs and padding; the default `body` preserves existing outlines. |
 | 0.19.0 | `cuboid`: a solid drawn in oblique projection, with `dims`; `figure.projection` (`angle`, `depthScale`); container `props.plane` (`floor` / `wall`): a tilted plane group, with `props.contents: projected` laying node outlines, arrowheads and a `matrix` flat on it; `cuboid` `cells` / `highlight` and `<node>.<name>` zoom ends |
 | 0.20.0 | `sequence` arrange box (participants, lifelines, message rows, notes, bands, fragments); edge `dash` / `strands`, set `text` / `weight`, cylinder `capDepth`; `matrix` `labelAt: above` (title outside, no padding), `wrapHeaders` / `columnHeaderWidth`, `rules: true` (a table with rules only); `muted` matrix cells drawn pale |
+| 0.20.1 | `matrix` `scale` (a colour scale for cells written `{value}`) and legend `scale` entries, merged cells (`span`), `headerRotate`; a ruled matrix's legend samples have no border; `sequence` messages to several participants (`to: [b, c]`: one arrow each, the label on the first); fragment frames drawn as the theme's group frame without `variant` / `tone`; participants as tall as the tallest |
 
 ## IDs
 
@@ -205,7 +206,8 @@ Both draw two lines (structured figures; auto draws the math as written). Inside
 `slides` map them to three gray fills (yellow/green, gray/orange/blue,
 red/purple/pink look alike). Use tones to encode categories consistently (all
 attention blocks `orange`), not for decoration; when the user wants
-distinguishable colours use `color` (`paper` for a paper figure).
+distinguishable colours use `sumi` (its accent tones; `color`, or `paper` for the pastel
+ML-paper look).
 
 ```yaml
 nodes:
@@ -489,9 +491,10 @@ They are built in; a figure cannot define its own. `sumi catalog --json` lists t
 | `sumi` | white canvas (`themeOverrides.canvas: "#f8f8ee"` for the former cream), navy ink and sand accents, white panels with a thin pale gray frame (0.5pt, quieter than the 1pt node outlines; `filled` = sand) |
 | `sumi-dark` | navy canvas, cream ink and sand accents, canvas-colored panels with a thin pale frame (0.5pt; `filled` = a lighter navy) |
 
-`minimal`, `academic`, `color`, `paper` and `llama` use 8pt text (7pt on edges). `academic` is
-for black-and-white journals, `paper` for the coloured figures of ML papers; both fit
-`paper-single` / `paper-double`, and the same YAML renders under either with
+`minimal`, `academic`, `color`, `paper` and `llama` use 8pt text (7pt on edges). `sumi` is the
+recommended theme for papers, READMEs (`textScale: 1.5`) and slides (`textScale: 2`). `academic` is
+for black-and-white journals, `paper` for the pastel look of ML-paper figures; all three fit
+`paper-single` / `paper-double`, and the same YAML renders under any of them with
 `--theme`. Fonts: `minimal`, `academic`, `slides`, `color` use `sumi/biz-ud-gothic`
 (Latin and Japanese); `paper`, `llama`, `sumi` and `sumi-dark` use `sumi/inter-biz-ud-gothic` (structured figures:
 Inter for Latin, BIZ UDPGothic for Japanese; auto figures all BIZ UDPGothic). Inter's

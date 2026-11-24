@@ -1,0 +1,18 @@
+# A legend whose perRow narrows it but not enough, beside a 40mm gap: the gap
+# alone fits only below 2mm (a last resort); perRow with a gap of 2mm or more
+# (the partial combination) must come first (#640).
+version: 1
+figure:
+  id: last-resort-order
+  profile: paper-double
+  layout: { engine: structured, arrange: { row: { gap: 40mm, items: [key, pic] } } }
+nodes:
+  - { id: pic, component: image, props: { svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><rect width="20" height="10"/></svg>', width: 20mm } }
+  - id: key
+    component: legend
+    props:
+      flow: row
+      entries:
+        - { node: {}, label: "A considerably longer entry label for the routed experts of every layer" }
+        - { node: {}, label: A }
+        - { node: {}, label: B }

@@ -69,6 +69,121 @@ describe("geometry/token-column-drift", () => {
   });
 });
 
+describe("geometry/token-column-drift: the hint names the cause (#647)", () => {
+  const code = "geometry/token-column-drift";
+  const file = join(ROOT, "steps.sumi.yaml");
+  /** Step rows as in a decoding figure: a step label, then the step's tokens. */
+  const steps = (
+    labels: readonly [string, string],
+    width = "",
+    cells = "6mm, gap: 1mm",
+  ) => `version: 1
+figure:
+  id: steps
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack:
+        gap: 2mm
+        items:
+          - row: { gap: 2mm, align: center, items: [l1, t1] }
+          - row: { gap: 2mm, align: center, items: [l2, t2] }
+nodes:
+  - { id: l1, component: label, label: '${labels[0]}'${width} }
+  - { id: t1, component: tokens, props: { width: 6mm, height: 6mm, gap: 1mm, cells: [a, b, c, d] } }
+  - { id: l2, component: label, label: '${labels[1]}'${width} }
+  - { id: t2, component: tokens, props: { width: ${cells}, height: 6mm, cells: [a, b, c, d] } }
+`;
+
+  test("the same cells shifted by step labels of different widths: names the labels", async () => {
+    const found = await findings(steps(["t=1", "t=2"]), file, code);
+    expect(found).toHaveLength(1);
+    const hint = found[0]?.hint ?? "";
+    expect(hint).toMatch(
+      /^Both rows have the same cells, but tokens "t2" starts 0\.\d\dmm right of tokens "t1"/,
+    );
+    expect(hint).toMatch(
+      /node "l1" \(before tokens "t1"\) is \d\.\d\dmm wide and node "l2" \(before tokens "t2"\) \d\.\d\dmm/,
+    );
+    // Named as the cause only because a trial layout with one width lines the rows up.
+    const verified =
+      /Verified: props\.width (\d+(?:\.\d)?)mm on both node "l1" and node "l2" lines the rows up/.exec(
+        hint,
+      );
+    expect(verified).not.toBeNull();
+    expect(hint).not.toContain("props.gap");
+    // The fix the hint gives: that width on both labels.
+    const width = `, props: { width: ${verified?.[1]}mm }`;
+    expect(await findings(steps(["t=1", "t=2"], width), file, code)).toEqual([]);
+  });
+
+  /** Two rows placed by coordinates, the lower one 0.3mm right: what sits beside them does not move them. */
+  const placed = (labels: string) => `version: 1
+figure:
+  id: placed
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: t1, at: [40, 10]}
+          - {item: t2, at: [40.3, 20]}
+${labels}nodes:
+  - { id: t1, component: tokens, props: { width: 6mm, height: 6mm, gap: 1mm, cells: [a, b, c, d] } }
+  - { id: t2, component: tokens, props: { width: 6mm, height: 6mm, gap: 1mm, cells: [a, b, c, d] } }
+  - { id: l1, component: label, label: 't=1' }
+  - { id: l2, component: label, label: 'step 2' }
+`;
+
+  test("neighbours of different widths that do not position the rows are not named as the cause", async () => {
+    const found = await findings(
+      placed("          - {item: l1, at: [15, 10]}\n          - {item: l2, at: [15, 20]}\n"),
+      file,
+      code,
+    );
+    expect(found).toHaveLength(1);
+    const hint = found[0]?.hint ?? "";
+    expect(hint).toMatch(
+      /^Both rows have the same cells, but tokens "t2" starts 0\.\d\dmm right of tokens "t1"\. /,
+    );
+    expect(hint).not.toContain("Verified");
+    // The trial ran (equal widths left the rows apart), so not even "not checked".
+    expect(hint).not.toContain('node "l1"');
+    expect(hint).not.toContain("not checked");
+    expect(hint).toContain("Make the rows start at the same x");
+  });
+
+  test("no neighbour: the measured start, and a fix without a cause", async () => {
+    const source = placed("").replace(/ {2}- \{ id: l[12],.*\n/g, "");
+    const found = await findings(source, file, code);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.hint).toMatch(
+      /^Both rows have the same cells, but tokens "t2" starts 0\.\d\dmm right of tokens "t1"\. Make the rows start at the same x/,
+    );
+  });
+
+  test("cells of different widths or gaps: says that the cells differ", async () => {
+    const wider = await findings(steps(["t=1", "t=1"], "", "6.4mm, gap: 1mm"), file, code);
+    // The rows are centred, so wider cells also start the row further left:
+    // both differences are reported, with the offsets measured at both ends.
+    expect(wider[0]?.hint).toMatch(
+      /^The cells differ \(tokens "t1" has 6\.00mm cells with 1\.00mm gaps, tokens "t2" has 6\.\d\dmm cells with 1\.00mm gaps\), and tokens "t2" starts 0\.\d\dmm left of tokens "t1": the centres are 0\.\d\dmm apart at the first column and 0\.\d\dmm at the last\./,
+    );
+    expect(wider[0]?.hint).toContain("start the rows at the same x");
+    expect(wider[0]?.hint).not.toContain("further");
+    expect(wider[0]?.message).toMatch(
+      /^Cell "[14]" of tokens "t2" sits 0\.\d\dmm \(\d\.\dpt\) off the centre of cell "[14]" of tokens "t1", so the columns of tokens "t1" and tokens "t2" do not line up\.$/,
+    );
+    const gaps = await findings(steps(["t=1", "t=1"], "", "6mm, gap: 1.3mm"), file, code);
+    expect(gaps[0]?.hint).toContain('tokens "t2" has 6');
+    expect(gaps[0]?.hint).toContain("1.3");
+    expect(gaps[0]?.hint).toContain("props.gap");
+  });
+});
+
 describe("geometry/edge-label-hugging", () => {
   const code = "geometry/edge-label-hugging";
 

@@ -42,8 +42,9 @@ test.each([1, 3])(
     expect(diagnosticHint).toContain("Fits 88mm");
     expect(diagnosticHint).toContain('set props.width of node "a" to');
     const hint = widthTrials(before.rendered);
+    // A 2mm gap goes to 0mm only as a last resort (#640).
     expect(hint).toContain(
-      `set figure.layout.arrange.grid.columnGap to 0mm (page width reduced by ${formatMm(reduction)})`,
+      `set figure.layout.arrange.grid.columnGap to 0mm (page width reduced by ${formatMm(reduction)}) as a last resort, no room left between the items`,
     );
     expect(hint).not.toMatch(/set group "g\d"\.arrange\.row\.gap/);
     const saved = structuredClone(before.rendered.compiled.ir);
@@ -81,7 +82,7 @@ nodes:
   - { id: b, component: box, label: B, props: { width: 100pt } }
 `;
     const before = await lintRenderedFigure(text, { rules: [exceedsPageWidth] });
-    const after = await lintRenderedFigure(text.replace("gap: 20mm", "gap: 0mm"), {
+    const after = await lintRenderedFigure(text.replace("gap: 20mm", "gap: 2mm"), {
       rules: [exceedsPageWidth],
     });
     if (!before.rendered || !after.rendered) throw new Error(JSON.stringify(before.diagnostics));
@@ -94,7 +95,7 @@ nodes:
     expect(fits).not.toContain('node "a" to');
     const hint = widthTrials(before.rendered);
     expect(hint).toContain(
-      `set figure.layout.arrange.row.gap to 0mm (page width reduced by ${formatMm(reduction)})`,
+      `set figure.layout.arrange.row.gap to 2mm (page width reduced by ${formatMm(reduction)})`,
     );
     expect(hint).not.toContain("trials skipped");
     expect(hint).not.toContain('remove the explicit width of node "a"');
@@ -251,7 +252,8 @@ nodes:
 `);
   if (!report.rendered) throw new Error("render failed");
   const hint = widthTrials(report.rendered);
-  expect(hint).toContain("set figure.layout.arrange.row.gap to 0mm (page width reduced by");
+  // 2mm, not 0mm: a gap that keeps room for an arrow comes first (#640).
+  expect(hint).toContain("set figure.layout.arrange.row.gap to 2mm (page width reduced by");
   expect(hint).not.toMatch(/node "s"/);
   expect(report.diagnostics.find((d) => d.code === exceedsPageWidth.id)?.hint).not.toMatch(
     /node "s"/,
@@ -289,7 +291,7 @@ ${rowNodes(7)}
   - { id: n, component: box, label: N }
 `.replace("[x7, y7]", "[m, n]"),
   );
-  expect(wideGap).toContain("items[7].row.gap to 0mm");
+  expect(wideGap).toContain("items[7].row.gap to 2mm");
 });
 
 test("attach gaps are verified candidates", async () => {
@@ -306,14 +308,14 @@ nodes:
 ${chain}
 `;
   const before = await lintRenderedFigure(text);
-  const after = await lintRenderedFigure(text.replaceAll("gap: 8mm", "gap: 0mm"));
+  const after = await lintRenderedFigure(text.replaceAll("gap: 8mm", "gap: 2mm"));
   if (!before.rendered || !after.rendered) throw new Error("render failed");
   const reduction =
     printedSize(before.rendered.inspection).widthPt -
     printedSize(after.rendered.inspection).widthPt;
   const hint = before.diagnostics.find((d) => d.code === exceedsPageWidth.id)?.hint;
   expect(hint).toContain(
-    `set attach.gap of all 5 attached nodes to 0mm (page width reduced by ${formatMm(reduction)})`,
+    `set attach.gap of all 5 attached nodes to 2mm (page width reduced by ${formatMm(reduction)})`,
   );
 });
 
