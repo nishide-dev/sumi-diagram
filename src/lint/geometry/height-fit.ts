@@ -27,30 +27,36 @@ import { formatMm, mmToPt, ptToMm } from "../../core/units";
 import { asHintTrial, hintLayoutOptions, inHintTrial, mapBoxes } from "../../layout/hint-trials";
 import type { GeometryContext } from "./context";
 import { layoutTrial, newProblems, type Problems, problemsOf } from "./trial";
-import { MAX_FIT_ELEMENTS } from "./width-fit";
+import { MAX_FIT_ELEMENTS, skippedInTrials } from "./width-fit";
 
 /** Trial layouts per diagnostic, the unedited baseline included. */
 export const MAX_HEIGHT_TRIALS = 4;
 /** A `rowGap` the hint keeps before going lower: rows still read as separate steps. */
 export const INTENT_ROW_GAP_MM = 1;
 
-/** Rules a trial is not linted by: the page-size rules (the trial's size is checked directly). */
-const SKIP: ReadonlySet<string> = new Set([
-  "geometry/exceeds-page-height",
-  "geometry/exceeds-page-width",
-  "geometry/heavy-scaling",
-  "geometry/relocatable-node",
-]);
+/**
+ * Rules a trial is not linted by: the page-size rules (the trial's size is
+ * checked directly), and `geometry/relocatable-node` at its default info
+ * level, as in the width trials (`skippedInTrials`): configured as warning
+ * or error it counts.
+ */
+function skippedRules(context: GeometryContext): ReadonlySet<string> {
+  return new Set([...skippedInTrials(context), "geometry/exceeds-page-height"]);
+}
 
-/** The sequence boxes of a figure (root and group arranges, nested boxes included). */
-export function sequenceBoxes(ir: FigureIR): ArrangeBoxIR[] {
-  const out: ArrangeBoxIR[] = [];
-  const visit = (box: ArrangeBoxIR) => {
-    if (box.kind === "sequence" && box.sequence !== undefined) out.push(box);
-    for (const item of box.items) if (item !== null && typeof item !== "string") visit(item);
+/** The sequence boxes of a figure (root and group arranges, nested boxes included), with how messages name them. */
+export function sequenceBoxes(ir: FigureIR): { box: ArrangeBoxIR; path: string }[] {
+  const out: { box: ArrangeBoxIR; path: string }[] = [];
+  const visit = (box: ArrangeBoxIR, path: string) => {
+    const name = `${path}.${box.kind}`;
+    if (box.kind === "sequence" && box.sequence !== undefined) out.push({ box, path: name });
+    box.items.forEach((item, i) => {
+      if (item !== null && typeof item !== "string") visit(item, `${name}.items[${i}]`);
+    });
   };
-  if (ir.arrange !== undefined) visit(ir.arrange);
-  for (const group of ir.groups) if (group.arrange !== undefined) visit(group.arrange);
+  if (ir.arrange !== undefined) visit(ir.arrange, "figure.layout.arrange");
+  for (const group of ir.groups)
+    if (group.arrange !== undefined) visit(group.arrange, `group "${group.id}".arrange`);
   return out;
 }
 
@@ -85,12 +91,12 @@ export function sequenceHeightOptions(context: GeometryContext): string[] | unde
   const boxes = sequenceBoxes(ir);
   if (boxes.length === 0) return undefined;
   const options: string[] = [];
-  for (const box of boxes) {
+  for (const { box, path } of boxes) {
     const seq = box.sequence;
     if (seq === undefined) continue;
     const gap = rowGapOf(ir, box);
     options.push(
-      `reduce the sequence's \`rowGap\` (now ${formatMm(gap.pt)}${gap.written ? "" : ", a third of the profile's gap"}; it is added about ${rowGapCount(seq.rows) + 1} times, once per row)`,
+      `reduce the \`rowGap\` of ${boxes.length > 1 ? path : "the sequence"} (now ${formatMm(gap.pt)}${gap.written ? "" : ", a third of the profile's gap"}; it is added about ${rowGapCount(seq.rows) + 1} times, once per row)`,
     );
     const tall = seq.participants.flatMap((key) => {
       const node = ir.nodes.find((n) => n.key === key);
@@ -148,15 +154,19 @@ export function sequenceHeightFits(context: GeometryContext, overflowPt: number)
     const s = ir.meta.fit === "scale" && maxWidth !== undefined ? Math.min(1, maxWidth / width) : 1;
     return (layout.canvas.height / 2) * s;
   };
-  // Candidates: one rowGap per sequence box, the intent floor first, below it as a last resort.
-  const candidates = boxes.flatMap((box) => {
-    const seq = box.sequence;
-    if (seq === undefined) return [];
-    const gap = rowGapOf(ir, box);
-    const count = rowGapCount(seq.rows) + 1;
-    const floor = Math.min(gap.pt, mmToPt(INTENT_ROW_GAP_MM));
-    return [false, true].map((extreme) => ({ box, gap, count, floor, extreme }));
-  });
+  // Candidates: one rowGap per sequence box, every box at its intent floor
+  // first, then below the floors as a last resort (#640).
+  const skip = skippedRules(context);
+  const candidates = [false, true].flatMap((extreme) =>
+    boxes.flatMap(({ box, path }) => {
+      const seq = box.sequence;
+      if (seq === undefined) return [];
+      const gap = rowGapOf(ir, box);
+      const count = rowGapCount(seq.rows) + 1;
+      const floor = Math.min(gap.pt, mmToPt(INTENT_ROW_GAP_MM));
+      return [{ box, path, gap, count, floor, extreme }];
+    }),
+  );
   return asHintTrial(() => {
     let trials = 0;
     let baseline: Problems | undefined | null = null;
@@ -166,7 +176,7 @@ export function sequenceHeightFits(context: GeometryContext, overflowPt: number)
       trials++;
       const base = layoutTrial(ir, options);
       if (base !== undefined && Math.abs(base.layout.canvas.height / 2 - naturalHeight) < 0.01)
-        baseline = problemsOf(context, base, assets.value, SKIP, context.source);
+        baseline = problemsOf(context, base, assets.value, skip, context.source);
       return baseline;
     };
     const fits: string[] = [];
@@ -196,7 +206,7 @@ export function sequenceHeightFits(context: GeometryContext, overflowPt: number)
         const trial = layoutTrial(edited, options);
         if (trial === undefined || trial.diagnostics.some((d) => d.severity === "error")) break;
         const height = printed(trial.layout);
-        const text = `set the sequence's rowGap to ${trim(valueMm)}mm (now ${formatMm(candidate.gap.pt)}) → ${formatMm(height)} tall${candidate.extreme ? " (last resort: rows nearly touch)" : ""}`;
+        const text = `set the rowGap of ${candidate.path} to ${trim(valueMm)}mm (now ${formatMm(candidate.gap.pt)}) → ${formatMm(height)} tall${candidate.extreme ? " (last resort: rows nearly touch)" : ""}`;
         if (height > maxHeight + 1e-6) {
           if (!(height < naturalHeight * scale - 0.5)) break;
           need += (height - maxHeight) / scale;
@@ -204,7 +214,7 @@ export function sequenceHeightFits(context: GeometryContext, overflowPt: number)
         }
         const before = baselineProblems();
         if (before === undefined) return "";
-        const after = problemsOf(context, trial, assets.value, SKIP, context.source);
+        const after = problemsOf(context, trial, assets.value, skip, context.source);
         if (after === undefined) break;
         const added = newProblems(before, after);
         if (added.length > 0)

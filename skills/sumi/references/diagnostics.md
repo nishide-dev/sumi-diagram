@@ -297,7 +297,9 @@ you act on it:
    - all values together, each giving its share (`(together)`); for a sequence whose gaps
      are set by message labels, the widest label (then all of them) folded onto two lines.
    Gaps stay at **2mm or more** and paddings at 4pt or more while that is enough; a value
-   below (a gap of 0mm) is tried only when nothing else fits and is marked `(last resort)`.
+   below (a gap of 0mm) is tried only when nothing else fits, the partial combinations below
+included, and is marked `(last resort)`. Legend and matrix values are written into the YAML
+and compiled again only when the YAML compiles to exactly the rendered figure.
    A padding the layout grew for arrowheads (see below) is not offered: it stays as wide
    whatever is written.
    Apply one, re-run. `would fit but adds <code>` names a value that fits but breaks

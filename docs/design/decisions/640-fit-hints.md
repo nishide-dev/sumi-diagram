@@ -27,12 +27,12 @@
 - **legend の `perRow`**（`flow: row` のとき）: 凡例の自然な幅のうち、超過を除いた割合だけ 1 行に入れる数（`floor(perRow × (幅 − 超過) / 幅)`、少なくとも 1 つ減らす）。
 - **matrix の `flush: true`**: 枠の中の padding をなくす。タイトルを枠の中に持つ matrix は `flush` にできない（`component/invalid-prop`）ので、代わりに `labelAt: above`（タイトルを枠の上へ出し、padding がなくなる）を試す。
 - **matrix の `cellWidth`**: 列数で超過を割って細くする。ただし最も広いセルと列見出しの文字幅 + 2pt より細くしない（文字がはみ出す値は出さない）。足りないときもその下限まで細くし、「部分的な修正」として報告する。`cellHeight` を書いていなければセルの高さも変わることを添える。
-- **`place` の x 座標**（幅の道筋が `place` の箱で終わるとき）: 次の 3 案を、変更の小さい順に試す。値は `place.unit` の単位で 0.5 刻み。
+- **`place` の x 座標**（幅の道筋が `place` の箱で終わるとき）: 次の 3 案を、変更の小さい順に試す。値は `place.unit` の単位で 0.5 刻み。ヒントは動かす項目の x を（省略せず）すべて書くので、そのまま YAML に写せば試したレイアウトと同じになる。
   1. 外側の項目を内へ動かす（左右から超過の半分ずつ）。run 4 の手の修正と同じ形。
   2. 列（同じ x に書いた項目）の間の空きを詰める。同じ x の項目は一緒に動くので、縦の並びは崩れない。列の間には矢印 1 本分（4mm）を残す。
   3. すべての x を中央へ寄せる（一様な縮小）。
 
-legend と matrix の props はコンパイル時に展開されるので、IR では直せない。YAML（`GeometryContext.source`）に値を書き、図と同じテーマ・プロファイル（`--theme` / `--profile` の上書きも含む）でコンパイルし直す。書き直さない YAML が同じ図（メタデータと要素数）にコンパイルされないとき（独自の registry など）は試さない。`place` の座標は IR の `positionsPt` を直接書き換える（書いた座標 × unit なので、YAML の値と 1 対 1）。
+legend と matrix の props はコンパイル時に展開されるので、IR では直せない。YAML（`GeometryContext.source`）に値を書き、図と同じテーマ・プロファイル（`--theme` / `--profile` の上書きも含む）でコンパイルし直す。書き直さない YAML を同じ方法でコンパイルし、描画した図の IR と**丸ごと**比べる（`irFingerprint`: メタデータ、すべてのノード・グループ・辺・セット・arrange の箱と、そのスタイル・寸法・ラベル。ファイル中の位置 `location` / `file` だけは除く。画像は render と同じく縦横比から大きさを決めてから比べる、`withImageSizes`）。一致しないとき（独自の registry、描画した図と違う YAML を渡されたときなど）は YAML の編集を試さない。メタデータと要素数だけの比較では、要素数が同じで中身の違う YAML（ラベルを 1 つ変えたもの）や、画像の大きさを持たない IR を通してしまう。`place` の座標は IR の `positionsPt` を直接書き換える（書いた座標 × unit なので、YAML の値と 1 対 1）。
 
 ### 2. 試す順番と、意図を残す下限
 
@@ -42,7 +42,8 @@ legend と matrix の props はコンパイル時に展開されるので、IR �
 2. 道筋の値を 1 つずつ（gap・padding・width・sequence の `participantGap`）。変更の割合の小さい順。
 3. 道筋の終わり以外で幅を決める legend / matrix の候補。
 4. 値をまとめて（`(together)`）。sequence のラベルの折り返し。
-5. 何も収まらないときだけ、下限より下の値（最後の手段）。
+5. 部分的な修正（下記）に道筋の値を 1 つ足した組み合わせ。
+6. ここまでで何も収まらないときだけ、下限より下の値（最後の手段）。意図を残す案（部分的な修正の組み合わせも含む）は、すべて最後の手段より先に試す。
 
 **下限**: gap と `participantGap` は 2mm、group の padding は 4pt（`INTENT_GAP_MM`、`INTENT_PADDING_PT`）。2mm は線と矢じりがまだ置ける幅で、4pt は枠と中身がまだ離れて見える幅。これで足りるうちは下限より下の値を出さない。下限より下の値で収まったときは `(last resort: below 2mm between items or 4pt of padding)` と書く。幅を狭めるだけの検証（`verified.ts` の `Verified layout edits`）も、gap と `attach.gap` を 0mm ではなく 2mm にする。もともと 2mm 以下の gap だけを 0mm にし、`as a last resort` と書いて最後に並べる。
 
@@ -71,7 +72,7 @@ legend と matrix の props はコンパイル時に展開されるので、IR �
 - `figure.fit: scale` のときは、高さが幅に連動すること（狭い図ほど縮小が小さい）。
 - 図を分ける（例: フェーズごと）。
 
-そのうえで `rowGap` の値を試しで確かめる。行数から必要な値を見積もり（0.5mm 刻み）、届かなければ 1 回だけ残りの分を足して見積もり直す。下限は 1mm（`INTENT_ROW_GAP_MM`。行がまだ別の段に見える）で、それより下は何も収まらないときだけ `(last resort: rows nearly touch)` として試す。`fit: scale` の図は、試しの幅から縮小率を計算して印刷される高さで比べる。
+そのうえで `rowGap` の値を試しで確かめる。行数から必要な値を見積もり（0.5mm 刻み）、届かなければ 1 回だけ残りの分を足して見積もり直す。下限は 1mm（`INTENT_ROW_GAP_MM`。行がまだ別の段に見える）で、それより下は何も収まらないときだけ `(last resort: rows nearly touch)` として試す。sequence が複数あるときも、すべての sequence の下限までの値を先に試し、下限より下の値はその後にする。値の文は `set the rowGap of figure.layout.arrange.stack.items[1].sequence to …` のように箱を名指しする。試しの lint は幅の試しと同じ規則を除き（`skippedInTrials`）、`geometry/relocatable-node` は設定で warning / error に上げたときだけ数える。`fit: scale` の図は、試しの幅から縮小率を計算して印刷される高さで比べる。
 
 ### 5. 費用
 
@@ -89,10 +90,14 @@ dogfood の YAML を小さくした写しを `tests/fixtures/figures/fit-hints/`
 | `legend-per-row` | run 2 | `perRow: 3` と row の `gap: 3mm` の組み合わせ（`(together)`） |
 | `matrix-flush` | run 1 | matrix の `flush: true` |
 | `place-coordinates` | run 4 | 外側の項目を内へ（client と pool だけが動く）、それが最初の案 |
+| `matrix-flush`（`flush: true`、`cellWidth: 30pt` に変えて） | run 1 | `cellWidth` の値 |
+| `sequence-row-gap`（`participantGap: 18mm` を足して） | run 8 | `participantGap` の値（2mm 以上） |
+| `last-resort-order` | なし | 40mm の gap だけなら 2mm 未満でしか収まらない図で、`perRow` + gap（2mm 以上）の組み合わせが先に出る |
+| `two-sequences` | なし | `rowGap: 1mm` の sequence の最後の手段より、もう 1 つの sequence の 1mm 以上の `rowGap` が先に出る |
 | `padding-growth` | run 7 | `--explain-width` / JSON に扇形と反対側の理由、幅のヒントが増えた padding を出さない |
 | `sequence-row-gap` | run 8 | 高さのヒントが `rowGap`・band・icon を勧め、確かめた `rowGap` で収まる |
 
-gap の下限は、画像だけの row（gap しか減らせない）で確かめる。2mm で足りれば 2mm 以上の値だけ、足りなければ 1mm を `last resort` として出す。
+YAML の編集は、`--theme` / `--profile` の上書きを保つこと、ラベルを 1 つ変えただけの（要素数の同じ）YAML では試さないことも確かめる。gap の下限は、画像だけの row（gap しか減らせない）で確かめる。2mm で足りれば 2mm 以上の値だけ、足りなければ 1mm を `last resort` として出す。
 
 ## 採らなかった案
 

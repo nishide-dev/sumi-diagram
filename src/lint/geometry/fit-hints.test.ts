@@ -3,16 +3,23 @@
  * figures fit (#640): a legend's `perRow`, a matrix's `flush` / `cellWidth`,
  * `place` x coordinates and a sequence's `rowGap`; they keep gaps of at least
  * 2mm before going lower, and say why a group's padding grew. The figures
- * are reduced copies of the dogfood YAMLs (`tests/fixtures/figures/fit-hints`);
- * every suggested edit, written into the YAML, renders within the profile
- * without new errors or warnings.
+ * are reduced copies of the dogfood YAMLs (`tests/fixtures/figures/fit-hints`).
+ * For each lever (perRow with a gap, flush, cellWidth, place x, a gap,
+ * participantGap, rowGap) a test writes the value the hint gives into the
+ * YAML and renders it: it fits the profile without new errors or warnings.
+ * The YAML edits are only made when the YAML compiles to the rendered figure,
+ * and values below the intent floors come after every other edit.
  */
 import { describe, expect, spyOn, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { compileFigure } from "../../compiler/compile";
 import * as engine from "../../layout/structured/engine";
+import { renderFigure } from "../../render";
 import { printedSize } from "../../render/size";
+import { sourceEditor } from "./fit-candidates";
 import { MAX_HEIGHT_TRIALS, sequenceHeightFits } from "./height-fit";
-import { geometryContextFor, lintRenderedFigure } from "./lint";
+import { geometryContextFor, lintGeometry, lintRenderedFigure } from "./lint";
+import { exceedsPageWidth } from "./rules";
 import { explainWidth, fitHints, MAX_FIT_TRIALS, widthTreeJson, widthTreeLines } from "./width-fit";
 
 const fixture = (name: string) =>
@@ -186,10 +193,10 @@ describe("the height hint of a sequence (#640)", () => {
     const text = fixture("sequence-row-gap");
     const { report, hint } = await hintOf(text, "geometry/exceeds-page-height");
     expect(hint).not.toContain("tallest `stack`");
-    expect(hint).toContain("Reduce the sequence's `rowGap` (now 1.94mm");
+    expect(hint).toContain("Reduce the `rowGap` of the sequence (now 1.94mm");
     expect(hint).toContain("one band row");
     const found = hint.match(
-      /set the sequence's rowGap to ([\d.]+)mm \(now 1\.94mm\) → ([\d.]+)mm tall/,
+      /set the rowGap of figure\.layout\.arrange\.sequence to ([\d.]+)mm \(now 1\.94mm\) → ([\d.]+)mm tall/,
     );
     expect(found).not.toBeNull();
     expect(Number(found?.[1])).toBeGreaterThanOrEqual(1);
@@ -217,5 +224,134 @@ describe("the height hint of a sequence (#640)", () => {
     } finally {
       spy.mockRestore();
     }
+  });
+});
+
+describe("more levers, applied (#640)", () => {
+  test("a matrix's cellWidth", async () => {
+    const text = fixture("matrix-flush")
+      .replace("rules: true", "rules: true\n      flush: true")
+      .replace("cellWidth: 25pt", "cellWidth: 30pt");
+    const { report, hint } = await hintOf(text);
+    const found = hint.match(
+      /set props\.cellWidth of matrix "tasks" to ([\d.]+)pt \(now 30pt, 5 columns\) → [\d.]+mm/,
+    );
+    expect(found).not.toBeNull();
+    await expectFits(
+      text.replace("cellWidth: 30pt", `cellWidth: ${found?.[1]}pt`),
+      report,
+      "widthPt",
+      180,
+    );
+  });
+
+  test("a sequence's participantGap", async () => {
+    const text = fixture("sequence-row-gap").replace(
+      "participants: [user",
+      "participantGap: 18mm\n        participants: [user",
+    );
+    const { report, hint } = await hintOf(text);
+    const found = hint.match(
+      /set figure\.layout\.arrange\.sequence\.participantGap to ([\d.]+)mm \(now 18mm\) → [\d.]+mm/,
+    );
+    expect(found).not.toBeNull();
+    expect(Number(found?.[1])).toBeGreaterThanOrEqual(2);
+    await expectFits(
+      text.replace("participantGap: 18mm", `participantGap: ${found?.[1]}mm`),
+      report,
+      "widthPt",
+      200,
+    );
+  });
+});
+
+describe("the YAML is edited only when it compiles to the rendered figure (#640)", () => {
+  test("theme and profile overrides are kept; another source is refused", () => {
+    const text = fixture("legend-per-row");
+    const compiled = compileFigure(text, {
+      overrides: { theme: "paper", profile: "paper-double" },
+    });
+    if (!compiled.ok) throw new Error("compile failed");
+    const { ir } = compiled.value;
+    const editor = sourceEditor(ir, text);
+    expect(editor).toBeDefined();
+    const edited = editor?.((doc) => doc.setIn(["nodes", 3, "props", "perRow"], 2));
+    expect(edited?.meta.themeId).toBe("paper");
+    expect(edited?.meta.profileId).toBe("paper-double");
+    // Same elements, same metadata, another label: not the figure that was rendered.
+    const other = text.replace("100 open-ended", "100 open");
+    expect(sourceEditor(ir, other)).toBeUndefined();
+    expect(sourceEditor(ir, undefined)).toBeUndefined();
+  });
+
+  test("with a mismatched source, no legend edit is suggested", async () => {
+    const text = fixture("legend-per-row");
+    const rendered = await renderFigure(text);
+    if (!rendered.ok) throw new Error("render failed");
+    const hint = (source: string) =>
+      lintGeometry(rendered.value, { source, rules: [exceedsPageWidth] })[0]?.hint ?? "";
+    expect(hint(text)).toContain('set props.perRow of legend "key" to 3');
+    const other = text.replace("same model", "same LM");
+    expect(hint(other)).not.toContain("props.perRow of legend");
+  });
+
+  test("an override from the command line still gets the edits", async () => {
+    const text = fixture("legend-per-row");
+    const rendered = await renderFigure(text, { overrides: { theme: "paper" } });
+    if (!rendered.ok) throw new Error("render failed");
+    const hint =
+      lintGeometry(rendered.value, { source: text, rules: [exceedsPageWidth] })[0]?.hint ?? "";
+    expect(hint).toContain('set props.perRow of legend "key"');
+  });
+});
+
+describe("intent-keeping edits come before any last resort (#640)", () => {
+  test("width: a partial edit with a gap of 2mm or more before a gap under 2mm", async () => {
+    const text = fixture("last-resort-order");
+    const { report, hint } = await hintOf(text);
+    const found = hint.match(
+      /set props\.perRow of legend "key" to (\d) \(now unset: all 3 entries on one line\), set figure\.layout\.arrange\.row\.gap to ([\d.]+)mm \(now 40mm\) \(together\) → [\d.]+mm/,
+    );
+    expect(found).not.toBeNull();
+    expect(Number(found?.[2])).toBeGreaterThanOrEqual(2);
+    expect(hint).not.toContain("last resort");
+    await expectFits(
+      text
+        .replace("flow: row", `flow: row\n      perRow: ${found?.[1]}`)
+        .replace("gap: 40mm", `gap: ${found?.[2]}mm`),
+      report,
+      "widthPt",
+      180,
+    );
+    // The gap alone would fit only below 2mm.
+    const alone = await lintRenderedFigure(text.replace("gap: 40mm", "gap: 2mm"));
+    if (!alone.rendered) throw new Error("render failed");
+    expect(printedSize(alone.rendered.inspection).widthPt).toBeGreaterThan((180 * 72) / 25.4);
+  });
+
+  test("height: the second sequence's rowGap before the first one's last resort", async () => {
+    const text = fixture("two-sequences");
+    const { report, hint } = await hintOf(text, "geometry/exceeds-page-height");
+    const found = hint.match(
+      /set the rowGap of figure\.layout\.arrange\.stack\.items\[1\]\.sequence to ([\d.]+)mm \(now 1\.94mm\) → [\d.]+mm tall/,
+    );
+    expect(found).not.toBeNull();
+    expect(Number(found?.[1])).toBeGreaterThanOrEqual(1);
+    expect(hint).not.toContain("last resort");
+    const lines = text.split("\n");
+    const at = lines.findIndex((l) => l.includes("participants: [c, d]"));
+    lines.splice(at, 0, `              rowGap: ${found?.[1]}mm`);
+    await expectFits(lines.join("\n"), report, "heightPt", 150);
+  });
+
+  test("height trials count relocatable-node when it is configured as a warning", async () => {
+    const text = fixture("sequence-row-gap");
+    const report = await lintRenderedFigure(text, {
+      config: { rules: { "geometry/relocatable-node": "warning" } },
+    });
+    const hint =
+      report.diagnostics.find((d) => d.code === "geometry/exceeds-page-height")?.hint ?? "";
+    // Still verified: the figure has no relocatable node, with or without the rule.
+    expect(hint).toContain("set the rowGap of figure.layout.arrange.sequence to");
   });
 });

@@ -18,6 +18,7 @@
  * compiled); `place` coordinates are edited in the compiled figure.
  */
 import { type Document, parseDocument } from "yaml";
+import { hasAssets, loadFigureAssets } from "../../assets/load";
 import { compileFigure } from "../../compiler/compile";
 import type { ArrangeBoxIR, FigureIR, GroupIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
@@ -25,6 +26,7 @@ import type { DocPath } from "../../core/diagnostics";
 import { formatPt, mmToPt, parseLength } from "../../core/units";
 import { mapBoxes } from "../../layout/hint-trials";
 import { setsWidth, type WidthEntry, widthPath } from "../../layout/structured/width-tree";
+import { withImageSizes } from "../../render/compose-assets";
 
 /** One edit the width hint can try. */
 export interface FitCandidate {
@@ -60,7 +62,11 @@ type SourceEditor = (edit: (doc: Document) => void) => FigureIR | undefined;
  * Compiles `source` again with an edit, with the theme and profile the
  * figure was compiled with (a `--theme` / `--profile` override included).
  * `undefined` without a source, or when the unedited source does not compile
- * to the same figure (same metadata and elements), e.g. a custom registry.
+ * to exactly the same figure: the whole compiled IR (meta, every node, group,
+ * edge, set and arrange box with its styles, sizes and labels) must be equal,
+ * source locations aside ({@link irFingerprint}), after the picture sizes
+ * render gives it (`withImageSizes`). Otherwise (a custom
+ * registry, a source that is not the rendered one) no YAML edit is tried.
  */
 export function sourceEditor(ir: FigureIR, source: string | undefined): SourceEditor | undefined {
   if (source === undefined) return undefined;
@@ -72,24 +78,37 @@ export function sourceEditor(ir: FigureIR, source: string | undefined): SourceEd
   const compile = (text: string): FigureIR | undefined => {
     try {
       const result = compileFigure(text, { overrides });
-      return result.ok && result.value.engine === "structured" ? result.value.ir : undefined;
+      if (!result.ok || result.value.engine !== "structured") return undefined;
+      if (!hasAssets(result.value.ir)) return result.value.ir;
+      // As render prepares it: pictures get the size their aspect ratio gives.
+      const assets = loadFigureAssets(result.value.ir);
+      return assets.ok ? withImageSizes(result.value, assets.value).ir : undefined;
     } catch {
       return undefined;
     }
   };
   const base = compile(source);
-  if (
-    base === undefined ||
-    base.elements.size !== ir.elements.size ||
-    JSON.stringify(base.meta) !== JSON.stringify(ir.meta)
-  )
-    return undefined;
+  if (base === undefined || irFingerprint(base) !== irFingerprint(ir)) return undefined;
   return (edit) => {
     const doc = parseDocument(source);
     if (doc.errors.length > 0) return undefined;
     edit(doc);
     return compile(String(doc));
   };
+}
+
+/**
+ * The compiled figure as a string, for comparing two compilations: every
+ * field, maps as their entries, without where things are written in the
+ * file (`location`, `file`), which do not change a layout.
+ */
+export function irFingerprint(ir: FigureIR): string {
+  return JSON.stringify(ir, (key, value) => {
+    if (key === "location" || key === "file") return undefined;
+    if (value instanceof Map) return [...value.entries()];
+    if (value instanceof Set) return [...value.values()];
+    return value;
+  });
 }
 
 /** The value at a document path of plain YAML data. */
@@ -311,7 +330,7 @@ function placeCandidates(
     );
     return {
       ir: mapBoxes(ir, (b, o) => (o === box ? { ...b, positionsPt: patched } : b)),
-      text: `${text}: ${changed.slice(0, 6).join(", ")}${changed.length > 6 ? `, and ${changed.length - 6} more` : ""} (place.items[].at, unit ${String(writtenUnit)})`,
+      text: `${text}: ${changed.join(", ")} (place.items[].at, unit ${String(writtenUnit)})`,
     };
   };
   // Columns: the items at one written x, left to right, with the room between neighbours.

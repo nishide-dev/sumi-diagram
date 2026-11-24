@@ -491,7 +491,9 @@ const ENOUGH_FITS = 3;
  * 3. the gaps and paddings together, then with the explicit widths, each
  *    giving its share down to its floor;
  * 4. sequence message labels folded onto two lines;
- * 5. only when nothing above fits, the same values below the floors (a gap
+ * 5. the narrowest partial edit (one that narrows but does not fit) with one
+ *    value of the width path it leaves;
+ * 6. only when nothing above fits, the same values below the floors (a gap
  *    of 0mm): reported as a last resort.
  *
  * `overflowPt`: natural page width minus the profile's maximum.
@@ -600,9 +602,11 @@ export function fitHints(
     },
     { candidates: combos(false), whileNone: true },
     { candidates: wraps, whileNone: true },
-    { candidates: [...singles(true), ...combos(true)], whileNone: true },
   ];
-  if (stages.every((s) => s.candidates.length === 0))
+  // Values below the intent floors: only after every intent-keeping edit, the
+  // combination with a partial edit included (#640).
+  const lastResort = [...singles(true), ...combos(true)];
+  if (stages.every((s) => s.candidates.length === 0) && lastResort.length === 0)
     return none(
       parts.length === 0
         ? "nothing on the width path can be reduced by a trial (no gap, padding, explicit width, legend perRow, matrix cellWidth or flush, or place coordinate)"
@@ -690,20 +694,22 @@ export function fitHints(
     };
     // Two fitting edits of a kind (gap, padding, width, legend, …) are enough: try the other kinds instead.
     const found = new Map<string, number>();
-    for (const stage of stages) {
-      if (stage.whileNone && fits.length > 0) break;
-      for (const candidate of stage.candidates) {
+    const tryAll = (candidates: readonly FitCandidate[]) => {
+      for (const candidate of candidates) {
         if (broken || left() <= 0 || fits.length >= ENOUGH_FITS) break;
         if ((found.get(candidate.kind) ?? 0) >= 2) continue;
         const before = fits.length;
         attempt(candidate);
         if (fits.length > before) found.set(candidate.kind, (found.get(candidate.kind) ?? 0) + 1);
       }
+    };
+    for (const stage of stages) {
+      if (stage.whileNone && fits.length > 0) break;
+      tryAll(stage.candidates);
     }
-    partial.sort((a, b) => a.widthPt - b.widthPt);
     // The narrowest partial edit with one value of its own width path (#640: a legend's
     // perRow and the gap of the row that then sets the width, run 2 of #639).
-    const best = partial[0];
+    const best = [...partial].sort((a, b) => a.widthPt - b.widthPt)[0];
     if (!broken && fits.length === 0 && best !== undefined && left() > 0) {
       let next: WidthEntry | undefined;
       try {
@@ -718,6 +724,8 @@ export function fitHints(
           attempt(candidate, need);
         }
     }
+    // The last resort, only when nothing above fits.
+    if (fits.length === 0) tryAll(lastResort);
     if (broken)
       return {
         fits: [],
