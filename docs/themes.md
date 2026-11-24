@@ -17,7 +17,7 @@ Sumi has eight built-in themes:
 - **`sumi`**: white canvas (so a figure pastes into a paper or slide as is) with navy ink and sand accents, white panels with a thin pale gray frame (0.5pt #a9aebc, quieter than the 1pt navy node outlines; `variant: filled` for a sand one; `themeOverrides.groupFill: "#efeddd"` brings back the sand panels from before v0.20.0), Inter for Latin text; the design system of the project site, whose pages draw it on a cream plate. `figure.themeOverrides.canvas: "#f8f8ee"` brings back the former cream canvas, or any other `#RRGGBB`.
 - **`sumi-dark`**: the dark counterpart: navy canvas, cream ink and sand accents, canvas-colored panels with a thin pale frame (0.5pt #6f7791), Inter for Latin text.
 
-`academic` and `paper` are both for papers; choose by how the paper is printed. **Grayscale or black-and-white print: `academic`. A color ML paper: `paper`.**
+**`sumi` is the recommended theme** for papers, READMEs and slides (`textScale: 1.5` for `screen-doc`, `2` for `presentation-16x9`). `academic` and `paper` are the other paper themes: **grayscale or black-and-white print: `academic`; the pastel color ML-paper look, or a reference drawn in it: `paper`.**
 
 ## Comparison
 

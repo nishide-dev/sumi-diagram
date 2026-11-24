@@ -236,7 +236,7 @@ function issueToDiagnostics(
       const hint = (issue.params as { hint?: unknown } | undefined)?.hint;
       return [
         errorAt(locate, "schema/invalid-value", `Invalid value at ${at}: ${issue.message}`, path, {
-          hint: typeof hint === "string" ? hint : undefined,
+          hint: iconSizeHint(path, actual) ?? (typeof hint === "string" ? hint : undefined),
         }),
       ];
     }
@@ -333,6 +333,17 @@ function issueToDiagnostics(
   ];
 }
 
+/**
+ * The hint for a string `iconSize` that is not a length (#648): `1.2em` is
+ * written as the number 1.2, which already means a multiple of the font size.
+ */
+function iconSizeHint(path: DocPath, actual: unknown): string | undefined {
+  if (path.at(-1) !== "iconSize" || typeof actual !== "string") return undefined;
+  const em = /^\s*(\d+(?:\.\d+)?|\.\d+)\s*em\s*$/i.exec(actual)?.[1];
+  const multiple = em === undefined ? "a multiple of the font size" : `${em} times the font size`;
+  return `Write iconSize: ${em ?? "1.2"} (a number is ${multiple}) or a length with mm, cm, in or pt, e.g. "4mm".`;
+}
+
 function unknownField(
   key: string,
   path: DocPath,
@@ -346,7 +357,10 @@ function unknownField(
   const suggestion =
     component?.props.includes(key) && !known.includes(key)
       ? `"${key}" is an option of ${component.id}: write it under props (props: { ${key}: ... }).`
-      : didYouMean(key, known);
+      : key === "gap" && known.includes("rowGap") && known.includes("columnGap")
+        ? // A grid spaces rows and columns apart (#648): there is no single `gap`.
+          'A grid has no "gap": write rowGap and columnGap (e.g. rowGap: 4mm, columnGap: 4mm).'
+        : didYouMean(key, known);
   return [
     "schema/unknown-field",
     `Unknown field "${key}" in ${formatDocPath(path)}.`,

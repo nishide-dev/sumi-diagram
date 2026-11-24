@@ -155,6 +155,33 @@ describe("diagnostic details", () => {
     expect(hintsFor("acme/thing", ["height"])[0]).not.toContain("under props");
   });
 
+  test("a gap on a grid points to rowGap and columnGap (#648)", () => {
+    const source = (box: string) =>
+      `version: 1\nfigure:\n  id: t\n  layout:\n    engine: structured\n    arrange:\n      ${box}:\n        ${box === "grid" ? "columns: 2\n        " : ""}gap: 4mm\n        items: [a, b]\nnodes:\n  - { id: a, component: box, label: A }\n  - { id: b, component: box, label: B }\n`;
+    const [grid] = checkFigureSource(source("grid"), { file: "t.sumi.yaml" }).state.diagnostics;
+    expect(grid?.code).toBe("schema/unknown-field");
+    expect(grid?.hint).toContain('A grid has no "gap": write rowGap and columnGap');
+    // A row takes `gap`, so nothing is reported there.
+    expect(checkFigureSource(source("row"), { file: "t.sumi.yaml" }).state.diagnostics).toEqual([]);
+  });
+
+  test("an em iconSize is pointed to a plain number (#648)", () => {
+    const hintOf = (size: string) => {
+      const source = `version: 1\nfigure:\n  id: t\nnodes:\n  - id: a\n    component: label\n    icon: tabler/user\n    iconSize: ${size}\n`;
+      const diagnostics = checkFigureSource(source, { file: "t.sumi.yaml" }).state.diagnostics;
+      expect(diagnostics.map((d) => d.code)).toEqual(["schema/invalid-value"]);
+      return diagnostics[0]?.hint;
+    };
+    expect(hintOf("1.2em")).toBe(
+      'Write iconSize: 1.2 (a number is 1.2 times the font size) or a length with mm, cm, in or pt, e.g. "4mm".',
+    );
+    expect(hintOf('"2 EM"')).toContain("Write iconSize: 2 ");
+    // Any other bad string still explains both forms.
+    expect(hintOf("3px")).toBe(
+      'Write iconSize: 1.2 (a number is a multiple of the font size) or a length with mm, cm, in or pt, e.g. "4mm".',
+    );
+  });
+
   test("unknown references suggest the closest ID", async () => {
     const [endpoint] = await diagnosticsOf("invalid/ref-unknown-endpoint.sumi.yaml");
     expect(endpoint?.hint).toBe('Did you mean "server"?');
