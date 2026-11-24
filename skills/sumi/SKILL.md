@@ -58,16 +58,16 @@ Before writing YAML, make sure you know:
   web page, a slide), the venue's minimum text and line sizes and the height it may
   take. Width picks the profile (`screen-doc` for a README or web page, `presentation-16x9` for a slide); minimums and the height budget go in `figure.target`
   (a venue maximum below the profile's: set `height`, which only warns) ([placement](references/layout-tips.md#fit-the-placement)).
-- **Theme**: `minimal` (default), `academic`, `color`, `slides` (a slide; any 7-9pt theme needs `textScale: 2` there)
-  or `paper` — **recommend `paper` for a color paper figure** (`academic` if grayscale).
-  Colour: white ground, colour only for meaning (2–3 hues + one accent), nothing translucent over colour; LLaDA is the exemplar ([colour](references/layout-tips.md#plan-the-visual-language-before-drawing)).
+- **Theme**: **recommend `sumi`** (the house theme: white canvas and panels, navy ink, sand accents; a paper, a README with `textScale: 1.5`, a slide with `textScale: 2`);
+  `academic` for grayscale print; `paper` (pastel ML-paper look) or `llama` only when asked or to match a reference in that style; also `sumi-dark`, `color`, `minimal` (the schema default) and `slides`.
+  Colour: white ground, colour only for meaning (2–3 hues + one accent), explained by a legend or the text, nothing translucent over colour; LLaDA is the exemplar ([colour](references/layout-tips.md#plan-the-visual-language-before-drawing)).
   Output: next to the user's files, `<figure-id>.sumi.yaml`.
 - **Layout** (your choice, not a question): **auto** for flows and graphs;
   **structured** for paper block diagrams (layers, residuals, aligned columns, ⊕, math,
   tokens; [choose](references/layout-tips.md#choose-the-engine-first)), planned first ([paper figure workflow](#paper-figure-workflow)).
 
 Ask once, briefly, for what is missing. If told to go ahead, assume `paper-single` +
-`minimal` (`paper` for a paper figure) and report it.
+`sumi` and report it.
 
 ### 2. Check the environment (once per session)
 
@@ -100,7 +100,7 @@ is the `figure.themeOverrides.textScale` that fixes it (`sumi`: 2 for slides, 1.
 **Start from the closest base layout.** Pick one by structure in the [layouts index](layouts/README.md) and view its PNG; plan the adaptation (labels, counts, tones, theme and profile from step 1), saying which layout you used. None fits: plan from scratch, first checking the [layout tips table](references/layout-tips.md) for a built-in arrangement (a sequence diagram is a [`sequence` box](references/structured.md#sequence-diagrams), not hand-placed lifelines).
 
 **Non-trivial layout? Then mock it up** (several panels, loops, state machines, sets, taxonomies, anything whose
-arrangement is not obvious, however few nodes; skip only for an obvious one-directional flow): sketch the planned figure as an HTML/CSS page at real size
+arrangement is not obvious, however few nodes; skip only for an obvious one-directional flow, or when the `sequence-diagram` or `state-machine` base layout fits as it is, since it already fixes every position and its `Change:` notes cover the edits): sketch the planned figure as an HTML/CSS page at real size
 in Sumi's vocabulary and theme colours and check it against the step 1 checklist
 ([mockup](references/mockup.md), [template](references/mockup-template.html)). Then write the YAML: adapt the copied layout, or reproduce the mockup.
 
@@ -113,7 +113,7 @@ Reuse their idioms (arrange boxes, tones, notes), never their content. Then read
 version: 1
 figure:
   id: my-figure            # IDs: ^[a-z][a-z0-9_-]{0,63}$ (lowercase)
-  theme: minimal
+  theme: sumi
   profile: paper-single
   layout:
     direction: down        # right | down | left | up
@@ -213,7 +213,7 @@ if none: skip the PNG, say so); open the PNG with Read, ~6 px per printed mm of 
    `geometry/sparse-figure` and `text-heavy-nodes` ([density](references/diagnostics.md#density-of-paper-figures)), never suppress.
 4. **Critique against references (paper figures, mandatory).** `<skill-dir>/scripts/compare figure.svg <ref.png>...`
    stacks yours with the closest examples (plus `tricl`/`llada` if dense); critique by the [checklist](references/layout-tips.md#critique-against-references),
-   ideally by a fresh view (a subagent shown only image and checklist); verify each measurable claim (size, colour, opacity, position) in the YAML or `sumi` output before acting; fix, repeat.
+   ideally by a fresh view (a subagent shown only image and checklist); verify each measurable claim (size, colour, opacity, position) in the YAML or `sumi` output before acting; fix, repeat. Before keeping an info diagnostic as intended (an empty band, a relocatable node), apply its hint once and compare; keep it only if the result is worse, and say why.
 
 ### 8. Report
 
@@ -221,7 +221,7 @@ Tell the user: files written (YAML, SVG), size and profile, placement constraint
 
 ## Paper figure workflow
 
-Paper figures are structured, theme `paper`, built to the [design principles](references/layout-tips.md#design-principles).
+Paper figures are structured, theme `sumi` (`paper` when the pastel ML-paper look is wanted, `academic` for grayscale), built to the [design principles](references/layout-tips.md#design-principles).
 With **content only** (the usual case), first [plan the visual language](references/layout-tips.md#plan-the-visual-language-before-drawing)
 (a table: each kind of thing, one visual form and tone), then [plan the layout](references/layout-tips.md#plan-the-layout-before-writing-yaml): roles, placement constraints, candidates rendered and compared.
 Objects and data are pictures (icons, glyphs, `sets`), operations arrows; icons only for concrete actors and objects (user, agent, database, document, tool, GPU), one family, not on every box, with the label in the same node (`iconAt: left | top`, [when to use an icon](references/assets.md#when-to-use-an-icon)); minimal text; one vocabulary and tone meaning in every panel; one legend; numbered stage columns. With **a reference figure**, map each look to a field ([recipe](references/layout-tips.md#paper-figure-recipe))
