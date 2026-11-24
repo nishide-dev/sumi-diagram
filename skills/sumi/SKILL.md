@@ -209,7 +209,7 @@ if none: skip the PNG, say so); open the PNG with Read, ~6 px per printed mm of 
    squashed; a block-sized void has a reason (grouping, alignment), else re-arrange.
 3. **Consistency (paper figures).** Against the visual-language table: the same kind
    of thing looks the same in every panel (usually one fill and border per kind, e.g. all sets; emphasise with an accent colour rather than another form; judge panel frames case by case); no text-heavy boxes; one legend; no edge
-   crosses a panel except the main flow; the figure reads without its caption; resolve
+   crosses a panel except the main flow; side-by-side panel headings and frame tops are aligned, with no empty band under a heading (else `panels: true` on their `row`); the figure reads without its caption; resolve
    `geometry/sparse-figure` and `text-heavy-nodes` ([density](references/diagnostics.md#density-of-paper-figures)), never suppress.
 4. **Critique against references (paper figures, mandatory).** `<skill-dir>/scripts/compare figure.svg <ref.png>...`
    stacks yours with the closest examples (plus `tricl`/`llada` if dense); critique by the [checklist](references/layout-tips.md#critique-against-references),

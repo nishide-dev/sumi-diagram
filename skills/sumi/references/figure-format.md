@@ -49,7 +49,7 @@ metadata: {}               # optional, any JSON-compatible data; not drawn
 | edge | **`from`**, **`to`**, `id`, `label`, `labelAt`¹, `labelSide`¹, `labelStyle`¹, `route`¹, `lane`¹, `component`, `variant`, `tone`, `props`, `fromAnchor`¹, `toAnchor`¹ | component `arrow`, variant `default`, no tone, labelStyle `beside` |
 
 ¹ Structured layout only (a figure with `figure.layout.arrange`):
-[structured](structured.md) (`grow`: [filling extra height](structured.md#arrange-trees); `matchWidth`: [equal widths](structured.md#arrange-trees); group `contentAlign` / `matchLabelHeight`: [stretched panels](structured.md#group-titles-and-captions)).
+[structured](structured.md) (`grow`: [filling extra height](structured.md#arrange-trees); `matchWidth`: [equal widths](structured.md#arrange-trees); group `contentAlign` / `matchLabelHeight`: [stretched panels](structured.md#group-titles-and-captions); row `panels: true`: [side-by-side panels](structured.md#group-titles-and-captions)).
 Exception: `bubble` supports `textAlign` in auto layout too.
 `icon` / `badge` / `glyphs`: [assets](assets.md#glyphs). Group `labelAt` / `caption`: [groups](#groups).
 
@@ -89,7 +89,7 @@ stops with one `schema/unsatisfied-requires` instead of a list of unknown fields
 | 0.16.1 | Set `enclose: footprint` includes member glyphs and padding; the default `body` preserves existing outlines. |
 | 0.19.0 | `cuboid`: a solid drawn in oblique projection, with `dims`; `figure.projection` (`angle`, `depthScale`); container `props.plane` (`floor` / `wall`): a tilted plane group, with `props.contents: projected` laying node outlines, arrowheads and a `matrix` flat on it; `cuboid` `cells` / `highlight` and `<node>.<name>` zoom ends |
 | 0.20.0 | `sequence` arrange box (participants, lifelines, message rows, notes, bands, fragments); edge `dash` / `strands`, set `text` / `weight`, cylinder `capDepth`; `matrix` `labelAt: above` (title outside, no padding), `wrapHeaders` / `columnHeaderWidth`, `rules: true` (a table with rules only); `muted` matrix cells drawn pale |
-| 0.20.1 | `matrix` `scale` (a colour scale for cells written `{value}`) and legend `scale` entries, merged cells (`span`), `headerRotate`; a ruled matrix's legend samples have no border; `sequence` messages to several participants (`to: [b, c]`: one arrow each, the label on the first); fragment frames drawn as the theme's group frame without `variant` / `tone`; participants as tall as the tallest |
+| 0.20.1 | `matrix` `scale` (a colour scale for cells written `{value}`) and legend `scale` entries, merged cells (`span`), `headerRotate`; a ruled matrix's legend samples have no border; `sequence` messages to several participants (`to: [b, c]`: one arrow each, the label on the first); fragment frames drawn as the theme's group frame without `variant` / `tone`; participants as tall as the tallest; row `panels: true`: the groups in the row take its height, their content sits under their titles and their titles share one band unless that makes the row taller; `geometry/panel-misaligned` |
 
 ## IDs
 

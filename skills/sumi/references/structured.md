@@ -659,7 +659,7 @@ edges:
 `block-arrow`, `triangle-arrow` and `chevron` are shapes that show the flow
 between stages, as in paper figures: put one as an ordinary item of a row or
 stack between two panels. With `align: center` (the default) it sits on the
-middle line of the panels; it is never stretched or grown, and works in
+middle line of the panels (`panels: true` on the row makes the panels equally tall); it is never stretched or grown, and works in
 `place` too. They are markers, not connections: no label, sublabel, badge,
 glyphs or `grow`, and an edge cannot start or end at one
 (`component/flow-arrow-connection`). Default size, from the theme's text size:
@@ -675,21 +675,23 @@ figure:
   id: stage-flow
   theme: paper
   layout:
-    arrange: {row: {gap: 3mm, align: center, items: [views, flow1, encoder, flow2, heads]}}
+    arrange: {row: {gap: 3mm, panels: true, items: [views, flow1, encoder, flow2, heads]}}
 groups:
   - {id: views, arrange: {stack: {items: [v1, v2]}}}
-  - {id: encoder, arrange: {stack: {items: [enc]}}}
+  - {id: encoder, arrange: {stack: {items: [enc, pool]}}}
   - {id: heads, arrange: {stack: {items: [h1, h2]}}}
 nodes:
   - {id: v1, component: box, label: View 1}
   - {id: v2, component: box, label: View 2}
   - {id: flow1, component: block-arrow}
   - {id: enc, component: box, label: Encoder}
+  - {id: pool, component: box, label: Pooling}
   - {id: flow2, component: triangle-arrow, variant: muted}
   - {id: h1, component: box, label: Head 1}
   - {id: h2, component: box, label: Head 2}
 edges:
   - {from: v1, to: v2}
+  - {from: enc, to: pool}
 ```
 
 ## Group titles and captions
@@ -791,12 +793,35 @@ look at the preview. `toAnchor: west` on the member does not help; put the capti
 outer group that also holds the other end (`variant: plain` hides its border), or place
 the other end beside the group (a `row`) so the edge crosses a side.
 
-**Panels of equal height.** Panels (groups with captions) in one `row` with `align:
-stretch` grow to the tallest so captions share a line. A frameless panel next to framed
-ones is a group with `variant: plain` and a `caption`, not a stack with a `label` node
-under it (its items are centred in the extra height). A stretched group's tree is
-**centred vertically** by default, which leaves an empty band between the title and the
-first row and another under the content.
+**Panels side by side: `panels: true` on the row.** Write `panels: true` on the `row`
+that holds the panels (groups, captioned or not). Every group in that row then takes
+the row's height (frames share their top and bottom; captions share a line when they
+have the same number of lines, a two-line caption raises its frame's bottom), its content
+sits right under its title (`contentAlign: top` unless the group writes `contentAlign`),
+and the titles share one band height (as one `matchLabelHeight`), so the headings and
+first rows line up even when one title has two lines. The band is shared only if that
+leaves the row as tall as without it: when the tallest title and the tallest content are
+in different panels, each panel keeps its own title band (headings still line up, the
+first rows may not; shorten the long title, or write `matchLabelHeight` to share it anyway). Nodes and nested boxes in the row
+keep the row's `align` (a model box between two panels stays centred); tilted planes,
+tokens, matrices and legends are not panels. It does not grow the figure: the row is as
+tall as its tallest panel. Use it instead of `align: stretch` for panels; `align:
+stretch` also stretches the nodes in the row and **centres** each stretched group's tree
+vertically (an empty band between the title and the first row and another under the
+content). `geometry/panel-misaligned` (info) names a row whose panels' frame tops,
+bottoms, titles or captions are 1mm or more apart, with this row's `panels: true` written
+out (add the field to the row; its other fields stay). A frameless panel next to framed ones is a group with `variant: plain` and a
+`caption`, not a stack with a `label` node under it.
+
+```yaml
+figure:
+  layout:
+    arrange:
+      row: {gap: 4mm, panels: true, items: [a, model, b]}   # a, b: groups; model: a node
+```
+
+The two settings below are what `panels: true` writes for you; use them on their own for
+a single stretched group, a column of panels, or to keep one panel centred.
 
 **Where the content sits: `contentAlign`.** `groups[].contentAlign: top | center | bottom`
 places the group's content (its tree and attached nodes, as one block at its natural
@@ -809,7 +834,9 @@ the height instead, use the tree's `justify: stretch` / `space-between` (above);
 box that really fills the height (those growing or spreading items, or a root `row`
 whose `align: stretch` stretches an item) wins and leaves `contentAlign` nothing to move.
 `geometry/content-band` (info) names a stretched panel with at least 4mm empty above and
-below its content, with `contentAlign: top` checked by a trial layout. With
+below its content, with `contentAlign: top` checked by a trial layout and written as the
+line to add under the group's `- id:` (and the row's `panels: true` when the group is one
+of several panels in a row). With
 `figure.layout.straighten` (default) an item may still move to straighten an edge, but
 only within its own box, never back into the band. A column of panels (a `stack` beside a
 taller panel) is stretched as one box and centres them: give it `justify: stretch` so its
@@ -818,7 +845,9 @@ last panel grows, then `contentAlign: top` on that panel.
 **Titles of different heights: `matchLabelHeight`.** Groups that write the same name
 reserve the tallest of their title bands (`matchLabelHeight: panels`), so a two-line
 title does not push its panel's first row below its neighbours'; a group without a label
-reserves the band too. Use it with `contentAlign: top`:
+reserves the band too. In a row, `panels: true` does this and `contentAlign: top` in one
+word (a group's own `matchLabelHeight` / `contentAlign` wins), except that it skips the
+shared band when that would make the row taller:
 
 ```yaml
 # expect-render: fits
@@ -828,17 +857,13 @@ figure:
   profile: paper-double
   layout:
     arrange:
-      row: {gap: 4mm, align: stretch, items: [a, b]}
+      row: {gap: 4mm, panels: true, items: [a, b]}
 groups:
   - id: a
     label: (a) Input
-    contentAlign: top
-    matchLabelHeight: panels
     arrange: {stack: {gap: 3mm, items: [img, enc]}}
   - id: b
     label: "(b) Tokens after\nthe encoder"
-    contentAlign: top
-    matchLabelHeight: panels
     arrange: {stack: {gap: 2mm, items: [t1, t2, t3]}}
 nodes:
   - {id: img, component: box, label: Image}

@@ -43,7 +43,7 @@ import {
   printedUnits,
   printScale,
 } from "./common";
-import { contentBand } from "./content-band";
+import { contentAlignYaml, contentBand, contentBands } from "./content-band";
 import type { GeometryContext, GeometryElement } from "./context";
 import { deadSpace } from "./dead-space";
 import { sparseFigure, textHeavy } from "./density";
@@ -55,6 +55,7 @@ import { microJogLengths } from "./jogs";
 import { type FitSize, fitSentence, fitTrials, fittingSize } from "./label-fit";
 import { inkLines, unionOf } from "./measure";
 import { regionsOverlap } from "./outlines";
+import { panelMisaligned } from "./panels";
 import { edgeLabelHugging, edgeLabelOnCorner, tokenColumnDrift } from "./placement";
 import { edgeLabelDetached, edgeLabelTouchesLine } from "./placement-drift";
 import {
@@ -2179,6 +2180,22 @@ export const badgeCollision = defineGeometryRule({
 /** Rounded repository p90 (75.25%); see design §6.71 and research/248-fill. */
 export const GROUP_EMPTY_SPACE_THRESHOLD = 0.75;
 
+/**
+ * For `geometry/group-empty-area` (#641): when part of the room is the two
+ * bands `geometry/content-band` reports (at least 4mm above and below the
+ * content of a group that writes no `contentAlign`), a pointer to that rule,
+ * whose `contentAlign: top` is checked by a trial layout, with the line to
+ * write; else "". It asserts nothing the trial has not shown.
+ */
+function contentAlignAdvice(context: GeometryContext, group: GeometryElement): string {
+  if (group.ir.kind !== "group") return "";
+  const band = contentBands(context).find((b) => b.group.key === group.key);
+  if (band === undefined) return "";
+  const yaml = contentAlignYaml(context, band.group);
+  if (yaml === undefined) return "";
+  return `Part of the room is ${mmText(context, band.above)} above the content and ${mmText(context, band.below)} below it: geometry/content-band reports this group with ${yaml.edit.replace(/^writing /, "")} as its hint; see geometry/content-band for whether that edit was checked and what it does${yaml.row === undefined ? "" : ` (for all the panels of ${yaml.row}: panels: true on that row)`}. `;
+}
+
 export const groupEmptyArea = defineGeometryRule({
   id: "geometry/group-empty-area",
   description:
@@ -2194,7 +2211,7 @@ export const groupEmptyArea = defineGeometryRule({
           message: `${capitalize(group.name)} has ${(empty * 100).toFixed(1)}% empty bounding-box area (threshold 75%; edges excluded).`,
           path: group.docPath,
           subject: group.subject,
-          hint: `Whitespace can be intentional; this is information only. ${verifyHints(
+          hint: `Whitespace can be intentional; this is information only. ${contentAlignAdvice(context, group)}${verifyHints(
             context,
             "empty",
             (trial) => {
@@ -2292,6 +2309,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   lineTooThin,
   groupEmptyArea,
   contentBand,
+  panelMisaligned,
   badgeCollision,
   glyphCollision,
   exceedsPageWidth,
