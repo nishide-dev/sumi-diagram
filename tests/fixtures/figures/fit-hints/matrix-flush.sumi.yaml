@@ -1,0 +1,52 @@
+# Reduced from run 1 of the #639 dogfood: a table of query patterns beside
+# two panels. The matrix's frame padding is what is too much: flush (or
+# narrower cells) makes the figure fit.
+version: 1
+figure:
+  id: matrix-flush
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 4mm
+        align: stretch
+        items: [pa, pb, pc]
+groups:
+  - id: pa
+    caption: (a) Encode the video once
+    arrange:
+      row: {gap: 4mm, align: center, items: [video, enc]}
+  - id: pb
+    caption: (b) Decode any query
+    arrange:
+      row: {gap: 6mm, align: center, items: [dec, point]}
+  - id: pc
+    caption: (c) Tasks as query patterns
+    arrange:
+      row: {items: [tasks]}
+nodes:
+  - {id: video, component: box, label: Video, props: {width: 21mm}}
+  - {id: enc, component: box, label: "ViT\nencoder"}
+  - {id: dec, component: box, label: "Cross-attention\ndecoder", variant: emphasis}
+  - {id: point, component: box, label: 3D point, tone: orange, variant: outlined}
+  - id: tasks
+    component: matrix
+    props:
+      rules: true
+      columns: [u, v, t-src, t-tgt, t-cam]
+      rows: [Point track, Point cloud, Depth map]
+      headerWidth: 42pt
+      cellWidth: 25pt
+      cellHeight: 14pt
+      headerGap: 2pt
+      classes:
+        f: {tone: orange, variant: tinted, label: fixed}
+        o: {label: swept}
+      cells:
+        - [{class: f, text: fixed}, {class: f, text: fixed}, {class: f, text: fixed}, {class: o, text: 1…T}, {class: o, text: = tgt}]
+        - [{class: o, text: 1…W}, {class: o, text: 1…H}, {class: o, text: 1…T}, {class: o, text: = src}, {class: f, text: fixed}]
+        - [{class: o, text: 1…W}, {class: o, text: 1…H}, {class: o, text: 1…T}, {class: o, text: = src}, {class: o, text: = src}]
+edges:
+  - {from: video, to: enc}
+  - {from: dec, to: point}

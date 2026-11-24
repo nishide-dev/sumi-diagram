@@ -2,6 +2,7 @@
 import type { ArrangeBoxIR, ArrangeItemIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { formatMm } from "../../core/units";
+import { widthPath } from "../../layout/structured/width-tree";
 import { type Rect, unitsToPt } from "../../render/geometry";
 import { printedSize } from "../../render/size";
 import type { GeometryContext, GeometryElement } from "./context";
@@ -263,7 +264,10 @@ export function widthBreakdown(context: GeometryContext): WidthBreakdown {
   if (widestLegend) {
     const others = rootItems.filter((item) => !legends.some((l) => l.key === item.key));
     const otherWidth = Math.max(0, ...others.map((item) => item.rect.width));
-    if (widestLegend.rect.width > otherWidth + 1)
+    // With the natural-width tree, only when the legend ends its path (a sequence's
+    // participants are top-level nodes each, narrower than the legend, #640).
+    const ends = tree === undefined || widthPath(tree).at(-1)?.key === widestLegend.key;
+    if (ends && widestLegend.rect.width > otherWidth + 1)
       head.push(
         `Legend "${widestLegend.id}" sets the width of the figure (${mm(widestLegend.rect.width)}, wider than everything else); flow: row with props.perRow wraps its entries onto more lines, and fewer or shorter entries narrow it.`,
       );

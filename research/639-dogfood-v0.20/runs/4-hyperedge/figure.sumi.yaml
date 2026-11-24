@@ -1,0 +1,59 @@
+version: 1
+figure:
+  id: hyperedge-overview
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      place:
+        unit: 1mm
+        items:
+          - {item: tracker, at: [97, 19], origin: body}
+          - {item: client, at: [16, 60]}
+          - {item: pool, at: [154, 63], origin: body}
+          - {item: cdn, at: [90, 90]}
+          - {item: key, at: [56, 79]}
+groups:
+  - id: tracker
+    label: Tracker cluster (data centers)
+    labelAt: bottom-left
+    arrange:
+      row: {gap: 20mm, items: [index, planner, state]}
+  - id: pool
+    label: Hdevices (~100k, idle)
+    labelAt: bottom
+    arrange:
+      stack: {gap: 5mm, align: stretch, items: [stb, home, idle]}
+nodes:
+  - {id: index, component: box, label: Index map, sublabel: video ID → Hdevices}
+  - {id: planner, component: box, label: Planner, sublabel: caching targets}
+  - {id: state, component: box, label: State DB, sublabel: Hdevice status}
+  - {id: client, component: box, label: Client, sublabel: app library, icon: tabler/device-mobile, iconAt: top, props: {width: 24mm}}
+  - {id: stb, component: box, label: Set-top box, icon: tabler/device-tv, tone: green, variant: tinted}
+  - {id: home, component: box, label: Smart home, icon: tabler/smart-home, tone: green, variant: tinted}
+  - {id: idle, component: box, label: Idle server, icon: tabler/server, tone: green, variant: tinted}
+  - {id: cdn, component: box, label: External CDN, icon: tabler/cloud, variant: muted}
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      flow: column
+      entries:
+        - {edge: {tone: blue}, label: video download (1–5)}
+        - {edge: {tone: orange}, label: content distribution (a–f)}
+edges:
+  # video download
+  - {from: cdn, to: client, tone: blue, label: "(1) first segments, fallback", fromAnchor: west, toAnchor: south}
+  - {from: client, to: index, tone: blue, label: (2) video ID, fromAnchor: "north:0.3", toAnchor: "west:0.3"}
+  - {from: index, to: client, tone: blue, label: (3) Hdevice list, fromAnchor: "west:0.7", toAnchor: "north:0.7"}
+  - {from: client, to: pool, tone: blue, route: straight, label: "(4) connect, NAT punching", fromAnchor: "east:0.15", toAnchor: "west:0.08"}
+  - {from: stb, to: client, tone: blue, route: straight, fromAnchor: west, toAnchor: "east:0.45"}
+  - {from: home, to: client, tone: blue, route: straight, label: (5) segments over all paths, labelSide: right, labelAt: 0.45, fromAnchor: west, toAnchor: "east:0.6"}
+  - {from: idle, to: client, tone: blue, route: straight, fromAnchor: west, toAnchor: "east:0.75"}
+  # content distribution
+  - {from: index, to: planner, tone: orange, label: (a) popularity}
+  - {from: state, to: planner, tone: orange, label: (b) resources}
+  - {from: pool, to: state, tone: orange, label: (c) keepalive, fromAnchor: "north:0.15", toAnchor: south}
+  - {from: planner, to: pool, tone: orange, label: (d) new video IDs, fromAnchor: south, toAnchor: "north:0.05"}
+  - {from: cdn, to: pool, tone: orange, label: (e) fetch new videos, fromAnchor: east, toAnchor: south}
+  - {from: pool, to: index, tone: orange, label: (f) done → update map, fromAnchor: "north:0.85", lane: {side: north, outside: tracker}}

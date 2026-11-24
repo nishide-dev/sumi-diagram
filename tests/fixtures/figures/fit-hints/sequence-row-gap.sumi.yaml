@@ -1,0 +1,38 @@
+# Reduced from run 8 of the #639 dogfood: a payment protocol as a sequence
+# that is a little too tall for the page; a smaller rowGap makes it fit,
+# not "turn the tallest stack into a row".
+version: 1
+figure:
+  id: sequence-row-gap
+  theme: sumi
+  profile: screen-doc
+  themeOverrides:
+    textScale: 1.5
+  layout:
+    arrange:
+      sequence:
+        participants: [user, agent, provider, merchant]
+        rows:
+          - fragment: "Phase 1: Shopping"
+            rows: [start, cart, checkout, confirm]
+          - fragment: "Phase 2: Payment"
+            rows: [content, consent, mandate, pm, token, submit, settle, receipt, done]
+nodes:
+  - {id: user, component: box, label: User, weight: bold}
+  - {id: agent, component: box, label: Shopping Agent, weight: bold, tone: blue, variant: tinted}
+  - {id: provider, component: box, label: "Credential\nProvider", weight: bold}
+  - {id: merchant, component: box, label: Merchant, weight: bold}
+edges:
+  - {id: start, from: user, to: agent, label: start shopping}
+  - {id: cart, from: agent, to: merchant, label: assemble cart}
+  - {id: checkout, from: merchant, to: agent, variant: dashed, label: signed checkout}
+  - {id: confirm, from: agent, to: user, label: confirm cart}
+  - {id: content, from: agent, to: user, label: show mandate}
+  - {id: consent, from: user, to: agent, variant: dashed, label: consent}
+  - {id: mandate, from: agent, to: provider, tone: orange, label: payment mandate}
+  - {id: pm, from: provider, to: provider, label: verify}
+  - {id: token, from: provider, to: agent, variant: dashed, label: payment token}
+  - {id: submit, from: agent, to: merchant, tone: orange, label: token + checkout}
+  - {id: settle, from: merchant, to: provider, label: settle payment}
+  - {id: receipt, from: merchant, to: agent, variant: dashed, tone: green, label: receipt}
+  - {id: done, from: agent, to: user, variant: dashed, label: done}

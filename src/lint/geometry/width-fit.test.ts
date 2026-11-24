@@ -305,9 +305,7 @@ edges:
     const plain = await widthHint(text, { rules: [exceedsPageWidth] });
     expect(plain.hint).toContain("set figure.layout.arrange.row.gap to 4.5mm (now 6mm) → 87.49mm");
     const guarded = await widthHint(text, { rules: [exceedsPageWidth, guard] });
-    expect(guarded.hint).toContain(
-      "No single gap, padding or width edit on the width path verified to fit",
-    );
+    expect(guarded.hint).toContain("No single edit on the width path verified to fit");
     expect(guarded.hint).toContain(
       "set figure.layout.arrange.row.gap to 4.5mm (now 6mm) would fit but adds geometry/test-gap-guard",
     );

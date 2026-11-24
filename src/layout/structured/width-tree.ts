@@ -9,6 +9,7 @@
  */
 import type { ArrangeBoxIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
+import type { PaddingGrowth } from "../route/padding";
 
 /** Contents whose arrangement the figure does not write: they are measured as a whole. */
 export type WidthLeafKind = "legend" | "tokens" | "matrix" | "plane";
@@ -25,8 +26,21 @@ export interface WidthEntry {
   readonly box?: ArrangeBoxIR;
   /** The node or group. */
   readonly key?: ElementKey;
-  /** Groups: padding per side in pt, and whether `props.padding` writes it. */
-  readonly padding?: { readonly west: number; readonly east: number; readonly written: boolean };
+  /**
+   * Groups: padding per side in pt, and whether `props.padding` writes it;
+   * `grown`: what the layout added to the written (or default) padding per
+   * side for the room before arrowheads (#171, #512), and why (#640).
+   */
+  readonly padding?: {
+    readonly west: number;
+    readonly east: number;
+    readonly written: boolean;
+    readonly grown?: {
+      readonly west: number;
+      readonly east: number;
+      readonly reasons: readonly PaddingGrowth[];
+    };
+  };
   /** Groups: content width (arrange tree plus attached overhang) in pt. */
   readonly contentPt?: number;
   /** Groups: the title width in pt, when it is wider than the content and so sets the width. */

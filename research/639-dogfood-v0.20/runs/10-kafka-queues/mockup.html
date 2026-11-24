@@ -1,0 +1,91 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Bold.ttf"); font-weight: 700 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Bold.ttf"); font-weight: 700 }
+/* sumi catalog --sizes --css --profile presentation-16x9 --theme sumi --text-scale 2 */
+:root {
+  --font: "Sumi Latin", "Sumi", "Inter", "BIZ UDPGothic", sans-serif;  /* font set sumi/inter-biz-ud-gothic */
+  --fs-node: 16;         /* pt: node text */
+  --fs-group: 18;        /* pt: group title */
+  --fs-edge: 14;         /* pt: edge label (profile minimum 14pt) */
+  --frame-w: 2;          /* pt: a node's frame */
+  --group-frame-w: 1;    /* pt: a group's frame */
+  --edge-w: 2;           /* pt: an edge */
+  --radius: 0pt;         /* a node's corners */
+  --gap: 8mm;            /* between the items of a row, stack or grid */
+  --group-pad: 5.64mm;   /* a group's padding, each side */
+  --node-pad-x: 4.94mm;  /* a box's padding left and right of its label */
+  --node-pad-y: 2.47mm;  /* a box's padding above and below its label */
+  --box-h: 11.99mm;      /* a one-line box's height */
+  --op: 11.29mm;         /* an operator */
+  --op-large: 16.93mm;   /* an operator, size: large */
+  --op-xlarge: 22.58mm;  /* an operator, size: xlarge */
+  --margin: 4.06mm;      /* around the figure */
+  --page-w: 338.7mm;     /* the profile's page width */
+}
+  :root {
+    --canvas: #ffffff; --ink: #30364f; --panel: #ffffff; --frame: #a9aebc;
+    --blue: #d9e4e6; --blue-line: #3d5d77; --orange: #efdfce; --orange-line: #814b2d;
+    --gray: #e1dece; --gray-line: #4e566b; --plain: #ffffff;
+    --arrow: #30364f; --pt: 0.3528mm;
+  }
+  @page { size: 334mm 176mm; margin: 0 }
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 334mm; height: 176mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  .box, .op, .group, .dot { position: absolute; box-sizing: border-box; translate: -50% -50% }
+  .box { display: flex; align-items: center; justify-content: center; text-align: center; white-space: pre;
+         min-height: var(--box-h); padding: var(--node-pad-y) var(--node-pad-x);
+         border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: var(--plain) }
+  .blue { background: var(--blue); border-color: var(--blue-line); color: var(--blue-line) }
+  .orange { background: var(--orange); border-color: var(--orange-line); color: var(--orange-line); border-radius: 50%/18% }
+  .grayt { background: var(--gray); border-color: var(--gray-line); color: var(--gray-line) }
+  .emph { background: var(--ink); color: #fff; font-weight: bold }
+  .group { background: var(--panel); border: calc(var(--group-frame-w) * var(--pt)) solid var(--frame) }
+  .group > .title { position: absolute; left: 2mm; top: 1.5mm; font-weight: bold; font-size: calc(var(--fs-group) * var(--pt)) }
+  .group > .title.above { top: auto; left: 0; bottom: 100%; margin-bottom: 1mm }
+  .dot { width: 5mm; height: 5mm; border-radius: 50%; background: var(--ink) }
+  .overflow { outline: 0.6mm dashed red }
+  svg.edges { position: absolute; inset: 0; width: 334mm; height: 176mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: calc(var(--edge-w) * 0.3528) }
+  svg.edges text { font-size: calc(var(--fs-edge) * 0.3528px); fill: var(--ink); font-family: var(--font) }
+  svg.edges marker path { fill: var(--arrow) }
+</style>
+<div id="fig">
+  <!-- panel a -->
+  <div class="group" style="left:100mm; top:93mm; width:188mm; height:160mm"><div class="title above">(a) Share group roles and RPCs</div></div>
+  <div class="group" style="left:100mm; top:34mm; width:170mm; height:30mm"><div class="title">Share group</div></div>
+  <div class="box" style="left:48mm; top:39mm; width:44mm">Consumer 1</div>
+  <div class="box" style="left:100mm; top:39mm; width:44mm">Consumer 2</div>
+  <div class="box" style="left:152mm; top:39mm; width:44mm">Consumer 3</div>
+  <div class="group" style="left:100mm; top:121mm; width:178mm; height:94mm"><div class="title">Brokers</div></div>
+  <div class="box blue" style="left:45mm; top:92mm; width:59mm">Group coordinator</div>
+  <div class="box blue" style="left:155mm; top:92mm; width:58mm">Share-partition
+leader</div>
+  <div class="box blue" style="left:155mm; top:128mm; width:58mm">Share coordinator</div>
+  <div class="box orange" style="left:100mm; top:156mm; width:62mm; height:16mm">__share_group_state</div>
+  <!-- panel b -->
+  <div class="group" style="left:270mm; top:93mm; width:126mm; height:160mm"><div class="title above">(b) Record states in a share-partition</div></div>
+  <div class="dot" style="left:250mm; top:24mm"></div>
+  <div class="box" style="left:250mm; top:45mm; width:50mm">Available</div>
+  <div class="box emph" style="left:250mm; top:85mm; width:50mm">Acquired</div>
+  <div class="box" style="left:250mm; top:125mm; width:50mm">Acknowledged</div>
+  <div class="box grayt" style="left:250mm; top:160mm; width:50mm">Archived</div>
+  <svg class="edges" viewBox="0 0 334 176">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="3" markerHeight="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+    <path class="e" d="M45 49 V85.5" marker-end="url(#ah)"/><text x="48" y="70">ShareGroupHeartbeat</text>
+    <path class="e" d="M155 49 V82" marker-end="url(#ah)"/><text x="112" y="62">ShareFetch</text><text x="112" y="68">ShareAcknowledge</text>
+    <path class="e" d="M45 98.5 V128 H125.5" marker-end="url(#ah)"/><text x="50" y="124">InitializeShareGroupState</text>
+    <path class="e" d="M155 102 V121.5" marker-end="url(#ah)"/><text x="158" y="110">Read / Write</text><text x="158" y="116">ShareGroupState</text>
+    <path class="e" d="M155 134.5 V156 H131.5" marker-end="url(#ah)"/><text x="158" y="148">persists</text>
+    <path class="e" d="M250 26.5 V38.5" marker-end="url(#ah)"/>
+    <path class="e" d="M242 51.5 V78.5" marker-end="url(#ah)"/><text x="212" y="63">acquire</text><text x="212" y="69">(fetch)</text>
+    <path class="e" d="M275 85 H282 V45 H275.5" marker-end="url(#ah)"/><text x="285" y="62">release or</text><text x="285" y="68">lock timeout</text>
+    <path class="e" d="M250 91.5 V118.5" marker-end="url(#ah)"/><text x="225" y="107">accept</text>
+    <path class="e" d="M275 88 H290 V160 H275.5" marker-end="url(#ah)"/><text x="293" y="120">reject or</text><text x="293" y="126">limit</text><text x="293" y="132">reached</text>
+    <path class="e" d="M250 131.5 V153.5" marker-end="url(#ah)"/><text x="210" y="142">SPSO moves</text><text x="210" y="148">past</text>
+  </svg>
+</div>

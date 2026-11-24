@@ -282,9 +282,12 @@ const COMPARISON_NOTE =
   "Profiles do not scale a figure unless its source opts into `fit: scale`. The paper profiles share their spacing and differ only in the " +
   "width limit that the geometry lint checks, so their drawings match. A profile whose minimum " +
   "font size is larger than a theme's font sizes rejects the figure before rendering " +
-  "(`profile/font-too-small`): `presentation-16x9` requires 14pt text, so it accepts only the " +
-  "`slides` theme, and the other themes are not rendered there by design. Theme and profile stay " +
-  "independent; for slides use `theme: slides` with `profile: presentation-16x9`. A figure that " +
+  "(`profile/font-too-small`): `screen-doc` requires 10pt text and `presentation-16x9` 14pt, so " +
+  "without a text scale they accept only the `slides` theme, and the 7-9pt themes are not rendered " +
+  "there by design. Theme and profile stay independent: a 7-9pt theme reaches those profiles with " +
+  "`figure.themeOverrides.textScale` (1.5 for `screen-doc`, 2 for `presentation-16x9`), which this " +
+  "matrix does not apply; for slides the recommended choice is `theme: sumi` with `textScale: 2`, " +
+  "and `slides` works as it is. A figure that " +
   "exceeds a page limit is still drawn, with the geometry error below it: `slides` doubles the " +
   "text and the presentation profile doubles the spacing, so this tall top-to-bottom figure is " +
   "taller than a slide. On `paper-single`, the pipeline with `slides` fits the page but reports two " +

@@ -1,0 +1,103 @@
+<!doctype html>
+<meta charset="utf-8"><title>mockup</title>
+<style>
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Bold.ttf"); font-weight: 700 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Bold.ttf"); font-weight: 700 }
+/* BEGIN SUMI SIZES */
+/* sumi catalog --sizes --css --profile paper-double --theme sumi --text-scale 1 */
+:root {
+  --font: "Sumi Latin", "Sumi", "Inter", "BIZ UDPGothic", sans-serif;  /* font set sumi/inter-biz-ud-gothic */
+  --fs-node: 8;          /* pt: node text */
+  --fs-group: 9;         /* pt: group title */
+  --fs-edge: 7;          /* pt: edge label (profile minimum 7pt) */
+  --frame-w: 1;          /* pt: a node's frame */
+  --group-frame-w: 0.5;  /* pt: a group's frame */
+  --edge-w: 1;           /* pt: an edge */
+  --radius: 0pt;         /* a node's corners */
+  --gap: 4mm;            /* between the items of a row, stack or grid */
+  --group-pad: 2.82mm;   /* a group's padding, each side */
+  --node-pad-x: 2.47mm;  /* a box's padding left and right of its label */
+  --node-pad-y: 1.23mm;  /* a box's padding above and below its label */
+  --box-h: 6mm;          /* a one-line box's height */
+  --op: 5.64mm;          /* an operator */
+  --op-large: 8.47mm;    /* an operator, size: large */
+  --op-xlarge: 11.29mm;  /* an operator, size: xlarge */
+  --margin: 1.94mm;      /* around the figure */
+  --page-w: 180mm;       /* the profile's page width */
+}
+
+/* END SUMI SIZES */
+:root { --canvas:#ffffff; --ink:#30364f; --panel:#ffffff; --frame:#a9aebc;
+ --blue:#d9e4e6; --blue-line:#3d5d77; --orange:#efdfce; --orange-line:#814b2d;
+ --green:#dce7d3; --green-line:#426344; --gray:#e1dece; --gray-line:#4e566b; --arrow:#30364f; --pt:0.3528mm; }
+@page { size:180mm 88mm; margin:0 }
+html,body { margin:0; background:var(--canvas) }
+#fig { position:relative; width:180mm; height:88mm; overflow:hidden; font:calc(var(--fs-node)*var(--pt)) var(--font); color:var(--ink) }
+.box,.op,.group,.lbl { position:absolute; box-sizing:border-box; translate:-50% -50% }
+.box { display:flex; align-items:center; justify-content:center; text-align:center; white-space:pre; min-height:var(--box-h);
+  padding:var(--node-pad-y) var(--node-pad-x); border:calc(var(--frame-w)*var(--pt)) solid var(--ink); background:#fff }
+.lbl { white-space:pre; text-align:center }
+.small { font-size:calc(var(--fs-edge)*var(--pt)) }
+.blue { background:var(--blue); border-color:var(--blue-line) }
+.orange { background:var(--orange); border-color:var(--orange-line) }
+.green { background:var(--green); border-color:var(--green-line) }
+.gray { background:var(--gray); border-color:var(--gray-line) }
+.out-orange { border-color:var(--orange-line) }
+.group { border:calc(var(--group-frame-w)*var(--pt)) solid var(--frame); background:var(--panel) }
+.cap { position:absolute; translate:-50% -50%; font-size:calc(var(--fs-group)*var(--pt)) }
+svg.edges { position:absolute; inset:0; width:180mm; height:88mm; overflow:visible }
+svg.edges path.e { fill:none; stroke:var(--arrow); stroke-width:0.3528 }
+svg.edges path.d { stroke-dasharray:1.2 0.8 }
+svg.edges path.z { stroke:#a9aebc; stroke-dasharray:1.2 0.8; fill:none; stroke-width:0.25 }
+svg.edges text { font-size:2.47px; fill:var(--ink); font-family:var(--font) }
+svg.edges marker path { fill:var(--arrow) }
+.wave { border-color:var(--green-line) }
+</style>
+<div id="fig">
+ <!-- (a) -->
+ <div class="box" style="left:12mm;top:12mm">Text</div>
+ <div class="box wave" style="left:12mm;top:30mm;width:16mm">∿∿∿</div><div class="lbl" style="left:12mm;top:36.5mm">Audio</div>
+ <div class="box" style="left:12mm;top:50mm">Image / video</div>
+ <div class="box blue" style="left:44mm;top:30mm;width:30mm">Audio encoder (AuT)
+650M · 12.5 Hz</div>
+ <div class="box blue" style="left:44mm;top:50mm;width:30mm">Vision encoder
+SigLIP2 · 540M</div>
+ <div class="box orange" style="left:78mm;top:31mm;width:26mm;height:46mm">Thinker
+MoE · 30B-A3B</div>
+ <div class="box out-orange" style="left:114mm;top:12mm">Text output</div>
+ <div class="box green" style="left:114mm;top:44mm;width:24mm">Talker
+MoE · 3B-A0.3B</div>
+ <div class="box wave" style="left:114mm;top:68mm;width:16mm">∿∿∿</div><div class="lbl" style="left:114mm;top:74.5mm">Streaming speech</div>
+ <div class="cap" style="left:60mm;top:84mm">(a) Thinker–Talker</div>
+ <!-- (b) -->
+ <div class="group" style="left:154mm;top:40mm;width:46mm;height:74mm"></div>
+ <div class="box green" style="left:154mm;top:12mm;width:30mm">Talker backbone</div>
+ <div class="box green" style="left:154mm;top:25mm;width:7mm">c0</div>
+ <div class="box gray" style="left:154mm;top:37mm;width:30mm">MTP · 80M</div>
+ <div class="box green" style="left:147mm;top:49mm;width:7mm">c0</div><div class="box green" style="left:154mm;top:49mm;width:7mm">c1</div><div class="box green" style="left:161mm;top:49mm;width:7mm">c2</div><div class="lbl" style="left:167mm;top:49mm">⋯</div>
+ <div class="box gray" style="left:154mm;top:61mm;width:40mm">Code2Wav
+causal ConvNet · 200M</div>
+ <div class="box wave" style="left:154mm;top:71mm;width:16mm">∿∿∿</div><div class="lbl" style="left:154mm;top:77mm">80 ms of audio</div>
+ <div class="cap" style="left:154mm;top:84mm;white-space:pre">(b) One Talker step</div>
+ <svg class="edges" viewBox="0 0 180 88">
+  <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2" markerHeight="2" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z"/></marker></defs>
+  <path class="e" d="M18 12 H67" marker-end="url(#ah)"/><text x="40" y="11">tokens</text>
+  <path class="e" d="M20 30 H29" marker-end="url(#ah)"/>
+  <path class="e" d="M24 50 H29" marker-end="url(#ah)"/>
+  <path class="e" d="M59 30 H67" marker-end="url(#ah)"/>
+  <path class="e" d="M59 50 H67" marker-end="url(#ah)"/>
+  <path class="e" d="M89 12 H103" marker-end="url(#ah)"/>
+  <path class="e" d="M89 44 H101.5" marker-end="url(#ah)"/><text x="90" y="42">audio-visual</text><text x="91.5" y="48.5">features</text>
+  <path class="e" d="M114 15 V38.5" marker-end="url(#ah)"/><text x="115.5" y="27">streamed text</text>
+  <path class="e" d="M114 50 V64" marker-end="url(#ah)"/><text x="115.5" y="58">234 ms first packet</text>
+  <path class="z" d="M126 41 L131 4 M126 47 L131 80"/>
+  <path class="e" d="M154 15 V21.5" marker-end="url(#ah)"/><text x="155.5" y="19">linear head</text>
+  <path class="e" d="M154 28 V34" marker-end="url(#ah)"/>
+  <path class="e" d="M154 40 V45.5" marker-end="url(#ah)"/><text x="155.5" y="43.5">residual codebooks</text>
+  <path class="e" d="M154 52 V57.5" marker-end="url(#ah)"/>
+  <path class="e" d="M154 65 V67.5" marker-end="url(#ah)"/>
+  <path class="e d" d="M143.5 49 H135 V12 H139" marker-end="url(#ah)"/><text x="134" y="31" transform="rotate(-90 134 31)">next frame</text>
+ </svg>
+</div>
