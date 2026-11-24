@@ -281,7 +281,7 @@
               }
             },
             "alignGrowth": {
-              "description": "allow: the space the align constraints add is intended, so the info layout/align-grew-figure is not reported. Omitted means report (structured layout only).",
+              "description": "allow: the space the align constraints add is intended, so the infos layout/align-grew-figure and layout/align-widened-gap are not reported. Omitted means report (structured layout only).",
               "type": "string",
               "enum": [
                 "report",
@@ -1964,6 +1964,23 @@
             "center",
             "start",
             "end"
+          ]
+        },
+        "move": {
+          "description": "Item (or items) of this constraint that may move to meet it (since 0.20.1): only these take the space that aligns them, the others stay where their boxes put them, e.g. move a note to its cell instead of pulling the cells apart. Omitted means any item may move.",
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}(?:\\.(?:[a-z][a-z0-9_-]{0,63}|[1-9][0-9]{0,3}))?$"
+            },
+            {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,63}(?:\\.(?:[a-z][a-z0-9_-]{0,63}|[1-9][0-9]{0,3}))?$"
+              }
+            }
           ]
         }
       },

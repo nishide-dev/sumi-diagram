@@ -186,8 +186,8 @@ Geometry errors exit 1 but **the SVG is still written**. It prints `Wrote figure
   `geometry/relocatable-node` (info): apply its checked `items` edit unless the place means something.
 - Structured: `layout/no-route` (no SVG written): an edge has no room; widen that `gap`
   or move an attached node out of it ([spacing](references/structured.md#spacing-that-routes)).
-  Also `layout/unsatisfied-align`, `layout/edge-label-overlap` (warnings),
-  `layout/edge-crossing`, `layout/align-grew-figure` (infos); no `--emit-d2`.
+  Also `layout/unsatisfied-align`, `layout/edge-label-overlap` (warnings), `layout/edge-crossing`,
+  `layout/align-grew-figure` / `-widened-gap` / `-uneven-stretch` (infos; align `move: <id>` picks the side that moves); no `--emit-d2`.
 - Other `svg/*`, `backend/*`, `asset/*`, `geometry/*` codes: [diagnostics](references/diagnostics.md).
 
 ### 7. Check content, then readability

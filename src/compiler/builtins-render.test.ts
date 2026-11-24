@@ -309,13 +309,15 @@ describe.skipIf(!available)("built-in primitives render with D2", () => {
               ["info", "geometry/script-too-small"],
             ]);
           } else if (example === "examples/gcn/gcn.sumi.yaml") {
-            // The original's sparse layers and its pale graph edges (#463).
-            expect(stderr).toContain("0 errors, 0 warnings, 4 infos");
+            // The original's sparse layers and its pale graph edges (#463), and the gap
+            // between y1 and y4 that align widens for the straight layer edges (#646).
+            expect(stderr).toContain("0 errors, 0 warnings, 5 infos");
             expect(
               [...stderr.matchAll(/^examples\/.*:\d+:\d+ (\w+) ([\w/-]+)/gm)].map(
                 ([, severity, code]) => [severity, code],
               ),
             ).toEqual([
+              ["info", "layout/align-widened-gap"],
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/group-empty-area"],
               ["info", "geometry/low-stroke-contrast"],

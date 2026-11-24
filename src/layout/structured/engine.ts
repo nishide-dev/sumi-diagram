@@ -113,7 +113,7 @@ import { verifiedAlignHints } from "./align-hint";
 import { chatGeometry } from "./chat";
 import { sequenceGeometry } from "./sequence";
 import { fitSets } from "./sets";
-import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
+import { crossStretchable, nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
 import { type StraightenStats, straightenLayout } from "./straighten";
 import type { WidthEntry } from "./width-tree";
 
@@ -1804,18 +1804,9 @@ class StructuredLayout {
   /** Whether `stretch` resizes an item on the cross axis of a stack (`vertical`) or row. */
   #stretchable(item: ArrangeItemIR, vertical: boolean): boolean {
     if (typeof item !== "string") return true;
-    const node = this.#nodes.get(item);
-    if (node === undefined) return true;
-    const explicit = vertical ? node.width : node.height;
     // Outline components keep their footprint: stretching changes the
     // renderer's safe area (e.g. a taller trapezoid has deeper slants).
-    return (
-      explicit === undefined &&
-      node.render === undefined &&
-      node.badge === undefined &&
-      node.glyphs === undefined &&
-      stretchableShape(node.shape)
-    );
+    return crossStretchable(this.#nodes.get(item), vertical);
   }
 
   /** Convert the reserved badge footprint to the body's own box. */

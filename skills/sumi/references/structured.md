@@ -1138,6 +1138,13 @@ figure:
   sits alone in a box of its own (wrap it in a `stack` / `row`), choose the box
   `align` that moves the side you want (`start` pushes only down / right),
   or write the `gap`s so nothing needs to move.
+- **`move: <id>` (or a list) picks the side** (since 0.20.1): only the listed
+  items of the constraint take space, the others stay where their boxes put
+  them. `{x: [note, seq.f], move: note}` moves a note under its cell instead of
+  pulling the cells apart. Space is still only added, so a listed item that would
+  have to travel back toward the start of its box cannot move (a
+  `layout/unsatisfied-align` whose hint names the `move`): list the item that
+  sits before the line, or drop `move`.
 - Sumi only **adds space** before or after items in a stack (for `y`) or row
   (for `x`) that holds just one of them, never inside a `gap: 0` box. So it
   aligns elements in different branches (`y` across stacks side by side in a
@@ -1152,7 +1159,8 @@ figure:
   no such space. Put the element **in the tree** (not `attach`ed into a gap).
 - **A cell of a one-line `tokens` row is not a box of its own**: aligning
   `{x: [patches.3, emb.2]}` adds space inside the `emb` row, pulling its cells apart
-  (`layout/align-splits-tokens`, warning, no other signal). Align the whole
+  (`layout/align-splits-tokens`, warning). To line a note or label up with one
+  cell, let only the note move (`{x: [note, emb.2], move: note}`). Align the whole
   sequences instead (`{x: [patches, emb], at: start}`), or give both the same cell
   width and `gap` so the cells line up without `align`. Cells of multi-line
   `tokens` keep their block and report `layout/unsatisfied-align` instead.
@@ -1174,6 +1182,16 @@ figure:
   item that can move alone (wrap it in its own `stack` / `row`), bring the two
   closer in the tree, or use an anchor instead. For an intended growth set
   `figure.layout.alignGrowth: allow` to drop this info.
+- **Render reports the side effects** (infos, #646): `layout/align-widened-gap`
+  names a gap the space widened by more than 3mm, to more than 1.5× its width
+  without `align` and past the other gaps of its box (e.g. "the gap between
+  "sft" and "rl" in their row from 6.00mm to 12.61mm, for
+  figure.layout.align[4] (x: [envs, rl])"; a caption pushed away from its panel
+  is reported the same way); `alignGrowth: allow` drops it too.
+  `layout/align-uneven-stretch` says that panels a row with `align: stretch` gave
+  one height no longer match, because the space landed inside one of them (it is
+  not silenced by `alignGrowth`). The hints suggest a `move` for the other side
+  when the constraint has one; render again to check it.
 
 ```yaml
 # expect-render: fits
@@ -1198,6 +1216,7 @@ figure:
     align: # straight skips: each concat level with its encoder level
       - {y: [enc1, cat1]}
       - {y: [enc2, cat2]}
+    alignGrowth: allow # the longer gap between the encoder levels is intended
 nodes:
   - {id: enc1, component: box, label: "Conv ×2\n64", tone: blue}
   - {id: enc2, component: box, label: "Conv ×2\n128", tone: blue}

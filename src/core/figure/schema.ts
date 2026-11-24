@@ -86,9 +86,9 @@ export const FAN_IN_MODES = ["merge", "spread"] as const;
 export type FanInMode = (typeof FAN_IN_MODES)[number];
 
 /**
- * `figure.layout.alignGrowth` (#333): `report` (default) keeps the info
- * `layout/align-grew-figure`; `allow` says the growth is intended and
- * silences it.
+ * `figure.layout.alignGrowth` (#333): `report` (default) keeps the infos
+ * `layout/align-grew-figure` and `layout/align-widened-gap` (#646); `allow`
+ * says the space is intended and silences them.
  */
 export const ALIGN_GROWTH_MODES = ["report", "allow"] as const;
 export type AlignGrowthMode = (typeof ALIGN_GROWTH_MODES)[number];
@@ -865,6 +865,12 @@ export const AlignConstraintSchema = z
       .enum(ALIGN_POSITIONS)
       .optional()
       .describe("Which coordinate: center (default), start (top / left) or end (bottom / right)."),
+    move: z
+      .union([Ref, z.array(Ref).min(1)])
+      .optional()
+      .describe(
+        "Item (or items) of this constraint that may move to meet it (since 0.20.1): only these take the space that aligns them, the others stay where their boxes put them, e.g. move a note to its cell instead of pulling the cells apart. Omitted means any item may move.",
+      ),
   })
   .check((ctx) => {
     const axes = [ctx.value.x, ctx.value.y].filter((v) => v !== undefined).length;
@@ -908,7 +914,7 @@ export const LayoutFieldsSchema = z.strictObject({
     .enum(ALIGN_GROWTH_MODES)
     .optional()
     .describe(
-      "allow: the space the align constraints add is intended, so the info layout/align-grew-figure is not reported. Omitted means report (structured layout only).",
+      "allow: the space the align constraints add is intended, so the infos layout/align-grew-figure and layout/align-widened-gap are not reported. Omitted means report (structured layout only).",
     ),
   fanIn: z
     .enum(FAN_IN_MODES)

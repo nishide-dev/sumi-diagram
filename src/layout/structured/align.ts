@@ -55,6 +55,15 @@
  * {@link ALIGN_GROWTH_RATIO} over the plain pass, `layout/align-grew-figure`
  * (info) says by how much (#155).
  *
+ * Side effects (#646): a strut lands in one gap and moves what follows it, so
+ * the solve also reports, as infos, a gap between two items of a stack or row
+ * that it widened well past its written neighbours (`layout/align-widened-gap`,
+ * silenced with `alignGrowth: allow` like the growth) and frames that a box
+ * with `align: stretch` gave one size and that no longer match
+ * (`layout/align-uneven-stretch`). A constraint's `move` lists the items that
+ * may take struts; the others never move for it, so a note can move to its
+ * cell instead of the cell moving to the note.
+ *
  * Deterministic: constraints in document order, Map iteration in insertion
  * order, the engine's own rounding.
  */
@@ -62,7 +71,9 @@
 import type { AlignIR, ArrangeBoxIR, ArrangeItemIR, FigureIR } from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Diagnostic, formatDocPath, type RelatedInformation } from "../../core/diagnostics";
+import { SEPARATOR_ID } from "../../core/registry/builtins";
 import type { LayoutIR, Rect } from "../ir";
+import { crossStretchable } from "./sizing";
 
 /** Space added around arrange items, in units (see the module comment). */
 export interface Struts {
@@ -75,6 +86,13 @@ export interface Struts {
    */
   readonly crossLead: ReadonlyMap<ArrangeItemIR, number>;
   readonly crossTrail: ReadonlyMap<ArrangeItemIR, number>;
+  /**
+   * The constraints whose accepted candidates put space of each kind at each
+   * item (#646), in the order they did; read by the side-effect diagnostics
+   * only. Keyed by kind as well as item: a constraint that adds space on the
+   * other axis or side of the same item did not widen this gap.
+   */
+  readonly causes?: ReadonlyMap<StrutKind, ReadonlyMap<ArrangeItemIR, readonly AlignIR[]>>;
 }
 
 export const NO_STRUTS: Struts = Object.freeze({
@@ -84,7 +102,13 @@ export const NO_STRUTS: Struts = Object.freeze({
   crossTrail: new Map(),
 });
 
-type StrutKind = keyof Struts;
+type StrutKind = "lead" | "trail" | "crossLead" | "crossTrail";
+
+/** A strut: its kind and the item it is at. */
+interface StrutAt {
+  readonly kind: StrutKind;
+  readonly item: ArrangeItemIR;
+}
 
 /** A constraint is met when its items' coordinates differ by at most this (units). */
 export const ALIGN_EPSILON = 0.01;
@@ -134,7 +158,9 @@ interface StrutStep extends Step {
   readonly cross: boolean;
 }
 
-type MutableStruts = { [K in StrutKind]: Map<ArrangeItemIR, number> };
+type MutableStruts = { [K in StrutKind]: Map<ArrangeItemIR, number> } & {
+  causes: Map<StrutKind, ReadonlyMap<ArrangeItemIR, readonly AlignIR[]>>;
+};
 
 /** Bounds of the search (tests lower them). */
 export interface AlignLimits {
@@ -145,6 +171,11 @@ export interface AlignLimits {
 }
 
 type Trial = { struts: Struts; layout: LayoutIR; residuals: number[]; total: number };
+
+/** Whether `key` may take a strut for `c`: every item, unless `move` (#646) names some. */
+function mayMove(c: AlignIR, key: ElementKey): boolean {
+  return c.move === undefined || c.move.includes(key);
+}
 
 /** Whether an element may take cross-axis space: not a cell of a `tokens` row or a matrix (#545). */
 function holdsCross(ir: FigureIR, key: ElementKey): boolean {
@@ -177,6 +208,7 @@ export function solveAlignment(
   const pathOf = paths(ir);
   const holdable = constraints.some((c) =>
     c.items.some((key) => {
+      if (!mayMove(c, key)) return false;
       const own = pathOf.get(key)?.at(-1);
       return (
         holdsCross(ir, key) &&
@@ -218,6 +250,7 @@ function solveOnce(
    * which takes a cross-axis strut (#545).
    */
   const stepFor = (key: ElementKey, c: AlignIR): StrutStep | undefined => {
+    if (!mayMove(c, key)) return undefined;
     const others = c.items.filter((k) => k !== key);
     const free = (s: Step) =>
       s.box.gapPt !== 0 &&
@@ -233,19 +266,27 @@ function solveOnce(
       ? { ...own, cross: true }
       : undefined;
   };
-  /** `base` plus struts of `kind` (each added to what is there). */
+  /** `base` plus struts of `kind` (each added to what is there) for constraint `c`. */
   const add = (
     base: Struts,
     kind: StrutKind,
     struts: readonly (readonly [ArrangeItemIR, number])[],
+    c: AlignIR,
   ): Struts => {
     const next: MutableStruts = {
       lead: new Map(base.lead),
       trail: new Map(base.trail),
       crossLead: new Map(base.crossLead),
       crossTrail: new Map(base.crossTrail),
+      causes: new Map(base.causes),
     };
-    for (const [item, value] of struts) next[kind].set(item, (next[kind].get(item) ?? 0) + value);
+    const causes = new Map(next.causes.get(kind));
+    for (const [item, value] of struts) {
+      next[kind].set(item, (next[kind].get(item) ?? 0) + value);
+      const known = causes.get(item) ?? [];
+      if (!known.includes(c)) causes.set(item, [...known, c]);
+    }
+    next.causes.set(kind, causes);
     return next;
   };
   const kindOf = (step: StrutStep, side: "lead" | "trail"): StrutKind =>
@@ -267,9 +308,9 @@ function solveOnce(
     if (short <= ALIGN_EPSILON) return [];
     const out: Struts[] = [];
     const a = stepFor(first.key, c);
-    if (a !== undefined) out.push(add(base, kindOf(a, "lead"), [[a.item, short]]));
+    if (a !== undefined) out.push(add(base, kindOf(a, "lead"), [[a.item, short]], c));
     const b = stepFor(last.key, c);
-    if (b !== undefined) out.push(add(base, kindOf(b, "trail"), [[b.item, short]]));
+    if (b !== undefined) out.push(add(base, kindOf(b, "trail"), [[b.item, short]], c));
     if (ps.length > 2) {
       const all = (side: "lead" | "trail", gapOf: (p: Coordinate) => number) => {
         // One candidate per strut kind (main-axis and cross-axis steps do not mix).
@@ -282,7 +323,7 @@ function solveOnce(
             .filter((e) => e.step.cross === cross)
             .map((e) => [e.step.item, e.value] as const);
           const kind: StrutKind = cross ? (side === "lead" ? "crossLead" : "crossTrail") : side;
-          if (struts.length > 1) out.push(add(base, kind, struts));
+          if (struts.length > 1) out.push(add(base, kind, struts, c));
         }
       };
       all("lead", (p) => last.value - p.value);
@@ -398,8 +439,12 @@ function solveOnce(
   }
   diagnostics.push(...unsatisfiedDiagnostics);
   diagnostics.push(...splitTokens(ir, constraints, struts, pathOf));
-  const growth = ir.meta.alignGrowth === "allow" ? undefined : grewFigure(ir, plain, layout);
-  if (growth !== undefined) diagnostics.push(growth);
+  diagnostics.push(...unevenStretch(ir, constraints, struts, plain, layout, pathOf));
+  if (ir.meta.alignGrowth !== "allow") {
+    diagnostics.push(...widenedGaps(ir, constraints, struts, plain, layout, pathOf));
+    const growth = grewFigure(ir, plain, layout);
+    if (growth !== undefined) diagnostics.push(growth);
+  }
   const stats: AlignStats = {
     rounds,
     layouts,
@@ -450,6 +495,12 @@ function splitTokens(
         return e?.kind === "node" ? e.id.replace(`${tokens.id}-`, `${tokens.id}.`) : key;
       };
       const constraint = constraints.find((c) => c.items.includes(item as ElementKey));
+      // `move` (#646): the constraint's other items can move instead of the cell.
+      const others = constraint?.items.filter((k) => k !== item).map((k) => refOf(ir, k)) ?? [];
+      const move =
+        constraint !== undefined && constraint.move === undefined && others.length > 0
+          ? ` To keep the cells and move ${others.map((r) => `"${r}"`).join(", ")} instead, add \`move: ${others.length === 1 ? others[0] : `[${others.join(", ")}]`}\` to the constraint (not checked by a trial layout).`
+          : "";
       out.push({
         code: "layout/align-splits-tokens",
         severity: "warning",
@@ -457,9 +508,433 @@ function splitTokens(
         path: constraint?.srcAt.path ?? ["figure", "layout", "align"],
         ...(constraint?.srcAt.location !== undefined && { location: constraint.srcAt.location }),
         subject: { kind: "figure", id: ir.meta.id },
-        hint: `Align the whole sequence instead (\`${tokens.id}\` in the constraint, with \`at: start\` or \`end\` for an edge), or give both sequences the same cell width and gap so the cells line up without align; one cell of a row cannot move without moving the cells next to it.`,
+        hint: `Align the whole sequence instead (\`${tokens.id}\` in the constraint, with \`at: start\` or \`end\` for an edge), or give both sequences the same cell width and gap so the cells line up without align; one cell of a row cannot move without moving the cells next to it.${move}`,
       });
     }
+  }
+  return out;
+}
+
+/**
+ * `layout/align-widened-gap` reports a gap between two items of a stack or
+ * row that the struts widened by more than this (mm) and to more than
+ * {@link ALIGN_GAP_RATIO} times its width without them (#646): a gap that
+ * stands out from the written ones next to it (#639 run 6: SFT → RL). Smaller
+ * struts (a fraction of a gap, half a box's difference in size) read as the
+ * written spacing.
+ */
+export const ALIGN_GAP_MM = 3;
+
+/** See {@link ALIGN_GAP_MM}. */
+export const ALIGN_GAP_RATIO = 1.5;
+
+/**
+ * Whether a gap of `now` mm stands out from one of `was` mm: longer by more
+ * than {@link ALIGN_GAP_MM} and more than {@link ALIGN_GAP_RATIO} times as long
+ * (a negative `was` counts as 0). Unrounded values.
+ */
+export function widened(was: number, now: number): boolean {
+  return now - was > ALIGN_GAP_MM && now > ALIGN_GAP_RATIO * Math.max(0, was);
+}
+
+/**
+ * `layout/align-uneven-stretch` reports stretched frames whose sizes across
+ * the box differ by more than this (mm) with the struts, though they were
+ * equal without them (#646).
+ */
+export const ALIGN_UNEVEN_MM = 0.5;
+
+/** The box each arrange item sits in, and the box's cross-axis alignment as the engine applies it. */
+interface Placement {
+  readonly parent: Map<ArrangeItemIR, ArrangeBoxIR>;
+  readonly align: Map<ArrangeBoxIR, string>;
+}
+
+/** Every arrange box of the figure with its effective `align` (inherited along the same axis, as the engine does). */
+function placementOf(ir: FigureIR): Placement {
+  const parent = new Map<ArrangeItemIR, ArrangeBoxIR>();
+  const align = new Map<ArrangeBoxIR, string>();
+  const groups = new Map(ir.groups.map((g) => [g.key, g]));
+  const walk = (box: ArrangeBoxIR, inherited: string) => {
+    const own = box.align ?? inherited;
+    align.set(box, own);
+    for (const item of box.items) {
+      if (item === null) continue;
+      parent.set(item, box);
+      if (typeof item === "string") {
+        const arrange = groups.get(item)?.arrange;
+        if (arrange !== undefined) walk(arrange, "center");
+      } else {
+        const line = box.kind === "stack" || box.kind === "row";
+        walk(item, line && item.kind === box.kind ? own : "center");
+      }
+    }
+  };
+  if (ir.arrange !== undefined) walk(ir.arrange, "center");
+  return { parent, align };
+}
+
+/** How an element is written in a constraint: its ID, or `<tokens>.<cell>` for a tokens cell. */
+function refOf(ir: FigureIR, key: ElementKey): string {
+  const element = ir.elements.get(key);
+  if (element === undefined || element.kind === "edge") return key;
+  if (element.kind === "node" && element.tokens !== undefined) {
+    return element.id.replace(`${element.tokens.id}-`, `${element.tokens.id}.`);
+  }
+  return element.id;
+}
+
+/** The element keys inside an arrange item, in order (a group counts as itself). */
+function keysIn(item: ArrangeItemIR): ElementKey[] {
+  if (item === null) return [];
+  if (typeof item === "string") return [item];
+  return item.items.flatMap(keysIn);
+}
+
+/** An item for a message: `"id"`, or `the row of "a", "b"` for an unnamed box. */
+function itemName(ir: FigureIR, item: ArrangeItemIR): string {
+  if (typeof item === "string") return `"${refOf(ir, item)}"`;
+  if (item === null) return "a blank cell";
+  const keys = keysIn(item);
+  const shown = keys.slice(0, 3).map((k) => `"${refOf(ir, k)}"`);
+  return `the ${item.kind} of ${shown.join(", ")}${keys.length > 3 ? ", …" : ""}`;
+}
+
+/** The bounding rectangle of an arrange item in `rects` (the union of its elements for a box). */
+function extentOf(item: ArrangeItemIR, rects: ReadonlyMap<ElementKey, Rect>): Rect | undefined {
+  if (item === null) return undefined;
+  if (typeof item === "string") return rects.get(item);
+  let out: Rect | undefined;
+  for (const child of item.items) {
+    const r = extentOf(child, rects);
+    if (r === undefined) continue;
+    if (out === undefined) {
+      out = r;
+      continue;
+    }
+    const x = Math.min(out.x, r.x);
+    const y = Math.min(out.y, r.y);
+    const right = Math.max(out.x + out.width, r.x + r.width);
+    const bottom = Math.max(out.y + out.height, r.y + r.height);
+    out = { x, y, width: right - x, height: bottom - y };
+  }
+  return out;
+}
+
+/**
+ * The constraints whose accepted candidates put the struts `at` (kind and item)
+ * (recorded by the solve in `struts.causes`), in document order. Only those
+ * are blamed: a constraint that merely has an item nearby (or on the other
+ * axis) added nothing there.
+ */
+function causesOf(
+  constraints: readonly AlignIR[],
+  struts: Struts,
+  at: readonly StrutAt[],
+): AlignIR[] {
+  const found = new Set(at.flatMap(({ kind, item }) => struts.causes?.get(kind)?.get(item) ?? []));
+  return constraints.filter((c) => found.has(c));
+}
+
+/** The item that holds each arrange item: its box, or for a group's arrange tree the group. */
+function holders(ir: FigureIR): Map<ArrangeItemIR, ArrangeItemIR> {
+  const out = new Map<ArrangeItemIR, ArrangeItemIR>();
+  const groups = new Map(ir.groups.map((g) => [g.key, g]));
+  const walk = (box: ArrangeBoxIR) => {
+    for (const item of box.items) {
+      if (item === null) continue;
+      out.set(item, box);
+      if (typeof item === "string") {
+        const arrange = groups.get(item)?.arrange;
+        if (arrange !== undefined) {
+          out.set(arrange, item);
+          walk(arrange);
+        }
+      } else walk(item);
+    }
+  };
+  if (ir.arrange !== undefined) walk(ir.arrange);
+  return out;
+}
+
+/** Whether arrange item `item` is `frame` or lies inside it. */
+function inside(
+  holder: ReadonlyMap<ArrangeItemIR, ArrangeItemIR>,
+  item: ArrangeItemIR,
+  frame: ArrangeItemIR,
+): boolean {
+  for (let at: ArrangeItemIR | undefined = item; at !== undefined; at = holder.get(at)) {
+    if (at === frame) return true;
+  }
+  return false;
+}
+
+/** Whether `key` sits inside one of `items` of `box`. */
+function under(
+  pathOf: ReadonlyMap<ElementKey, Step[]>,
+  key: ElementKey,
+  box: ArrangeBoxIR,
+  items: readonly ArrangeItemIR[],
+): boolean {
+  return (pathOf.get(key) ?? []).some((s) => s.box === box && items.includes(s.item));
+}
+
+/** `figure.layout.align[2] (x: [envs, rl])`, for messages. */
+function constraintName(ir: FigureIR, c: AlignIR): string {
+  const items = c.items.map((k) => refOf(ir, k)).join(", ");
+  const at = c.at === "center" ? "" : `, at: ${c.at}`;
+  return `${formatDocPath(c.srcAt.path)} (${c.axis}: [${items}]${at})`;
+}
+
+/** The diagnostic's place: the first constraint, the others as related. */
+function placedAt(
+  ir: FigureIR,
+  causes: readonly AlignIR[],
+): Pick<Diagnostic, "path" | "location" | "related"> {
+  const first = causes[0];
+  if (first === undefined) return { path: ["figure", "layout", "align"] };
+  const related: RelatedInformation[] = causes.slice(1).map((c) => ({
+    path: c.srcAt.path,
+    ...(c.srcAt.location !== undefined && { location: c.srcAt.location }),
+    message: `${constraintName(ir, c)} added space here too.`,
+  }));
+  return {
+    path: first.srcAt.path,
+    ...(first.srcAt.location !== undefined && { location: first.srcAt.location }),
+    ...(related.length > 0 && { related }),
+  };
+}
+
+/**
+ * The `move` a hint suggests: the items of `c` outside the part that moved
+ * (`moved`), when `c` has items on both sides and names no `move` yet.
+ */
+function moveSuggestion(
+  ir: FigureIR,
+  c: AlignIR | undefined,
+  moved: (key: ElementKey) => boolean,
+): string {
+  if (c === undefined || c.move !== undefined) return "";
+  const others = c.items.filter((k) => !moved(k));
+  if (others.length === 0 || others.length === c.items.length) return "";
+  const refs = others.map((k) => refOf(ir, k));
+  const value = refs.length === 1 ? refs[0] : `[${refs.join(", ")}]`;
+  return ` To move the other side instead, add \`move: ${value}\` to ${formatDocPath(c.srcAt.path)} (not checked by a trial layout).`;
+}
+
+/**
+ * `layout/align-widened-gap` (#646): a gap between two items of a stack or
+ * row that a strut made much wider than without it. The constraint is met, but
+ * that gap no longer matches the written spacing of its neighbours, and
+ * nothing else says why (#639 run 6).
+ */
+function widenedGaps(
+  ir: FigureIR,
+  constraints: readonly AlignIR[],
+  struts: Struts,
+  plain: LayoutIR,
+  layout: LayoutIR,
+  pathOf: ReadonlyMap<ElementKey, Step[]>,
+): Diagnostic[] {
+  const { parent } = placementOf(ir);
+  const before = rectsOf(plain);
+  const after = rectsOf(layout);
+  // `owners`: the items whose struts widened the gap (the item after it for a lead, before it for a trail).
+  const pairs: {
+    box: ArrangeBoxIR;
+    first: ArrangeItemIR;
+    second: ArrangeItemIR;
+    owners: StrutAt[];
+  }[] = [];
+  for (const [side, map] of [
+    ["lead", struts.lead],
+    ["trail", struts.trail],
+  ] as const) {
+    for (const [item, value] of map) {
+      if (value <= ALIGN_EPSILON || item === null) continue;
+      const box = parent.get(item);
+      if (box === undefined || (box.kind !== "stack" && box.kind !== "row")) continue;
+      const reversed = box.direction === "left" || box.direction === "up";
+      const order = (reversed ? [...box.items].reverse() : [...box.items]).filter(
+        (i) => i !== null,
+      );
+      const index = order.indexOf(item);
+      const other = order[side === "lead" ? index - 1 : index + 1];
+      if (index < 0 || other === undefined) continue;
+      const [first, second] = side === "lead" ? [other, item] : [item, other];
+      // Cells of one tokens row pulled apart are layout/align-splits-tokens already.
+      const tokensOf = (i: ArrangeItemIR) =>
+        typeof i === "string" ? ir.elements.get(i as ElementKey) : undefined;
+      const a = tokensOf(first);
+      const b = tokensOf(second);
+      if (
+        a?.kind === "node" &&
+        b?.kind === "node" &&
+        a.tokens !== undefined &&
+        a.tokens.id === b.tokens?.id
+      )
+        continue;
+      const known = pairs.find((p) => p.first === first && p.second === second);
+      // Only this kind at this item widened the gap: a lead before the second, a trail after the first.
+      const owner: StrutAt = { kind: side, item };
+      if (known !== undefined) known.owners.push(owner);
+      else pairs.push({ box, first, second, owners: [owner] });
+    }
+  }
+  const out: Diagnostic[] = [];
+  for (const { box, first, second, owners } of pairs) {
+    const vertical = box.kind === "stack";
+    const gapIn = (
+      rects: ReadonlyMap<ElementKey, Rect>,
+      x: ArrangeItemIR = first,
+      y: ArrangeItemIR = second,
+    ) => {
+      const a = extentOf(x, rects);
+      const b = extentOf(y, rects);
+      if (a === undefined || b === undefined) return undefined;
+      return vertical ? b.y - (a.y + a.height) : b.x - (a.x + a.width);
+    };
+    const was = gapIn(before);
+    const now = gapIn(after);
+    if (was === undefined || now === undefined) continue;
+    // Thresholds on the measured values; rounding is for the message only.
+    const [wasMm, nowMm] = [was * MM_PER_UNIT, now * MM_PER_UNIT];
+    if (!widened(wasMm, nowMm)) continue;
+    const [b, a] = [wasMm.toFixed(2), nowMm.toFixed(2)];
+    // It must also stand out from the other gaps of its box: gaps that all grew alike (a
+    // U-Net's levels pushed down for straight skips) read as one spacing.
+    const reversed = box.direction === "left" || box.direction === "up";
+    const order = (reversed ? [...box.items].reverse() : [...box.items]).filter((i) => i !== null);
+    const siblings = order.slice(1).flatMap((item, i) => {
+      const prev = order[i] as ArrangeItemIR;
+      if (prev === first && item === second) return [];
+      const g = gapIn(after, prev, item);
+      return g === undefined ? [] : [g * MM_PER_UNIT];
+    });
+    if (siblings.length > 0) {
+      const least = Math.min(...siblings);
+      if (!widened(least, nowMm)) continue;
+    }
+    const causes = causesOf(constraints, struts, owners);
+    const moved = (key: ElementKey) =>
+      under(
+        pathOf,
+        key,
+        box,
+        owners.map((o) => o.item),
+      );
+    const why =
+      causes.length > 0 ? `, for ${causes.map((c) => constraintName(ir, c)).join(" and ")}` : "";
+    out.push({
+      code: "layout/align-widened-gap",
+      severity: "info",
+      message:
+        box.growFirst === true
+          ? `figure.layout.align moves the caption of ${itemName(ir, first)} away from its frame: the gap between them grows from ${b}mm to ${a}mm${why}.`
+          : `figure.layout.align widens the gap between ${itemName(ir, first)} and ${itemName(ir, second)} in their ${box.kind} from ${b}mm to ${a}mm${why}.`,
+      ...placedAt(ir, causes),
+      subject: { kind: "figure", id: ir.meta.id },
+      hint: `The space that aligns the items lands in this one gap, so it is longer than the written gaps next to it.${moveSuggestion(ir, causes[0], moved)} If the longer gap is intended, set figure.layout.alignGrowth: allow. Otherwise write a gap that leaves room for the alignment, put the items closer in the arrange trees, or drop the constraint.`,
+    });
+  }
+  return out;
+}
+
+/**
+ * `layout/align-uneven-stretch` (#646): frames that a stack or row with
+ * `align: stretch` gave one size across it (panels of one height) differ in
+ * size after the struts, because space added inside one of them changed it
+ * after the box set the size (#639 run 1: a strut after a panel in its
+ * caption's stack). The constraint is met, but the frames no longer match.
+ */
+function unevenStretch(
+  ir: FigureIR,
+  constraints: readonly AlignIR[],
+  struts: Struts,
+  plain: LayoutIR,
+  layout: LayoutIR,
+  pathOf: ReadonlyMap<ElementKey, Step[]>,
+): Diagnostic[] {
+  const { align } = placementOf(ir);
+  const holder = holders(ir);
+  // Every strut, of any kind: space of any kind inside a stretched frame can change it.
+  const all: StrutAt[] = (["lead", "trail", "crossLead", "crossTrail"] as const).flatMap((kind) =>
+    [...struts[kind].entries()]
+      .filter(([, value]) => value > ALIGN_EPSILON)
+      .map(([item]) => ({ kind, item })),
+  );
+  const before = rectsOf(plain);
+  const after = rectsOf(layout);
+  const out: Diagnostic[] = [];
+  for (const [box, effective] of align) {
+    if (effective !== "stretch" || (box.kind !== "stack" && box.kind !== "row")) continue;
+    const vertical = box.kind === "stack";
+    const across = (r: Rect) => (vertical ? r.width : r.height);
+    const frames: { item: ArrangeItemIR; key: ElementKey; was: number; now: number }[] = [];
+    for (const item of box.items) {
+      if (item === null) continue;
+      // A group with a caption sits in its caption's stack (#130), whose first item is the group.
+      const key =
+        typeof item === "string"
+          ? item
+          : item.growFirst === true && typeof item.items[0] === "string"
+            ? item.items[0]
+            : undefined;
+      if (key === undefined) continue;
+      const element = ir.elements.get(key);
+      if (element?.kind === "node" && element.component === SEPARATOR_ID) continue;
+      // Only what the box really stretches (the engine's rule): a node with an explicit
+      // size across the box, an outline, badge or glyphs, or a fixed shape keeps its own.
+      if (
+        typeof item === "string" &&
+        !crossStretchable(element?.kind === "node" ? element : undefined, vertical)
+      )
+        continue;
+      const was = before.get(key);
+      const now = after.get(key);
+      if (was === undefined || now === undefined) continue;
+      frames.push({ item, key, was: across(was), now: across(now) });
+    }
+    if (frames.length < 2) continue;
+    const stretched = frames;
+    if (stretched.length < 2) continue;
+    const full = Math.max(...frames.map((f) => f.was));
+    const sizes = stretched.map((f) => f.now * MM_PER_UNIT);
+    const top = Math.max(...sizes);
+    if (top - Math.min(...sizes) <= ALIGN_UNEVEN_MM) continue;
+    const off = stretched.filter((f) => f.now * MM_PER_UNIT < top - ALIGN_UNEVEN_MM);
+    const rest = stretched.filter((f) => !off.includes(f));
+    const list = (fs: typeof stretched) => fs.map((f) => `"${refOf(ir, f.key)}"`).join(", ");
+    const word = vertical ? "wide" : "tall";
+    const offSizes = [...new Set(off.map((f) => (f.now * MM_PER_UNIT).toFixed(2)))];
+    const offText = `${list(off)} ${off.length === 1 ? "is" : "are"} ${offSizes.join("–")}mm ${word}`;
+    // The struts that changed a frame lie inside one; blame the constraints that put them there.
+    const hit = stretched.filter((f) => all.some((s) => inside(holder, s.item, f.item)));
+    const causes = causesOf(
+      constraints,
+      struts,
+      all.filter((s) => hit.some((f) => inside(holder, s.item, f.item))),
+    );
+    // The suggestion keeps the frames that fell short of the others still.
+    const moved = (key: ElementKey) =>
+      under(
+        pathOf,
+        key,
+        box,
+        off.map((f) => f.item),
+      );
+    const who =
+      causes.length > 0
+        ? causes.map((c) => constraintName(ir, c)).join(" and ")
+        : "figure.layout.align";
+    out.push({
+      code: "layout/align-uneven-stretch",
+      severity: "info",
+      message: `${who} ${causes.length > 1 ? "leave" : "leaves"} the frames of a ${box.kind} with align: stretch uneven: ${offText}, ${list(rest)} ${top.toFixed(2)}mm (all ${(full * MM_PER_UNIT).toFixed(2)}mm without it).`,
+      ...placedAt(ir, causes),
+      subject: { kind: "figure", id: ir.meta.id },
+      hint: `Space that align adds inside a stretched frame changes that frame after the ${box.kind} has given its items one size, so the frames no longer match.${moveSuggestion(ir, causes[0], moved)} Otherwise align items outside the stretched frames, place the content with contentAlign instead of align, or drop the constraint.`,
+    });
   }
   return out;
 }
@@ -630,7 +1105,7 @@ export function grewFigure(
     message: `figure.layout.align made the figure ${sides.join(" and ")} than the layout without it.`,
     path: ["figure", "layout", "align"],
     subject: { kind: "figure", id: ir.meta.id },
-    hint: "A strut only adds space, and the space it adds before an item moves the items after it and grows the boxes around it. If that space is intended, set figure.layout.alignGrowth: allow. If it is not wanted, align an item that sits in a shorter branch (wrap it in a stack or row of its own so that it can move alone), put the items closer in the arrange trees, or drop the constraint.",
+    hint: "A strut only adds space, and the space it adds before an item moves the items after it and grows the boxes around it. If that space is intended, set figure.layout.alignGrowth: allow. If it is not wanted, align an item that sits in a shorter branch (wrap it in a stack or row of its own so that it can move alone, and name it in the constraint's move), put the items closer in the arrange trees, or drop the constraint.",
   };
 }
 
@@ -692,6 +1167,12 @@ function unsatisfied(
       : movable
         ? `Other align constraints or the arrangement keep them apart: a strut only adds space, and it moves the items after it in its ${box} too. Check the constraints that share these elements (they may contradict each other), or align other elements.`
         : `"${id(first)}" and "${id(last)}" cannot be moved apart: a strut goes only in a ${box} that holds just one of them, never inside a box with gap: 0, and it moves the items after it in its ${box} too. Put them in different ${box}s, or align other elements.`;
+  // `move` (#646) keeps the other items still, which can leave no way to meet the constraint.
+  // Not after a grid hint: its tail is swapped for a verified edit (align-hint.ts).
+  const moveTail =
+    c.move === undefined || gridItems.length > 0
+      ? ""
+      : ` Only ${c.move.map((k) => `"${refOf(ir, k)}"`).join(", ")} may move (move): a strut only adds space before or after an item, so an item that has to travel back toward the start of its box cannot; name another item in move, or drop move.`;
   const related: RelatedInformation[] = [];
   for (const [i, other] of constraints.entries()) {
     if (i === index || !other.items.some((k) => c.items.includes(k))) continue;
@@ -708,7 +1189,7 @@ function unsatisfied(
     path: c.srcAt.path,
     ...(c.srcAt.location !== undefined && { location: c.srcAt.location }),
     subject: { kind: "figure", id: ir.meta.id },
-    hint,
+    hint: `${hint}${moveTail}`,
     ...(related.length > 0 && { related }),
   };
 }

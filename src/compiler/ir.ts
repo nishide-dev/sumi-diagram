@@ -253,6 +253,11 @@ export interface AlignIR {
   readonly at: AlignPosition;
   /** Nodes or groups, as written (at least two, each once). */
   readonly items: readonly ElementKey[];
+  /**
+   * `move` (#646): the items that may take struts to meet this constraint
+   * (a subset of `items`); omitted means any item.
+   */
+  readonly move?: readonly ElementKey[];
   /** Where the constraint is written (`figure.layout.align[i]`), for diagnostics. */
   readonly srcAt: SourceMapEntry;
 }
@@ -1698,10 +1703,14 @@ function alignIR(
   srcAt: SourceMapEntry,
 ): AlignIR {
   const axis = constraint.x !== undefined ? "x" : "y";
+  const move = constraint.move;
   return freeze({
     axis,
     at: constraint.at ?? "center",
     items: freeze((constraint[axis] ?? []).map(keyOf)),
+    ...(move !== undefined && {
+      move: freeze((typeof move === "string" ? [move] : move).map(keyOf)),
+    }),
     srcAt,
   });
 }

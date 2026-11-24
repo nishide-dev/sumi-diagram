@@ -31,7 +31,9 @@ In `sumi lint --json` diagnostics are under `results[i].diagnostics`; in
 - `path` is the place in the YAML to change (`["edges", 0, "to"]` = the `to` of
   the first edge); `location` is the same as line/column.
 - `hint`, when present, lists valid values or a near match (edit distance), or a
-  **verified** remedy (below). Prefer it over your own guess.
+  remedy. A remedy is **verified** only where the hint says so (below); others,
+  such as the `move` an align hint suggests, say they are not checked by a trial
+  layout: render again after applying one. Prefer a hint over your own guess.
 - `summary` has `errors` / `warnings` / `infos`; exit code 1 means errors (or
   more warnings than `--max-warnings`). Infos (`lint/self-loop`,
   `layout/edge-crossing`) never fail a run: read them, fix what is easy, report the rest.
@@ -52,7 +54,8 @@ only after applying it to an in-memory copy and re-running layout and routing
 (at most six trials per diagnostic; bounded by element and arrange-tree size).
 Width/scaling and empty-area trials support inline SVGs (`props.svg` and
 `figure.assets`) and bundled icons. They skip external asset files and HTML;
-the hint states the reason. A hint without a verified edit is neutral wording.
+the hint states the reason. A hint without a verified edit is neutral wording,
+or says the edit it suggests was not checked (the align side-effect hints).
 Apply one edit and re-check: independent savings are not additive.
 
 ## By stage
@@ -144,9 +147,12 @@ Apply one edit and re-check: independent savings are not additive.
 | `layout/unknown-align-item`, `layout/duplicate-align-item`, `layout/invalid-align` | an `align` entry names no node or group (edges cannot be aligned), names one twice, or has fewer than two IDs; an entry with both or neither of `x` / `y` is `schema/invalid-value` ([align](structured.md#aligning-across-trees)) |
 | `layout/unsatisfied-align` (render, warning) | the constraint could not be met; drawn closest, the message gives the distance | follow the hint: items share a box (use different boxes or wrap one in its own `stack` / `row`; an item directly in a stack moves sideways, one in a row up or down, without a wrapper) or another constraint pulls them apart; for table headings `align: start` on the parent row |
 | `layout/align-search-limit` (render, warning) | too many constraints: remove ones the boxes already satisfy, or split the figure |
-| `layout/align-splits-tokens` (render, warning) | `align` named a cell of a one-line `tokens` row and added space between its cells | align the whole sequence (`at: start` / `end`) or give both rows the same cell width and `gap` |
+| `layout/align-splits-tokens` (render, warning) | `align` named a cell of a one-line `tokens` row and added space between its cells | `move: <the other item>` (e.g. a note) so it moves instead of the cell, align the whole sequence (`at: start` / `end`), or give both rows the same cell width and `gap` |
 | `layout/center-on-void` (render, info) | `centerOn` reserved more than 5mm (and a quarter of the box) of empty room on its short side | keep it if intended; else drop `centerOn` and use `align`, or move inputs to the empty side |
-| `layout/align-grew-figure` (render, info) | `align` struts made the figure much larger (more than 5mm and 10%); keep if intended (`figure.layout.alignGrowth: allow` silences it), else align an item that can move alone, or drop the constraint |
+| `layout/align-grew-figure` (render, info) | `align` struts made the figure much larger (more than 5mm and 10%); keep if intended (`figure.layout.alignGrowth: allow` silences it), else align an item that can move alone (name it in the constraint's `move`), or drop the constraint |
+| `layout/align-widened-gap` (render, info) | `align` widened one gap of a stack / row (by more than 3mm, to more than 1.5× its width without align and past the other gaps of that box), or pushed a caption away from its panel; the message names the gap, both widths and the constraint | keep if intended (`alignGrowth: allow` silences it), else `move: <other item>` on the constraint (the hint names it), a `gap` that leaves room, or drop the constraint |
+| `layout/align-uneven-stretch` (render, info) | panels that a row / stack with `align: stretch` gave one size no longer match, because `align` added space inside one of them | `move: <item outside that panel>` (the hint names it), `contentAlign` instead of the constraint, or drop it |
+| `layout/invalid-align-move` | an `align` constraint's `move` names an ID that is not one of its items | name one of its `x` / `y` items, or add the ID to them |
 | `layout/edge-label-overlap` (render, warning) | an edge label with `labelAt` / `labelSide` has no clear spot: the other `labelSide`, another `labelAt`, neither, or make room (`gap`, anchors, shorter label) |
 | `layout/group-title-offset` (render, info) | aligned group frames have offset contents because of title space: align the connected nodes with `figure.layout.align: [{y: [source, target]}]`, or use a caption/untitled frame |
 | `layout/match-width-unmet` (render, warning) | nodes with one `matchWidth` end up with different widths because an `align: stretch` widened another member | use matchWidth or stretch for them, not both ([equal widths](structured.md#arrange-trees)) |
