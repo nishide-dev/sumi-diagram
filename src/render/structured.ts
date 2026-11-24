@@ -795,7 +795,19 @@ export interface PaintedEdge {
  * `roundCorners()`). The geometry lint measures edges on this.
  */
 export function paintedEdges(ir: FigureIR, layout: LayoutIR): Map<ElementKey, PaintedEdge> {
-  return wires(ir, layout).painted;
+  const painted = wires(ir, layout).painted;
+  // The brackets of `block` ends (#642) are painted in the edge's group: the lint measures them
+  // as part of the edge (crossing a node, a label or another line).
+  for (const edge of layout.edges) {
+    const brackets = edge.route?.brackets;
+    if (brackets === undefined || brackets.length === 0) continue;
+    const own = painted.get(edge.key) ?? { pieces: [], arcs: [] };
+    const pieces = brackets.flatMap((b) =>
+      b.slice(1).map((to, i): [Point, Point] => [b[i] as Point, to]),
+    );
+    painted.set(edge.key, { ...own, pieces: [...own.pieces, ...pieces] });
+  }
+  return painted;
 }
 
 /**

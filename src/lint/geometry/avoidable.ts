@@ -166,12 +166,19 @@ function straightOffsets(
 const anchorText = (side: Side, offset: number) =>
   Math.abs(offset - 0.5) < 1e-9 ? side : `${side}:${offset}`;
 
+/**
+ * A side anchor written on an end, to tune. A `block` end (#642) is written too, but fixed:
+ * it holds the middle of the whole element, so the hints never rewrite it ({@link isBlockEnd}).
+ */
 const writtenAnchor = (edge: EdgeIR, field: "fromAnchor" | "toAnchor"): Anchor | undefined => {
-  // A `block` end (#642) holds the middle of the whole element: not a position to tune.
-  if ((field === "fromAnchor" ? edge.fromBlock : edge.toBlock) === true) return undefined;
+  if (isBlockEnd(edge, field)) return undefined;
   const value = edge[field];
   return typeof value === "object" ? value : undefined;
 };
+
+/** Whether the end is written `block` / `block:<side>` (#642): an anchor no hint may change. */
+const isBlockEnd = (edge: EdgeIR, field: "fromAnchor" | "toAnchor"): boolean =>
+  (field === "fromAnchor" ? edge.fromBlock : edge.toBlock) === true;
 
 /** The box an element is routed to: its shape's, or its text's for a label. */
 export function boxOf(element: GeometryElement | undefined): Rect | undefined {
@@ -355,6 +362,9 @@ function anchorFix(
   const fromAnchor = writtenAnchor(edge, "fromAnchor");
   const toAnchor = writtenAnchor(edge, "toAnchor");
   if (fromAnchor === undefined && toAnchor === undefined) return undefined;
+  // A `block` end (#642) stays where it is, like an end the router placed: the hint may only
+  // line the other end up with it, never write the block's field.
+  const fixed = (w: Write) => isBlockEnd(edge, w.field);
   // An anchor at a corner (offset 0 or 1) draws a deliberate shape, such as
   // a zoom callout's lines: not a position that missed by a little.
   if (
@@ -519,6 +529,7 @@ function anchorFix(
   }
   // Only what the router, given the anchors, is seen to draw.
   for (const c of candidates) {
+    if (c.writes.some(fixed)) continue;
     if (c.bends >= bends || !verified(context, edge, c.writes, c.bends)) continue;
     return {
       bends: c.bends,
@@ -762,7 +773,9 @@ export const avoidableBend = defineGeometryRule({
       if (tiny.length > 0 && !inGroup(context, element, points)) {
         const anchored =
           writtenAnchor(edge, "fromAnchor") !== undefined ||
-          writtenAnchor(edge, "toAnchor") !== undefined;
+          writtenAnchor(edge, "toAnchor") !== undefined ||
+          isBlockEnd(edge, "fromAnchor") ||
+          isBlockEnd(edge, "toAnchor");
         findings.push({
           message: `${capitalize(element.name)} has ${tiny.length === 1 ? "a step" : `${tiny.length} steps`} of ${tiny.map((l) => mmText(context, l)).join(", ")} between two bends (under 2mm): a jog that reads as a mistake.`,
           path: element.docPath,

@@ -49,9 +49,12 @@ const competes = (e: GeometryElement): e is GeometryElement & { ir: EdgeIR } =>
  * The side of the edge's route (facing from source to target) the label's
  * centre is on, at the route's segment nearest to it; `undefined` on the line.
  */
-function sideOfLabel(edge: GeometryElement, at: Point): "left" | "right" | undefined {
+export function labelSideOf(
+  route: readonly (readonly Point[])[],
+  at: Point,
+): "left" | "right" | undefined {
   let best: { d: number; cross: number } | undefined;
-  for (const line of edge.route ?? []) {
+  for (const line of route) {
     for (let i = 0; i + 1 < line.length; i++) {
       const a = line[i] as Point;
       const b = line[i + 1] as Point;
@@ -109,7 +112,7 @@ export const edgeLabelAmbiguous = defineGeometryRule({
       if (rival === undefined) continue;
       const xs = inks.flatMap((r) => [r.x, r.x + r.width]);
       const ys = inks.flatMap((r) => [r.y, r.y + r.height]);
-      const side = sideOfLabel(edge, {
+      const side = labelSideOf(edge.route ?? [], {
         x: (Math.min(...xs) + Math.max(...xs)) / 2,
         y: (Math.min(...ys) + Math.max(...ys)) / 2,
       });

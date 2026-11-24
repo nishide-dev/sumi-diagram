@@ -22,6 +22,9 @@
   - SVG ではエッジの `<g>` の中の `<path class="sumi-edge-bracket">`（線の色と太さ、破線の辺でも実線、角は直角）。編集可能 PPTX は開いた freeform として描く。
 - 枠のあるグループ（`default` など）には括弧を描かない。枠が全体を示しているので、辺の中央から出せば足りる。
 - `block` をノード（tokens のセル、cuboid のブロックを含む）の端に書くと `layout/block-anchor`（error）。tokens と matrix を展開したあと（`checkFigure` の `expandTokens` の直後）に調べる。セルなら hint で「`from: query` のように tokens 全体を書く」と言う。
+- `route: straight` / `curve` の辺と `zoom` の辺の `block` も `layout/block-anchor`（error。どちらの端でも）。直線・曲線は自分で端の点を決め（`diagonal.ts` / `curve.ts`）、辺の中央に固定する仕組みも、括弧の棒まで端を外へ縮める仕組み（直交の最後の直線の区間を使う）も効かない。ズーム線は角どうしを結び、アンカーを取らない。支えるには直線・曲線の端の決め方と括弧の位置を別に設計する必要があり、使い道（tokens 全体からの斜めの線）も見当たらないので、黙って崩すより拒むことにした。
+- lint との関係: 括弧は配線のあとで足すので、ルーターの診断（`layout/edge-crossing`、ラベルの重なり、見出しをまたぐ線）は括弧を見ない。そのかわり geometry lint は括弧を辺の一部として測る。`paintedEdges` が括弧の線分を辺の描いた線（`drawn`）に足すので、`edge-near-edge`・`edge-touches-label`・`edge-label-ambiguous`・ラベルの浮きの測定が括弧を含む。経路で交差を見る `edge-crosses-label` と `edge-through-node` は、経路に加えて括弧（`EdgeRoute.brackets`）も調べる。自分の tokens・matrix のセルは爪が 1pt 手前で止まるので除く（セルに attach した注記は除かない）。
+- `geometry/avoidable-bend` は `block` の端を、書いたが動かせないアンカーとして扱う。hint は `block` の欄を書き換える案を出さず、もう一方の端を `block` の端に揃える案だけを確かめる（確かめる IR は `fromBlock` / `toBlock` をそのまま持つ）。
 
 ### 2. グループから出る線
 
@@ -43,8 +46,8 @@ structured のエッジのラベルについて、字（行ごとのグリフの
 
 確かめた編集がないときの文を「`labelStyle: tag` で線の上に載せる」から始め、次の具体的な置き場所を足した。
 
-- 線の最も長い直線の区間の長さと、ラベルを脇に置くのに要る長さ（その向きの字の長さ＋両端のラベルの間隔＋矢じり）。
-- 区間をどれだけ延ばせばよいか。札（字の長さ＋矢じり）がその区間に収まるなら「`labelStyle: tag` が収まる」、収まらなければ「札もこれだけ要る、ラベルを短くする」。
+- 線の最も長い直線の区間の長さと、ラベルを脇に置くのに要る長さ。ルーターの置き方（`placeRequestedLabel`）に合わせ、その向きのラベルの行の箱の長さ＋両端のラベルの間隔＋その区間の端にある矢じり（`spanNeeds`）。
+- 区間をどれだけ延ばせばよいか。札は行の箱に余白を足した枠（`tagBox`）＋両端の間隔＋矢じりで測り、その区間に収まるなら「`labelStyle: tag` が収まる」、収まらなければ「札もこれだけ要る、ラベルを短くする」。
 - 区間が十分に長い（別の理由で浮いた）ときは何も足さない。
 
 ### 5. Skill

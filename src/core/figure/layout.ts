@@ -140,18 +140,48 @@ export function checkBlockAnchors(state: CheckState, locate: Locator): void {
       [edge.to, "toAnchor"],
     ] as const) {
       const value = edge[field];
-      if (value === undefined || parseBlockAnchor(value) === undefined || groups.has(end)) continue;
+      if (value === undefined || parseBlockAnchor(value) === undefined) continue;
+      const name = edge.id ?? `edges[${index}]`;
+      const subject = { kind: "edge", id: name } as const;
+      // The bracket and the middle of the side belong to the orthogonal router: a straight
+      // segment or a curve aims at its own point, and a zoom edge joins corners.
+      const zoom = state.components?.get(key)?.manifest;
+      const routing =
+        zoom?.kind === "edge" && zoom.routing === "zoom"
+          ? `a zoom edge joins corners of its ends`
+          : edge.route !== undefined
+            ? `route: ${edge.route} draws its own ${edge.route === "curve" ? "curve" : "segment"} between the ends`
+            : undefined;
+      if (routing !== undefined) {
+        state.diagnostics.push(
+          errorAt(
+            locate,
+            "layout/block-anchor",
+            `${field} "${value}" of edge ${name} needs an orthogonal route: ${routing}, so it cannot meet the whole element at the middle of a side or draw its bracket.`,
+            ["edges", index, field],
+            {
+              subject,
+              hint: routing.startsWith("a zoom")
+                ? `Remove ${field}; a zoom edge takes no anchors.`
+                : `Remove route: ${edge.route} so the router draws the line (the default), or write a side anchor such as "south" instead of "${value}".`,
+            },
+          ),
+        );
+        invalid.add(key);
+        continue;
+      }
+      if (groups.has(end)) continue;
       const cell = doc.tokens?.find((t) => t.cells.some((c) => c.id === end));
       state.diagnostics.push(
         errorAt(
           locate,
           "layout/block-anchor",
           cell !== undefined
-            ? `${field} "${value}" of edge ${edge.id ?? `edges[${index}]`} is on one cell of tokens "${cell.id}"; "block" names a whole tokens row, matrix or group.`
-            : `${field} "${value}" of edge ${edge.id ?? `edges[${index}]`} is on node "${refOwner(end)}", which is one element already; "block" names a whole tokens row, matrix or group.`,
+            ? `${field} "${value}" of edge ${name} is on one cell of tokens "${cell.id}"; "block" names a whole tokens row, matrix or group.`
+            : `${field} "${value}" of edge ${name} is on node "${refOwner(end)}", which is one element already; "block" names a whole tokens row, matrix or group.`,
           ["edges", index, field],
           {
-            subject: { kind: "edge", id: edge.id ?? `edges[${index}]` },
+            subject,
             hint:
               cell !== undefined
                 ? `Name the tokens node as a whole (${field === "fromAnchor" ? "from" : "to"}: ${cell.id}) so the line meets the whole row with a bracket, or write a side anchor such as "north" for this cell.`

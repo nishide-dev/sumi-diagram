@@ -1449,7 +1449,10 @@ edges:
   sequence feeds the next block (query tokens into a decoder, a feature column into a
   head), since a line from the frame's middle otherwise touches one cell and reads as
   that cell's. Name the tokens node itself (`from: query`, not `query.3`); `block` on a
-  node or a cell is `layout/block-anchor` (error).
+  node or a cell, on a `route: straight` / `curve` edge or on a `zoom` is
+  `layout/block-anchor` (error). The geometry lint measures the bracket with its edge
+  (`edge-crosses-label`, `edge-through-node`, `edge-near-edge`): keep notes attached
+  to the cells clear of that side.
 
   ```yaml
   - {from: query, to: decoder, fromAnchor: block}      # bracket over the whole row

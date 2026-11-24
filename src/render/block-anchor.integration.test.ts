@@ -12,6 +12,8 @@ import { parseBlockAnchor } from "../core/figure/layout";
 import { ANCHOR_PATTERN } from "../core/figure/schema";
 import { BRACKET_ROOM } from "../layout/block-bracket";
 import type { EdgeLayout, Rect } from "../layout/ir";
+import { edgeArrowheadLength } from "../layout/route/arrowhead";
+import { labelGap, tagBox } from "../layout/route/labels";
 import {
   AMBIGUOUS_RATIO,
   EDGE_LABEL_AMBIGUOUS,
@@ -19,8 +21,13 @@ import {
   edgeLabelAmbiguous,
   geometryContextFor,
   inkLines,
+  labelSideOf,
   lintGeometry,
+  spanNeeds,
 } from "../lint/geometry";
+import { svgToPdf } from "./pdf";
+import { svgToEditablePptx } from "./pptx";
+import { readPptx } from "./pptx/testing";
 import { type RenderedStructuredFigure, renderFigure } from "./render";
 
 async function render(source: string) {
@@ -130,6 +137,62 @@ describe("block anchors (#642)", () => {
     expect(found[0]?.hint).toContain("from: query");
   });
 
+  test("route: straight / curve and zoom edges reject block, at either end", () => {
+    const codes = (source: string) =>
+      checkFigure(source)
+        .state.diagnostics.filter((d) => d.code === "layout/block-anchor")
+        .map((d) => d.path);
+    for (const route of ["straight", "curve"]) {
+      expect(codes(tokens(`, fromAnchor: block, route: ${route}`))).toEqual([
+        ["edges", 0, "fromAnchor"],
+      ]);
+      expect(
+        codes(
+          tokens("").replace(
+            "{from: query, to: dec}",
+            `{from: dec, to: query, toAnchor: block, route: ${route}}`,
+          ),
+        ),
+      ).toEqual([["edges", 0, "toAnchor"]]);
+    }
+    const zoom = tokens("").replace(
+      "{from: feat, to: dec}",
+      "{from: feat, to: dec, component: zoom, toAnchor: block}",
+    );
+    expect(codes(zoom)).toEqual([["edges", 1, "toAnchor"]]);
+  });
+
+  test("avoidable-bend never rewrites a block end", async () => {
+    const source = `version: 1
+figure:
+  id: mixed
+  theme: sumi
+  profile: paper-double
+  layout:
+    straighten: false
+    arrange:
+      stack:
+        gap: 8mm
+        items: [dec, query]
+nodes:
+  - {id: dec, component: box, label: Decoder, props: {width: 60mm}}
+  - id: query
+    component: tokens
+    props: {width: 6mm, gap: 1pt, cells: [u, v, t, s, c]}
+edges:
+  - {from: query, to: dec, fromAnchor: ANCHOR, toAnchor: "south:0.6"}
+`;
+    for (const anchor of ["block", '"block:north"']) {
+      const text = source.replace("ANCHOR", anchor);
+      const found = lintGeometry(await render(text), { source: text }).filter(
+        (d) => d.code === "geometry/avoidable-bend",
+      );
+      expect(found).toHaveLength(1);
+      expect(found[0]?.hint).toContain('toAnchor "south"');
+      expect(found[0]?.hint).not.toContain("fromAnchor");
+    }
+  });
+
   const group = (anchor: string) => `version: 1
 figure:
   id: group-ends
@@ -225,6 +288,55 @@ describe("geometry/edge-label-ambiguous (#642)", () => {
     expect(edgeLabelAmbiguous.run(await moved(tag, 1), undefined)).toEqual([]);
   });
 
+  test("the boundary is 1.75 times the distance to the own line", async () => {
+    expect(AMBIGUOUS_RATIO).toBe(1.75);
+    expect(edgeLabelAmbiguous.run(await moved(parallel, 1.7), undefined)).toHaveLength(1);
+    expect(edgeLabelAmbiguous.run(await moved(parallel, 1.8), undefined)).toEqual([]);
+  });
+
+  test("edges of one net, zoom lines and lifelines are exempt", async () => {
+    // One net: the routed layout gives both edges the same net.
+    const net = await moved(parallel, 1.2);
+    const layout = net.layout;
+    if (layout === undefined) throw new Error("no layout");
+    const shared = {
+      ...net,
+      layout: {
+        ...layout,
+        edges: layout.edges.map((e) =>
+          e.route === undefined ? e : { ...e, route: { ...e.route, net: 0 } },
+        ),
+      },
+    };
+    expect(edgeLabelAmbiguous.run(shared, undefined)).toEqual([]);
+    for (const change of [{ routing: "zoom" }, { lifeline: true }]) {
+      const context = await moved(parallel, 1.2);
+      const other = context.elements.filter((e) => e.ir.kind === "edge")[1];
+      if (other === undefined) throw new Error("no edge");
+      other.ir = { ...other.ir, ...change } as typeof other.ir;
+      expect(edgeLabelAmbiguous.run(context, undefined)).toEqual([]);
+    }
+  });
+
+  test("labelSide is read along the direction of travel in all four directions", () => {
+    const route = (dx: number, dy: number) => [
+      [
+        { x: 0, y: 0 },
+        { x: dx, y: dy },
+      ],
+    ];
+    // Rightward: above is left. Leftward: below is left.
+    expect(labelSideOf(route(10, 0), { x: 5, y: -3 })).toBe("left");
+    expect(labelSideOf(route(10, 0), { x: 5, y: 3 })).toBe("right");
+    expect(labelSideOf(route(-10, 0), { x: -5, y: 3 })).toBe("left");
+    expect(labelSideOf(route(-10, 0), { x: -5, y: -3 })).toBe("right");
+    // Downward: east is left. Upward: west is left.
+    expect(labelSideOf(route(0, 10), { x: 3, y: 5 })).toBe("left");
+    expect(labelSideOf(route(0, 10), { x: -3, y: 5 })).toBe("right");
+    expect(labelSideOf(route(0, -10), { x: -3, y: -5 })).toBe("left");
+    expect(labelSideOf(route(0, -10), { x: 3, y: -5 })).toBe("right");
+  });
+
   test("the figure as drawn has no ambiguous label", async () => {
     const r = await render(parallel);
     expect(lintGeometry(r).filter((d) => d.code === EDGE_LABEL_AMBIGUOUS)).toEqual([]);
@@ -256,5 +368,123 @@ edges:
     );
     expect(found[0]?.hint).toContain("lengthen the span by about");
     expect(found[0]?.hint).toContain("labelStyle: tag");
+  });
+
+  test("the run a label needs follows the router: line box or tag frame, gaps and arrowheads", () => {
+    const style = { strokeWidth: { units: 2 }, textScale: 1 } as never;
+    const label = { box: { x: 0, y: 0, width: 40, height: 12 }, fontSizeUnits: 12 } as never;
+    const points = [
+      { x: 0, y: 0 },
+      { x: 30, y: 0 },
+      { x: 30, y: 10 },
+    ];
+    const edge = { style, targetArrowhead: "triangle" } as never;
+    const needs = spanNeeds(edge, points, label);
+    const g = labelGap(style);
+    // The longest segment is the first: no arrowhead on it.
+    expect(needs).toEqual({
+      run: 30,
+      beside: 40 + 2 * g,
+      tag: tagBox({ x: 0, y: 0, width: 40, height: 12 }, { fontSizeUnits: 12 }).width + 2 * g,
+    });
+    // On the last segment, the target's arrowhead counts too.
+    const last = spanNeeds(
+      edge,
+      [
+        { x: 0, y: 0 },
+        { x: 0, y: 5 },
+        { x: 50, y: 5 },
+      ],
+      label,
+    );
+    expect(last?.beside).toBe(40 + 2 * g + edgeArrowheadLength(style));
+  });
+});
+
+describe("bracket geometry in the lint and the exports (#642)", () => {
+  const crossing = (attached: string) => `version: 1
+figure:
+  id: bracket-cross
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      stack: {gap: 10mm, items: [dec, query]}
+nodes:
+  - {id: dec, component: box, label: Decoder}
+  - id: query
+    component: tokens
+    props: {width: 8mm, gap: 1pt, cells: [u, v, t, s, c]}
+${attached}
+edges:
+  - {from: query, to: dec, fromAnchor: block}
+`;
+
+  test("a bracket across a label or a node is reported", async () => {
+    const label = await render(
+      crossing(
+        "  - {id: note, component: label, label: x, attach: {to: query.1, side: north, gap: 1pt}}",
+      ),
+    );
+    expect(lintGeometry(label).map((d) => d.code)).toContain("geometry/edge-crosses-label");
+    const node = await render(
+      crossing(
+        "  - {id: pin, component: box, label: '', props: {width: 3mm, height: 3mm}, attach: {to: query.1, side: north, gap: 1pt}}",
+      ),
+    );
+    expect(lintGeometry(node).map((d) => d.code)).toContain("geometry/edge-through-node");
+  });
+
+  test("the painted edge includes its bracket, so a line along the bar is near it", async () => {
+    const r = await render(tokens(", fromAnchor: block"));
+    const context = geometryContextFor(r);
+    const [block, other] = context.elements.filter((e) => e.ir.kind === "edge");
+    const bar = edgeOf(r, 0).route?.brackets?.[0];
+    if (block?.drawn === undefined || other === undefined || bar === undefined)
+      throw new Error("no bracket");
+    const [, p, q] = bar as { x: number; y: number }[];
+    if (p === undefined || q === undefined) throw new Error("no bar");
+    // The painted geometry holds the bar.
+    expect(
+      block.drawn.some((line) =>
+        line.some((a, i) => i > 0 && a.y === p.y && line[i - 1]?.y === p.y),
+      ),
+    ).toBe(true);
+    // Another line 1pt over the bar, along it: geometry/edge-near-edge.
+    other.drawn = [
+      [
+        { x: p.x, y: p.y - 2 },
+        { x: q.x, y: p.y - 2 },
+      ],
+    ];
+    const { edgeNearEdge } = await import("../lint/geometry/rules");
+    expect(edgeNearEdge.run(context, undefined).length).toBeGreaterThan(0);
+  });
+
+  test("PDF and editable PPTX keep the bracket", async () => {
+    const plain = await render(tokens(""));
+    const block = await render(tokens(", fromAnchor: block"));
+    const pdf = svgToPdf(block.svg);
+    if (!pdf.ok) throw new Error(JSON.stringify(pdf.diagnostics));
+    const plainPdf = svgToPdf(plain.svg);
+    expect(
+      plainPdf.ok && Buffer.compare(Buffer.from(plainPdf.value), Buffer.from(pdf.value)),
+    ).not.toBe(0);
+    const shapes = (
+      svg: string,
+      ir: typeof block.compiled.ir,
+      connectors: "freeform" | "glued",
+    ) => {
+      const result = svgToEditablePptx(svg, ir, { connectors });
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      const slide = new TextDecoder().decode(readPptx(result.value).get("ppt/slides/slide1.xml"));
+      return (slide.match(/<a:custGeom>/g) ?? []).length;
+    };
+    for (const connectors of ["freeform", "glued"] as const) {
+      // One open freeform more: the bracket.
+      expect(shapes(block.svg, block.compiled.ir, connectors)).toBe(
+        shapes(plain.svg, plain.compiled.ir, connectors) + 1,
+      );
+    }
   });
 });

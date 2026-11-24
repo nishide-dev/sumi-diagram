@@ -127,7 +127,7 @@ Apply one edit and re-check: independent savings are not additive.
 | `layout/plane-nested-group` | a group sits inside a tilted `plane` group, which holds nodes only: put the nodes in the plane, the group outside ([planes](structured.md#tilted-planes)) |
 | `layout/group-cycle`, `layout/attach-cycle` | a group placed inside itself, or attachments in a loop |
 | `layout/invalid-anchor` | `north`, `east`, `south`, `west`, optionally `:` and 0..1; or `straight` (no side); or `block` / `block:<side>` |
-| `layout/block-anchor` | `block` names a whole tokens row, matrix or group: on a node use a side anchor; on a cell name the tokens node itself (`from: query`) ([anchors](structured.md#edges-anchors-junctions-and-trunks)) |
+| `layout/block-anchor` | `block` names a whole tokens row, matrix or group on an orthogonal (routed) edge: on a node use a side anchor; on a cell name the tokens node itself (`from: query`); with `route: straight` / `curve` remove the route or write a side anchor; a `zoom` takes no anchors ([anchors](structured.md#edges-anchors-junctions-and-trunks)) |
 | `layout/no-route` with a `route: curve` self-loop | anchors on two sides, `straight`, or the same point; or a junction | both anchors on one side with different offsets, or one anchor; no `route` on a junction ([loops](structured.md#loops)) |
 | `layout/no-route` with `route: straight` | separate overlapping ends, choose anchors meeting their outlines and facing outwards, increase the gap for arrowheads, or omit `route` (also on zoom callouts); obstacle and label overlaps are geometry warnings |
 | `layout/attached-legend`, `layout/attached-tokens`, `layout/attached-matrix` | these cannot be attached: list them in an arrange tree |

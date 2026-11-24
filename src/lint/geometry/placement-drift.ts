@@ -35,13 +35,14 @@ import type { ElementKey } from "../../core/check-state";
 import { formatDocPath } from "../../core/diagnostics";
 import type { Point } from "../../core/geometry";
 import { asHintTrial, HintTrials, inHintTrial } from "../../layout/hint-trials";
+import type { Rect, TextLayout } from "../../layout/ir";
 import { edgeArrowheadLength } from "../../layout/route/arrowhead";
-import { hasRequestedLabel, labelGap } from "../../layout/route/labels";
+import { hasRequestedLabel, labelGap, tagBox } from "../../layout/route/labels";
 import { resolveLintConfig } from "../config";
 import { defineGeometryRule, isGeometryRule, type LintFinding } from "../rule";
 import { isDrawnEdge, isStructured, mmText } from "./common";
 import type { GeometryContext, GeometryElement } from "./context";
-import { inkGlyphs, inkLines } from "./measure";
+import { inkGlyphs } from "./measure";
 import { polylinesRectDistance } from "./proximity";
 import { newProblems, type Problems, routeTrial, type Trial, trialContext } from "./trial";
 
@@ -346,39 +347,69 @@ function findingsOf(context: GeometryContext, kind: Drift["kind"]): LintFinding[
 
 const cache = new WeakMap<GeometryContext, LabelVerdict[]>();
 
+/** The run a label needs (#642), in drawn units: see {@link spanNeeds}. */
+export interface SpanNeeds {
+  /** The longest straight segment of the route. */
+  readonly run: number;
+  /** What the label needs beside that segment. */
+  readonly beside: number;
+  /** What a tag (`labelStyle: tag`) needs on it. */
+  readonly tag: number;
+}
+
+/**
+ * How long a straight run a label needs, measured as the router places it
+ * (`placeRequestedLabel`, `labels.ts`): along the longest segment of the
+ * route, the label's extent (its line box; for a tag, the framed box
+ * `tagBox`) plus the label gap at each end plus the arrowheads at that
+ * segment's ends. `undefined` for a route without a segment.
+ */
+export function spanNeeds(
+  edge: Pick<EdgeIR, "style" | "sourceArrowhead" | "targetArrowhead">,
+  points: readonly Point[],
+  label: Pick<TextLayout, "box" | "fontSizeUnits">,
+): SpanNeeds | undefined {
+  let longest: { length: number; horizontal: boolean; index: number } | undefined;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1] as Point;
+    const b = points[i] as Point;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (longest === undefined || length > longest.length)
+      longest = { length, horizontal: Math.abs(b.x - a.x) >= Math.abs(b.y - a.y), index: i };
+  }
+  if (longest === undefined) return undefined;
+  const arrowhead = edgeArrowheadLength(edge.style);
+  const heads =
+    (longest.index === 1 && edge.sourceArrowhead !== undefined ? arrowhead : 0) +
+    (longest.index === points.length - 1 && edge.targetArrowhead !== undefined ? arrowhead : 0);
+  const along = (r: Rect) => (longest.horizontal ? r.width : r.height);
+  const room = heads + 2 * labelGap(edge.style);
+  return {
+    run: longest.length,
+    beside: along(label.box) + room,
+    tag: along(tagBox(label.box, label)) + room,
+  };
+}
+
 /**
  * A concrete placement (#642): how long the longest straight run of the
- * edge's line is, and how long a run the label needs beside it (its letters
- * along the run, the label gap at each end and an arrowhead), so the hint
- * can say by how much to lengthen the span. Empty when the run is already
- * long enough (the label drifted for another reason) or unknown.
+ * edge's line is and how long a run the label needs beside it
+ * ({@link spanNeeds}), so the hint can say by how much to lengthen the span
+ * and whether a tag fits. Empty when the run is already long enough (the
+ * label drifted for another reason) or unknown.
  */
 function spanAdvice(context: GeometryContext, edge: GeometryElement): string {
   const ir = edge.ir;
   if (ir.kind !== "edge") return "";
-  let longest: { length: number; horizontal: boolean } | undefined;
-  for (const line of edge.route ?? []) {
-    for (let i = 0; i + 1 < line.length; i++) {
-      const a = line[i] as Point;
-      const b = line[i + 1] as Point;
-      const length = Math.hypot(b.x - a.x, b.y - a.y);
-      if (longest === undefined || length > longest.length)
-        longest = { length, horizontal: Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) };
-    }
-  }
-  const inks = edge.labels.flatMap(inkLines);
-  if (longest === undefined || inks.length === 0) return "";
-  const extent = longest.horizontal
-    ? Math.max(...inks.map((r) => r.x + r.width)) - Math.min(...inks.map((r) => r.x))
-    : Math.max(...inks.map((r) => r.y + r.height)) - Math.min(...inks.map((r) => r.y));
-  const needed = extent + 2 * labelGap(ir.style) + edgeArrowheadLength(ir.style);
-  if (longest.length >= needed) return "";
-  const tag = extent + edgeArrowheadLength(ir.style);
-  const lengthen = `lengthen the span by about ${mmText(context, needed - longest.length, 1)} (a larger gap between its ends, or the ends further apart)`;
-  return `Its longest straight run is ${mmText(context, longest.length, 1)}, and the label needs about ${mmText(context, needed, 1)} beside it: ${
-    longest.length >= tag
+  const route = context.layout?.edges.find((e) => e.key === edge.key)?.route;
+  if (route?.label === undefined) return "";
+  const needs = spanNeeds(ir, route.points, route.label);
+  if (needs === undefined || needs.run >= needs.beside) return "";
+  const lengthen = `lengthen the span by about ${mmText(context, needs.beside - needs.run, 1)} (a larger gap between its ends, or the ends further apart)`;
+  return `Its longest straight run is ${mmText(context, needs.run, 1)}, and the label needs about ${mmText(context, needs.beside, 1)} beside it: ${
+    needs.run >= needs.tag
       ? `labelStyle: tag fits on that run, or ${lengthen}.`
-      : `${lengthen}; a tag needs about ${mmText(context, tag, 1)} of the run too, or shorten the label.`
+      : `${lengthen}; a tag needs about ${mmText(context, needs.tag, 1)} of the run too, or shorten the label.`
   }`;
 }
 

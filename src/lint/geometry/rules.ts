@@ -1005,6 +1005,14 @@ export function edgeCrossesLabelHint(context: GeometryContext, other: GeometryEl
   return `A container's label sits at its ${group.at}: if edges enter the container from ${from}, they can cross it when the label is wide. Move the label with labelAt (e.g. ${group.others}), shorten the label, connect elements inside the container instead of the container itself, or change layout.direction.`;
 }
 
+/** The brackets of an edge's `block` ends (#642), from the routed layout; none without one. */
+function bracketsOf(context: GeometryContext, edge: GeometryElement): Point[][] {
+  if (edge.ir.kind !== "edge" || (edge.ir.fromBlock !== true && edge.ir.toBlock !== true))
+    return [];
+  const route = context.layout?.edges.find((e) => e.key === edge.key)?.route;
+  return (route?.brackets ?? []).map((b) => [...b]);
+}
+
 export const edgeCrossesLabel = defineGeometryRule({
   id: "geometry/edge-crosses-label",
   description:
@@ -1014,8 +1022,9 @@ export const edgeCrossesLabel = defineGeometryRule({
   run(context) {
     const findings: LintFinding[] = [];
     for (const edge of context.elements) {
-      const { route } = edge;
-      if (route === undefined) continue;
+      if (edge.route === undefined) continue;
+      // The brackets of `block` ends (#642) are drawn with the edge.
+      const route = [...edge.route, ...bracketsOf(context, edge)];
       for (const other of context.elements) {
         if (other === edge) continue;
         const crossed = other.labels
@@ -1057,12 +1066,36 @@ export const edgeThroughNode = defineGeometryRule({
       // A zoom edge's straight lines are not routed around nodes (#176): zoom-crosses-node.
       if (edge.ir.routing === "zoom") continue;
       const ends = new Set([edge.ir.from, edge.ir.to]);
-      for (const key of obstaclesCrossedByRoute(
-        edge.route,
-        obstacles,
-        ends,
-        GEOMETRY_TOLERANCE_UNITS,
-      )) {
+      // The brackets of `block` ends (#642) face the cells of their own tokens row or matrix:
+      // those are left out (a node attached beside the row is not).
+      const brackets = bracketsOf(context, edge);
+      const endIds = new Set(
+        [...ends].flatMap((end) => {
+          const ir = context.get(end)?.ir;
+          return ir?.kind === "group" ? [ir.id] : [];
+        }),
+      );
+      const own = new Set(
+        brackets.length === 0
+          ? []
+          : obstacles
+              .filter((o) => {
+                const ir = context.get(o.key)?.ir;
+                const block = ir?.kind === "node" ? (ir.tokens?.id ?? ir.matrix?.id) : undefined;
+                return block !== undefined && endIds.has(block);
+              })
+              .map((o) => o.key),
+      );
+      const crossed = new Set([
+        ...obstaclesCrossedByRoute(edge.route, obstacles, ends, GEOMETRY_TOLERANCE_UNITS),
+        ...obstaclesCrossedByRoute(
+          brackets,
+          obstacles,
+          new Set([...ends, ...own]),
+          GEOMETRY_TOLERANCE_UNITS,
+        ),
+      ]);
+      for (const key of crossed) {
         const node = context.get(key) as GeometryElement;
         findings.push({
           message: `${capitalize(edge.name)} passes through the shape of ${node.name}.`,
@@ -1154,12 +1187,36 @@ export const zoomCrossesNode = defineGeometryRule({
       if (edge.route === undefined || edge.ir.kind !== "edge" || edge.ir.routing !== "zoom")
         continue;
       const ends = new Set([edge.ir.from, edge.ir.to]);
-      for (const key of obstaclesCrossedByRoute(
-        edge.route,
-        obstacles,
-        ends,
-        GEOMETRY_TOLERANCE_UNITS,
-      )) {
+      // The brackets of `block` ends (#642) face the cells of their own tokens row or matrix:
+      // those are left out (a node attached beside the row is not).
+      const brackets = bracketsOf(context, edge);
+      const endIds = new Set(
+        [...ends].flatMap((end) => {
+          const ir = context.get(end)?.ir;
+          return ir?.kind === "group" ? [ir.id] : [];
+        }),
+      );
+      const own = new Set(
+        brackets.length === 0
+          ? []
+          : obstacles
+              .filter((o) => {
+                const ir = context.get(o.key)?.ir;
+                const block = ir?.kind === "node" ? (ir.tokens?.id ?? ir.matrix?.id) : undefined;
+                return block !== undefined && endIds.has(block);
+              })
+              .map((o) => o.key),
+      );
+      const crossed = new Set([
+        ...obstaclesCrossedByRoute(edge.route, obstacles, ends, GEOMETRY_TOLERANCE_UNITS),
+        ...obstaclesCrossedByRoute(
+          brackets,
+          obstacles,
+          new Set([...ends, ...own]),
+          GEOMETRY_TOLERANCE_UNITS,
+        ),
+      ]);
+      for (const key of crossed) {
         const node = context.get(key) as GeometryElement;
         findings.push({
           message: `A line of ${edge.name} passes through the shape of ${node.name}.`,
@@ -1828,10 +1885,16 @@ export const edgeTouchesLabel = defineGeometryRule({
       for (const other of context.elements) {
         if (!isFreeText(other) || ends.has(other.key)) continue;
         const boxes = other.labels.flatMap((l) => l.visibleLines);
-        // Crossing the label is edge-crosses-label's (on the route, as it checks).
+        // Crossing the label is edge-crosses-label's (on the route and brackets, as it checks).
         if (
           boxes.length === 0 ||
-          boxes.some((box) => polylinesCrossRect(route, box, GEOMETRY_TOLERANCE_UNITS))
+          boxes.some((box) =>
+            polylinesCrossRect(
+              [...route, ...bracketsOf(context, edge)],
+              box,
+              GEOMETRY_TOLERANCE_UNITS,
+            ),
+          )
         )
           continue;
         // Room between the painted stroke and the letters' outlines.
