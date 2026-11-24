@@ -1,0 +1,149 @@
+<!doctype html>
+<!-- Mockup template: paste the sizes from Sumi, set the colours from the theme (see mockup.md), set the page size, draw. -->
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  /* Sizes: replace this block with `sumi catalog --sizes --css --profile <id> --theme <id>` (its @font-face
+     lines load the theme's bundled fonts). Never edit the values by hand. */
+  /* BEGIN SUMI SIZES */
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi Latin"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/inter/Inter-Bold.ttf"); font-weight: 700 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Regular.ttf"); font-weight: 400 }
+@font-face { font-family: "Sumi"; src: url("file:///private/tmp/claude-501/-Users-ryusei0623-projects-sumi-diagram/74e76402-151b-4c53-9b81-178b74b55e4d/scratchpad/v0200/sumi-0.20.0-darwin-arm64/share/sumi/fonts/biz-ud-gothic/BIZUDPGothic-Bold.ttf"); font-weight: 700 }
+/* sumi catalog --sizes --css --profile paper-double --theme sumi --text-scale 1 */
+:root {
+  --font: "Sumi Latin", "Sumi", "Inter", "BIZ UDPGothic", sans-serif;  /* font set sumi/inter-biz-ud-gothic */
+  --fs-node: 8;          /* pt: node text */
+  --fs-group: 9;         /* pt: group title */
+  --fs-edge: 7;          /* pt: edge label (profile minimum 7pt) */
+  --frame-w: 1;          /* pt: a node's frame */
+  --group-frame-w: 0.5;  /* pt: a group's frame */
+  --edge-w: 1;           /* pt: an edge */
+  --radius: 0pt;         /* a node's corners */
+  --gap: 4mm;            /* between the items of a row, stack or grid */
+  --group-pad: 2.82mm;   /* a group's padding, each side */
+  --node-pad-x: 2.47mm;  /* a box's padding left and right of its label */
+  --node-pad-y: 1.23mm;  /* a box's padding above and below its label */
+  --box-h: 6mm;          /* a one-line box's height */
+  --op: 5.64mm;          /* an operator */
+  --op-large: 8.47mm;    /* an operator, size: large */
+  --op-xlarge: 11.29mm;  /* an operator, size: xlarge */
+  --margin: 1.94mm;      /* around the figure */
+  --page-w: 180mm;       /* the profile's page width */
+}
+
+/* END SUMI SIZES */
+  :root {
+    --canvas: #ffffff; --ink: #30364f; --panel: #ffffff;       /* theme canvas, text/line colour, group fill */
+    --frame: #a9aebc;                                          /* group frame (sumi #a9aebc, sumi-dark #6f7791) */
+    --blue: #d9e4e6; --blue-line: #3d5d77; --green: #dce7d3; --green-line: #426344; --orange: #efdfce; --orange-line: #814b2d;                     /* one fill + one line per tone you use */
+    --gray: #e6e6e6; --gray-line: #555555;
+    --arrow: #30364f;                                          /* arrowhead / edge colour */
+    --pt: 0.3528mm;                                            /* 1pt */
+  }
+  @page { size: 180mm 100mm; margin: 0 }                       /* the real figure size */
+  html, body { margin: 0; background: var(--canvas) }
+  #fig { position: relative; width: 180mm; height: 100mm; overflow: hidden; font: calc(var(--fs-node) * var(--pt)) var(--font); color: var(--ink) }
+  /* left/top are the element's centre in mm: they map 1:1 to `place` with unit: 1mm (origin: body for groups).
+     Without a width a box takes Sumi's natural size: its label plus --node-pad-x, at least --box-h high. */
+  .box, .op, .group { position: absolute; box-sizing: border-box; translate: -50% -50% }
+  .box { display: flex; align-items: center; justify-content: center; text-align: center; white-space: pre;
+         min-height: var(--box-h); padding: var(--node-pad-y) var(--node-pad-x);
+         border: calc(var(--frame-w) * var(--pt)) solid var(--ink); background: var(--gray); border-radius: var(--radius) }
+  .tinted-green { background: var(--green); border-color: var(--green-line); color: var(--green-line) }
+  .white { background: #fff }
+  .muted { background:#fff; border-color:#8a90a0; color:#4e566b }
+  .sub { font-size: calc(7 * var(--pt)); display:block }
+  .tinted-blue { background: var(--blue); border-color: var(--blue-line) }
+  .op { width: var(--op); height: var(--op); border-radius: 50%; border: calc(var(--frame-w) * var(--pt)) solid var(--ink);
+        display: flex; align-items: center; justify-content: center }      /* .large: --op-large, .xlarge: --op-xlarge */
+  .op.large { width: var(--op-large); height: var(--op-large) }
+  .op.xlarge { width: var(--op-xlarge); height: var(--op-xlarge) }
+  .group { padding: var(--group-pad); background: var(--panel); border: calc(var(--group-frame-w) * var(--pt)) solid var(--frame) }
+  .group > .title { position: absolute; left: 0; bottom: 100%; font-weight: bold; font-size: calc(var(--fs-group) * var(--pt)) }  /* title above the border */
+  .overflow { outline: 0.6mm dashed red }                       /* set by the script below: Sumi would report geometry/label-overflow */
+  svg.edges { position: absolute; inset: 0; width: 180mm; height: 100mm; overflow: visible }
+  svg.edges path.e { fill: none; stroke: var(--arrow); stroke-width: calc(var(--edge-w) * 0.3528) }  /* inside the svg 1 unit = 1mm */
+  svg.edges text { font-size: calc(var(--fs-edge) * 0.3528px); fill: var(--ink) }  /* edge labels, in mm units */
+  svg.edges marker path { fill: var(--arrow) }
+</style>
+<div id="fig">
+  <div class="group" style="left:95mm; top:19mm; width:118mm; height:22mm"><div class="title">Tracker cluster (data centers)</div></div>
+  <div class="box white" style="left:58mm; top:19mm; width:28mm; height:12mm; flex-direction:column">Index map<span class="sub">video ID → Hdevices</span></div>
+  <div class="box white" style="left:96mm; top:19mm; width:26mm; height:12mm; flex-direction:column">Planner<span class="sub">caching targets</span></div>
+  <div class="box white" style="left:134mm; top:19mm; width:28mm; height:12mm; flex-direction:column">State DB<span class="sub">Hdevice status</span></div>
+  <div class="box white" style="left:16mm; top:60mm; width:24mm; height:18mm; flex-direction:column">▯<br>Client<span class="sub">app library</span></div>
+  <div class="group" style="left:158mm; top:63mm; width:38mm; height:50mm"><div class="title">Hdevices (~100k, idle)</div></div>
+  <div class="box tinted-green" style="left:158mm; top:50mm; width:32mm; height:8mm">▭ Set-top box</div>
+  <div class="box tinted-green" style="left:158mm; top:63mm; width:32mm; height:8mm">▭ Smart home</div>
+  <div class="box tinted-green" style="left:158mm; top:76mm; width:32mm; height:8mm">▭ Idle server</div>
+  <div class="box muted" style="left:90mm; top:90mm; width:32mm; height:8mm">☁ External CDN</div>
+  <div class="box white" style="left:52mm; top:80mm; width:52mm; height:9mm; border-color:#a9aebc; font-size:calc(7*var(--pt)); white-space:normal">— download (1–5) &nbsp; — distribution (a–f)</div>
+  <svg class="edges" viewBox="0 0 180 100">
+    <defs>
+      <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2" markerHeight="2" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z" style="fill:#3d5d77"/></marker>
+      <marker id="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="2" markerHeight="2" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,1 L10,5 L0,9z" style="fill:#814b2d"/></marker>
+    </defs>
+    <g style="stroke:#3d5d77" fill="none" stroke-width="0.35">
+      <path d="M74 90 H16 V69" marker-end="url(#b)"/>
+      <path d="M13 51 V21 H44" marker-end="url(#b)"/>
+      <path d="M44 17 H19 V51" marker-end="url(#b)"/>
+      <path d="M28 55 L139 45" marker-end="url(#b)"/>
+      <path d="M142 50 L28 59" marker-end="url(#b)"/>
+      <path d="M142 63 L28 61" marker-end="url(#b)"/>
+      <path d="M142 76 L28 63" marker-end="url(#b)"/>
+    </g>
+    <g style="stroke:#814b2d" fill="none" stroke-width="0.35">
+      <path d="M72 19 H83" marker-end="url(#o)"/>
+      <path d="M120 19 H109" marker-end="url(#o)"/>
+      <path d="M144 38 V25" marker-end="url(#o)"/>
+      <path d="M96 25 V33 H141 V38" marker-end="url(#o)"/>
+      <path d="M172 38 V3 H58 V13" marker-end="url(#o)"/>
+      <path d="M106 90 H158 V88" marker-end="url(#o)"/>
+    </g>
+    <g style="font-size:2.47px; fill:#30364f">
+      <text x="30" y="88">(1) first segments, fallback</text>
+      <text x="2" y="40" transform="">(2) video ID</text>
+      <text x="21" y="15">(3) Hdevice list</text>
+      <text x="70" y="47">(4) connect, NAT punching</text>
+      <text x="70" y="66">(5) segments over all paths</text>
+      <text x="73" y="17">(a)</text><text x="111" y="17">(b)</text>
+      <text x="145" y="32">(c) keepalive</text>
+      <text x="100" y="36">(d) new video IDs</text>
+      <text x="120" y="2.5">(f) done → update map</text>
+      <text x="115" y="88">(e) fetch new videos</text>
+    </g>
+  </svg>
+</div>
+<script>
+  // A box whose text runs into its frame gets a red outline: Sumi would report geometry/label-overflow,
+  // which, like this check, lets the text use the padding but not cross the frame. The browser's text
+  // widths are approximate; ask Sumi for the exact limit with
+  // `sumi catalog --sizes --profile <id> --component box --label "<label>"` (MIN WIDTH).
+  // Checked once the fonts have loaded, and again whenever a box changes size or content.
+  function checkOverflow() {
+    for (const el of document.querySelectorAll(".box, .op")) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const text = range.getBoundingClientRect();
+      const over = text.width > el.clientWidth + 0.5 || text.height > el.clientHeight + 0.5;
+      if (el.classList.contains("overflow") !== over) el.classList.toggle("overflow", over);
+    }
+  }
+  document.fonts.ready.then(() => {
+    checkOverflow();
+    const resized = new ResizeObserver(checkOverflow);
+    for (const el of document.querySelectorAll(".box, .op")) resized.observe(el);
+    // Class changes count too (a class can change the font), except the script's own `overflow`:
+    // a record whose class list differs from its old value only by `overflow` is skipped.
+    const withoutOverflow = (value) => (value ?? "").split(/\s+/).filter((c) => c && c !== "overflow").sort().join(" ");
+    new MutationObserver((records) => {
+      const relevant = records.some((r) => r.attributeName !== "class" ||
+        withoutOverflow(r.oldValue) !== withoutOverflow(r.target.getAttribute("class")));
+      if (!relevant) return;
+      for (const el of document.querySelectorAll(".box, .op")) resized.observe(el);
+      checkOverflow();
+    }).observe(document.getElementById("fig"), { subtree: true, childList: true, characterData: true,
+      attributes: true, attributeOldValue: true, attributeFilter: ["style", "class"] });
+  });
+</script>

@@ -1,0 +1,101 @@
+version: 1
+figure:
+  id: d4rt
+  theme: sumi
+  profile: paper-double
+  layout:
+    arrange:
+      row:
+        gap: 4mm
+        align: stretch
+        items: [pa, pb, pc]
+groups:
+  - id: pa
+    caption: (a) Encode the video once
+    arrange:
+      row: {gap: 4mm, align: center, items: [video, enc, feat]}
+  - id: pb
+    caption: (b) Decode any query
+    arrange:
+      stack:
+        gap: 8mm
+        items:
+          - row: {gap: 6mm, align: center, items: [dec, point]}
+          - row: {gap: 6mm, align: end, items: [query, patch]}
+  - id: pc
+    caption: (c) Tasks as query patterns
+    arrange:
+      row: {items: [tasks]}
+nodes:
+  # (a) encoder
+  - id: video
+    component: cuboid
+    tone: blue
+    variant: tinted
+    props:
+      width: 12mm
+      height: 16mm
+      depth: 16mm
+      cells: [3, 4, 4]
+      highlight: [{name: px, at: [1, 2, 0], tone: orange}]
+      dims: {width: W, height: H, depth: T}
+  - {id: video-label, component: label, label: Video $V$, attach: {to: video, side: north, gap: 4mm}}
+  - {id: enc, component: box, label: "ViT\nencoder", sublabel: local + global attn}
+  - id: feat
+    component: tokens
+    tone: blue
+    props:
+      direction: down
+      variant: tinted
+      width: 4mm
+      height: 3.5mm
+      gap: 1pt
+      cells: ['', '', '', '', '']
+  - {id: feat-label, component: label, label: $F$, attach: {to: feat, side: south, gap: 2mm}}
+  # (b) decoder
+  - {id: dec, component: box, label: "Cross-attention\ndecoder", variant: emphasis}
+  - {id: dec-note, component: label, label: each query decoded independently, variant: muted, attach: {to: dec, side: north, gap: 2mm}}
+  - {id: point, component: box, label: '$P = (x, y, z)$', sublabel: 3D point, tone: orange, variant: outlined}
+  - id: query
+    component: tokens
+    tone: orange
+    props:
+      variant: tinted
+      width: 7mm
+      gap: 1pt
+      cells: ['$u$', '$v$', '$t_{\mathrm{src}}$', '$t_{\mathrm{tgt}}$', '$t_{\mathrm{cam}}$']
+  - {id: query-label, component: label, label: query $q$, attach: {to: query, side: south, gap: 1.5mm}}
+  - {id: patch, component: box, tone: blue, variant: tinted, props: {width: 6mm, height: 6mm}}
+  - {id: patch-label, component: label, label: 9×9 RGB patch, attach: {to: patch, side: south, gap: 1.5mm}}
+  # (c) tasks
+  - id: tasks
+    component: matrix
+    props:
+      rules: true
+      columns:
+        - {label: '$u$', tone: orange}
+        - {label: '$v$', tone: orange}
+        - {label: '$t_{\mathrm{src}}$', tone: orange}
+        - {label: '$t_{\mathrm{tgt}}$', tone: orange}
+        - {label: '$t_{\mathrm{cam}}$', tone: orange}
+      rows: [Point track, Point cloud, Depth map, Extrinsics, Intrinsics]
+      headerWidth: 42pt
+      cellWidth: 25pt
+      cellHeight: 14pt
+      headerGap: 2pt
+      classes:
+        f: {tone: orange, variant: tinted, label: fixed}
+        o: {label: swept or tied}
+      cells:
+        - [{class: f, text: fixed}, {class: f, text: fixed}, {class: f, text: fixed}, {class: o, text: 1…T}, {class: o, text: '$= t_{\mathrm{tgt}}$'}]
+        - [{class: o, text: 1…W}, {class: o, text: 1…H}, {class: o, text: 1…T}, {class: o, text: '$= t_{\mathrm{src}}$'}, {class: f, text: fixed}]
+        - [{class: o, text: 1…W}, {class: o, text: 1…H}, {class: o, text: 1…T}, {class: o, text: '$= t_{\mathrm{src}}$'}, {class: o, text: '$= t_{\mathrm{src}}$'}]
+        - [{class: o, text: 1…h}, {class: o, text: 1…w}, {class: f, text: fixed}, {class: o, text: '$= t_{\mathrm{src}}$'}, {class: o, text: 1…T}]
+        - [{class: o, text: 1…h}, {class: o, text: 1…w}, {class: o, text: 1…T}, {class: o, text: '$= t_{\mathrm{src}}$'}, {class: o, text: '$= t_{\mathrm{src}}$'}]
+edges:
+  - {from: video, to: enc}
+  - {from: enc, to: feat}
+  - {from: feat, to: dec}
+  - {from: dec, to: point}
+  - {from: query, to: dec}
+  - {from: patch, to: dec}
