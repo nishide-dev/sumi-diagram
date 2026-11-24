@@ -155,7 +155,12 @@ export const muddyColor = defineGeometryRule({
   defaultSeverity: "warning",
   fixable: false,
   run: (context) => {
-    const findings = muddyFindings(analysisOf(context));
+    // The steps of a matrix's color scale (#644) are opaque mixes of the theme's own two colors
+    // for a tone: their mid steps may pass through ochre (an orange scale on a dark canvas),
+    // which is the scale, not a muddy choice.
+    const step = ({ item }: Analysis) =>
+      item.key !== undefined && context.ir.elements.get(item.key)?.scaleStep === true;
+    const findings = muddyFindings(analysisOf(context).filter((a) => !step(a)));
     // Fills and lines, not text (#465): a small label in a dark tone of its hue reads as that
     // hue, while a dark yellow line or area reads as ochre.
     for (const element of [...context.elements, ...context.sets]) {

@@ -53,6 +53,12 @@ figure of your own, leave the colors to the theme (or a `palette`).
 | Multilayer network | The same seven entities in three layers, with one followed through all of them | three `plane: floor` groups stacked, nodes by coordinates (`place`) so twins are vertical, straight in-layer links, dotted `route: straight` correspondences between adjacent layers, one accent node, `figure.projection` | `sumi` / `paper-double` | [YAML](multilayer-network/multilayer-network.sumi.yaml), [PNG](multilayer-network/multilayer-network.png) |
 | Attention sheet | A token sequence and its causal attention map lying flat on two planes | `plane: floor` with `contents: projected`: boxes as parallelograms, arrowheads mapped, a `matrix` of classed cells (hatched strong, outlined medium/weak, tinted masked), legend of the cell classes | `sumi` / `paper-double` | [YAML](attention-sheet/attention-sheet.sumi.yaml), [PNG](attention-sheet/attention-sheet.png) |
 
+## Tables and heatmaps (`matrix`)
+
+| Name | What it shows | Key features | Theme / profile | Files |
+| --- | --- | --- | --- | --- |
+| Transfer heatmap | Zero-shot transfer accuracy between six languages (illustrative values) | `matrix` `scale` (a continuous colour scale for cells written `{value}`) and a legend `{scale}` strip, `headerRotate: -90`, `rules: true`, a merged cell (`span: 2`), muted and hatched classes with borderless legend samples | `sumi` / `paper-single` | [YAML](transfer-heatmap/transfer-heatmap.sumi.yaml), [PNG](transfer-heatmap/transfer-heatmap.png) |
+
 ## Generic diagrams (automatic layout)
 
 | Name | What it shows | Key features | Theme / profile | Files |
@@ -67,7 +73,7 @@ figure of your own, leave the colors to the theme (or a `palette`).
 Choosing quickly: a paper block diagram with residuals or notes starts from
 Transformer or DiT; multi-panel figures with images or matrices from CLIP or
 EmbeddingGemma; graphs on coordinates from GCN; a dense wide figure of cell rows and short arrows from LLaDA; a dense wide overview of small pictures (hypergraphs, feature vectors, panels) from TriCL; a dark-theme model figure from
-Llama 4 MoE; messages from Chat or LLM dialogue; graphs or matrices on tilted planes from Multilayer network or Attention sheet; flows and tiers from the generic four.
+Llama 4 MoE; messages from Chat or LLM dialogue; graphs or matrices on tilted planes from Multilayer network or Attention sheet; a heatmap or results table from Transfer heatmap; flows and tiers from the generic four.
 
 For a consistent visual vocabulary across panels, study GCN (the same vertex and
 edge look in every layer and tone meaning throughout) and Llama 4 MoE (the same

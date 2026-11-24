@@ -1,0 +1,54 @@
+# Example: a heatmap of zero-shot transfer accuracy between six languages (illustrative values).
+#
+# Visual language: one blue color scale for the measured values, palest at 40 % and strongest at 90 %;
+#   the diagonal (a language tested on itself) is pale gray, outside the comparison; pairs that were
+#   not run are one merged, hatched cell. The column headers are turned so the full names fit over
+#   narrow columns.
+# Structure: a `stack` of a `matrix` and a `legend`. The matrix has a continuous `scale` (cells
+#   written `{ value }`), `headerRotate: -90`, `rules: true` (a table with rules only), a title above
+#   it, and a cell with `span: 2`. The legend has the scale's strip (`{ scale: transfer }`) and the
+#   two classes; in a ruled matrix their samples have no border, like the cells.
+# Lint: `lint --geometry` 0 errors, 0 warnings.
+version: 1
+figure:
+  id: transfer-heatmap
+  title: Zero-shot transfer accuracy
+  theme: sumi
+  profile: paper-single
+  layout:
+    arrange:
+      stack:
+        gap: 3mm
+        align: center
+        items: [transfer, key]
+nodes:
+  - id: transfer
+    component: matrix
+    label: Zero-shot transfer accuracy (%)
+    props:
+      labelAt: above
+      rules: true
+      headerGap: 2pt
+      rows: [English, German, Spanish, Japanese, Korean, Swahili]
+      columns: [English, German, Spanish, Japanese, Korean, Swahili]
+      corner: train / test
+      headerRotate: -90
+      cellWidth: 21pt
+      cellHeight: 13pt
+      gap: 1pt
+      scale: {from: 40, to: 90, tone: blue, decimals: 1, label: accuracy (%)}
+      classes:
+        self: {variant: muted, label: same language}
+        none: {variant: muted, pattern: hatch, label: not run}
+      cells:
+        - [{class: self, text: "91.2"}, {value: 84.6}, {value: 85.1}, {value: 71.3}, {value: 69.8}, {value: 52.4}]
+        - [{value: 82.9}, {class: self, text: "89.7"}, {value: 83.4}, {value: 68.2}, {value: 66.5}, {value: 49.1}]
+        - [{value: 83.8}, {value: 81.7}, {class: self, text: "90.3"}, {value: 67.9}, {value: 65.0}, {value: 50.6}]
+        - [{value: 70.4}, {value: 66.1}, {value: 65.8}, {class: self, text: "88.4"}, {value: 79.2}, {value: 44.7}]
+        - [{value: 68.7}, {value: 64.9}, {value: 63.2}, {value: 78.5}, {class: self, text: "87.9"}, {value: 43.5}]
+        - [{value: 58.3}, {value: 54.0}, {value: 55.2}, {class: none, span: 2}, {class: self, text: "76.1"}]
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      entries: [{scale: transfer}, {class: transfer.self}, {class: transfer.none}]

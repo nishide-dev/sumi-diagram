@@ -1696,7 +1696,8 @@ text. An entry has exactly one of `edge` (a sample line: `component` default
 `arrow`, `variant`, `tone`), `node` (a small sample box: `component` default
 `box`, `variant`, `tone`) or `class` (the sample of a [matrix](#matrices) class,
 `<matrix>.<class>`), plus `label` (math allowed; a `class` entry defaults to the
-class's label). Since 0.16.0 three more samples: `icon: tabler/file-text` (an
+class's label). Since 0.20.1 `scale: <matrix>` draws the strip of a matrix's colour scale
+between its end values (the label defaults to the scale's `label`, and may be left out). Since 0.16.0 three more samples: `icon: tabler/file-text` (an
 icon one text line tall, or `iconSize` / `iconTone` as `iconSize` / `tone` on a node), `glyph: {kind: vector, tone: blue, strength: solid}`
 (the fields of a node [glyph](assets.md#glyphs) except `at` / `dx` / `dy`: `kind`,
 `cells`, `direction`, `tone`, `tones`, `strength`, `size`, `width`, `outline`) and
@@ -2390,15 +2391,41 @@ edges:
 - **Results tables (since 0.20.0).** `rules: true` draws the matrix as a paper's table:
   cells without borders (tinted fills and text stay), a rule above and below and a thinner
   one under the column headers (`headerGap` is the room beside a rule). Prefer it to
-  bordered cells for numbers; highlight the best row with a tinted class.
+  bordered cells for numbers; highlight the best row with a tinted class. Since 0.20.1 the
+  legend's class samples have no border either, as the cells; a class whose cells show no
+  fill (a pale `muted` one) is sampled by the text of its first cell (`74.1` in its pale
+  grey), and keeps a bordered box only when its cells have neither fill nor text.
+- **Colour scales / heatmaps (since 0.20.1).** `scale: {from, to, tone, steps, decimals,
+  showValues, label}` colours cells written `{value: 78.5}` from a pale tint of `tone`
+  (default `blue`; at `from`) to its solid colour (at `to`), mixed evenly, values clamped;
+  `from` above `to` makes small values strong. `steps: 5` bins the range into five colours.
+  A value cell shows its number (`decimals: 1` writes `75.0`; `showValues: false` hides it;
+  its own `text` replaces it) in the theme's ink or white, whichever keeps 4.5:1 on that
+  step, so the scale reads in `sumi`, `sumi-dark` and `paper` alike. A cell has a `class`
+  or a `value`, not both, and `classes` is optional with a scale (mix them: a muted class
+  for the diagonal, a hatched one for missing pairs). A legend entry `{scale: <matrix>}`
+  draws the scale's strip (one sample per step, five for a continuous scale) between its
+  two end values, with the scale's `label`. One scale is one accent tone for
+  `geometry/theme-color-use` and is never "a block of colour"; do not fake a ramp with
+  three `themeOverrides.tones`.
+- **Merged cells (since 0.20.1).** A list-row cell takes `span: 2` (two columns) or
+  `span: {rows: 2, columns: 3}`; it is drawn as one cell over the slots and the gaps between
+  them, with the ID of its top-left slot. As in an HTML table, the rows below leave out the
+  slots it covers (`[a, {class: b, span: {rows: 2}}]` then `[a]`); every row still covers
+  the same number of columns. A span may not cross an ellipsis row or column.
+- **Turned column headers (since 0.20.1).** `headerRotate: -90` (reading bottom to top) or
+  `90` turns the column headers, so full names fit over narrow columns: each is as wide as
+  its column and as tall as its text, lined up on the cells' side, and measured turned
+  (width and collision lints see the turned text). Turned headers are not wrapped.
 - **Pale cells (since 0.20.0).** A cell (and its legend sample) whose variant is `muted` is
   drawn pale: its border, fill and text move toward the canvas, so "skipped" or "not
   selected" cells recede next to `tinted` and `outlined` ones. A gray class needs no
   `themeOverrides.tones.gray`; gray (and a pale gray of your own) is never counted as an
   accent by `geometry/theme-color-use`.
-- Every row needs as many cells as the first, every name a class, and `rows` / `columns`
-  must match the grid (`component/invalid-prop`). An unused class is
-  `lint/unused-matrix-class`; a legend `class` naming none is `ref/unknown-class`.
+- Every row needs as many cells as the first (merged cells count the columns they span),
+  every name a class, and `rows` / `columns` must match the grid (`component/invalid-prop`).
+  An unused class is `lint/unused-matrix-class`; a legend `class` naming none is
+  `ref/unknown-class`, a `scale` naming a matrix without one `ref/unknown-scale`.
 
 A results table with rules only, wrapped headers and a title above it that the edge reaches:
 
@@ -2434,6 +2461,45 @@ nodes:
         - [{class: s, text: "6.026"}, {class: s, text: "58.79"}]
 edges:
   - {from: gate, to: table}
+```
+
+A heatmap: a colour scale with its legend strip, turned column headers, a ruled table and a
+merged cell (the full figure is the Skill example `transfer-heatmap`):
+
+```yaml
+# expect-render: fits
+version: 1
+figure:
+  id: heatmap
+  theme: sumi
+  profile: paper-single
+  layout: {arrange: {stack: {gap: 3mm, align: center, items: [sim, key]}}}
+nodes:
+  - id: sim
+    component: matrix
+    label: Similarity (%)
+    props:
+      labelAt: above
+      rules: true
+      headerRotate: -90
+      rows: [Model A, Model B, Model C]
+      columns: [Model A, Model B, Model C]
+      cellWidth: 22pt
+      cellHeight: 13pt
+      gap: 1pt
+      scale: {from: 60, to: 90, tone: orange, decimals: 1, label: similarity (%)}
+      classes:
+        self: {variant: muted, label: same model}
+        none: {variant: muted, pattern: hatch, label: not measured}
+      cells:
+        - [{class: self, text: "100"}, {value: 81.4}, {value: 77.6}]
+        - [{value: 81.4}, {class: self, text: "100"}, {value: 64.2}]
+        - [{class: none, span: 2}, {class: self, text: "100"}]
+  - id: key
+    component: legend
+    variant: plain
+    props:
+      entries: [{scale: sim}, {class: sim.self}, {class: sim.none}]
 ```
 
 Text and ellipsis cells (`{class, text}`, `{ellipsis}`, `ellipsisRows`, `ellipsisColumns`):
