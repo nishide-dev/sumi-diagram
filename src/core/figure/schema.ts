@@ -168,6 +168,23 @@ export const SET_LABEL_POSITIONS = [
 export type SetLabelPosition = (typeof SET_LABEL_POSITIONS)[number];
 
 /**
+ * Where a floating legend (#643, `props.float`) sits in its container: a
+ * corner, or the middle of a side, of the container's content area. The
+ * legend adds nothing to the container's size.
+ */
+export const FLOAT_POSITIONS = [
+  "top-left",
+  "top",
+  "top-right",
+  "left",
+  "right",
+  "bottom-left",
+  "bottom",
+  "bottom-right",
+] as const;
+export type FloatPosition = (typeof FLOAT_POSITIONS)[number];
+
+/**
  * Paint of a set: `default` is a pale tinted fill with a solid
  * outline, `filled` the tint alone, `outlined` the outline alone and
  * `dashed` the tint with a dashed outline and `dotted` (#427) the tint with a

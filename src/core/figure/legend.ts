@@ -18,7 +18,8 @@
  *
  * Legends need the structured engine (the manifest's `engines`; an `auto`
  * figure gets `layout/structured-only` from the component stage) and are
- * placed in an arrange tree, never by `attach`.
+ * placed in an arrange tree, never by `attach`, or float (#643, `props.float`)
+ * at a corner or side of their container without taking room in it.
  */
 
 import { glyphSize } from "../../assets/glyphs";
@@ -78,6 +79,7 @@ import type {
   FigureGroup,
   FigureNode,
   FigureSet,
+  FloatPosition,
   SetVariant,
 } from "./schema";
 import type { Locator } from "./yaml";
@@ -146,6 +148,14 @@ export interface LegendExpansion {
   /** Where the legend node is written: `["nodes", i]`. */
   path: DocPath;
   entries: LegendEntryExpansion[];
+  /** `props.float` (#643): the legend floats at this corner or side of its container. */
+  float?: LegendFloat;
+}
+
+/** `props.float` of a legend (#643), normalized: the position and the inset in pt. */
+export interface LegendFloat {
+  at: FloatPosition;
+  insetPt: number;
 }
 
 /**
@@ -318,7 +328,7 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
         "layout/attached-legend",
         `Legend "${node.id}" is drawn as a frame around its entries, so it cannot be attached.`,
         [...legendPath, "attach"],
-        "Remove attach and list the legend in an arrange tree, e.g. in a row or stack next to what it explains.",
+        "Remove attach and list the legend in an arrange tree, e.g. in a row or stack next to what it explains, or float it into free space with props.float (e.g. float: bottom-left).",
       );
       continue;
     }
@@ -515,7 +525,21 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
     // Entries are read as a list: wrapped lines start at the left (#333), unless
     // the legend asks otherwise with its own `textAlign`.
     const textAlign = node.textAlign ?? "left";
-    const expansion: LegendExpansion = { id: node.id, path: legendPath, entries: [] };
+    const float = component.props.float as
+      | FloatPosition
+      | { at: FloatPosition; inset?: number }
+      | undefined;
+    const expansion: LegendExpansion = {
+      id: node.id,
+      path: legendPath,
+      entries: [],
+      ...(float !== undefined && {
+        float:
+          typeof float === "string"
+            ? { at: float, insetPt: 0 }
+            : { at: float.at, insetPt: float.inset ?? 0 },
+      }),
+    };
     const addNode = (part: FigureNode, path: DocPath, name: string) => {
       nodes.push(part);
       const partKey = nodeKey(part.id);
@@ -593,6 +617,9 @@ export function expandLegends(state: CheckState, registry: Registry, locate: Loc
           }),
           ...(entry.edge.dash !== undefined && { dash: entry.edge.dash }),
           ...(entry.edge.strands !== undefined && { strands: entry.edge.strands }),
+          // A floating legend (#643) lies over the content: its sample is one straight line
+          // whatever is under it (geometry/float-overlap reports that).
+          ...(expansion.float !== undefined && { route: "straight" as const }),
           props: {},
         };
         edges.push(edge);

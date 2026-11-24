@@ -14,6 +14,7 @@ import {
   checkGlyph,
   EDGE_DASHES,
   EDGE_STRANDS_RANGE,
+  FLOAT_POSITIONS,
   glyphShape,
   IconSize,
   ID_PATTERN,
@@ -960,6 +961,22 @@ const legend: NodeManifest = {
         .optional()
         .describe(
           "With flow: row, the most entries on a line before it wraps; each group wraps by itself (with headings: inline, the whole legend wraps, headings not counted). Omitted means no wrapping.",
+        ),
+      float: z
+        .union([
+          z.enum(FLOAT_POSITIONS),
+          z.strictObject({
+            at: z
+              .enum(FLOAT_POSITIONS)
+              .describe("The corner or side of the container's content area."),
+            inset: LayoutLength.optional().describe(
+              "Space between the legend and that corner or side of the content area. Omitted means 0 (flush with the content's edges).",
+            ),
+          }),
+        ])
+        .optional()
+        .describe(
+          "Float the legend into free space instead of listing it in an arrange tree (since 0.20.1). It sits at this corner or side of its container's content area (the figure's, or its group's with group:), over the content, and adds nothing to the width or height. top-left, top, top-right, left, right, bottom-left, bottom or bottom-right; {at, inset} keeps it inset from the edges. Lifelines of a sequence that end above it stop short of it. geometry/float-overlap reports anything it covers.",
         ),
     })
     .superRefine((props, ctx) => {

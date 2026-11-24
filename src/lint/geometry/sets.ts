@@ -9,6 +9,7 @@
 import type { Point, Rect } from "../../render/geometry";
 import { defineGeometryRule, type LintFinding } from "../rule";
 import type { GeometryContext, GeometryElement, GeometrySet } from "./context";
+import { floatingLegendOf } from "./float";
 import { unionOf } from "./measure";
 import {
   depthInside,
@@ -243,6 +244,8 @@ function nonMembersBy(
     if (node.kind !== "node" || node.ir.kind !== "node") return false;
     // A junction is a point on a wire, not a thing the set could claim.
     if (node.ir.mark?.type === "point") return false;
+    // A floating legend (#643) lies over the content: geometry/float-overlap checks it.
+    if (floatingLegendOf(context, node) !== undefined) return false;
     if (isMember(context, set, node)) return false;
     return classifyAgainstSet(set, node) === kind;
   });
@@ -337,6 +340,8 @@ export const setOutlineCrossesText = defineGeometryRule({
       const hits: GeometryElement[] = [];
       for (const element of context.elements) {
         if (belongsToSet(context, set, element)) continue;
+        // A floating legend (#643): geometry/float-overlap reports its frame across an outline.
+        if (floatingLegendOf(context, element) !== undefined) continue;
         const crossed = element.labels.some((l) =>
           l.visibleLines.some(
             (line) =>

@@ -49,6 +49,7 @@ import { deadSpace } from "./dead-space";
 import { sparseFigure, textHeavy } from "./density";
 import { obstaclesCrossedByRoute, type RouteObstacle, segmentCrossesRegion } from "./edges";
 import { groupEmptySpace } from "./empty-space";
+import { floatOverlap } from "./float";
 import { sequenceHeightFits, sequenceHeightOptions } from "./height-fit";
 import { iconFamilyMix, iconOveruse } from "./icons";
 import { microJogLengths } from "./jogs";
@@ -2418,6 +2419,7 @@ export function builtinGeometryRules(): readonly GeometryRule[] {
     setLabelCollision,
     setOutlineCrossesNode,
     setOutlineCrossesText,
+    floatOverlap,
   ] as GeometryRule[]);
   return builtinGeometryRuleList;
 }

@@ -68,7 +68,12 @@
  * (`labels.ts`) and the content and canvas grow to hold the routes.
  */
 
-import type { ArrangeBoxIR, EdgeIR, FigureIR } from "../../compiler/ir";
+import {
+  type ArrangeBoxIR,
+  type EdgeIR,
+  type FigureIR,
+  floatingLegendKeys,
+} from "../../compiler/ir";
 import type { ElementKey } from "../../core/check-state";
 import { type Diagnostic, hasErrors } from "../../core/diagnostics";
 import type { Side } from "../../core/figure/schema";
@@ -1382,15 +1387,22 @@ class Router {
     const C = ROUTE.clearance;
     const layout = this.#layout;
     const nodeIR = new Map(this.#ir.nodes.map((n) => [n.key, n]));
+    // A floating legend (#643) lies over the content and takes no room: edges route as if it
+    // were not there (geometry/float-overlap reports what it covers), and its own sample lines
+    // are straight.
+    const floating = floatingLegendKeys(this.#ir);
     const solid: Rect[] = [];
     const junctions: NodeLayout[] = [];
     for (const node of layout.nodes) {
+      if (floating.has(node.key)) continue;
       if (isJunction(nodeIR.get(node.key))) junctions.push(node);
       else solid.push(node.rect);
     }
     this.#obstacles = layout.nodes
       .filter((node) => nodeIR.get(node.key)?.component !== SEPARATOR_ID)
+      .filter((node) => !floating.has(node.key))
       .map((node) => ({ key: node.key, rect: node.rect }));
+    const groups = layout.groups.filter((group) => !floating.has(group.key));
     const xs = new Set<number>();
     const ys = new Set<number>();
     const addRect = (r: Rect, inflate: number) => {
@@ -1401,7 +1413,7 @@ class Router {
       addRect(r, 0);
       addRect(r, C);
     }
-    for (const group of layout.groups) {
+    for (const group of groups) {
       const element = this.#ir.elements.get(group.key);
       addRect(element?.kind === "group" ? groupFrontRect(element, group.rect) : group.rect, 0);
       if (group.label !== undefined) addRect(group.label.box, 0);
@@ -1534,7 +1546,7 @@ class Router {
         roundUnits(bottomOf(r) + C),
       );
     }
-    for (const group of layout.groups) {
+    for (const group of groups) {
       const element = this.#ir.elements.get(group.key);
       const g = element?.kind === "group" ? groupFrontRect(element, group.rect) : group.rect;
       const ix0 = lowerBound(X, g.x);
