@@ -186,8 +186,8 @@ Geometry errors exit 1 but **the SVG is still written**. It prints `Wrote figure
   `geometry/relocatable-node` (info): apply its checked `items` edit unless the place means something.
 - Structured: `layout/no-route` (no SVG written): an edge has no room; widen that `gap`
   or move an attached node out of it ([spacing](references/structured.md#spacing-that-routes)).
-  Also `layout/unsatisfied-align`, `layout/edge-label-overlap` (warnings),
-  `layout/edge-crossing`, `layout/align-grew-figure` (infos); no `--emit-d2`.
+  Also `layout/unsatisfied-align`, `layout/edge-label-overlap` (warnings), `layout/edge-crossing`,
+  `layout/align-grew-figure` / `-widened-gap` / `-uneven-stretch` (infos; align `move: <id>` picks the side that moves); no `--emit-d2`.
 - Other `svg/*`, `backend/*`, `asset/*`, `geometry/*` codes: [diagnostics](references/diagnostics.md).
 
 ### 7. Check content, then readability
@@ -209,7 +209,7 @@ if none: skip the PNG, say so); open the PNG with Read, ~6 px per printed mm of 
    squashed; a block-sized void has a reason (grouping, alignment), else re-arrange.
 3. **Consistency (paper figures).** Against the visual-language table: the same kind
    of thing looks the same in every panel (usually one fill and border per kind, e.g. all sets; emphasise with an accent colour rather than another form; judge panel frames case by case); no text-heavy boxes; one legend; no edge
-   crosses a panel except the main flow; the figure reads without its caption; resolve
+   crosses a panel except the main flow; side-by-side panel headings and frame tops are aligned, with no empty band under a heading (else `panels: true` on their `row`); the figure reads without its caption; resolve
    `geometry/sparse-figure` and `text-heavy-nodes` ([density](references/diagnostics.md#density-of-paper-figures)), never suppress.
 4. **Critique against references (paper figures, mandatory).** `<skill-dir>/scripts/compare figure.svg <ref.png>...`
    stacks yours with the closest examples (plus `tricl`/`llada` if dense); critique by the [checklist](references/layout-tips.md#critique-against-references),

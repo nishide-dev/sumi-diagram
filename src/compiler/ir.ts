@@ -153,6 +153,8 @@ export interface ArrangeBoxIR {
   readonly positionsPt?: readonly (readonly [number, number])[];
   /** Place boxes only: items whose center is the body without attached nodes (#517), parallel to items. */
   readonly bodyCentered?: readonly boolean[];
+  /** Place boxes only: groups whose `at` is where their own place puts [0, 0] (#649, `origin: place`), parallel to items. */
+  readonly innerOrigin?: readonly boolean[];
   readonly placementSources?: readonly SourceMapEntry[];
   /** Grid-only track count, spans (parallel to items), and gaps in pt. */
   readonly columns?: number;
@@ -178,6 +180,11 @@ export interface ArrangeBoxIR {
    * item, the group, instead of centring the items.
    */
   readonly growFirst?: true;
+  /**
+   * Rows only (#641, `row.panels`): the groups in the row are side-by-side panels;
+   * they take the row's height, their content sits at the top and their titles share a band.
+   */
+  readonly panels?: true;
 }
 
 /** A sequence diagram (#630, `core/figure/sequence.ts`), with IDs resolved to keys. */
@@ -256,6 +263,11 @@ export interface AlignIR {
   readonly at: AlignPosition;
   /** Nodes or groups, as written (at least two, each once). */
   readonly items: readonly ElementKey[];
+  /**
+   * `move` (#646): the items that may take struts to meet this constraint
+   * (a subset of `items`); omitted means any item.
+   */
+  readonly move?: readonly ElementKey[];
   /** Where the constraint is written (`figure.layout.align[i]`), for diagnostics. */
   readonly srcAt: SourceMapEntry;
 }
@@ -301,6 +313,8 @@ export interface AttachIR {
   readonly side: AttachSide;
   /** Space between the target and the node in pt (0 when omitted). */
   readonly gapPt: number;
+  /** `inFlow: false` (#649): the node takes no room in its target's group. Absent: it does. */
+  readonly inFlow?: false;
 }
 
 interface ElementIRBase {
@@ -586,6 +600,8 @@ export interface EdgeIR extends ElementIRBase {
     readonly side: Side;
     readonly offset?: number;
     readonly outside?: ElementKey;
+    /** `bus: false` (#649): the lane joins no bus; absent: it does. */
+    readonly bus?: false;
   };
   /**
    * The manifest's `routing` (#176): `zoom` joins corners of the two ends
@@ -1000,6 +1016,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
             to: attachTarget(n.attach),
             side: n.attach.side,
             gapPt: n.attach.gap ?? 0,
+            ...(n.attach.inFlow === false && { inFlow: false as const }),
           }),
         }),
         ...(n.labelRotation !== undefined && { labelRotation: n.labelRotation }),
@@ -1148,6 +1165,7 @@ export function buildFigureIR(check: FigureCheck): FigureIR {
           element: set,
           text: set.text,
           weight: set.weight,
+          panel: doc.sequencePanels?.has(index),
         }),
         source: sourceEntry(doc.sequenceSets?.get(index) ?? ["sets", index]),
       }),
@@ -1436,6 +1454,7 @@ function edgeIR(
         side: e.lane.side,
         ...(e.lane.offset !== undefined && { offset: ptToD2Units(e.lane.offset) }),
         ...(e.lane.outside !== undefined && { outside: endpointKey(e.lane.outside) }),
+        ...(e.lane.bus === false && { bus: false as const }),
       }),
     }),
     // A line to a block of a cuboid (#584) is one straight segment: the router knows no blocks.
@@ -1681,6 +1700,9 @@ function arrangeIR(
       ...(items.some((cell) => cell.origin === "body") && {
         bodyCentered: freeze(items.map((cell) => cell.origin === "body")),
       }),
+      ...(items.some((cell) => cell.origin === "place") && {
+        innerOrigin: freeze(items.map((cell) => cell.origin === "place")),
+      }),
       ...(sourceEntry && {
         placementSources: freeze(
           items.map((_, i) => sourceEntry([...path, "place", "items", i, "at"])),
@@ -1698,6 +1720,7 @@ function arrangeIR(
     ...(linear.justify !== undefined && { justify: linear.justify }),
     ...(linear.centerOn !== undefined && { centerOn: keyOf(linear.centerOn) }),
     ...(linear.align !== undefined && { align: linear.align }),
+    ...(box.row?.panels === true && { panels: true as const }),
     items: freeze(linear.items.map(item)),
   });
 }
@@ -1709,10 +1732,14 @@ function alignIR(
   srcAt: SourceMapEntry,
 ): AlignIR {
   const axis = constraint.x !== undefined ? "x" : "y";
+  const move = constraint.move;
   return freeze({
     axis,
     at: constraint.at ?? "center",
     items: freeze((constraint[axis] ?? []).map(keyOf)),
+    ...(move !== undefined && {
+      move: freeze((typeof move === "string" ? [move] : move).map(keyOf)),
+    }),
     srcAt,
   });
 }

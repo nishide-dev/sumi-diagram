@@ -3,8 +3,8 @@
 # Use when: a method runs in three stages that each need a small picture of their own
 #   (prepare -> process -> evaluate, data -> model -> result, stage-by-stage overview), and the
 #   stages are read left to right without edges between the panels.
-# Structure: root `row` (align stretch, so the panels are equally tall and the captions share a
-#   line) of three framed groups with `caption`s and two `block-arrow`s between them; each panel
+# Structure: root `row` (`panels: true`, so the panels are equally tall with their content under
+#   the top and the captions share a line) of three framed groups with `caption`s and two `block-arrow`s between them; each panel
 #   a top-down stack: a token row into a step, two steps with a `route: curve` self-loop, a
 #   token row into an `emphasis` result; the "xN" label is `attach`ed east of the looped box so
 #   it reserves the loop's room inside the frame.
@@ -22,7 +22,7 @@ figure:
     arrange:
       row:
         gap: 4mm
-        align: stretch
+        panels: true
         items: [pa, flow1, pb, flow2, pc]
 groups:
   - id: pa

@@ -422,6 +422,9 @@ function sumiTheme(dark: boolean, canvasOverride?: string): ThemeDefinition {
   // Panel frames (#634): a hairline paler than the node outlines, as `paper`'s, so a panel of the
   // canvas's own color reads as a quiet region and the nodes in it stand out.
   const frame = dark ? "#6f7791" : "#a9aebc";
+  // Dimmed text and lines (#636): a step paler than muted (about 3.2:1 against the canvas, as
+  // minimal's 3:1), so text > muted > dim read apart; still above the frame's contrast.
+  const dimGray = dark ? "#7a8595" : "#8a8f9d";
   // The dark bubble; light panels are the canvas (#608).
   const panel = "#383f58";
   const shade = dark ? "#3e4661" : "#e1d9bc";
@@ -549,7 +552,7 @@ function sumiTheme(dark: boolean, canvasOverride?: string): ThemeDefinition {
       Object.entries(fills).map(([tone, fill]) => [tone, { fill }]),
     ) as Record<Tone, StyleLayerInput>,
     toneLines: toneLines(inks),
-    dim: { fontColor: muted, stroke: muted, lighten: 0.3 },
+    dim: { fontColor: dimGray, stroke: dimGray, lighten: 0.3 },
     // Labels keep about 1mm from their line (#546).
     edgeLabelGap: 6,
     // Cuboid faces (#575): the top toward white and the side toward the frame; on the navy canvas

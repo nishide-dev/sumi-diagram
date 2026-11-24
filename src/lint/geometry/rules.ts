@@ -43,7 +43,7 @@ import {
   printedUnits,
   printScale,
 } from "./common";
-import { contentBand } from "./content-band";
+import { contentAlignYaml, contentBand, contentBands } from "./content-band";
 import type { GeometryContext, GeometryElement } from "./context";
 import { deadSpace } from "./dead-space";
 import { sparseFigure, textHeavy } from "./density";
@@ -56,6 +56,7 @@ import { edgeLabelAmbiguous } from "./label-ambiguity";
 import { type FitSize, fitSentence, fitTrials, fittingSize } from "./label-fit";
 import { inkLines, unionOf } from "./measure";
 import { regionsOverlap } from "./outlines";
+import { panelMisaligned } from "./panels";
 import { edgeLabelHugging, edgeLabelOnCorner, tokenColumnDrift } from "./placement";
 import { edgeLabelDetached, edgeLabelTouchesLine } from "./placement-drift";
 import {
@@ -1726,10 +1727,82 @@ function parallelChannelHint(context: GeometryContext, pair: readonly GeometryEl
   return `${space} Keep the channel free of nodes and group titles. Sumi separates independent middle runs automatically when they fit; where the router detoured around a node or the lanes do not fit, the runs stay as routed, so clear the channel (move the node or port) or enlarge the gap. For close fixed legs, move the ports farther apart with fromAnchor / toAnchor or increase spacing between cells within each row. Merge a trunk only if the connections really share an endpoint.`;
 }
 
+/** The two ends of an edge's route (its logical ends, before arrowheads trim what is painted). */
+function routeEnds(edge: GeometryElement): { at: Point; end: "start" | "end" }[] {
+  const route = edge.route ?? [];
+  const start = route[0]?.[0];
+  const end = route.at(-1)?.at(-1);
+  return [
+    ...(start === undefined ? [] : [{ at: start, end: "start" as const }]),
+    ...(end === undefined ? [] : [{ at: end, end: "end" as const }]),
+  ];
+}
+
+/** Distance of `p` from the (infinite) line through a piece. */
+function distanceToLine(p: Point, piece: DirectedPiece<GeometryElement>): number {
+  const length = Math.hypot(piece.b.x - piece.a.x, piece.b.y - piece.a.y);
+  if (length === 0) return Math.hypot(p.x - piece.a.x, p.y - piece.a.y);
+  return (
+    Math.abs(
+      (piece.b.x - piece.a.x) * (p.y - piece.a.y) - (piece.b.y - piece.a.y) * (p.x - piece.a.x),
+    ) / length
+  );
+}
+
+/**
+ * The piece is its edge's final approach to the route end `at` (`end` names
+ * which end): the first painted piece for the start, the last for the end,
+ * on a line through the end, and stopping short of it by no more than an
+ * arrowhead (what painting trims) and a stroke.
+ */
+function approaches(
+  piece: DirectedPiece<GeometryElement>,
+  at: Point,
+  end: "start" | "end",
+): boolean {
+  const lines = piece.owner.drawn ?? [];
+  const line = end === "start" ? lines[0] : lines.at(-1);
+  if (line === undefined || line.length < 2) return false;
+  const [p, q] =
+    end === "start" ? [line[0], line[1]] : [line[line.length - 2], line[line.length - 1]];
+  const same = (u: Point | undefined, v: Point) =>
+    u !== undefined && Math.abs(u.x - v.x) < 1e-6 && Math.abs(u.y - v.y) < 1e-6;
+  if (!same(p, piece.a) || !same(q, piece.b)) return false;
+  if (distanceToLine(at, piece) > COINCIDENT_UNITS) return false;
+  const near = end === "start" ? piece.a : piece.b;
+  const style = piece.owner.ir.kind === "edge" ? piece.owner.ir.style : undefined;
+  const trim =
+    (style === undefined ? 0 : edgeArrowheadLength(style)) + 2 * piece.width + COINCIDENT_UNITS;
+  return Math.hypot(near.x - at.x, near.y - at.y) <= trim;
+}
+
+/**
+ * Two pieces that are each their edge's final approach to the same route
+ * end: a fan converging on one port (#647). Lines through one point are
+ * closest at it, so the stretch where they run within reach is the
+ * convergence itself, as intended as a shared trunk. Other pieces of the
+ * same edges (even ones on a line through that point) are still compared.
+ */
+function convergeOnSharedEnd(
+  a: DirectedPiece<GeometryElement>,
+  b: DirectedPiece<GeometryElement>,
+): boolean {
+  const bEnds = routeEnds(b.owner);
+  return routeEnds(a.owner).some(
+    (p) =>
+      approaches(a, p.at, p.end) &&
+      bEnds.some(
+        (q) =>
+          Math.hypot(p.at.x - q.at.x, p.at.y - q.at.y) <= COINCIDENT_UNITS &&
+          approaches(b, q.at, q.end),
+      ),
+  );
+}
+
 export const edgeNearEdge = defineGeometryRule({
   id: "geometry/edge-near-edge",
   description:
-    "Two edges run side by side for 3mm or more less than 1.5pt apart (stroke to stroke) without coinciding, so they read as one blurred or doubled line. A trunk the edges share (drawn on the same line) is not reported.",
+    "Two edges run side by side for 3mm or more less than 1.5pt apart (stroke to stroke) without coinciding, so they read as one blurred or doubled line. A trunk the edges share (drawn on the same line) is not reported, nor are the final approaches of lines converging on an end they share.",
   defaultSeverity: "warning",
   fixable: false,
   run(context) {
@@ -1838,6 +1911,7 @@ export const edgeNearEdge = defineGeometryRule({
       const a = directed[i] as DirectedPiece<GeometryElement>;
       for (const b of directed.slice(i + 1)) {
         if (a.owner === b.owner || (!diagonal(a) && !diagonal(b))) continue;
+        if (convergeOnSharedEnd(a, b)) continue;
         const run = directedRun(a, b, gapUnits + (a.width + b.width) / 2);
         if (run === undefined || run.to - run.from < minRun) continue;
         const gap = run.distance - (a.width + b.width) / 2;
@@ -2170,6 +2244,22 @@ export const badgeCollision = defineGeometryRule({
 /** Rounded repository p90 (75.25%); see design §6.71 and research/248-fill. */
 export const GROUP_EMPTY_SPACE_THRESHOLD = 0.75;
 
+/**
+ * For `geometry/group-empty-area` (#641): when part of the room is the two
+ * bands `geometry/content-band` reports (at least 4mm above and below the
+ * content of a group that writes no `contentAlign`), a pointer to that rule,
+ * whose `contentAlign: top` is checked by a trial layout, with the line to
+ * write; else "". It asserts nothing the trial has not shown.
+ */
+function contentAlignAdvice(context: GeometryContext, group: GeometryElement): string {
+  if (group.ir.kind !== "group") return "";
+  const band = contentBands(context).find((b) => b.group.key === group.key);
+  if (band === undefined) return "";
+  const yaml = contentAlignYaml(context, band.group);
+  if (yaml === undefined) return "";
+  return `Part of the room is ${mmText(context, band.above)} above the content and ${mmText(context, band.below)} below it: geometry/content-band reports this group with ${yaml.edit.replace(/^writing /, "")} as its hint; see geometry/content-band for whether that edit was checked and what it does${yaml.row === undefined ? "" : ` (for all the panels of ${yaml.row}: panels: true on that row)`}. `;
+}
+
 export const groupEmptyArea = defineGeometryRule({
   id: "geometry/group-empty-area",
   description:
@@ -2185,7 +2275,7 @@ export const groupEmptyArea = defineGeometryRule({
           message: `${capitalize(group.name)} has ${(empty * 100).toFixed(1)}% empty bounding-box area (threshold 75%; edges excluded).`,
           path: group.docPath,
           subject: group.subject,
-          hint: `Whitespace can be intentional; this is information only. ${verifyHints(
+          hint: `Whitespace can be intentional; this is information only. ${contentAlignAdvice(context, group)}${verifyHints(
             context,
             "empty",
             (trial) => {
@@ -2283,6 +2373,7 @@ export const BUILTIN_GEOMETRY_RULES: readonly GeometryRule[] = Object.freeze([
   lineTooThin,
   groupEmptyArea,
   contentBand,
+  panelMisaligned,
   badgeCollision,
   glyphCollision,
   exceedsPageWidth,

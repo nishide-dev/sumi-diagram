@@ -33,7 +33,7 @@ export function straightLabel(metrics: TextMetrics, a: Point, b: Point, edge: Ed
   const uy = (b.y - a.y) / length;
   const gap = labelGap(edge.style);
   const tag = isTagLabel(edge);
-  const pad = tag ? tagPadding(metrics) : { x: 0, y: 0 };
+  const pad = tag ? tagPadding(metrics, edge) : { x: 0, y: 0 };
   const width = metrics.width + 2 * pad.x;
   const height = metrics.height + 2 * pad.y;
   const along = (Math.abs(ux) * width + Math.abs(uy) * height) / 2;

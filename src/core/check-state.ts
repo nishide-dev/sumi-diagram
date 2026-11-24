@@ -58,6 +58,12 @@ export interface PartialFigure {
   groups?: (FigureGroup | undefined)[];
   nodes?: (FigureNode | undefined)[];
   edges?: (FigureEdge | undefined)[];
+  /**
+   * Edges written with a list of targets (`to: [a, b]`, #645), by index in `edges`: every
+   * target as written (two or more); the edge's `to` is the first. Only a sequence message
+   * may have several (`layout/multiple-targets` otherwise).
+   */
+  recipients?: ReadonlyMap<number, readonly string[]>;
   /** Set enclosures (#407), by their index in `sets`; absent when the document has none. */
   sets?: (FigureSet | undefined)[];
   metadata?: JsonValue;
@@ -71,6 +77,11 @@ export interface PartialFigure {
   sequences?: readonly SequenceExpansion[];
   /** The fragment frames of sequences (#630) among `sets`: index → the fragment's row. */
   sequenceSets?: ReadonlyMap<number, DocPath>;
+  /**
+   * The fragment frames written without `variant` and `tone` (#645), by index in `sets`:
+   * outlined as the theme's group frame (`sumi`'s pale hairline), not the gray set line.
+   */
+  sequencePanels?: ReadonlySet<number>;
   /** Lifelines of sequences written `dash: solid` (#630): drawn solid even on a dashed variant. */
   solidLifelines?: ReadonlySet<ElementKey>;
   /**

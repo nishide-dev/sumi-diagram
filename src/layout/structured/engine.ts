@@ -111,9 +111,10 @@ import {
 } from "./align";
 import { verifiedAlignHints } from "./align-hint";
 import { chatGeometry } from "./chat";
+import { panelGroupOf } from "./panels";
 import { sequenceGeometry } from "./sequence";
 import { fitSets } from "./sets";
-import { nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
+import { crossStretchable, nodeLabelCenter, nodeSize, type Size, stretchableShape } from "./sizing";
 import { type StraightenStats, straightenLayout } from "./straighten";
 import type { WidthEntry } from "./width-tree";
 
@@ -157,6 +158,12 @@ export interface StructuredLayoutOptions {
 
 type Align = NonNullable<ArrangeBoxIR["align"]>;
 
+/** A `panels` row (#641): its title band name and its panels, each with its item in the row. */
+interface PanelRow {
+  readonly name: string;
+  readonly panels: { readonly key: ElementKey; readonly item: ArrangeItemIR }[];
+}
+
 /** Overhang of a container's attached nodes beyond its arrange tree, per side. */
 interface Overhang {
   north: number;
@@ -170,6 +177,13 @@ const CENTER_VOID_MIN = (5 * 72) / 25.4 / 0.5;
 const CENTER_VOID_RATIO = 0.25;
 
 const NO_OVERHANG: Readonly<Overhang> = Object.freeze({ north: 0, east: 0, south: 0, west: 0 });
+
+/** What a place item's `at` is the centre of (#517), or where its own place's [0, 0] sits (#649). */
+type PlaceOrigin = "footprint" | "body" | "place";
+
+/** The `origin` of item `i` of a place box. */
+const placeOrigin = (box: ArrangeBoxIR, i: number): PlaceOrigin =>
+  box.innerOrigin?.[i] === true ? "place" : box.bodyCentered?.[i] === true ? "body" : "footprint";
 
 /** The root container (the figure itself). */
 const ROOT = "";
@@ -367,11 +381,30 @@ class StructuredLayout {
   // The state of one pass (`run`).
   #struts: Struts = NO_STRUTS;
   readonly #overhangs = new Map<Container, Overhang>();
+  /**
+   * How far the out-of-flow attached nodes (`attach.inFlow: false`, #649) of
+   * a group reach beyond its frame: room the group does not make for them,
+   * which the container around it makes instead (only where they stick out
+   * of its arrange tree, like any attached node).
+   */
+  readonly #hangs = new Map<ElementKey, Overhang>();
   readonly #itemSizes = new Map<ElementKey, Size>();
   readonly #rects = new Map<ElementKey, Rect>();
   readonly #contents = new Map<ElementKey, Rect>();
   /** `matchLabelHeight` (#613): the title band height (units) of each name. */
   readonly #matchedLabelHeights = new Map<string, number>();
+  /**
+   * `row.panels` (#641): each panel group's key → its row: the name its title
+   * band is matched by when it writes no `matchLabelHeight`, and the row's panels
+   * with the item each is (the group, or its caption's stack).
+   */
+  readonly #panels = new Map<ElementKey, PanelRow>();
+  /**
+   * `row.panels` (#641), per pass: the shared title band (units) of each panels
+   * row, or `null` where sharing it would make the row taller (each panel then
+   * keeps its own title band).
+   */
+  readonly #panelBands = new Map<string, number | null>();
   /** The tilted planes (#577) of the pass: the flat frame and the flat rectangles of their nodes. */
   readonly #planes = new Map<
     ElementKey,
@@ -500,9 +533,10 @@ class StructuredLayout {
       const label = measureText(group.label, group.style, measurer);
       if (label !== undefined) this.#labels.set(group.key, label);
     }
+    this.#collectPanels(ir);
     // `matchLabelHeight` (#613): one title band per name, the tallest label's.
     for (const group of ir.groups) {
-      const name = group.matchLabelHeight;
+      const name = group.matchLabelHeight ?? this.#panels.get(group.key)?.name;
       const label = this.#labels.get(group.key);
       if (name === undefined) continue;
       const height = label === undefined ? 0 : Math.ceil(label.height);
@@ -512,6 +546,81 @@ class StructuredLayout {
       );
     }
     this.#matchWidths(ir);
+  }
+
+  /**
+   * `row.panels` (#641): records the panel groups of every row that writes it,
+   * each row's under its own title band name (outside the IDs a figure can write).
+   */
+  #collectPanels(ir: FigureIR): void {
+    let rows = 0;
+    const walk = (box: ArrangeBoxIR | undefined): void => {
+      if (box === undefined) return;
+      if (box.kind === "row" && box.panels === true) {
+        const row: PanelRow = { name: `\u0000panels:${rows++}`, panels: [] };
+        for (const item of box.items) {
+          const key = this.#panelOf(item);
+          if (key === undefined || item === null) continue;
+          row.panels.push({ key, item });
+          this.#panels.set(key, row);
+        }
+      }
+      for (const item of box.items) if (item !== null && typeof item !== "string") walk(item);
+    };
+    walk(ir.arrange);
+    for (const group of ir.groups) walk(group.arrange);
+  }
+
+  /**
+   * The title band (units) the panels of a `panels` row (#641) share when they
+   * write no `matchLabelHeight`: the tallest of their titles, but only if that
+   * leaves the row as tall as with each panel's own title band (the tallest
+   * title and the tallest content may be in different panels); else `null`.
+   * Measured once per pass; while it is measured the panels keep their own band.
+   */
+  #panelBand(row: PanelRow): number | null {
+    const cached = this.#panelBands.get(row.name);
+    if (cached !== undefined) return cached;
+    this.#panelBands.set(row.name, null);
+    const shared = this.#matchedLabelHeights.get(row.name) ?? 0;
+    if (shared === 0) return null;
+    const space = (group: GroupIR, height: number | undefined) =>
+      height === undefined || height === 0 ? 0 : height + this.#padOf(group) / 2;
+    let own = 0;
+    let matched = 0;
+    for (const { key, item } of row.panels) {
+      const group = this.#group(key);
+      const p = this.#padding(key);
+      let body =
+        this.#containerSize(key, group.arrange).height +
+        p.north +
+        p.south +
+        groupLayerSpread(group);
+      // A captioned panel's item is its group, the caption gap and the caption (#130).
+      if (item !== null && typeof item !== "string") {
+        const caption = item.items[1];
+        if (typeof caption === "string") body += this.#itemSize(caption).height + this.#gap(item);
+      }
+      const label = this.#labels.get(key);
+      const explicit =
+        group.matchLabelHeight === undefined
+          ? undefined
+          : this.#matchedLabelHeights.get(group.matchLabelHeight);
+      const ownHeight = explicit ?? (label === undefined ? undefined : Math.ceil(label.height));
+      own = Math.max(own, space(group, ownHeight) + body);
+      matched = Math.max(
+        matched,
+        space(group, group.matchLabelHeight === undefined ? shared : explicit) + body,
+      );
+    }
+    const band = matched <= own ? shared : null;
+    this.#panelBands.set(row.name, band);
+    return band;
+  }
+
+  /** The group a direct item of a `panels` row (#641) is a panel for, if any. */
+  #panelOf(item: ArrangeItemIR): ElementKey | undefined {
+    return panelGroupOf(item, (key) => this.#groups.get(key))?.key;
   }
 
   /**
@@ -618,6 +727,7 @@ class StructuredLayout {
     this.#shifts = shifts;
     this.#slots.clear();
     this.#overhangs.clear();
+    this.#hangs.clear();
     this.#itemSizes.clear();
     this.#rects.clear();
     this.#contents.clear();
@@ -629,6 +739,7 @@ class StructuredLayout {
     this.#chatFrames.clear();
     this.#sequenceFrames.clear();
     this.#centerPaddings.clear();
+    this.#panelBands.clear();
     const root = this.#ir.arrange as ArrangeBoxIR;
     const size = this.#containerSize(ROOT, root);
     // Slots are recorded (and shifts applied) unless `figure.layout.straighten: false` (#618, #620).
@@ -947,7 +1058,7 @@ class StructuredLayout {
       }
       if (box.kind !== "place") continue;
       const rects = box.items.map((item, i) =>
-        this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0], box.bodyCentered?.[i] === true),
+        this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0], placeOrigin(box, i)),
       );
       for (const [i, a] of rects.entries())
         for (let j = i + 1; j < rects.length; j++) {
@@ -1032,8 +1143,8 @@ class StructuredLayout {
         const size = sizes[i] as Size;
         const margin = this.#crossLead(item) + this.#crossTrail(item);
         const length = (vertical ? size.width : size.height) + margin;
-        // An item with cross-axis space is centered as a whole (#545).
-        if (typeof item !== "string" || margin > 0) return length;
+        // An item with cross-axis space is centered as a whole (#545); a panel (#641) is not centred.
+        if (typeof item !== "string" || margin > 0 || this.#isPanel(box, item)) return length;
         const body = this.#bodyRect(item, { x: 0, y: 0, ...size });
         const center = vertical ? body.x + body.width / 2 : body.y + body.height / 2;
         return 2 * Math.max(center, length - center);
@@ -1199,8 +1310,11 @@ class StructuredLayout {
    * `matchLabelHeight` (#613) the tallest label's of its name; `undefined` for no band.
    */
   #labelHeight(group: GroupIR): number | undefined {
-    if (group.matchLabelHeight !== undefined) {
-      const matched = this.#matchedLabelHeights.get(group.matchLabelHeight) ?? 0;
+    const row = group.matchLabelHeight === undefined ? this.#panels.get(group.key) : undefined;
+    const band = row === undefined ? undefined : this.#panelBand(row);
+    const name = group.matchLabelHeight ?? (band === null ? undefined : row?.name);
+    if (name !== undefined) {
+      const matched = this.#matchedLabelHeights.get(name) ?? 0;
       return matched > 0 ? matched : undefined;
     }
     const label = this.#labels.get(group.key);
@@ -1224,8 +1338,27 @@ class StructuredLayout {
         );
       }
       this.#placeAttached(container, local);
-      overhang = overhangOf(frame, this.#attachedRects(container, local));
+      // #649: a node attached with `inFlow: false` takes no room in its group;
+      // at the root (nothing around it) it still does, so the canvas holds it.
+      const inFlow = (node: NodeIR) => container === ROOT || node.attach?.inFlow !== false;
+      overhang = overhangOf(frame, [
+        ...this.#attachedRects(container, local, inFlow),
+        ...this.#hangRects(local),
+      ]);
       this.#overhangs.set(container, overhang);
+      if (container !== ROOT) {
+        const hanging = this.#attachedRects(container, local, (node) => !inFlow(node));
+        if (hanging.length > 0) {
+          const reach = overhangOf(frame, hanging);
+          const p = this.#padding(container);
+          this.#hangs.set(container, {
+            north: Math.max(0, reach.north - overhang.north - p.north),
+            east: Math.max(0, reach.east - overhang.east - p.east),
+            south: Math.max(0, reach.south - overhang.south - p.south),
+            west: Math.max(0, reach.west - overhang.west - p.west),
+          });
+        }
+      }
     }
     return {
       width: box.width + overhang.west + overhang.east,
@@ -1238,7 +1371,7 @@ class StructuredLayout {
   /** Union of natural footprints around the authored centers, without grid quantization. */
   #placeBounds(box: ArrangeBoxIR): Rect {
     const rects = box.items.map((item, i) =>
-      this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0], box.bodyCentered?.[i] === true),
+      this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0], placeOrigin(box, i)),
     );
     const x = Math.min(...rects.map((r) => r.x));
     const y = Math.min(...rects.map((r) => r.y));
@@ -1254,9 +1387,14 @@ class StructuredLayout {
   #coordinateRect(
     item: ArrangeItemIR,
     [x, y]: readonly [number, number],
-    withoutAttached = false,
+    origin: PlaceOrigin = "footprint",
   ): Rect {
+    const withoutAttached = origin === "body";
     const size = this.#itemSize(item);
+    // #649: `at` is where the group's own place puts its [0, 0].
+    const inner =
+      origin === "place" && typeof item === "string" ? this.#placeZero(item) : undefined;
+    if (inner !== undefined) return { x: x * 2 - inner.x, y: y * 2 - inner.y, ...size };
     let body = { x: 0, y: 0, ...size };
     if (typeof item === "string") {
       body = this.#bodyRect(item, body);
@@ -1282,6 +1420,42 @@ class StructuredLayout {
     return { x: x * 2 - body.x - body.width / 2, y: y * 2 - body.y - body.height / 2, ...size };
   }
 
+  /**
+   * `origin: place` (#649): where a group's own `place` puts its coordinate
+   * [0, 0], in its footprint at (0, 0) at its natural size, the way
+   * {@link #placeElement} and {@link #placeCoordinates} place it: its frame,
+   * the padding and title band, the room of its attached nodes, then the
+   * place box centred in what is left. Undefined for anything else (a node,
+   * a tilted plane, a group arranged otherwise); the check stage reports it.
+   */
+  #placeZero(key: ElementKey): { x: number; y: number } | undefined {
+    const group = this.#groups.get(key);
+    if (group?.arrange?.kind !== "place" || group.plane !== undefined) return undefined;
+    const size = this.#itemSize(key);
+    const rect = groupFrontRect(group, this.#bodyRect(key, { x: 0, y: 0, ...size }));
+    const p = this.#padding(key);
+    const band = this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(group);
+    const top = labelAtBottom(group.labelAt) ? 0 : band;
+    const content = this.#alignedContent(group, {
+      x: rect.x + p.west,
+      y: rect.y + p.north + top,
+      width: rect.width - p.west - p.east,
+      height: rect.height - p.north - p.south - band,
+    });
+    const overhang = this.#overhangs.get(key) ?? NO_OVERHANG;
+    const frame = {
+      x: content.x + overhang.west,
+      y: content.y + overhang.north,
+      width: content.width - overhang.west - overhang.east,
+      height: content.height - overhang.north - overhang.south,
+    };
+    const bounds = this.#placeBounds(group.arrange);
+    return {
+      x: frame.x + (frame.width - bounds.width) / 2 - bounds.x,
+      y: frame.y + (frame.height - bounds.height) / 2 - bounds.y,
+    };
+  }
+
   #placeCoordinates(
     box: ArrangeBoxIR,
     frame: Rect,
@@ -1289,11 +1463,7 @@ class StructuredLayout {
   ): void {
     const bounds = this.#placeBounds(box);
     box.items.forEach((item, i) => {
-      const local = this.#coordinateRect(
-        item,
-        box.positionsPt?.[i] ?? [0, 0],
-        box.bodyCentered?.[i] === true,
-      );
+      const local = this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0], placeOrigin(box, i));
       const placed = {
         ...local,
         x: frame.x + (frame.width - bounds.width) / 2 - bounds.x + local.x,
@@ -1572,20 +1742,22 @@ class StructuredLayout {
       const crossLead = separator ? 0 : this.#crossLead(item);
       const crossTrail = separator ? 0 : this.#crossTrail(item);
       const margin = crossLead + crossTrail;
-      const stretched = this.#crossStretched(item, align, vertical);
+      // A panel of a `panels` row (#641) takes the row's height whatever align says.
+      const panel = this.#isPanel(box, item);
+      const stretched = panel || this.#crossStretched(item, align, vertical);
       const cross = stretched ? crossAvailable - margin : crossNatural;
       let offset =
-        separator || align === "start" || (align === "stretch" && stretched)
+        separator || panel || align === "start" || (align === "stretch" && stretched)
           ? 0
           : align === "end"
             ? crossAvailable - cross - margin
             : (crossAvailable - cross - margin) / 2;
-      if (align === "center" && typeof item === "string" && !separator && margin === 0) {
+      if (align === "center" && typeof item === "string" && !separator && !panel && margin === 0) {
         const body = this.#bodyRect(item, { x: 0, y: 0, ...size });
         const center = vertical ? body.x + body.width / 2 : body.y + body.height / 2;
         offset = crossAvailable / 2 - center;
       }
-      if ((align === "start" || align === "end") && !separator) {
+      if ((align === "start" || align === "end") && !separator && !panel) {
         const body =
           typeof item === "string"
             ? this.#bodyRect(item, { x: 0, y: 0, ...size })
@@ -1604,7 +1776,7 @@ class StructuredLayout {
       // items up on purpose), a flush box (gap 0) keeps its items touching in one line, and
       // cross-axis space (#545) was put there by `figure.layout.align`.
       const rect = this.#slot(box, item, frame, placed, () => {
-        const free = align === "center" && !separator && box.gapPt !== 0 && margin === 0;
+        const free = align === "center" && !separator && !panel && box.gapPt !== 0 && margin === 0;
         return { x: vertical && free, y: !vertical && free };
       });
       this.#within(item, () => {
@@ -1627,6 +1799,8 @@ class StructuredLayout {
           : measureText(edge.label, edge.style, this.#measurer);
       },
       widenable: (key) => this.#stretchable(key, true),
+      // Only nodes: a group's frame would grow without its contents (#645).
+      tallable: (key) => key.startsWith("n:") && this.#stretchable(key, false),
       gap: this.#defaultGap,
     });
   }
@@ -1684,6 +1858,11 @@ class StructuredLayout {
     return box.justify === "space-between" && box.items.length > 1;
   }
 
+  /** Whether `item` is a panel (#641) of `box`, a row that writes `panels`. */
+  #isPanel(box: ArrangeBoxIR, item: ArrangeItemIR): boolean {
+    return box.kind === "row" && box.panels === true && this.#panelOf(item) !== undefined;
+  }
+
   /** Whether an item of a stack / row placed with `align` takes the whole cross axis. */
   #crossStretched(item: ArrangeItemIR, align: Align, vertical: boolean): boolean {
     const separator = typeof item === "string" && this.#nodes.get(item)?.component === SEPARATOR_ID;
@@ -1707,8 +1886,9 @@ class StructuredLayout {
       // A separator spans any row; it leaves the other items centred.
       return box.items.some(
         (item) =>
-          !(typeof item === "string" && this.#nodes.get(item)?.component === SEPARATOR_ID) &&
-          this.#crossStretched(item, box.align ?? "center", false),
+          this.#isPanel(box, item) ||
+          (!(typeof item === "string" && this.#nodes.get(item)?.component === SEPARATOR_ID) &&
+            this.#crossStretched(item, box.align ?? "center", false)),
       );
     return false;
   }
@@ -1731,18 +1911,9 @@ class StructuredLayout {
   /** Whether `stretch` resizes an item on the cross axis of a stack (`vertical`) or row. */
   #stretchable(item: ArrangeItemIR, vertical: boolean): boolean {
     if (typeof item !== "string") return true;
-    const node = this.#nodes.get(item);
-    if (node === undefined) return true;
-    const explicit = vertical ? node.width : node.height;
     // Outline components keep their footprint: stretching changes the
     // renderer's safe area (e.g. a taller trapezoid has deeper slants).
-    return (
-      explicit === undefined &&
-      node.render === undefined &&
-      node.badge === undefined &&
-      node.glyphs === undefined &&
-      stretchableShape(node.shape)
-    );
+    return crossStretchable(this.#nodes.get(item), vertical);
   }
 
   /** Convert the reserved badge footprint to the body's own box. */
@@ -1895,7 +2066,8 @@ class StructuredLayout {
    * the whole area, so nothing is left to move.
    */
   #alignedContent(group: GroupIR, content: Rect): Rect {
-    const align = group.contentAlign;
+    // A panel of a `panels` row (#641) puts its content at the top unless it says otherwise.
+    const align = group.contentAlign ?? (this.#panels.has(group.key) ? "top" : undefined);
     if (align === undefined || align === "center") return content;
     if (this.#fillsHeight(group.arrange)) return content;
     const natural = this.#containerSize(group.key, group.arrange).height;
@@ -2017,10 +2189,32 @@ class StructuredLayout {
     };
   }
 
-  #attachedRects(container: Container, rects: Map<ElementKey, Rect>): Rect[] {
+  #attachedRects(
+    container: Container,
+    rects: Map<ElementKey, Rect>,
+    which: (node: NodeIR) => boolean = () => true,
+  ): Rect[] {
     return (this.#attached.get(container) ?? []).flatMap((node) => {
-      const rect = rects.get(node.key);
+      const rect = which(node) ? rects.get(node.key) : undefined;
       return rect === undefined ? [] : [rect, ...this.#decorations(node, rect)];
+    });
+  }
+
+  /** The frames of the groups among `rects` grown by their out-of-flow attached nodes (#649). */
+  #hangRects(rects: Map<ElementKey, Rect>): Rect[] {
+    if (this.#hangs.size === 0) return [];
+    return [...rects].flatMap(([key, rect]) => {
+      const hang = this.#hangs.get(key);
+      return hang === undefined
+        ? []
+        : [
+            {
+              x: rect.x - hang.west,
+              y: rect.y - hang.north,
+              width: rect.width + hang.west + hang.east,
+              height: rect.height + hang.north + hang.south,
+            },
+          ];
     });
   }
 
