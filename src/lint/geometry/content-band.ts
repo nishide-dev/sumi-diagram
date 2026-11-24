@@ -23,6 +23,7 @@ import { formatDocPath } from "../../core/diagnostics";
 import { mmToPt } from "../../core/units";
 import { asHintTrial, HintTrials, hintLayoutOptions, inHintTrial } from "../../layout/hint-trials";
 import type { LayoutIR, Rect } from "../../layout/ir";
+import { panelRows } from "../../layout/structured/panels";
 import { defineGeometryRule, type LintFinding } from "../rule";
 import { capitalize, drawnUnits, mmText } from "./common";
 import type { GeometryContext } from "./context";
@@ -82,6 +83,31 @@ function bandsOf(layout: LayoutIR, key: ElementKey): { above: number; below: num
     below: content.y + content.height - (bounds.y + bounds.height),
   };
 }
+
+/**
+ * The YAML that puts a group's content under its title (#641): `contentAlign: top`
+ * at the group's path, and, when the group is one of two or more panels side by
+ * side in a row that does not write `panels`, that row's `panels: true`.
+ */
+export function contentAlignYaml(
+  context: GeometryContext,
+  group: GroupIR,
+): { readonly edit: string; readonly row?: string } | undefined {
+  const element = context.get(group.key);
+  if (element === undefined) return undefined;
+  const path = formatDocPath([...element.docPath, "contentAlign"]);
+  const edit = `writing contentAlign: top in ${element.name} (${path}; in YAML, the line "contentAlign: top" under "- id: ${group.id}")`;
+  const placed = context.placed;
+  if (placed === undefined) return { edit };
+  const row = panelRows(placed.ir, (g) => context.get(g.key)?.docPath).find(
+    (r) => r.box.panels !== true && r.panels.length > 1 && r.panels.includes(group),
+  );
+  return row === undefined ? { edit } : { edit, row: formatDocPath(row.path) };
+}
+
+/** The sentence pointing at a row's `panels: true` (#641) for the panels of `row`. */
+export const panelsSentence = (row: string): string =>
+  `To line up all the panels of ${row} at once (one height, content under the titles, one title band where it does not make the row taller), write panels: true in that row instead.`;
 
 /** Groups (document order) whose centred content leaves at least {@link MIN_BAND} above and below. */
 export function contentBands(context: GeometryContext): Band[] {
@@ -190,10 +216,10 @@ export const contentBand = defineGeometryRule({
     const verdicts = bandTrials(context, bands);
     return bands.flatMap((band, index): LintFinding[] => {
       const element = context.get(band.group.key);
-      if (element === undefined) return [];
+      const yaml = contentAlignYaml(context, band.group);
+      if (element === undefined || yaml === undefined) return [];
       const verdict = verdicts[index] as BandVerdict;
-      const path = formatDocPath([...element.docPath, "contentAlign"]);
-      const edit = `setting ${path} to top`;
+      const { edit } = yaml;
       const outcome = verdict.ok
         ? `Verified: ${edit} puts the content right under the title and leaves one ${mmText(context, band.above + band.below)} band at the bottom (laid out, routed and linted as a trial: same size, no new error or warning).`
         : `${capitalize(edit)} would put the content right under the title; ${REASONS[verdict.reason]}${verdict.reason === "problems" ? ` ${verdict.problem}` : ""}.`;
@@ -202,7 +228,7 @@ export const contentBand = defineGeometryRule({
           message: `${capitalize(element.name)} is taller than its content and centres it: ${mmText(context, band.above)} empty above the content and ${mmText(context, band.below)} below (the box stretches the group to its neighbours).`,
           path: element.docPath,
           subject: element.subject,
-          hint: `${outcome} Sibling panels with contentAlign: top start their first rows on one line (matchLabelHeight evens out titles of different heights). Keep the centring if it is intended.`,
+          hint: `${outcome} ${yaml.row === undefined ? "Sibling panels with contentAlign: top start their first rows on one line (matchLabelHeight evens out titles of different heights)." : panelsSentence(yaml.row)} Keep the centring if it is intended.`,
         },
       ];
     });

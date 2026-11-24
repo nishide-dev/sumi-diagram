@@ -86,9 +86,9 @@ export const FAN_IN_MODES = ["merge", "spread"] as const;
 export type FanInMode = (typeof FAN_IN_MODES)[number];
 
 /**
- * `figure.layout.alignGrowth` (#333): `report` (default) keeps the info
- * `layout/align-grew-figure`; `allow` says the growth is intended and
- * silences it.
+ * `figure.layout.alignGrowth` (#333): `report` (default) keeps the infos
+ * `layout/align-grew-figure` and `layout/align-widened-gap` (#646); `allow`
+ * says the space is intended and silences them.
  */
 export const ALIGN_GROWTH_MODES = ["report", "allow"] as const;
 export type AlignGrowthMode = (typeof ALIGN_GROWTH_MODES)[number];
@@ -193,9 +193,10 @@ export type EdgeLabelAt = EdgeLabelPosition | number;
 /**
  * How an edge's label is drawn (#610): `beside` the line (the default), or
  * as a `tag` on the line, its text in a small framed box that hides the line
- * under it. Structured layout only.
+ * under it, or (#649) as a round `badge` on the line (a circled step number).
+ * Structured layout only.
  */
-export const EDGE_LABEL_STYLES = ["beside", "tag"] as const;
+export const EDGE_LABEL_STYLES = ["beside", "tag", "badge"] as const;
 export type EdgeLabelStyle = (typeof EDGE_LABEL_STYLES)[number];
 
 /**
@@ -230,12 +231,14 @@ export const ROW_DIRECTIONS = ["right", "left"] as const;
 /**
  * An edge anchor: a side, optionally with a position along it from 0 to 1
  * (left to right on north/south, top to bottom on east/west; default 0.5),
- * or `straight` (#179): in line with the other end, on the side facing it.
+ * or `straight` (#179): in line with the other end, on the side facing it,
+ * or `block` / `block:<side>` (#642): the middle of a side of a whole
+ * element, drawn with a bracket on a tokens row or a matrix.
  * The schema accepts any string so the `layout` stage can report a malformed
  * anchor as `layout/invalid-anchor`; the pattern is for editors.
  */
 export const ANCHOR_PATTERN =
-  /^(?:straight(?::span)?|(north|east|south|west)(?::(0(?:\.\d+)?|1(?:\.0+)?))?)$/;
+  /^(?:straight(?::span)?|block(?::(?:north|east|south|west))?|(north|east|south|west)(?::(0(?:\.\d+)?|1(?:\.0+)?))?)$/;
 
 /** A non-negative layout length such as `3mm` (or `0`), for the JSON Schema. */
 const LAYOUT_LENGTH_PATTERN = /^(0|\d+(\.\d+)?(mm|cm|in|pt))$/;
@@ -355,6 +358,12 @@ export const StackSchema = z.strictObject({
 export const RowSchema = z.strictObject({
   direction: z.enum(ROW_DIRECTIONS).default("right"),
   ...arrangeFields,
+  panels: z
+    .literal(true)
+    .optional()
+    .describe(
+      "Side-by-side panels (#641): every group written directly in the row (or captioned there) takes the row's height, so the frames share their top and bottom; its content sits right under its title (contentAlign: top unless the group writes contentAlign); and the titles share one band height (as one matchLabelHeight unless a group writes matchLabelHeight) unless that would make the row taller, so the headings and, with that band, the first rows line up. Captions share a line when they have the same number of lines. Nodes, nested boxes, tilted planes, tokens, matrices and legends keep align. Omitted means groups follow align like any item.",
+    ),
   get items() {
     return z
       .array(ArrangeItemSchema)
@@ -419,10 +428,10 @@ export const PlaceSchema = z
                 "Item center [x, y] in units; y grows downward. By default a group's (or a whole tokens sequence's) center is that of its frame including the nodes attached to it; origin: body gives the frame without them.",
               ),
             origin: z
-              .enum(["footprint", "body"])
+              .enum(["footprint", "body", "place"])
               .optional()
               .describe(
-                "What `at` is the center of for a group or whole tokens sequence: footprint (default) is its frame, which grows to hold attached nodes; body is the same frame without them, so a sketch's centers carry over. A plain node's center is always its body. Only on a node or group ID.",
+                "What `at` is the center of for a group or whole tokens sequence: footprint (default) is its frame, which grows to hold attached nodes; body is the same frame without them, so a sketch's centers carry over. A plain node's center is always its body. place (a flat group arranged by its own place only, not a tilted plane) makes `at` the point where that inner place's [0, 0] lands, so the inner `at` values are in this place's coordinates shifted by `at`: with at: [0, 0] and the same unit, one coordinate system for the page and the groups, with no group centres to work out. Only on a node or group ID.",
               ),
           }),
         )
@@ -535,7 +544,7 @@ export const SequenceFragmentSchema = z
       .enum(SET_VARIANTS)
       .optional()
       .describe(
-        "The frame's paint, as a rect set's: default (tint and outline), filled, outlined, dashed or dotted. Omitted means outlined.",
+        "The frame's paint, as a rect set's: default (tint and outline), filled, outlined (the set's gray 1pt line), dashed or dotted. Omitted (and no tone) means an outline drawn like the theme's group frame, e.g. sumi's thin pale hairline, with no tint.",
       ),
     tone: Tone.describe(
       "Color category of the frame (outline, tint) and its heading. Omitted means gray.",
@@ -558,7 +567,7 @@ export const SequenceFragmentSchema = z
   .meta({
     id: "SequenceFragment",
     description:
-      "A frame around consecutive rows with a heading at its top left (outside the first lifeline it encloses), drawn as a rect set.",
+      "A frame around consecutive rows with a heading at its top left (outside the first lifeline it encloses), drawn as a rect set (by default outlined like the theme's group frame).",
   });
 
 const SequenceMessage = Id.describe(
@@ -671,6 +680,12 @@ export const AttachSchema = z.strictObject({
       "The side or corner of the target to place this node on; a corner separates the boxes by gap on both axes.",
     ),
   gap: LayoutLength.optional().describe("Space between the target and this node. Omitted means 0."),
+  inFlow: z
+    .boolean()
+    .optional()
+    .describe(
+      "false keeps the node out of the flow: the group its target is in (a tokens sequence, or any group) does not grow to hold it, so the row it sits in keeps its size and its neighbours do not shift; the node hangs over the frame, and only the group around that one (or the canvas) grows where it sticks out. It takes no room among the items next to it, so leave room with a gap. Omitted means true.",
+    ),
 });
 
 /**
@@ -824,7 +839,7 @@ const Anchor = z
   .string()
   .meta({ pattern: ANCHOR_PATTERN.source })
   .describe(
-    '"<side>" or "<side>:<0..1>", e.g. "south" or "south:0.25"; or "straight": in line with the other end, on the side facing it; or "straight:span": straight at the middle of the span the two ends share, for boxes that span several grid columns and do not centre over each other (structured layout only).',
+    '"<side>" or "<side>:<0..1>", e.g. "south" or "south:0.25"; or "straight": in line with the other end, on the side facing it; or "straight:span": straight at the middle of the span the two ends share, for boxes that span several grid columns and do not centre over each other; or "block" / "block:<side>": the end meets a whole tokens row, matrix or group at the middle of a side (the facing side, or the one named), and a tokens row or matrix gets a bracket along that side so the line reads as coming from the whole block, not one cell (structured layout only).',
   );
 
 /**
@@ -858,6 +873,12 @@ export const AlignConstraintSchema = z
       .enum(ALIGN_POSITIONS)
       .optional()
       .describe("Which coordinate: center (default), start (top / left) or end (bottom / right)."),
+    move: z
+      .union([Ref, z.array(Ref).min(1)])
+      .optional()
+      .describe(
+        "Item (or items) of this constraint that may move to meet it (since 0.20.1): only these take the space that aligns them, the others stay where their boxes put them, e.g. move a note to its cell instead of pulling the cells apart. Omitted means any item may move.",
+      ),
   })
   .check((ctx) => {
     const axes = [ctx.value.x, ctx.value.y].filter((v) => v !== undefined).length;
@@ -901,7 +922,7 @@ export const LayoutFieldsSchema = z.strictObject({
     .enum(ALIGN_GROWTH_MODES)
     .optional()
     .describe(
-      "allow: the space the align constraints add is intended, so the info layout/align-grew-figure is not reported. Omitted means report (structured layout only).",
+      "allow: the space the align constraints add is intended, so the infos layout/align-grew-figure and layout/align-widened-gap are not reported. Omitted means report (structured layout only).",
     ),
   fanIn: z
     .enum(FAN_IN_MODES)
@@ -1350,6 +1371,12 @@ export const LaneSchema = z.strictObject({
   outside: Id.optional().describe(
     "A group or node the lane runs just outside of (offset beyond its frame on that side) instead of beyond both ends: the frame a skip goes around, the panel a loop goes over, or the target beside which a bus's trunk runs.",
   ),
+  bus: z
+    .boolean()
+    .optional()
+    .describe(
+      'false keeps this lane out of any bus: it is not merged with the other lanes on its side that share its source or target, so it runs at its own offset, as a separate line. Give the shared end its own anchor on that side (fromAnchor: "east:0.3") so the lines leave apart. Omitted means true.',
+    ),
 });
 
 export const EdgeSchema = z.strictObject({
@@ -1364,7 +1391,11 @@ export const EdgeSchema = z.strictObject({
   fromAnchor: Anchor.optional().describe(
     "Where the edge leaves the source (structured layout only).",
   ),
-  to: Ref.describe("Target node or group ID, or a cell of a tokens node as <node>.<cell>."),
+  to: z
+    .union([Ref, z.array(Ref).min(2)])
+    .describe(
+      "Target node or group ID, or a cell of a tokens node as <node>.<cell>. A list of two or more participants only for a message of a sequence (#645): one arrow to each, in consecutive rows in the order written, the label on the first.",
+    ),
   toAnchor: Anchor.optional().describe(
     "Where the edge enters the target (structured layout only).",
   ),
@@ -1385,7 +1416,7 @@ export const EdgeSchema = z.strictObject({
     .enum(EDGE_LABEL_STYLES)
     .optional()
     .describe(
-      "How the label is drawn: beside the line (beside, the default) or as a small tag on the line (tag): the text in a thin framed box, filled with the background, that sits centred on the line and hides it there. A tag needs no room beside the line, so it fits between close columns and names a point on a line; labelAt moves it along the route (structured layout only).",
+      "How the label is drawn: beside the line (beside, the default) or as a small tag on the line (tag): the text in a thin framed box, filled with the background, that sits centred on the line and hides it there. A tag needs no room beside the line, so it fits between close columns and names a point on a line; labelAt moves it along the route. badge is a tag in a round frame (a circle while the text fits inside it, such as a step number; a pill as wide as the text needs otherwise), placed the same way (structured layout only).",
     ),
   lane: LaneSchema.optional().describe(
     "The lane of a loop, skip or bus (structured layout only): the edge leaves and enters on the lane's side and its long segment runs `offset` beyond both ends (or beyond the frame of `outside`). Edges with lanes on one side that share a source (or a target) share one lane, the farthest: a bus with one trunk. Omitted means the router's own route.",
@@ -1548,6 +1579,11 @@ export type FigureGroup = z.output<typeof GroupSchema>;
 export type FigureNode = z.output<typeof NodeSchema>;
 /** `nodes[].labelRotation` (#178): degrees, positive clockwise as in SVG's `rotate()`. */
 export type LabelRotation = NonNullable<FigureNode["labelRotation"]>;
-export type FigureEdge = z.output<typeof EdgeSchema>;
+/**
+ * An edge after validation: `to` is one target. A list of targets (`to: [a, b]`, #645) is
+ * recorded in `PartialFigure.recipients` and `to` keeps the first; only a sequence message
+ * may have several.
+ */
+export type FigureEdge = Omit<z.output<typeof EdgeSchema>, "to"> & { to: string };
 export type FigureSet = z.output<typeof SetSchema>;
 export type JsonValue = z.output<typeof JsonValue>;

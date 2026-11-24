@@ -57,7 +57,11 @@ describe("geometry/content-band", () => {
     for (const d of found) {
       expect(d.severity).toBe("info");
       expect(d.message).toMatch(/empty above the content and \d+\.\dmm below/);
-      expect(d.hint).toMatch(/^Verified: setting groups\[[02]\]\.contentAlign to top puts/);
+      expect(d.hint).toMatch(
+        /^Verified: writing contentAlign: top in group "[ac]" \(groups\[[02]\]\.contentAlign; in YAML, the line "contentAlign: top" under "- id: [ac]"\) puts/,
+      );
+      // Both are panels of the root row, which can line them all up at once.
+      expect(d.hint).toContain("write panels: true in that row instead");
     }
   });
 
@@ -88,5 +92,44 @@ ${[1, 2, 3, 4, 5].map((i) => `  - {id: t${i}, component: box, label: T${i}}`).jo
     expect(found.at(-1)?.hint).toMatch(
       /not checked \(at most \d+ groups are laid out again per figure\)/,
     );
+  });
+
+  test("group-empty-area points at this rule only for a group it reports", async () => {
+    const source = (a: string) => `version: 1
+figure:
+  id: empty-and-band
+  profile: paper-double
+  layout:
+    arrange:
+      row: {gap: 4mm, align: stretch, items: [a, b]}
+groups:
+  - id: a
+    label: (a) Short
+    ${a}
+    arrange: {stack: {items: [a1]}}
+  - id: b
+    label: (b) Tall
+    arrange: {stack: {items: [b1, b2, b3, b4, b5, b6]}}
+nodes:
+  - {id: a1, component: box, label: In}
+${["One", "Two", "Three", "Four", "Five", "Six"].map((l, i) => `  - {id: b${i + 1}, component: box, label: ${l}}`).join("\n")}
+`;
+    const empty = async (text: string) => {
+      const result = await renderFigure(text);
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics, null, 2));
+      return lintGeometry(result.value as RenderedStructuredFigure, { source: text }).filter(
+        (d) => d.code === "geometry/group-empty-area" && d.subject?.id === "a",
+      );
+    };
+    const [centred] = await empty(source(""));
+    expect(centred?.hint).toContain(
+      'geometry/content-band reports this group with contentAlign: top in group "a"',
+    );
+    // The outcome is content-band's to state (its hint is checked by a trial).
+    expect(centred?.hint).toContain("see geometry/content-band for whether that edit was checked");
+    expect(centred?.hint).not.toContain("would move");
+    // At the top there is one band, not two: no pointer (the rule may still report the area).
+    for (const d of await empty(source("contentAlign: top")))
+      expect(d.hint).not.toContain("geometry/content-band");
   });
 });
