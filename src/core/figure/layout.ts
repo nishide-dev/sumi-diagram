@@ -417,6 +417,26 @@ function checkStructured(state: CheckState, locate: Locator): void {
           }
           continue;
         }
+        // `origin: place` (#649) needs a group arranged by its own place.
+        if (kind === "place" && wrapped && "origin" in cell && cell.origin === "place" && !silent) {
+          const target = elements.get(item);
+          const inner =
+            target?.kind === "group" ? (target.value as FigureGroup).arrange : undefined;
+          if (target !== undefined && inner?.place === undefined) {
+            push(
+              errorAt(
+                locate,
+                "layout/invalid-place-origin",
+                `origin: place on "${item}" needs a group arranged by its own place, but "${item}" is ${target.kind === "group" ? (inner === undefined ? "a group without an arrange tree" : "a group arranged by another box") : "a node"}.`,
+                [...path, kind, "items", index, "origin"],
+                {
+                  subject: ownerSubject,
+                  hint: "Arrange the group with place, or use origin: footprint or body.",
+                },
+              ),
+            );
+          }
+        }
         add({ id: item, path: itemPath, via: "arrange", owner, silent });
       }
       if (kind === "grid" && column !== 0 && !silent) {

@@ -193,9 +193,10 @@ export type EdgeLabelAt = EdgeLabelPosition | number;
 /**
  * How an edge's label is drawn (#610): `beside` the line (the default), or
  * as a `tag` on the line, its text in a small framed box that hides the line
- * under it. Structured layout only.
+ * under it, or (#649) as a round `badge` on the line (a circled step number).
+ * Structured layout only.
  */
-export const EDGE_LABEL_STYLES = ["beside", "tag"] as const;
+export const EDGE_LABEL_STYLES = ["beside", "tag", "badge"] as const;
 export type EdgeLabelStyle = (typeof EDGE_LABEL_STYLES)[number];
 
 /**
@@ -419,10 +420,10 @@ export const PlaceSchema = z
                 "Item center [x, y] in units; y grows downward. By default a group's (or a whole tokens sequence's) center is that of its frame including the nodes attached to it; origin: body gives the frame without them.",
               ),
             origin: z
-              .enum(["footprint", "body"])
+              .enum(["footprint", "body", "place"])
               .optional()
               .describe(
-                "What `at` is the center of for a group or whole tokens sequence: footprint (default) is its frame, which grows to hold attached nodes; body is the same frame without them, so a sketch's centers carry over. A plain node's center is always its body. Only on a node or group ID.",
+                "What `at` is the center of for a group or whole tokens sequence: footprint (default) is its frame, which grows to hold attached nodes; body is the same frame without them, so a sketch's centers carry over. A plain node's center is always its body. place (a group arranged by its own place only) makes `at` the point where that inner place's [0, 0] lands, so the inner `at` values are in this place's coordinates shifted by `at`: with at: [0, 0] and the same unit, one coordinate system for the page and the groups, with no group centres to work out. Only on a node or group ID.",
               ),
           }),
         )
@@ -671,6 +672,12 @@ export const AttachSchema = z.strictObject({
       "The side or corner of the target to place this node on; a corner separates the boxes by gap on both axes.",
     ),
   gap: LayoutLength.optional().describe("Space between the target and this node. Omitted means 0."),
+  inFlow: z
+    .boolean()
+    .optional()
+    .describe(
+      "false keeps the node out of the flow: the group its target is in (a tokens sequence, or any group) does not grow to hold it, so the row it sits in keeps its size and its neighbours do not shift; the node hangs over the frame, and only the group around that one (or the canvas) grows where it sticks out. It takes no room among the items next to it, so leave room with a gap. Omitted means true.",
+    ),
 });
 
 /**
@@ -1350,6 +1357,12 @@ export const LaneSchema = z.strictObject({
   outside: Id.optional().describe(
     "A group or node the lane runs just outside of (offset beyond its frame on that side) instead of beyond both ends: the frame a skip goes around, the panel a loop goes over, or the target beside which a bus's trunk runs.",
   ),
+  bus: z
+    .boolean()
+    .optional()
+    .describe(
+      'false keeps this lane out of any bus: it is not merged with the other lanes on its side that share its source or target, so it runs at its own offset, as a separate line. Give the shared end its own anchor on that side (fromAnchor: "east:0.3") so the lines leave apart. Omitted means true.',
+    ),
 });
 
 export const EdgeSchema = z.strictObject({
@@ -1385,7 +1398,7 @@ export const EdgeSchema = z.strictObject({
     .enum(EDGE_LABEL_STYLES)
     .optional()
     .describe(
-      "How the label is drawn: beside the line (beside, the default) or as a small tag on the line (tag): the text in a thin framed box, filled with the background, that sits centred on the line and hides it there. A tag needs no room beside the line, so it fits between close columns and names a point on a line; labelAt moves it along the route (structured layout only).",
+      "How the label is drawn: beside the line (beside, the default) or as a small tag on the line (tag): the text in a thin framed box, filled with the background, that sits centred on the line and hides it there. A tag needs no room beside the line, so it fits between close columns and names a point on a line; labelAt moves it along the route. badge is a tag in a round frame (a circle around a short label such as a step number, a pill around a longer one), placed the same way (structured layout only).",
     ),
   lane: LaneSchema.optional().describe(
     "The lane of a loop, skip or bus (structured layout only): the edge leaves and enters on the lane's side and its long segment runs `offset` beyond both ends (or beyond the frame of `outside`). Edges with lanes on one side that share a source (or a target) share one lane, the farthest: a bus with one trunk. Omitted means the router's own route.",

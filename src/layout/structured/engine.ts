@@ -171,6 +171,13 @@ const CENTER_VOID_RATIO = 0.25;
 
 const NO_OVERHANG: Readonly<Overhang> = Object.freeze({ north: 0, east: 0, south: 0, west: 0 });
 
+/** What a place item's `at` is the centre of (#517), or where its own place's [0, 0] sits (#649). */
+type PlaceOrigin = "footprint" | "body" | "place";
+
+/** The `origin` of item `i` of a place box. */
+const placeOrigin = (box: ArrangeBoxIR, i: number): PlaceOrigin =>
+  box.innerOrigin?.[i] === true ? "place" : box.bodyCentered?.[i] === true ? "body" : "footprint";
+
 /** The root container (the figure itself). */
 const ROOT = "";
 type Container = ElementKey | typeof ROOT;
@@ -364,6 +371,13 @@ class StructuredLayout {
   // The state of one pass (`run`).
   #struts: Struts = NO_STRUTS;
   readonly #overhangs = new Map<Container, Overhang>();
+  /**
+   * How far the out-of-flow attached nodes (`attach.inFlow: false`, #649) of
+   * a group reach beyond its frame: room the group does not make for them,
+   * which the container around it makes instead (only where they stick out
+   * of its arrange tree, like any attached node).
+   */
+  readonly #hangs = new Map<ElementKey, Overhang>();
   readonly #itemSizes = new Map<ElementKey, Size>();
   readonly #rects = new Map<ElementKey, Rect>();
   readonly #contents = new Map<ElementKey, Rect>();
@@ -610,6 +624,7 @@ class StructuredLayout {
     this.#shifts = shifts;
     this.#slots.clear();
     this.#overhangs.clear();
+    this.#hangs.clear();
     this.#itemSizes.clear();
     this.#rects.clear();
     this.#contents.clear();
@@ -921,7 +936,7 @@ class StructuredLayout {
       }
       if (box.kind !== "place") continue;
       const rects = box.items.map((item, i) =>
-        this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0], box.bodyCentered?.[i] === true),
+        this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0], placeOrigin(box, i)),
       );
       for (const [i, a] of rects.entries())
         for (let j = i + 1; j < rects.length; j++) {
@@ -1198,8 +1213,27 @@ class StructuredLayout {
         );
       }
       this.#placeAttached(container, local);
-      overhang = overhangOf(frame, this.#attachedRects(container, local));
+      // #649: a node attached with `inFlow: false` takes no room in its group;
+      // at the root (nothing around it) it still does, so the canvas holds it.
+      const inFlow = (node: NodeIR) => container === ROOT || node.attach?.inFlow !== false;
+      overhang = overhangOf(frame, [
+        ...this.#attachedRects(container, local, inFlow),
+        ...this.#hangRects(local),
+      ]);
       this.#overhangs.set(container, overhang);
+      if (container !== ROOT) {
+        const hanging = this.#attachedRects(container, local, (node) => !inFlow(node));
+        if (hanging.length > 0) {
+          const reach = overhangOf(frame, hanging);
+          const p = this.#padding(container);
+          this.#hangs.set(container, {
+            north: Math.max(0, reach.north - overhang.north - p.north),
+            east: Math.max(0, reach.east - overhang.east - p.east),
+            south: Math.max(0, reach.south - overhang.south - p.south),
+            west: Math.max(0, reach.west - overhang.west - p.west),
+          });
+        }
+      }
     }
     return {
       width: box.width + overhang.west + overhang.east,
@@ -1212,7 +1246,7 @@ class StructuredLayout {
   /** Union of natural footprints around the authored centers, without grid quantization. */
   #placeBounds(box: ArrangeBoxIR): Rect {
     const rects = box.items.map((item, i) =>
-      this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0], box.bodyCentered?.[i] === true),
+      this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0], placeOrigin(box, i)),
     );
     const x = Math.min(...rects.map((r) => r.x));
     const y = Math.min(...rects.map((r) => r.y));
@@ -1228,9 +1262,14 @@ class StructuredLayout {
   #coordinateRect(
     item: ArrangeItemIR,
     [x, y]: readonly [number, number],
-    withoutAttached = false,
+    origin: PlaceOrigin = "footprint",
   ): Rect {
+    const withoutAttached = origin === "body";
     const size = this.#itemSize(item);
+    // #649: `at` is where the group's own place puts its [0, 0].
+    const inner =
+      origin === "place" && typeof item === "string" ? this.#placeZero(item) : undefined;
+    if (inner !== undefined) return { x: x * 2 - inner.x, y: y * 2 - inner.y, ...size };
     let body = { x: 0, y: 0, ...size };
     if (typeof item === "string") {
       body = this.#bodyRect(item, body);
@@ -1256,6 +1295,42 @@ class StructuredLayout {
     return { x: x * 2 - body.x - body.width / 2, y: y * 2 - body.y - body.height / 2, ...size };
   }
 
+  /**
+   * `origin: place` (#649): where a group's own `place` puts its coordinate
+   * [0, 0], in its footprint at (0, 0) at its natural size, the way
+   * {@link #placeElement} and {@link #placeCoordinates} place it: its frame,
+   * the padding and title band, the room of its attached nodes, then the
+   * place box centred in what is left. Undefined for anything else (a node,
+   * a tilted plane, a group arranged otherwise); the check stage reports it.
+   */
+  #placeZero(key: ElementKey): { x: number; y: number } | undefined {
+    const group = this.#groups.get(key);
+    if (group?.arrange?.kind !== "place" || group.plane !== undefined) return undefined;
+    const size = this.#itemSize(key);
+    const rect = groupFrontRect(group, this.#bodyRect(key, { x: 0, y: 0, ...size }));
+    const p = this.#padding(key);
+    const band = this.#titleAbove(group) > 0 ? 0 : this.#labelSpace(group);
+    const top = labelAtBottom(group.labelAt) ? 0 : band;
+    const content = this.#alignedContent(group, {
+      x: rect.x + p.west,
+      y: rect.y + p.north + top,
+      width: rect.width - p.west - p.east,
+      height: rect.height - p.north - p.south - band,
+    });
+    const overhang = this.#overhangs.get(key) ?? NO_OVERHANG;
+    const frame = {
+      x: content.x + overhang.west,
+      y: content.y + overhang.north,
+      width: content.width - overhang.west - overhang.east,
+      height: content.height - overhang.north - overhang.south,
+    };
+    const bounds = this.#placeBounds(group.arrange);
+    return {
+      x: frame.x + (frame.width - bounds.width) / 2 - bounds.x,
+      y: frame.y + (frame.height - bounds.height) / 2 - bounds.y,
+    };
+  }
+
   #placeCoordinates(
     box: ArrangeBoxIR,
     frame: Rect,
@@ -1263,11 +1338,7 @@ class StructuredLayout {
   ): void {
     const bounds = this.#placeBounds(box);
     box.items.forEach((item, i) => {
-      const local = this.#coordinateRect(
-        item,
-        box.positionsPt?.[i] ?? [0, 0],
-        box.bodyCentered?.[i] === true,
-      );
+      const local = this.#coordinateRect(item, box.positionsPt?.[i] ?? [0, 0], placeOrigin(box, i));
       const placed = {
         ...local,
         x: frame.x + (frame.width - bounds.width) / 2 - bounds.x + local.x,
@@ -1991,10 +2062,32 @@ class StructuredLayout {
     };
   }
 
-  #attachedRects(container: Container, rects: Map<ElementKey, Rect>): Rect[] {
+  #attachedRects(
+    container: Container,
+    rects: Map<ElementKey, Rect>,
+    which: (node: NodeIR) => boolean = () => true,
+  ): Rect[] {
     return (this.#attached.get(container) ?? []).flatMap((node) => {
-      const rect = rects.get(node.key);
+      const rect = which(node) ? rects.get(node.key) : undefined;
       return rect === undefined ? [] : [rect, ...this.#decorations(node, rect)];
+    });
+  }
+
+  /** The frames of the groups among `rects` grown by their out-of-flow attached nodes (#649). */
+  #hangRects(rects: Map<ElementKey, Rect>): Rect[] {
+    if (this.#hangs.size === 0) return [];
+    return [...rects].flatMap(([key, rect]) => {
+      const hang = this.#hangs.get(key);
+      return hang === undefined
+        ? []
+        : [
+            {
+              x: rect.x - hang.west,
+              y: rect.y - hang.north,
+              width: rect.width + hang.west + hang.east,
+              height: rect.height + hang.north + hang.south,
+            },
+          ];
     });
   }
 

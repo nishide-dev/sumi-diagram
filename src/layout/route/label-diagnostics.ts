@@ -91,7 +91,7 @@ export function requestedLabelDiagnostics(
     ...routed.flatMap(({ edge, layout: e }) => {
       const label = e.route?.label;
       if (label === undefined) return [];
-      return [[e.key, isTagLabel(edge) ? tagBox(label.box, label) : label.box] as const];
+      return [[e.key, isTagLabel(edge) ? tagBox(label.box, label, edge) : label.box] as const];
     }),
   ];
   const bordered = layout.groups.filter((group) => {
@@ -109,7 +109,7 @@ export function requestedLabelDiagnostics(
     const label = e.route?.label;
     if (label === undefined || !hasRequestedLabel(edge) || !only(edge)) continue;
     // A tag (#610) takes its drawn frame.
-    const box = isTagLabel(edge) ? tagBox(label.box, label) : label.box;
+    const box = isTagLabel(edge) ? tagBox(label.box, label, edge) : label.box;
     const found: string[] = [];
     // A tag (#610) sits on its own segment; on a straight or curved line, on its line.
     const tag = isTagLabel(edge);
